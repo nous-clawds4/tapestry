@@ -1,6 +1,6 @@
 # Duty Menus and Self-Maps — Design Handoff
 
-**Status:** 🔴 OPEN — design captured 2026-10-10; name and header model decided (D8–D10); nothing ratified into `protocols/` yet. Next: ratify through the docs-mode flow (§ 8).
+**Status:** 🔴 OPEN — design captured 2026-10-10; name and header model decided (D8–D10). Ratification started 2026-10-10 as book `duty-menus-and-self-maps` (`engineering-team/audits/duty-menus-and-self-maps/book.md`); nothing landed in `protocols/` yet.
 **Created:** 2026-10-10
 **Provenance:** Scoped in one advisory session on 2026-10-10, started by the owner's question about the new external-Assistant support on `/treasure-map`. This is the Capture step of the Protocol-Spec workflow (`engineering-team/workflows/protocol-spec-workflow.md`): what is decided, what is proposed but not yet confirmed, and what is still open. Flip to ✅ SUPERSEDED once the pieces land in `protocols/`.
 
@@ -31,7 +31,7 @@
 | D7 | **One key per algorithm is acceptable.** NIP-85 requires a separate service key for each algorithm, so a provider offering two algorithms for one metric uses two keys, each with its own menu and self-Map. | the owner, 2026-10-10 |
 | D8 | **The name is "Duty Menu".** | the owner, 2026-10-10 |
 | D9 | **Every menu points at Nous' header:** storefront and per-customer menus alike carry `["z", "39998:<Nous>:duty-menu"]`. One query under that header therefore lists every provider's Assistant keys, per-customer keys included. Accepted: the link between a customer and their Assistant key is already public through the customer's own Map. | the owner, 2026-10-10 |
-| D10 | **Nous proposes the header as a Shared Concept**, declaring it canonical with a pointer-typed `b` that names its own coordinate. People add "Duty Menu" to their own dictionaries by referencing it. That is the existing adoption flow: their Assistant publishes its own header that points `b` at Nous'. No per-deployment firmware copy. | the owner, 2026-10-10 |
+| D10 | **Nous proposes the header as a Shared Concept**, self-declaring it with a pointer-typed `b` that names its own coordinate. People add "Duty Menu" to their own dictionaries by referencing it. That is the existing adoption flow: their Assistant publishes its own header that points `b` at Nous'. No per-deployment firmware copy. | the owner, 2026-10-10 |
 
 ## 3. Considered and set aside
 
@@ -76,7 +76,7 @@ The name, the publisher and the header model are decided (D4, D8–D10). The sha
   ["allowed", "json", "Per-duty details: description, update interval, algorithm. No price or tier."]
   ```
 - `required p` makes the item's subject `p` (`content-categories.md` § 5.1). A DList-based list over Duty Menus then reads as "the Assistants my trusted community accepts".
-- The `b` names the header's own coordinate, which declares it canonical: the root other headers affiliate with. That rule is proposed in `amendments-2026-09.md` § 3 and not yet in `inherit-from.md`. The code already writes it: Create New Concept, with no target, points `b` at the new header itself (`src/api/adoption/newConcept.js`).
+- The `b` names the header's own coordinate, which self-declares it: it offers the header as one others may affiliate with. That rule is proposed in `amendments-2026-09.md` § 3 and not yet in `inherit-from.md`. Its proposed wording says "canonical", which the D2 vocabulary policy (`docs/NIP_REORG_DESIGN_HANDOFF.md`) keeps out of normative text, so ratification rewords it (story 1 of the book). The code already writes it: Create New Concept, with no target, points `b` at the new header itself (`src/api/adoption/newConcept.js`).
 - **Publishing it.** Create New Concept with the singular name "duty menu" gives `d` = `duty-menu` (`headerDTag`, `src/lib/dtag.js`). But it writes only `d`, `names`, `description` and `b`. The `required` and `allowed` declarations above have to be added another way: published by hand, or by a later edit to the header.
 - **Adding it to a dictionary** (D10). A person's Assistant publishes its own header, `39998:<their Assistant>:duty-menu`, that copies Nous' tags and points `b` at Nous' header (`copiedHeaderTags`, `src/lib/conceptHeaderCopy.js`). It is the same "Add to My Dictionary" flow as any Shared Concept (`ui/src/pages/dictionaries/Concepts.jsx`). Because the copy keeps the `required`/`allowed` declarations, they must be on Nous' header before people adopt it.
 - **Items point at Nous' header, not at dictionary copies** (D9). A reader that starts from someone's dictionary copy follows its `b` to Nous' header and queries `#z` there.
