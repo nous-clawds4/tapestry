@@ -1,6 +1,6 @@
 # Story 1: Ratify the self-pointing `b` (self-declared Shared Concepts)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Doc
 
@@ -54,4 +54,4 @@ convergence, convention).
 
 - ADR: [`engineering-team/decisions/duty-menus-and-self-maps/0001-self-declaration-in-the-b-tag-section.md`](../../decisions/duty-menus-and-self-maps/0001-self-declaration-in-the-b-tag-section.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/duty-menus-and-self-maps/1-ratify-self-pointing-b.md`](../../reviews/duty-menus-and-self-maps/1-ratify-self-pointing-b.md)
