@@ -278,6 +278,7 @@ const suites = [
   { file: 'negentropy-sync-access.test.js' },
   { file: 'auth-path-case.test.js' },
   { file: 'task-routes-owner-admin.test.js' },
+  { file: 'auth-head-requests.test.js' },
   { file: 'assistant-profile-check.test.js' },
   { file: 'assistant-trusted-content.test.js' },
   { file: 'assistant-profile-checklist-page.test.js' },
