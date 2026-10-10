@@ -69,9 +69,10 @@ function realGetSettings() {
 
 /** Default local strfry scan (kind-3 follows / kind-0 profiles). */
 function realScanStrfry(filter) {
-  const { execSync } = require('child_process');
+  const { execFileSync } = require('child_process');
   const filterStr = typeof filter === 'string' ? filter : JSON.stringify(filter);
-  const raw = execSync(`strfry scan '${filterStr.replace(/'/g, "\\'")}'`, {
+  // An argument list, never a shell string.
+  const raw = execFileSync('strfry', ['scan', filterStr], {
     timeout: 5000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
   });
   const events = [];
