@@ -1620,12 +1620,15 @@ test('S10: POST /api/dlist-curation/update is registered from src/api/dlist-cura
   try { mod.register(app); } catch (err) { throw new Error(`register(app) must run here without the container: ${String((err && err.message) || err).slice(0, 160)}`); }
   assert(routes.includes('POST /api/dlist-curation/update'), `ADR 0006 §1 / note 2: POST /api/dlist-curation/update is registered; got ${brief(routes)}`);
   assert(routes.includes('POST /api/dlist-curation/header'), 'the header route stays registered');
-  const auth = src(AUTH);
-  const subs = ['customerOrOwnerEndpoints', 'ownerOnlyEndpoints', 'ownerOnlyGetEndpoints']
-    .flatMap((n) => [...(((auth.match(new RegExp(`const\\s+${n}\\s*=\\s*\\[([\\s\\S]*?)\\]`)) || [])[1]) || '').matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]));
-  assert(subs.length > 10, `the auth middleware's owner-only lists were read; got ${subs.length} entries`);
-  const caught = subs.filter((x) => '/api/dlist-curation/update'.includes(x));
-  assert(caught.length === 0, `ADR 0006 § Context: no owner-only substring catches the route; caught by ${brief(caught)}`);
+  // Re-aimed for security-auth-exposure #8 (ADR 0005): the auth middleware's hand-kept substring lists are gone; the
+  // route table decides access. The route is an allowlisted signed-in action (own Assistant's curated list), so it
+  // must resolve to 'signed-in' — not owner-gated.
+  const TABLE = path.join(ROOT, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const { resolveRouteAccess } = require(TABLE);
+  const access = resolveRouteAccess('POST', '/api/dlist-curation/update');
+  assert(access === 'signed-in', `ADR 0005: POST /api/dlist-curation/update must resolve to 'signed-in' (the author's own curated list); got '${access}'`);
 });
 
 /* ── S, ADR 0006 Amendment 2: an unknown outcome is never "nothing" ── */

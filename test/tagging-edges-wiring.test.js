@@ -850,10 +850,20 @@ test('SWR11: src/api/index.js registers GET /api/tagging-edges/status and /held 
     if (show(got) !== show(args)) problems.push(`${method.toUpperCase()} ${p} must be registered with ${args.join(', ')}; got ${got.join(', ')}`);
     if (m.index < adminAt) problems.push(`${p} must be registered after adminApi is required`);
   }
-  const auth = safeRead(AUTH_MW);
-  const gated = [...(stringsOfArray(auth, 'ownerOnlyEndpoints') || []), ...(stringsOfArray(auth, 'ownerOnlyGetEndpoints') || [])];
-  assert(gated.length > 0, 'could not read ownerOnlyEndpoints from src/middleware/auth.js');
-  for (const [, p] of routes) for (const g of gated) if (p.includes(g)) problems.push(`${p} contains the owner-only substring ${g} (auth.js would gate it by substring)`);
+  // Re-aimed for security-auth-exposure #8 (ADR 0005): the auth middleware's hand-kept substring lists are gone; the
+  // route table decides access by exact path pattern. The two status/held reads must resolve to 'public'; the
+  // owner-only confirm route resolves owner-side (its requireOwnerOnly guard still stands, asserted above).
+  const TABLE = path.join(REPO_ROOT, 'src/middleware/routeAccess.js');
+  if (!fs.existsSync(TABLE)) { problems.push('src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)'); }
+  else {
+    delete require.cache[require.resolve(TABLE)];
+    const { resolveRouteAccess } = require(TABLE);
+    for (const [method, p] of routes) {
+      const access = resolveRouteAccess(method.toUpperCase(), p);
+      if (method === 'get' && access !== 'public') problems.push(`${p} must resolve to 'public' in the route table; got '${access}'`);
+      if (method === 'post' && !['owner', 'owner-only'].includes(access)) problems.push(`${p} must resolve owner-side in the route table; got '${access}'`);
+    }
+  }
   assert(problems.length === 0, problems.join('\n        '));
 });
 
@@ -2200,10 +2210,20 @@ test('SWR67 (revised for story 5 — ADR tagging-edges/0005 D5, D6): src/api/ind
     if (m.index < adminAt) problems.push(`${method.toUpperCase()} ${p} must be registered after adminApi is required`);
     if (m.index < passAt) problems.push(`${method.toUpperCase()} ${p} must be registered after the pass's three routes`);
   }
-  const auth = safeRead(AUTH_MW);
-  const gated = [...(stringsOfArray(auth, 'ownerOnlyEndpoints') || []), ...(stringsOfArray(auth, 'ownerOnlyGetEndpoints') || [])];
-  assert(gated.length > 0, 'could not read ownerOnlyEndpoints from src/middleware/auth.js');
-  for (const p of uniq(routes.map(([, rp]) => rp))) for (const g of gated) if (p.includes(g)) problems.push(`${p} contains the owner-only substring ${g} (auth.js would gate it by substring)`);
+  // Re-aimed for security-auth-exposure #8 (ADR 0005): the auth middleware's hand-kept substring lists are gone; the
+  // route table decides access by exact path pattern. The realtime status read must resolve to 'public'; the
+  // owner-or-admin switch route resolves owner-side (its requireOwnerOrAdmin guard still stands, asserted above).
+  const TABLE = path.join(REPO_ROOT, 'src/middleware/routeAccess.js');
+  if (!fs.existsSync(TABLE)) { problems.push('src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)'); }
+  else {
+    delete require.cache[require.resolve(TABLE)];
+    const { resolveRouteAccess } = require(TABLE);
+    for (const [method, p] of routes) {
+      const access = resolveRouteAccess(method.toUpperCase(), p);
+      if (p === STATUS_PATH && access !== 'public') problems.push(`${p} must resolve to 'public' in the route table; got '${access}'`);
+      if (p === SWITCH_PATH && !['owner', 'owner-only'].includes(access)) problems.push(`${method.toUpperCase()} ${p} must resolve owner-side in the route table; got '${access}'`);
+    }
+  }
   assert(problems.length === 0, problems.join('\n        '));
 });
 

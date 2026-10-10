@@ -184,16 +184,15 @@ test('S1: the roster handler exists and is registered as a GET under /api/assist
     "ADR 0001 §Implementation: src/api/index.js must register app.get('/api/assistant/roster', …) beside the other /api/assistant/* routes");
 });
 
-test('S2: the roster path collides with no protectedGetEndpoints entry', () => {
-  const mw = src(AUTH_MW_JS);
-  const block = mw.slice(mw.indexOf('protectedGetEndpoints'));
-  const entries = [...block.slice(0, 400).matchAll(/'(\/[^']+)'/g)].map((m) => m[1]);
-  assert(entries.length > 0, 'could not read protectedGetEndpoints from src/middleware/auth.js');
-  const p = '/api/assistant/roster';
-  for (const e of entries) {
-    assert(!p.includes(e),
-      `ADR 0001 §Implementation: protectedGetEndpoints matches with .includes(), so the roster path must contain no entry as a substring — '${p}' contains '${e}' and would be silently 401'd`);
-  }
+// Re-aimed for security-auth-exposure #8 (ADR 0005): the hand-kept protectedGetEndpoints list is gone; the route table
+// decides access. The roster is a public read (the handler shapes its content by session), so it must resolve to
+// 'public' — never silently gated.
+test('S2: the roster path resolves to a public read in the route table', () => {
+  const TABLE = path.join(ROOT, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const access = require(TABLE).resolveRouteAccess('GET', '/api/assistant/roster');
+  assert(access === 'public', `ADR 0005: GET /api/assistant/roster must resolve to 'public'; got '${access}'`);
 });
 
 test('S3: the handler names no private key material and never calls getAssistantKeys directly', () => {

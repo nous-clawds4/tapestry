@@ -175,5 +175,5 @@ public reads to the owner's side; they are named in the private inventory, commi
 - Book: `engineering-team/audits/admin-action-owner-check/book.md`
 - Intake: `engineering-team/stories/_intake.md`, entry 2026-07-21 (security-auth-exposure phase 2) and its addenda
 - ADR: `engineering-team/decisions/security-auth-exposure/0005-one-route-table-default-deny.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/security-auth-exposure/8-admin-action-sweep.test-plan.md`
 - Review: (filled in after Review phase)
