@@ -137,6 +137,7 @@ Derived from what PR #832 brought into `staging` (`git diff 17243cdf^1 17243cdf`
 | The profile book's browser B2 could not pass as written | Review § Harness friction 2 | OPEN.md row `2026-10-09-profile-check-spec-b2-outbox-count`, already DONE (fixed on staging by `fabd2cb5`) |
 | A gate run beside a UI build and browser tests, or beside another session's gate on the same stack, fails wall-clock tests that pass alone | Phase 4 gate `atcs-impl-final`; addendum gate `review-merge2` | OPEN.md row `2026-10-08-realtime-wrapper-timing-flake-under-load` (existing; occurrence appended) |
 | `patches/strfry-router/apply-patches.sh` uses GNU `sed -i`, so its suite fails on every macOS gate | Merge addendum | OPEN.md row `2026-10-09-router-patch-sed-macos` (bug, relay-stream-gaps' lane) |
+| The close PR's safe-to-merge check could never pass: staging's 10-minute negentropy-sync schedule keeps the next fire inside the 10-minute buffer. The owner chose to merge just after a sync | Close PR #833 | OPEN.md row `2026-10-10-ten-minute-schedule-blocks-merges` (bug) |
 | Phase 4 test corrections belong in their own `test:` commit (`implement-feature` doesn't say so) | This book followed it, confirming the existing row | OPEN.md row `2026-10-09-phase4-test-fixes-own-commit` (existing; nothing to add) |
 
 **Does it port to the other flow?** All three meta rows apply to Direction mode unchanged. A Director that merges a parallel book mid-run meets the same stale-Deviation and post-review-merge questions, and its judges use the same baseline recipe.
