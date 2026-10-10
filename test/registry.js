@@ -252,6 +252,11 @@ const suites = [
   { file: 'my-curated-dlists-items.test.js' },
   { file: 'assistant-setup-state.test.js' },
   { file: 'gate-result-record.test.js' },
+  { file: 'negentropy-sync-input.test.js' },
+  { file: 'auth-head-requests.test.js' },
+  { file: 'task-routes-owner-admin.test.js' },
+  { file: 'auth-path-case.test.js' },
+  { file: 'negentropy-sync-access.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so
