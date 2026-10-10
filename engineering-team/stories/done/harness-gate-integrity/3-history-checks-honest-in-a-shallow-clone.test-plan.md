@@ -1,6 +1,6 @@
 # Test Plan: Story 3 — The lint's history checks tell the truth in a shallow clone
 
-**Story:** `engineering-team/stories/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
+**Story:** `engineering-team/stories/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
 **ADR:** none. Under Standard strictness, a bug with an obvious fix skips Architecture. The checks extend
 `harness-self-improvement/0001`'s invariant set.
 **Date:** 2026-10-09

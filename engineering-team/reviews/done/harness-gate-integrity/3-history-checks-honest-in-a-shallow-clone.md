@@ -3,9 +3,9 @@
 **Reviewer:** Claude (acting as Reviewer; an independent fresh-context spawn that did not write the story, the tests or the implementation)
 **Date:** 2026-10-09
 **Diff:** `git diff origin/staging...HEAD` at HEAD `2e0a6597`. The merge base is `17243cdf`, which equals `origin/staging` and is the merge's second parent, so the two-dot and three-dot diffs are identical (8 files, +408/−11). Story commits (first-parent): `36e25963` Planning, `ed4c56f8` Test Design, `ec9d732b` Implementation.
-**Story:** `engineering-team/stories/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
+**Story:** `engineering-team/stories/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
 **ADR:** none. Under Standard strictness, a bug with an obvious fix skips Architecture. The change extends the invariant set of `engineering-team/decisions/harness-self-improvement/0001-harness-lint.md`.
-**Test plan:** `engineering-team/stories/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.test-plan.md`
+**Test plan:** `engineering-team/stories/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.test-plan.md`
 
 ## Quality gates (run by reviewer, not trusted)
 

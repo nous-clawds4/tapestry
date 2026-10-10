@@ -4,7 +4,7 @@
 **Type:** meta
 **Opened:** 2026-10-07 (treasure-map-edit #1, Test Design)
 **Status:** DONE
-**Done:** 2026-10-09 (story `harness-gate-integrity` #3) — L10 and L9 print INFO instead of judging a shallow clone's boundary commit, and L10's touch test no longer fails a large commit under pipefail. Review: `engineering-team/reviews/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`.
+**Done:** 2026-10-09 (story `harness-gate-integrity` #3) — L10 and L9 print INFO instead of judging a shallow clone's boundary commit, and L10's touch test no longer fails a large commit under pipefail. Review: `engineering-team/reviews/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`.
 
 Cloud sessions clone the repo shallow (50 commits). `scripts/harness-lint.sh` L10 asks
 `git log -1 --no-merges -- <harness-definition paths>` for the latest harness change. At the clone's boundary, git

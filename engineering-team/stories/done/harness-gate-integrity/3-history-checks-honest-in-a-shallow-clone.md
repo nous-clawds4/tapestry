@@ -100,8 +100,8 @@ None.
   `ledger/2026-10-09-lint-l10-misfires-on-shallow-clones.md`
 - ADR: none (Standard strictness: a bug with an obvious fix skips Architecture). The fix extends the
   existing checks in `scripts/harness-lint.sh` under ADR `harness-self-improvement/0001`.
-- Test plan: `engineering-team/stories/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.test-plan.md`
+- Test plan: `engineering-team/stories/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.test-plan.md`
   (tests in `test/harness-lint.test.js`, section "shallow clones (harness-gate-integrity #3)")
-- Review: `engineering-team/reviews/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
+- Review: `engineering-team/reviews/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

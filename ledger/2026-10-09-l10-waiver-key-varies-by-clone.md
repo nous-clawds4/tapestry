@@ -20,4 +20,4 @@ L10 waiver lookup compare the full sha against the waiver's prefix. Document the
 existing `commit:*` glob test passing.
 
 **Pointer:** `scripts/harness-lint.sh` (`check_L10`, `violation()`); the review
-`engineering-team/reviews/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md` § "Harness friction".
+`engineering-team/reviews/done/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md` § "Harness friction".
