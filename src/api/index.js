@@ -272,10 +272,12 @@ async function register(app) {
     app.get('/api/hops-count', algos.hops.handleGetHopsCount);
     
     // Pipeline endpoints
+    // Negentropy syncs: owner, admins and direct-local callers only (./strfry/negentropyAccess.js).
+    const { requireSyncManager } = require('./strfry/negentropyAccess');
     app.post('/api/delete-all-relationships', pipeline.handleDeleteAllRelationships);
     app.post('/api/batch-transfer', pipeline.handleBatchTransfer);
     app.post('/api/reconciliation', pipeline.handleReconciliation);
-    app.post('/api/negentropy-sync', pipeline.handleNegentropySync);
+    app.post('/api/negentropy-sync', requireSyncManager, pipeline.handleNegentropySync);
 
     // Algos endpoint
     app.post('/api/calculate-hops', algos.hops.handleCalculateHops);
@@ -283,9 +285,9 @@ async function register(app) {
     // Task execution endpoint
     app.post('/api/run-task', manage.handleRunTask);
     // Negentropy sync endpoints
-    app.post('/api/negentropy-sync-wot', manage.handleNegentropySyncWoT);
-    app.post('/api/negentropy-sync-profiles', manage.handleNegentropySyncProfiles);
-    app.post('/api/negentropy-sync-personal', manage.handleNegentropySyncPersonal);
+    app.post('/api/negentropy-sync-wot', requireSyncManager, manage.handleNegentropySyncWoT);
+    app.post('/api/negentropy-sync-profiles', requireSyncManager, manage.handleNegentropySyncProfiles);
+    app.post('/api/negentropy-sync-personal', requireSyncManager, manage.handleNegentropySyncPersonal);
 
     // Add route handler for Brainstorm control
     app.post('/api/brainstorm-control', manage.handleBrainstormControl);
