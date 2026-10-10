@@ -16,6 +16,7 @@
 
 const { spawn, execFile } = require('child_process');
 const WebSocket = require('ws');
+const { requireSyncManager, requireSyncManagerOrPovSync } = require('./negentropyAccess');
 
 // Track active sync so we can report status
 let activeSync = null;
@@ -472,11 +473,12 @@ async function handleNegentropySyncCount(req, res) {
   res.json(results);
 }
 
+// Owner, admins and direct-local callers run any sync; other signed-in people only the POV sync (negentropyAccess.js).
 function registerNegentropySyncRoutes(app) {
-  app.post('/api/strfry/negentropy-sync', handleNegentropySync);
-  app.get('/api/strfry/negentropy-sync/stream', handleNegentropySyncStream);
-  app.get('/api/strfry/negentropy-sync/status', handleNegentropySyncStatus);
-  app.get('/api/strfry/negentropy-sync/count', handleNegentropySyncCount);
+  app.post('/api/strfry/negentropy-sync', requireSyncManagerOrPovSync, handleNegentropySync);
+  app.get('/api/strfry/negentropy-sync/stream', requireSyncManager, handleNegentropySyncStream);
+  app.get('/api/strfry/negentropy-sync/status', requireSyncManager, handleNegentropySyncStatus);
+  app.get('/api/strfry/negentropy-sync/count', requireSyncManager, handleNegentropySyncCount);
 }
 
 // Pure helpers exported for direct execution by the test runner
