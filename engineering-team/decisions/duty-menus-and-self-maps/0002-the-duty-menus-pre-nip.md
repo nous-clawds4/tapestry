@@ -1,6 +1,6 @@
 # ADR 0002: The Duty Menus pre-NIP — one self-signed item per Assistant key under Nous' header
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-10
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md`
 
@@ -82,7 +82,6 @@ Pros:
 
 Cons:
 - One more spec in the index.
-- Two owner confirmations are sought (below).
 
 ### Option B — A new section inside `treasure-maps.md`
 
@@ -146,7 +145,7 @@ We chose **Option A**.
      insights will be published. A `duty` row with a missing or empty relay is invalid and ignored. This deliberately
      differs from Treasure Maps § 3, where an empty relay still names a provider.
    - **`["not-offered", "<Treasure Map key>"]`** states an exception, such as "every Score except `30385`". It takes
-     part in precedence like any row. Pending the owner's confirmation (below).
+     part in precedence like any row (confirmed by the owner, 2026-10-10).
    - Keys are normalized before any comparison, duplicate check or details lookup: naddrs and nevents canonicalized
      (§ 4.1), omitted or empty trailing segments dropped (§ 4.4), `39998:dlist-header` read as `39998` (§ 4.5).
    - At most one row per normalized key; on duplicates the first row wins. Unparseable keys are ignored, and elements
@@ -179,8 +178,8 @@ We chose **Option A**.
      **self-pointing** `["storefront", "39999:<own key>:duty-menu"]`, the same idiom as self-declaration. Only menus so
      marked are storefronts, so the marker fails closed: no menu poses as a storefront by leaving something out.
    - **A per-customer menu** is the menu of a key that serves one observer (Treasure Maps § 9, "One key per observer").
-     It MAY carry `["storefront", "39999:<storefront key>:duty-menu", "<relay>"]` naming its provider's storefront.
-     Pending the owner's confirmation (below). That link is the key's own claim, not proof that the storefront's author
+     It MAY carry `["storefront", "39999:<storefront key>:duty-menu", "<relay>"]` naming its provider's storefront (owner,
+     2026-10-10: MAY, not MUST). That link is the key's own claim, not proof that the storefront's author
      runs it.
    - **Row meaning differs by menu.** A per-customer menu's rows say what *this key* will publish for the one observer
      it serves. A storefront's rows say what the provider offers and where its per-customer keys will publish. Readers
@@ -241,14 +240,12 @@ We chose **Option A**.
       deliberately held community key, offered as a self-declared Shared Concept and adopted into dictionaries by
       pointer-`b`, with no per-deployment firmware copy.
 
-**Owner confirmations sought at the gate:**
-- **(a) Exceptions.** Keep the explicit `["not-offered", "<key>"]` tag (recommended)? Otherwise menus can list only what
-  is offered.
-- **(b) The per-customer → storefront link.** MAY (recommended): a provider can decline the explicit key→provider link,
-  which together with customers' public Maps would otherwise reveal its customer list. MUST: every per-customer menu
-  names its storefront. The storefront *marker* is self-pointing and fails closed either way.
-- **(c) "Don't want to be found."** Under D9 this means staying out of directories that follow the rule (no storefront),
-  not being unfindable. Is that the meaning you intended?
+**Owner confirmations at the gate (2026-10-10), all three as recommended:**
+- **(a) Exceptions: yes.** Menus may state them with the explicit `["not-offered", "<key>"]` tag.
+- **(b) The per-customer → storefront link is MAY.** A provider can decline it. The storefront marker is self-pointing and
+  fails closed.
+- **(c) "Don't want to be found"** means staying out of directories that follow the rule, by publishing no storefront. It
+  does not mean being unfindable: under D9, per-customer menus still sit under Nous' header.
 
 ## Consequences
 
@@ -279,7 +276,7 @@ We chose **Option A**.
 Docs-mode: the Implementer authors exactly these.
 
 1. **`protocols/drafts/duty-menus.md`**, laid out per sub-decision 14, carrying sub-decisions 1–13 as normative text
-   (sub-decision 9's directory as non-normative), with the owner's answers to (a)–(c) applied. Examples use the full Nous
+   (sub-decision 9's directory as non-normative), with the owner's answers (a)–(c) applied. Examples use the full Nous
    pubkey and placeholder keys `<A>` (a per-customer key) and `<S>` (a storefront key).
 2. **`protocols/README.md`:** the index row from sub-decision 15, placed after the DList Auxiliary Events row and before
    the Amendments row.
