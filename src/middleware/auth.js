@@ -366,7 +366,8 @@ async function authMiddleware(req, res, next) {
     // Check if user is authenticated for API calls
     if (req.session && req.session.authenticated) {
         // TODO: differentiate between owner and customer endpoints
-        // Endpoints accessible by any authenticated user (owner, customer, or guest)
+        // Endpoints any authenticated user passes here. The negentropy-sync routes then apply their own
+        // guard (src/api/strfry/negentropyAccess.js): owner and admins only, except one narrow POV sync.
         const authenticatedEndpoints = [
             '/negentropy-sync-wot',
             '/negentropy-sync-profiles',
