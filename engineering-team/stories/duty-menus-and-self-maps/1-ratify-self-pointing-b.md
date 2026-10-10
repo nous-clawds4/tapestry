@@ -52,6 +52,6 @@ convergence, convention).
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/duty-menus-and-self-maps/0001-self-declaration-in-the-b-tag-section.md`](../../decisions/duty-menus-and-self-maps/0001-self-declaration-in-the-b-tag-section.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
