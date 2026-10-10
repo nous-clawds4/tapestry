@@ -1,7 +1,7 @@
 # Epic: security-auth-exposure
 
 **Created:** 2026-07-19
-**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment. Stories 4–6 added 2026-10-10 the same way, under book `audits/negentropy-sync-access/`.)
+**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment. Stories 4–7 added 2026-10-10 the same way, under book `audits/negentropy-sync-access/`, closed 2026-10-10; the epic's folders stay outside `done/`, as after the 2026-09-11 close — see that book's audit §2.)
 
 ## Goal
 

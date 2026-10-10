@@ -16,4 +16,19 @@ It recurred twice in the same book: story 6's first record said a stranger "cann
 exports" while other admin actions could still do so, and story 7's first record said "no other method slips past" the
 owner-only list while one owner-only path is served by a GET that acts. Both caught by the Reviewer.
 
-**Pointer:** `engineering-team/reviews/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` Blocking 1.
+**Measured at the book's close (2026-10-10).**
+- Four stories, all shipped as hotfixes before their records.
+- The code passed its first independent read four times out of four.
+- The record was sent back for three stories out of four, in four CHANGES_REQUESTED rounds, every one about the record.
+- The overclaims share a shape: a sentence saying *only*, *every* or *no other* about something nobody had searched
+  for.
+
+**Proposed amendment (for the operator to ratify or decline; not made).** Add one sentence to `workflows/0-intake.md`
+step 3, after the hotfix clause, and the same sentence to `roles/product-owner.md` for a story written after the fact:
+"A record written after a hotfix names the effect the fix closes and searches the repo for every other way to reach it
+(routes, registered tasks, methods, spellings) before any sentence says *only*, *every* or *no other*; whatever the
+search did not cover is written as not covered." Both files are harness-definition paths, so the change owes a
+CHANGELOG row. Ports to both flows: anyone who writes a record from a shipped diff meets the same gap.
+
+**Pointer:** `engineering-team/reviews/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` Blocking 1;
+`engineering-team/audits/negentropy-sync-access/audit.md` §7 #1.

@@ -28,6 +28,22 @@ gate all ran over #787's code. But the same path can carry unreviewed code to st
 Either touches harness-definition paths and owes a CHANGELOG row. Ports to both flows: a Director that merges a
 prerequisite PR meets the same gap.
 
+**A second instance, of a different kind (book `negentropy-sync-access`, appended at its close, 2026-10-10).**
+- **What happened.** Four security fixes went to production as hotfixes (PRs #837, #839, #840, #841) before any
+  review: a new guard module, three changes to `src/middleware/auth.js`, and four new suites. The owner chose this
+  explicitly, because one hole was reachable without signing in.
+- **How it differs from #787.** Each fix got a story, a test plan and a full review afterwards, and all four passed on
+  the code.
+- **What is missing.** The lane the book used, "ship, then record, then review", is written nowhere: step 3's clause
+  covers only trivial hotfixes. The fix shape above should cover this lane too, by saying what an above-bar hotfix owes
+  afterwards:
+  - a record that searches for sibling paths before it claims completeness (row
+    `2026-10-10-after-the-fact-record-misses-siblings`);
+  - a frame left unticked until the review (row `2026-10-10-frame-ticked-before-review`);
+  - a review before the book closes.
+- **Scope.** This half applies to the human-gated flow only: a Direction run cannot ship to production.
+
 **Pointer:** `engineering-team/audits/relay-stream-gaps/audit.md` §4 (Undocumented work) and §7;
 `engineering-team/reviews/done/relay-stream-gaps/1-stream-changes-without-router-restart.md` header and Quality gates;
-`ledger/2026-09-30-router-saved-state-revalidation.md`; `engineering-team/workflows/0-intake.md` step 3.
+`ledger/2026-09-30-router-saved-state-revalidation.md`; `engineering-team/workflows/0-intake.md` step 3;
+`engineering-team/audits/negentropy-sync-access/audit.md` §4 #3 and §7 #4.

@@ -1,9 +1,9 @@
 # Book of Work: Who may run a negentropy sync, and the access holes found on the way
 
 **Slug:** negentropy-sync-access
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-10
-**Closed:** —
+**Closed:** 2026-10-10
 **Gating:** **Human-gated.** A live access-control fix; the owner answers every gate. No Direction mode.
 
 ## Intent anchor
@@ -67,3 +67,18 @@ Asked about the saved presets: owner and admins.
 - Stories 5–7: `engineering-team/stories/security-auth-exposure/5-paths-judged-case-insensitively.md`,
   `6-task-control-owner-and-admins.md`, `7-head-judged-as-get.md` (+ `.test-plan.md` each)
 - Reviews: `engineering-team/reviews/security-auth-exposure/4-…`, `5-…`, `6-…` `7-…`
+
+## Provenance
+
+- **Mode:** Acceptance-frame
+- **Confidence at close:** high. Every frame bullet is backed by a PASS review that re-derived it, a green gate, a
+  successful production deploy (runs 141, 143, 144, 145) and live anonymous checks recorded in the reviews. The frame
+  is narrow on purpose: the remaining admin actions with no owner check of their own (decisions 10–11) are outside it
+  and still open.
+- **Epic housekeeping at close:** `security-auth-exposure` stays Done. Its folders stay outside `done/`, as after the
+  2026-09-11 close (audit §2).
+
+## Close artifacts *(filled by `/close-book`)*
+
+- Build audit: `engineering-team/audits/negentropy-sync-access/audit.md`
+- Product feedback: `engineering-team/audits/negentropy-sync-access/prd-seed.md`
