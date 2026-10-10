@@ -253,6 +253,7 @@ const suites = [
   { file: 'assistant-setup-state.test.js' },
   { file: 'gate-result-record.test.js' },
   { file: 'negentropy-sync-input.test.js' },
+  { file: 'negentropy-sync-access.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so
