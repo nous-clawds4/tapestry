@@ -124,12 +124,16 @@ t('AC5: a public GET read (deploy-safety status, proxied) is unaffected — pass
   assert(nextCalled && res.statusCode === null, `public reads must stay reachable; got next=${nextCalled} status=${res.statusCode}.`);
 });
 
-t('AC (no regression): an authenticated-session mutation is unaffected (authenticated branch)', async () => {
+// Re-aimed for security-auth-exposure #8 (ADR 0005): story 2 left the authenticated branch default-OPEN, so a logged-in
+// non-owner passed any unlisted mutation — exactly the hole the sweep closes. After the sweep, an unlisted mutation
+// fail-closes to the owner's side, so a signed-in non-owner is refused 403 and nothing runs. A synthetic unlisted path
+// is used so this names no still-open route (book disclosure rule).
+t('AC8-sweep: a signed-in non-owner is now refused 403 on an unlisted mutation (the sweep closes the authenticated-open hole)', async () => {
   const { nextCalled, res } = await callAuth(proxied({
-    method: 'POST', path: '/api/firmware/install',
-    session: { authenticated: true, pubkey: 'deadbeef' },
+    method: 'POST', path: '/api/__sweep_failclosed_action__',
+    session: { authenticated: true, pubkey: 'b'.repeat(64) },
   }));
-  assert(nextCalled && res.statusCode === null, `a logged-in user's request must pass the middleware; got next=${nextCalled} status=${res.statusCode}.`);
+  assert(!nextCalled && res.statusCode === 403, `a signed-in non-owner must be refused 403 on an owner-side action; got next=${nextCalled} status=${res.statusCode}.`);
 });
 
 // ── publishEvent: TA-signing gate ──
@@ -147,11 +151,19 @@ t('AC3: signAs:"client" is NOT blocked by the assistant-gate (public client-sign
 
 // ── Source sentinels ──
 
-t('S: auth middleware does method-based default-deny with an exact-match public allowlist', async () => {
-  const src = readSafe(AUTH) || '';
-  assert(/['"]\/api\/strfry\/publish['"]/.test(src), 'auth.js does not list /api/strfry/publish on the public-mutation allowlist.');
-  assert(/['"]\/api\/neo4j\/query['"]/.test(src), 'auth.js does not list /api/neo4j/query on the public-mutation allowlist.');
-  assert(/PATCH/.test(src) && /DELETE/.test(src), 'auth.js unauth branch is not method-based (no PATCH/DELETE handling) — still POST-only.');
+// Re-aimed for security-auth-exposure #8 (ADR 0005): the PUBLIC_MUTATIONS allowlist and the method-based unauth branch
+// are gone; the route table decides access by exact path pattern. The two decided public mutations must resolve to
+// 'public'; any unknown mutation is fail-closed to 'owner', whatever its method.
+t('S: the route table opens the two decided public mutations and fail-closes everything else', () => {
+  const TABLE = path.join(ROOT, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const { resolveRouteAccess } = require(TABLE);
+  assert(resolveRouteAccess('POST', '/api/strfry/publish') === 'public', 'POST /api/strfry/publish must resolve to public (client-signed publish).');
+  assert(resolveRouteAccess('POST', '/api/neo4j/query') === 'public', 'POST /api/neo4j/query must resolve to public (the read backbone).');
+  for (const m of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    assert(resolveRouteAccess(m, '/api/__no_such_mutation__') === 'owner', `an unknown ${m} mutation must fail closed to owner.`);
+  }
 });
 
 t('S: the honest-local bypass is broadened beyond normalize/neo4j (covers all /api paths)', async () => {
@@ -163,9 +175,16 @@ t('S: the honest-local bypass is broadened beyond normalize/neo4j (covers all /a
     'the honest-local bypass is still restricted to /api/normalize||/api/neo4j — it must be broadened to all /api paths (ADR 0002).');
 });
 
-t('S: publishEvent gates signAs:"assistant" on owner OR localTrusted (isOwner imported, 403)', async () => {
+// Re-aimed for security-auth-exposure #8 (ADR 0005 Decision 4): signing as the instance assistant becomes owner-only
+// (an admin is refused; settles OPEN.md row 269), so the handler checks the OWNER — not the owner-or-admin isOwner alias.
+// This sentinel stays at source level (gate present: an owner check, req.localTrusted, a 403); the exact owner-only
+// semantics (admin 403, owner allowed) are pinned behaviourally by admin-action-sweep-access PARAM1.
+t('S: publishEvent gates signAs:"assistant" on the owner OR localTrusted, with a 403', async () => {
   const src = readSafe(PUBLISH) || '';
-  assert(/require\(['"][^'"]*middleware\/auth['"]\)/.test(src) && /isOwner/.test(src), 'publishEvent does not import/use isOwner from the auth middleware.');
+  assert(/require\(['"][^'"]*(middleware\/auth|utils\/config)['"]\)/.test(src),
+    'publishEvent does not import an owner check (middleware/auth or utils/config) for the assistant path.');
+  assert(/isOwner|OWNER_PUBKEY|getOwnerPubkey/.test(src),
+    'publishEvent does not check the owner for signAs:"assistant" (isOwner, getOwnerPubkey or BRAINSTORM_OWNER_PUBKEY).');
   assert(/req\.localTrusted/.test(src), 'publishEvent does not honor req.localTrusted for the assistant path.');
   assert(/\b403\b/.test(src), 'publishEvent has no 403 rejection for unauthorized TA-signing.');
 });
