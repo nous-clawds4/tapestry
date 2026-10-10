@@ -940,16 +940,16 @@ test('DR25: src/api/index.js requires \'./tagging-edges/drift\' as taggingEdgesD
   assert(problems.length === 0, problems.join('\n        '));
 });
 
-test('DR26: the route\'s path holds none of the auth middleware\'s endpoint substrings — authenticatedEndpoints, customerOrOwnerEndpoints, ownerOnlyEndpoints, ownerOnlyGetEndpoints, protectedGetEndpoints, read from src/middleware/auth.js — so the route\'s own gate is the one that answers [AC-4; ADR 0004 § Server → Registration: "The path holds none of the auth middleware\'s substrings (auth.js:370-512)"]', () => {
-  const src = fs.readFileSync(AUTH_MW, 'utf8');
-  const problems = [];
-  for (const name of ['authenticatedEndpoints', 'customerOrOwnerEndpoints', 'ownerOnlyEndpoints', 'ownerOnlyGetEndpoints', 'protectedGetEndpoints']) {
-    const list = stringsOfArray(src, name);
-    if (!list || list.length === 0) { problems.push(`could not read ${name} from src/middleware/auth.js`); continue; }
-    const hits = list.filter((s) => s && ROUTE_PATH.includes(s));
-    if (hits.length) problems.push(`${name} holds ${show(hits)}, a substring of ${ROUTE_PATH}`);
-  }
-  assert(problems.length === 0, problems.join('\n        '));
+// Re-aimed for security-auth-exposure #8 (ADR 0005): the auth middleware's hand-kept substring lists are gone; the
+// route table decides access by exact path pattern, so the substring-overmatch this guarded against cannot happen.
+// The drift-counts read is owner-or-admin guarded, so the table must resolve it to 'owner' (owner, admins,
+// direct-local) — the route's own requireOwnerOrAdmin guard still stands (asserted elsewhere in this suite).
+test('DR26: the drift-counts route resolves to owner in the route table (its own owner-or-admin guard still answers) [AC-4; ADR 0005]', () => {
+  const TABLE = path.join(REPO, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const access = require(TABLE).resolveRouteAccess('GET', ROUTE_PATH);
+  assert(access === 'owner', `ADR 0005: GET ${ROUTE_PATH} must resolve to 'owner'; got '${access}'`);
 });
 
 // ─── runner ────────────────────────────────────────────────────────────────────────────────────────────────────

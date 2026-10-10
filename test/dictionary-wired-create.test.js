@@ -295,14 +295,14 @@ test('E12: the route is registered with the adoption routes, and no auth list ga
   const m = mod();
   assert(m.ROUTE === '/api/dictionaries/concepts/new', m.ROUTE);
   assert(/require\('\.\/newConcept'\)\.register\(app\);/.test(code(src(ADOPTION_INDEX))), 'registered in registerAdoptionRoutes');
-  const auth = src(AUTH_JS);
-  for (const list of ['ownerOnlyEndpoints', 'customerOrOwnerEndpoints']) {
-    const block = auth.match(new RegExp(`const ${list} = \\[([\\s\\S]*?)\\]`));
-    assert(block, `${list} must still be readable in auth.js`);
-    const entries = [...block[1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
-    const hit = entries.find((e) => m.ROUTE.includes(e));
-    assert(!hit, `${list} entry ${hit} would gate the route (admins included: the owner's decision is every signed-in person)`);
-  }
+  // Re-aimed for security-auth-exposure #8 (ADR 0005): the auth middleware's hand-kept lists are gone; the route table
+  // decides access. The route is an allowlisted signed-in action (the author's own concept header), so it must resolve
+  // to 'signed-in' — admins included: the owner's decision is every signed-in person.
+  const TABLE = path.join(ROOT, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const access = require(TABLE).resolveRouteAccess('POST', m.ROUTE);
+  assert(access === 'signed-in', `ADR 0005: ${m.ROUTE} must resolve to 'signed-in'; got '${access}'`);
 });
 
 test('E17: with copyFrom, the header is a copy of that version of the shared header, read here or from the community relay', async () => {

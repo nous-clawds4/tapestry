@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { getConfigFromFile, getAdminPubkeys } = require('../utils/config');
 const CustomerManager = require('../utils/customerManager');
+const { resolveRouteAccess, matchesRoute } = require('./routeAccess');
 
 // ── Signed-challenge verification (ADR security-auth-exposure/0003) ──
 // Resilient require, mirroring src/api/event/eventReadPath.js:38-40.
@@ -320,25 +321,30 @@ async function isCustomer(req) {
 }
 
 
+// The customer-or-owner quirk (ADR security-auth-exposure/0005 Decision 2.3), carried unchanged and keyed by the
+// registered routes: a signed-in person who is neither the owner's side nor an active customer is refused these three
+// reads, which visitors get. Whether to keep that is a product call outside ADR 0005.
+const CUSTOMER_OR_OWNER_ROUTES = ['POST /api/neo4j/query', 'GET /api/get-customers', 'GET /api/get-customer'];
+
+function refuse(res, status, error) {
+    return res.status(status).json({ success: false, error });
+}
+
 /**
- * Authentication middleware
- * Handles three levels of access:
- * 1. Public access - No authentication required (read-only endpoints)
- * 2. User authentication - Any authenticated user (some write endpoints)
- * 3. Owner authentication - Only the system owner (administrative endpoints)
+ * Authentication middleware — the central access check (ADR security-auth-exposure/0005 Decision 2).
+ * Every /api request is resolved against the route table (src/middleware/routeAccess.js): 'public' passes,
+ * 'signed-in' needs a session, 'owner' needs the owner or an admin, 'owner-only' needs the owner. A request no entry
+ * matches is the owner's side's (fail closed). Direct-local callers are trusted before any of that (ADR 0001/0002).
+ * Route guards and handler checks behind this still narrow what they narrow.
  */
 async function authMiddleware(req, res, next) {
-    // Express routes case-insensitively (/API/x and /api/X reach the handler registered at /api/x), so every
-    // path test below runs on one lowercased copy of the path, against lowercased list entries.
+    // Express routes case-insensitively (/API/x and /api/X reach the handler registered at /api/x), so the prefix
+    // and quirk tests and the table lookup all use one lowercased copy (the table also matches case-insensitively).
     const reqPath = req.path.toLowerCase();
-    const pathHas = (endpoint) => reqPath.includes(endpoint.toLowerCase());
-    // Express answers HEAD by running the route's GET handler, so every GET-only check below covers HEAD too.
-    const isRead = req.method === 'GET' || req.method === 'HEAD';
 
-    // Skip auth for static resources, sign-in page and auth-related endpoints
+    // 1. Outside the API prefix (static pages, the app shell, NIP-05, the open-ranking provider): not judged here.
     if (reqPath === '/sign-in.html' || 
         reqPath === '/index.html' ||
-        reqPath.startsWith('/api/auth/') ||
         reqPath === '/' || 
         reqPath === '/control-panel.html' ||
         reqPath === '/nip85.html' ||
@@ -347,186 +353,56 @@ async function authMiddleware(req, res, next) {
         return next();
     }
     
-    // Allow GENUINELY-DIRECT local access to normalize/neo4j (the trusted local
-    // operator and the in-process firmware-install bridge). "Local" means the socket
-    // peer is loopback AND the request carries no proxy-forwarding header: every nginx
-    // hop in front of the app sets X-Forwarded-For ($proxy_add_x_forwarded_for), so a
-    // proxied/external request always has one — a spoofed `X-Forwarded-For: 127.0.0.1`
-    // is still a *present* header and is therefore treated as remote. `trust proxy`
-    // stays OFF so req.ip is the real socket peer. (ADR security-auth-exposure/0001.)
+    // 2. Allow GENUINELY-DIRECT local access (the trusted local operator, the in-process firmware-install bridge and
+    // the loopback scheduled jobs). "Local" means the socket peer is loopback AND the request carries no
+    // proxy-forwarding header: every nginx hop in front of the app sets X-Forwarded-For ($proxy_add_x_forwarded_for),
+    // so a proxied/external request always has one — a spoofed `X-Forwarded-For: 127.0.0.1` is still a *present*
+    // header and is therefore treated as remote. `trust proxy` stays OFF so req.ip is the real socket peer. The signal
+    // is externally unspoofable (a direct hit to the app port has a non-loopback peer), so this never trusts remote
+    // traffic. (ADR security-auth-exposure/0001, broadened to all /api paths by ADR 0002.)
     let remoteAddr = '';
     try { remoteAddr = req.ip || req.connection?.remoteAddress || ''; } catch { }
     const isLoopbackPeer = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remoteAddr);
     const viaProxy = !!(req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']));
     const isDirectLocal = isLoopbackPeer && !viaProxy;
-    // Broadened to all /api paths (ADR security-auth-exposure/0002): a genuinely-
-    // direct-local call (loopback + no proxy header) is the operator, the
-    // in-process firmware-install bridge, or a server-side loopback cron (e.g. the
-    // trusted-list refreshers, which curl 127.0.0.1 directly) — all trusted. The
-    // signal is externally unspoofable (nginx always sets X-Forwarded-For; a direct
-    // hit to the app port has a non-loopback peer), so this never trusts remote traffic.
-    if (isDirectLocal && reqPath.startsWith('/api/')) {
+    if (isDirectLocal) {
         req.localTrusted = true;
         return next();
     }
 
-    // Check if user is authenticated for API calls
-    if (req.session && req.session.authenticated) {
-        // TODO: differentiate between owner and customer endpoints
-        // Endpoints any authenticated user passes here. The negentropy-sync routes then apply their own
-        // guard (src/api/strfry/negentropyAccess.js): owner and admins only, except one narrow POV sync.
-        const authenticatedEndpoints = [
-            '/negentropy-sync-wot',
-            '/negentropy-sync-profiles',
-            '/negentropy-sync-personal',
-            '/negentropy-sync',
-        ];
-        const isAuthenticatedEndpoint = authenticatedEndpoints.some(endpoint =>
-            pathHas(endpoint)
-        );
-        if (isAuthenticatedEndpoint) {
-            return next(); // Already verified authenticated above
+    const signedIn = !!(req.session && req.session.authenticated);
+
+    // 3. The customer-or-owner quirk, carried unchanged (see CUSTOMER_OR_OWNER_ROUTES).
+    if (signedIn && CUSTOMER_OR_OWNER_ROUTES.some((key) => matchesRoute(key, req.method, reqPath))) {
+        if (isOwner(req) || await isCustomer(req)) {
+            return next();
         }
+        return res.status(403).json({ 
+            error: 'Proper authentication required. Only the system owner or a customer can perform this action.'
+        });
+    }
 
-        const customerOrOwnerEndpoints = [
-            '/get-customer',
-            '/neo4j/query',
-        ]
-        // Define owner-only endpoints (administrative actions)
-        const ownerOnlyEndpoints = [
-            '/brainstorm-control',
-            '/post-graperank-config',
-            '/api/post-blacklist-config',
-            '/post-whitelist-config',
-            '/generate-blacklist',
-            '/export-whitelist',
-            '/generate-graperank',
-            '/generate-pagerank',
-            '/personalized-pagerank',
-            '/generate-verified-followers',
-            '/generate-reports',
-            '/generate-nip85',
-            '/systemd-services',
-            '/toggle-strfry-filteredContent',
-            '/delete-all-relationships',
-            '/batch-transfer',
-            '/reconciliation',
-            '/calculate-hops',
-            '/neo4j-setup-constraints-and-indexes',
-            '/run-script',
-            '/process-all-active-customers',
-            '/create-all-customer-relays',
-            '/sign-up-new-customer',
-            '/delete-customer',
-            '/change-customer-status',
-            '/service-management/control',
-            '/add-new-customer',
-            '/update-customer-display-name',
-            '/backup-customers',
-            '/backups',
-            '/backups/download',
-            '/restore/upload',
-            '/restore/sets',
-            '/restore/customer',
-            '/api/normalize',
-            // Relay router mutations: they decide what this instance mirrors to
-            // and from other relays (handlers also gate; see routerConfig.js).
-            '/strfry/router-config',
-            '/strfry/router-toggle',
-            '/strfry/router-restart',
-            '/strfry/router-restore-defaults',
-            // Task control: starting a registered task, and changing what runs on a schedule
-            // (owner decision 2026-10-10; every caller is an owner page).
-            '/run-task',
-            '/scheduled-tasks/create',
-            '/scheduled-tasks/update',
-            '/scheduled-tasks/delete',
-            '/customer-schedule/update',
-            '/customer-schedule/trigger'
-        ];
-
-        // Check if this endpoint is for customer or owner only
-        const isCustomerOrOwnerEndpoint = customerOrOwnerEndpoints.some(endpoint => 
-            pathHas(endpoint)
-        );
-
-        // If this endpoint is for customer or owner AND if the user is authenticated, AND if the user is the owner or a customer allow it
-        if (isCustomerOrOwnerEndpoint) {
-            if (req.session && req.session.authenticated && (isOwner(req) || await isCustomer(req))) {
-                return next();
-            } else {
-                return res.status(403).json({ 
-                    error: 'Proper authentication required. Only the system owner or a customer can perform this action.'
-                });
-            }
-        }
-        
-        // Check if this endpoint requires owner authentication
-        const isOwnerPostEndpoint = ownerOnlyEndpoints.some(endpoint => 
-            pathHas(endpoint) && req.method === 'POST'
-        );
-
-        // Owner-only GET endpoints (sensitive reads + owner-only computations)
-        const ownerOnlyGetEndpoints = [
-            '/backups',
-            '/backups/download',
-            '/restore/sets',
-            '/get-customer-relay-keys',
-            // Owner-only real-time computation: it spawns a server-side job and is
-            // in the owner-only set, but enforcement there is POST-only, so the GET
-            // needs its own gate here. (The POST sibling '/generate-pagerank' is
-            // already covered by ownerOnlyEndpoints above.)
-            '/personalized-pagerank'
-        ];
-        const isOwnerGetEndpoint = ownerOnlyGetEndpoints.some(endpoint => 
-            pathHas(endpoint) && isRead
-        );
-        
-        // If this is an owner-only endpoint, verify owner status
-        if ((isOwnerPostEndpoint || isOwnerGetEndpoint) && !isOwner(req)) {
-            return res.status(403).json({ 
-                error: 'Admin authentication required. Only the system owner can perform this action.'
-            });
-        }
-        
-        // User is authenticated and has appropriate permissions
-        return next();
-    } else {
-        // Default-DENY for mutations (ADR security-auth-exposure/0002): any
-        // state-changing request from an unauthenticated caller is rejected unless
-        // its path is explicitly public. This replaces the old hand-maintained
-        // `writeEndpoints` allowlist, which was POST-only (so PUT/PATCH/DELETE
-        // mutations like `DELETE .../meili/wipe` slipped through) and left every
-        // unlisted mutation — e.g. `/api/firmware/install` — reachable by anyone.
-        const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
-        // Mutations that must stay reachable without a session. Each defers its own
-        // finer gate to the handler: `/api/neo4j/query` gates write-Cypher (ADR 0001);
-        // `/api/strfry/publish` gates signAs:'assistant' (ADR 0002); client-signed
-        // publishing is permissionless by design. Exact-match — an allowlist must
-        // never over-match a private path.
-        const PUBLIC_MUTATIONS = ['/api/neo4j/query', '/api/strfry/publish'];
-        if (MUTATING.includes(req.method) && !PUBLIC_MUTATIONS.includes(reqPath)) {
-            return res.status(401).json({ error: 'Authentication required for this action' });
-        }
-
-        // Sensitive GET reads / owner-only computations that also require authentication.
-        const protectedGetEndpoints = [
-            '/backups',
-            '/backups/download',
-            '/restore/sets',
-            '/get-customer-relay-keys',
-            '/personalized-pagerank'
-        ];
-        const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint =>
-            pathHas(endpoint) && isRead
-        );
-        if (isProtectedGetEndpoint) {
-            return res.status(401).json({ error: 'Authentication required for this action' });
-        }
-
-        // Public read-only API access.
+    // 4. The route table decides; no entry is the owner's side's.
+    const access = resolveRouteAccess(req.method, reqPath);
+    if (access === 'public') {
         return next();
     }
+    if (access === 'signed-in') {
+        return signedIn ? next() : refuse(res, 401, 'Sign in to do this.');
+    }
+    if (access === 'owner-only') {
+        const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '');
+        if (signedIn && ownerPubkey && req.session.pubkey === ownerPubkey) return next();
+        return signedIn
+            ? refuse(res, 403, 'Only the owner can do this.')
+            : refuse(res, 401, 'Sign in as the owner to do this.');
+    }
+    if (isOwnerOrAdmin(req)) {
+        return next();
+    }
+    return signedIn
+        ? refuse(res, 403, 'Only the owner or an admin can do this.')
+        : refuse(res, 401, 'Sign in as the owner or an admin to do this.');
 }
 
 /**
