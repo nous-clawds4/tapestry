@@ -2062,13 +2062,18 @@ paths:
     post:
       tags: [Strfry]
       summary: Trigger negentropy sync from a relay
-      description: Non-streaming sync that waits for completion.
+      description: >-
+        Non-streaming sync that waits for completion. Owner, admin or a direct-local caller may run any sync. Any other signed-in person may run only the point-of-view sync: `dir: "down"`, `filter: { kinds: [30382], authors: [<one hex pubkey>] }` (src/api/strfry/negentropyAccess.js). 401 when not signed in, 403 for any other request from a signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not allowed to run this sync
         '200':
           description: Sync result
           content:
@@ -2080,8 +2085,13 @@ paths:
     get:
       tags: [Strfry]
       summary: Streaming negentropy sync via SSE
-      description: Returns Server-Sent Events with progress updates.
+      description: >-
+        Returns Server-Sent Events with progress updates. Owner, admin or a direct-local caller only (src/api/strfry/negentropyAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not allowed to run this sync
         '200':
           description: SSE stream
           content:
@@ -2093,7 +2103,13 @@ paths:
     get:
       tags: [Strfry]
       summary: Get current negentropy sync status
+      description: >-
+        Owner, admin or a direct-local caller only (src/api/strfry/negentropyAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not allowed to run this sync
         '200':
           description: Sync status (active or idle)
           content:
@@ -2110,7 +2126,13 @@ paths:
     get:
       tags: [Strfry]
       summary: Query local and remote event counts
+      description: >-
+        Owner, admin or a direct-local caller only (src/api/strfry/negentropyAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not allowed to run this sync
         '200':
           description: Event counts
           content:
@@ -3733,7 +3755,13 @@ paths:
     post:
       tags: [Pipeline]
       summary: Trigger negentropy sync
+      description: >-
+        Owner, admin or a direct-local caller only (src/api/strfry/negentropyAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not allowed to run this sync
         '200':
           description: Sync result
           content:
