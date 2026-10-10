@@ -5,7 +5,7 @@
 > **Why this exists:** Brainstorm is about to show DList items in its search results, starting with GitHub Accounts, and Tapestry has built the first such view. This draft names the parts, so that each platform can build its own views for the same categories. It also sets out how views could later be shared as nostr events.
 > **Boundary note:** §§ 1–6 are a convention with no wire format: each platform's views stay in its own code. They live here because § 7's wire format builds on them, and because two independent codebases (Tapestry and Brainstorm) share them. Tapestry's own view code belongs in the BIBLE once it settles.
 > **State (2026-10-03):** §§ 1–6 are ready for phase-1 builds, starting with Brainstorm's GitHub Accounts views. Appendix B (V4V Songs, playback only) is the first brief written before any build; Tapestry built from it on 2026-10-04, and its findings are in Appendix B's Changes. § 7 and open questions 1 and 3–7 wait until a second platform has built from a brief. Questions about how DList items get into search results at all are out of scope; they are worksheet [W26](../worksheet.md#w26--dlist-items-in-search-results).
-> **Related:** the `o` tag idea (auxiliary events of a DList header; first proposed as uppercase `Z`) is worksheet [W25](../worksheet.md#w25--auxiliary-events-of-a-dlist-header-o). This draft doesn't depend on it.
+> **Related:** the `o` tag (an auxiliary event's pointer to the list it serves; first proposed as uppercase `Z`, worksheet W25) is specified in [DList Auxiliary Events](./dlist-auxiliary-events.md). This draft doesn't depend on it.
 
 ---
 
@@ -209,7 +209,7 @@ A brief is an item on the **Opinionated Views** DList, a header with `d` = `opin
 
 then keep, client-side, the briefs whose `category` matches. Briefs are few, so this is cheap. It is the same choice worksheet W18 made for Trusted Lists: browse by category client-side.
 
-A relay-indexed pointer to the category would be the job of the proposed `o` tag (worksheet W25). If `o` is adopted, a brief adds `["o", "<coordinate>", "opinionated-view"]`, and nothing else here changes.
+For a brief whose category is a DList, a relay-indexed pointer is the job of the `o` tag ([DList Auxiliary Events](./dlist-auxiliary-events.md)). Such a brief adds `["o", "<H>", "opinionated-view"]`, where `<H>` is the coordinate or event id its `category` tag names. The two MUST agree; if they don't, `category` governs. Briefs for profiles, event kinds and external types have no list to point at, carry no `o`, and are still found as above.
 
 ### 7.3 Which briefs to trust
 
