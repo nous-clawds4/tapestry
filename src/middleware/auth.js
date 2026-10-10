@@ -328,15 +328,20 @@ async function isCustomer(req) {
  * 3. Owner authentication - Only the system owner (administrative endpoints)
  */
 async function authMiddleware(req, res, next) {
+    // Express routes case-insensitively (/API/x and /api/X reach the handler registered at /api/x), so every
+    // path test below runs on one lowercased copy of the path, against lowercased list entries.
+    const reqPath = req.path.toLowerCase();
+    const pathHas = (endpoint) => reqPath.includes(endpoint.toLowerCase());
+
     // Skip auth for static resources, sign-in page and auth-related endpoints
-    if (req.path === '/sign-in.html' || 
-        req.path === '/index.html' ||
-        req.path.startsWith('/api/auth/') ||
-        req.path === '/' || 
-        req.path === '/control-panel.html' ||
-        req.path === '/nip85.html' ||
-        req.path === '/nip85-control-panel.html' ||
-        !req.path.startsWith('/api/')) {
+    if (reqPath === '/sign-in.html' || 
+        reqPath === '/index.html' ||
+        reqPath.startsWith('/api/auth/') ||
+        reqPath === '/' || 
+        reqPath === '/control-panel.html' ||
+        reqPath === '/nip85.html' ||
+        reqPath === '/nip85-control-panel.html' ||
+        !reqPath.startsWith('/api/')) {
         return next();
     }
     
@@ -358,7 +363,7 @@ async function authMiddleware(req, res, next) {
     // trusted-list refreshers, which curl 127.0.0.1 directly) — all trusted. The
     // signal is externally unspoofable (nginx always sets X-Forwarded-For; a direct
     // hit to the app port has a non-loopback peer), so this never trusts remote traffic.
-    if (isDirectLocal && req.path.startsWith('/api/')) {
+    if (isDirectLocal && reqPath.startsWith('/api/')) {
         req.localTrusted = true;
         return next();
     }
@@ -375,7 +380,7 @@ async function authMiddleware(req, res, next) {
             '/negentropy-sync',
         ];
         const isAuthenticatedEndpoint = authenticatedEndpoints.some(endpoint =>
-            req.path.includes(endpoint)
+            pathHas(endpoint)
         );
         if (isAuthenticatedEndpoint) {
             return next(); // Already verified authenticated above
@@ -432,7 +437,7 @@ async function authMiddleware(req, res, next) {
 
         // Check if this endpoint is for customer or owner only
         const isCustomerOrOwnerEndpoint = customerOrOwnerEndpoints.some(endpoint => 
-            req.path.includes(endpoint)
+            pathHas(endpoint)
         );
 
         // If this endpoint is for customer or owner AND if the user is authenticated, AND if the user is the owner or a customer allow it
@@ -448,7 +453,7 @@ async function authMiddleware(req, res, next) {
         
         // Check if this endpoint requires owner authentication
         const isOwnerPostEndpoint = ownerOnlyEndpoints.some(endpoint => 
-            req.path.includes(endpoint) && req.method === 'POST'
+            pathHas(endpoint) && req.method === 'POST'
         );
 
         // Owner-only GET endpoints (sensitive reads + owner-only computations)
@@ -464,7 +469,7 @@ async function authMiddleware(req, res, next) {
             '/personalized-pagerank'
         ];
         const isOwnerGetEndpoint = ownerOnlyGetEndpoints.some(endpoint => 
-            req.path.includes(endpoint) && req.method === 'GET'
+            pathHas(endpoint) && req.method === 'GET'
         );
         
         // If this is an owner-only endpoint, verify owner status
@@ -490,7 +495,7 @@ async function authMiddleware(req, res, next) {
         // publishing is permissionless by design. Exact-match — an allowlist must
         // never over-match a private path.
         const PUBLIC_MUTATIONS = ['/api/neo4j/query', '/api/strfry/publish'];
-        if (MUTATING.includes(req.method) && !PUBLIC_MUTATIONS.includes(req.path)) {
+        if (MUTATING.includes(req.method) && !PUBLIC_MUTATIONS.includes(reqPath)) {
             return res.status(401).json({ error: 'Authentication required for this action' });
         }
 
@@ -503,7 +508,7 @@ async function authMiddleware(req, res, next) {
             '/personalized-pagerank'
         ];
         const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint =>
-            req.path.includes(endpoint) && req.method === 'GET'
+            pathHas(endpoint) && req.method === 'GET'
         );
         if (isProtectedGetEndpoint) {
             return res.status(401).json({ error: 'Authentication required for this action' });
