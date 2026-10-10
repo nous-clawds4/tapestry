@@ -27,7 +27,7 @@ The write surface signs events **as the instance's Tapestry Assistant** and can 
 
 6. `stories/security-auth-exposure/6-task-control-owner-and-admins.md` — any signed-in session could start or schedule any registered task; the six task-control POSTs now join the owner-only list, and the saved presets list is guarded like the sync status. Found by story 4's review; hotfix PR #840. Same book. **Done** (review PASS 2026-10-10; shipped to production, deploy run 144).
 
-7. `stories/security-auth-exposure/7-head-judged-as-get.md` — Express answers HEAD with the GET handler, but the middleware's GET-only checks ignored HEAD, so a HEAD request ran protected and owner-only GET handlers. Both checks now cover HEAD. Found by story 4's review round 2; hotfix PR #841. Same book. **In Progress** (review pending).
+7. `stories/security-auth-exposure/7-head-judged-as-get.md` — Express answers HEAD with the GET handler, but the middleware's GET-only checks ignored HEAD, so a HEAD request ran protected and owner-only GET handlers. Both checks now cover HEAD. Found by story 4's review round 2; hotfix PR #841. Same book. **Done** (review PASS 2026-10-10; shipped to production, deploy run 145).
 
 *(Further stories drawn at Planning as the work proceeds.)*
 

@@ -272,3 +272,72 @@ sweep's written scope agrees with the assignment this record makes.
 ## Close-out
 - Story status stays In Progress until the intake note is added.
 - Completion detection was not run, because the verdict is not a pass.
+
+# Round 3
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-10
+**Diff:** `git show cc347f75`. It adds the intake addendum, corrects the ledger quote, and commits round 2. Read on
+`staging` at `cc347f75`. The commit is docs-only: `git diff --stat d5de18d9 cc347f75 -- src test bin scripts ui public`
+is empty, so round 1's code verdict and gate run stand.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — not re-run, because no code changed since round 1's run on `deca5b15`:
+      `20261010T145542Z-14650-1898 [reviewer-sae6r2-7] started 2026-10-10T14:55:42.855Z on deca5b15 — PASS, exit 0, 5553 passed, 0 failed, 582 skipped, 294/294 suites`.
+- [x] `bash scripts/harness-lint.sh` — clean (0 violations), exit 0.
+- [x] Live, anonymous, side-effect-free, on production and staging, all 401:
+      - HEAD `/api/personalized-pagerank` (no pubkey);
+      - GET `/api/strfry/negentropy-sync/status`;
+      - HEAD `/api/strfry/negentropy-sync/count`;
+      - GET `/api/strfry/negentropy-presets`;
+      - POST `/api/strfry/negentropy-sync` with no body, and its capitalized form.
+
+## Blocking 1 — resolved
+
+The addendum (`stories/_intake.md:1849`) is my round-2 wording, verbatim. I checked it again as a fresh claim rather
+than as mine.
+
+- **Placement.** It sits inside the 2026-07-21 entry (header at `:1814`), after that entry's 2026-10-10 addendum and
+  before the next entry (`:1851`). Whoever plans the sweep from this entry will see it.
+- **"The middleware's owner-only list matches POST only."** True: `src/middleware/auth.js:466` tests
+  `req.method === 'POST'`, and no code has changed since round 1.
+- **"At least one owner-only path is served by a GET that can perform an action."** True. Round 2 matched every list
+  entry against its routes, and the code is unchanged.
+- **Both pointers resolve.** Story 7's Out of scope is at `7-head-judged-as-get.md:46-50`, and book decision 11 is at
+  `audits/negentropy-sync-access/book.md:59-61`.
+- **The rest is direction for the sweep, not a factual claim.** "The inventory covers GET routes too" and "a GET that
+  starts heavy work belongs in the same inventory" are scope instructions. They close the blind spot round 1 named:
+  the Scope line's "POST/PUT/PATCH/DELETE" (`:1826`) is now qualified within the same entry.
+- **Disclosure.** No route is named.
+
+With the story's sentence (round 2) and this note, the record agrees across the story, the book and the intake entry.
+
+**Round 2's non-blocking 1 is taken.** `ledger/2026-10-10-after-the-fact-record-misses-siblings.md:15-16` now quotes
+"cannot run heavy recomputes, publish signed exports". That is accurate: those were the clauses that were not true,
+and "start syncs" was not quoted.
+
+## Findings (round 3)
+
+### Blocking
+None.
+
+### Non-blocking
+None new. Round 1's three non-blocking items (H5 can pass vacuously; AC-3 shows only refusals; "the same paths" in the
+coverage map) stay optional.
+
+### Harness friction
+None new.
+
+## Verdict
+**PASS**
+
+The code was correct from round 1 and is in production (deploy run 145). The record is now accurate:
+- the Out-of-scope sentence states the one remaining method gap without naming it;
+- the sweep's own entry now covers GET.
+
+Story 7 is Done.
+
+## On PASS
+- [x] Story `**Status:**` flipped to `Done` in place (and the epic's line for story 7).
+- [x] Completion detection performed; the result is reported in the hand-off, not in this file.

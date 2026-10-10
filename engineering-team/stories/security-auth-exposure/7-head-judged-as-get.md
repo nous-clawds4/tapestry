@@ -1,6 +1,6 @@
 # Story 7: The auth middleware judges a HEAD request as it judges a GET
 
-**Status:** In Progress
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Bug (security / authentication)
 **Epic:** `security-auth-exposure`

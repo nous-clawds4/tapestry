@@ -66,4 +66,4 @@ Asked about the saved presets: owner and admins.
 - ADR: `engineering-team/decisions/security-auth-exposure/0004-one-guard-for-negentropy-syncs.md`
 - Stories 5–7: `engineering-team/stories/security-auth-exposure/5-paths-judged-case-insensitively.md`,
   `6-task-control-owner-and-admins.md`, `7-head-judged-as-get.md` (+ `.test-plan.md` each)
-- Reviews: `engineering-team/reviews/security-auth-exposure/4-…`, `5-…`, `6-…` (and `7-…` once written)
+- Reviews: `engineering-team/reviews/security-auth-exposure/4-…`, `5-…`, `6-…` `7-…`
