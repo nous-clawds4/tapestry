@@ -19,5 +19,5 @@ were left out on purpose:
 "no reconcile line within N s of connecting" rule for presets. Both need evidence that a long silent reconcile on an
 unwindowed sync isn't cut off.
 
-**Pointer:** ADR `engineering-team/decisions/relay-stream-gaps/0003-negentropy-sync-presets.md` Amendment 2 and
+**Pointer:** ADR `engineering-team/decisions/done/relay-stream-gaps/0003-negentropy-sync-presets.md` Amendment 2 and
 Verified evidence 7–14; `src/api/strfry/negentropySync.js` (`runStrfrySync`, the one-shot handlers).

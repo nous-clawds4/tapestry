@@ -22,3 +22,9 @@ Fix shape, pick one:
 The check itself behaved as specified (docs/SAFE_TO_MERGE.md).
 
 **Pointer:** `engineering-team/audits/assistant-trusted-content-status/audit.md` § 7 (close PR #833); relay-stream-gaps #3's story
+
+**Update 2026-10-10 (book `relay-stream-gaps` close).** The 10-minute interval was the setting for story 3's AC-5 check
+on staging (its test plan, AC-5 step 4, suggests a short interval and step 7 says to set it back). Read at 02:42Z from
+`GET /api/scheduled-tasks/list`, the staging entry is switched **off** (`enabled: false`), still at 10 minutes, last run
+02:02:58Z. The block is gone while it is off; switching it on at 10 minutes brings it back. Set 6 hours before switching
+it on again.

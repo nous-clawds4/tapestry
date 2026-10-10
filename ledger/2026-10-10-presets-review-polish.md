@@ -20,5 +20,5 @@
   (`src/api/strfry/negentropyPresets.js:162–167`), not built from `RELAY_STALL_MS` / `SYNC_TIMEOUT_MS`; R13 would still
   pass if the constant moved. Build the texts from the constants or comment the coupling.
 
-**Pointer:** `engineering-team/reviews/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` (round 1 non-blocking
+**Pointer:** `engineering-team/reviews/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` (round 1 non-blocking
 4, 7, 8; round 2 R2-3).

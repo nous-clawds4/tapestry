@@ -63,10 +63,12 @@
 
 - [ ] **Execute OPEN.md #25** — actually configure the `#z`-filtered both-direction dcosl stream on the instances (runbook correction + per-instance setup; now point-and-click via this feature; mind per-instance stream-state divergence and the kind-5 deletion caveat noted on #25).
 - [ ] **OPEN.md #31 hardening trio** — one bounded story (relay-management #3 candidate).
+  *2026-10-10: part of (b) is done. A negative `limit` is dropped at ingress (book `relay-stream-gaps`, story 2). strfry 1.1.0 rejects the whole router config over a negative `limit`, `since` or `until`, or a non-hex `authors` value; negative `since`/`until` (with non-hex `ids`/`authors`) now live in OPEN.md row `2026-10-09-router-accepts-values-strfry-rejects`. Negative `kinds` are still accepted and are in neither place. (a) and (c) are unchanged by that book.*
 - [ ] Optional **live round-trip** of a tag-filtered stream save→restart→re-edit on a shared instance (review Finding 4; deliberately left to the operator).
 - [ ] **Tags-federation preset question** — declined this book on the generic-tooling guardrail; product should decide whether an optional concept-aware preset layer is warranted (seed §7).
 - [ ] **Count/preview affordance for router streams** — the sync panel can Count a filter before running; stream editing has no match-volume preview (close-time observation; candidate sugar).
 - [ ] Inherited from the sibling book, still open: display normalization (hex vs bech32 echo), duplicate-letter merge-vs-replace ratification, saved presets across both panels, in-place editing, concept-handle autocomplete.
+  *2026-10-10: the Negentropy Sync panel now saves presets and runs them on a schedule (book `relay-stream-gaps`, story 3). One preset model across both panels was ruled out of that story ("turning router streams into presets, or the reverse"), so that part and the other four items remain.*
 
 ## 7. Process findings (harness)
 

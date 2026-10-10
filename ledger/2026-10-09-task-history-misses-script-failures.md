@@ -21,4 +21,4 @@ preset's last-run line on the Negentropy Sync tab.
 **Fix shape.** Read `rec.failure ?? rec.metadata?.failure`, and change the R4 fixture to the shape
 `structuredLogging.sh` actually writes, with a test that pipes a real `emit_task_event` line through.
 
-**Pointer:** `engineering-team/reviews/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` non-blocking 2.
+**Pointer:** `engineering-team/reviews/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` non-blocking 2.

@@ -187,6 +187,12 @@ Harvested from the book's decisions, the ADRs' Consequences and amendments, the 
       `tagDeletions` stream already on production (§4 #15).
 - [ ] **Catch up on withdrawals missed while a router restarts,** and make UI revokes carry `k` (§4 #3; rows
       `2026-09-27-revokes-do-not-travel`, `2026-09-27-ui-revoke-names-id-only`).
+      *2026-10-10: the catch-up half has its tools (book `relay-stream-gaps`, closed 2026-10-10, on staging): stream
+      changes no longer restart the router; a stream's Limit is now refetched on every connect, so `tagDeletions`
+      at 500 refills a deploy's hole; and a scheduled negentropy preset such as `{"kinds":[5],"#k":["39999"]}` can
+      cover larger gaps. Still open: production (it has the router changes since PR #829, but its `tagDeletions` is
+      saved at limit 5 and the presets are not promoted), no instance runs a kind-5 preset yet, and UI revokes without
+      `k` ride neither.*
 - [ ] **Try again re-reads the relay list,** and the hook's other callers read strictly (§4 #7; rows
       `2026-10-01-treasure-map-retry-skips-relay-list`, 314).
 - [ ] **Editing duties on this page,** and the draft Treasure Map grammar (§4 #4; story 3 Out of scope).

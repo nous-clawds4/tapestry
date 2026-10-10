@@ -24,5 +24,5 @@ log and count display.
 **Fix shape.** Replace control characters in `relayMessageOf`'s result; `continue` past a line once it is recognised as
 a relay line, so it never feeds the counts; optionally take no error candidates from strfry's startup lines.
 
-**Pointer:** `engineering-team/reviews/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` § Round 2 (R2-1,
+**Pointer:** `engineering-team/reviews/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` § Round 2 (R2-1,
 R2-2).

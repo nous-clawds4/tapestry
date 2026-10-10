@@ -5,7 +5,7 @@
  * (src/api/strfry/negentropyPresets.js), triggered by one registry task
  * (syncNegentropyPresets → src/manage/negentropySync/syncPresets.sh), sharing the one-shot
  * sync's single slot (src/api/strfry/negentropySync.js).
- * Test plan: engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.test-plan.md
+ * Test plan: engineering-team/stories/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.test-plan.md
  *
  * Stack-free: no strfry, control panel, Docker or network. The seams, all installed inside run()
  * and removed when it ends, so no other suite sees them:

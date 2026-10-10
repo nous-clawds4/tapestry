@@ -13,5 +13,5 @@ freshInstallEntries".
 
 **Fix shape.** Anchor the match on the function's `return [` … `];` rather than a character count.
 
-**Pointer:** `engineering-team/reviews/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` non-blocking 6;
+**Pointer:** `engineering-team/reviews/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` non-blocking 6;
 `src/api/scheduled-tasks/index.js` (`freshInstallEntries`).
