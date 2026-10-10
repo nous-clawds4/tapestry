@@ -21,4 +21,4 @@
   `identification-tags` as if that were all; Scores, Lists and Concepts are described further down. Make the list
   complete, or drop it.
 
-**Pointer:** `engineering-team/reviews/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Non-blocking 2–4, and its merge addendum's non-blocking 2–3
+**Pointer:** `engineering-team/reviews/done/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md` § Non-blocking 2–4, and its merge addendum's non-blocking 2–3
