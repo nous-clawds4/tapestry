@@ -3,8 +3,8 @@
 **Id:** 2026-10-09-lint-l10-misfires-on-shallow-clones
 **Type:** meta
 **Opened:** 2026-10-09 (worksheet W25/W2 session)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-09 (story `harness-gate-integrity` #3) — a duplicate of OPEN.md row `2026-10-07-shallow-clone-trips-lint-l10`, closed with it: L10 prints INFO for a shallow boundary, as the fix shape here proposed. The `a04f95a` question is answered: yes, the same misfire (a merge commit at a shallow boundary has no visible parents, so `--no-merges` keeps it). Review: `engineering-team/reviews/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`.
 
 Cloud sessions start from a shallow clone (depth 50; `git rev-parse --is-shallow-repository` prints `true`). L10 picks
 the latest commit touching a harness-definition path with `git log -1 -- <def-paths>`, then checks

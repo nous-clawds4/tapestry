@@ -14,6 +14,7 @@ repo, and reads the printed lines and exit status. All tests are at the integrat
 |---|---|---|
 | AC1 | `L10 in a shallow clone: a boundary commit is not read as a harness change — no violation, and an INFO line names L10, the commit, the shallow history and \`git fetch --unshallow\`` | yes: no INFO line |
 | AC1 | `L10 in a shallow clone deeper than one commit: the boundary below HEAD is not read as a harness change either` | yes: no INFO line |
+| AC1 | `L10 in a linked worktree of a shallow clone: the boundary is still recognised (the shallow list lives in the shared git dir)` | no (guard; added at Review for finding N4, red when the shallow file is read as a literal `.git/shallow`) |
 | AC2 | `L10 in a shallow clone still catches a real violation: a harness change inside the fetched history without a CHANGELOG row is reported, naming that commit` | no (guard) |
 | AC2 | existing `L10: the latest commit touching a def path without touching the CHANGELOG is a violation` and `L10 is quiet when the same commit touches both the def path and the CHANGELOG` (full clone, unchanged) | no (regression) |
 | AC3 | `L10: a large harness commit that touched the CHANGELOG is satisfied — the check reads the whole file list, not just up to the first match` | yes: false `VIOLATION L10` |
@@ -52,11 +53,11 @@ the CHANGELOG. That shows why adding a CHANGELOG row never fixes a shallow clone
     (`git clone --depth N file://…`, because a plain local path ignores `--depth`), `infoLine`, `headSha` and
     `shallowCopyOfRepo` (`git fetch --depth=50 file://<git-common-dir> <HEAD>`, so it works from a worktree too).
   - The AC5 test gets its depth-1 view by rewriting `.git/shallow` to list only HEAD. That is the file git reads to
-    find boundary commits, so one fetch serves both depths. It removes its clone afterwards; the small fixtures follow
+    find boundary commits, so one fetch serves both depths. It removes its clone afterwards, and the AC3 test removes its ~16 MB fixture (review finding N5); the small fixtures follow
     the file's existing convention and are left in the temp dir.
   - Needs git ≥ 2.31 (`rev-parse --path-format=absolute`).
 - Cost: the section adds ~15 s to the suite, almost all in AC5 (two full-tree lint runs at ~4 s each, plus one fetch
-  and checkout). The AC3 fixture commits 2,000 files (~1.7 s).
+  and checkout). The AC3 fixture commits 2,000 files (~1.7 s); the worktree guard adds ~0.7 s.
 
 ## How to run
 

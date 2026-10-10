@@ -1,6 +1,6 @@
 # Story 3: The lint's history checks tell the truth in a shallow clone
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-09
 **Type:** Bug
 
@@ -33,7 +33,9 @@ a commit that changed no harness file. CI is unaffected: it checks out full hist
 **Who is affected:** every session that works from a shallow clone (cloud sessions) and anyone who
 reads its gate result, review, or promotion status.
 
-Recorded as ledger row `ledger/2026-10-07-shallow-clone-trips-lint-l10.md`; this story closes it.
+Recorded as ledger row `ledger/2026-10-07-shallow-clone-trips-lint-l10.md`, and again, independently, as
+`ledger/2026-10-09-lint-l10-misfires-on-shallow-clones.md` (it arrived with a staging merge after Planning); this
+story closes both.
 
 ## User-facing description
 As a session working from a shallow clone, I want the lint's history checks to report only what the
@@ -85,14 +87,21 @@ None. This is harness tooling only; no concept-graph handles are involved.
 ## Open questions
 None.
 
+## Deviations
+- **AC4, read as "INFO when the answer is unknowable".** L9 prints its INFO line only when a check against the
+  boundary's date would be a violation. When the header is within 14 days of the boundary's date it passes
+  silently: the boundary is normally no earlier than the file's real last change, so that pass is a real one, and an
+  INFO line there would say "can't be checked" about a header that was checked. (Review finding N1.)
+
 ## Linked artifacts
 - Book: `engineering-team/audits/honest-test-gate/book.md` (joined 2026-10-09; the frame's "a suite
   the environment can't run says SKIP and why")
-- Ledger row closed by this story: `ledger/2026-10-07-shallow-clone-trips-lint-l10.md`
+- Ledger rows closed by this story: `ledger/2026-10-07-shallow-clone-trips-lint-l10.md` and its duplicate
+  `ledger/2026-10-09-lint-l10-misfires-on-shallow-clones.md`
 - ADR: none (Standard strictness: a bug with an obvious fix skips Architecture). The fix extends the
   existing checks in `scripts/harness-lint.sh` under ADR `harness-self-improvement/0001`.
 - Test plan: `engineering-team/stories/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.test-plan.md`
   (tests in `test/harness-lint.test.js`, section "shallow clones (harness-gate-integrity #3)")
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-gate-integrity/3-history-checks-honest-in-a-shallow-clone.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)

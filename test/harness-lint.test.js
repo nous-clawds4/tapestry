@@ -492,10 +492,29 @@ test('L10: a large harness commit that touched the CHANGELOG is satisfied — th
   const pad = 'x'.repeat(120);
   for (let i = 0; i < 2000; i++) bulk[`zz-harness-bulk/file-${String(i).padStart(5, '0')}-${pad}.txt`] = `${i}\n`;
   bulk['engineering-team/CHANGELOG.md'] = `${FIXTURE_CHANGELOG}| 2026-10-09 | bulk harness change | test | fixture |\n`;
-  addCommit(src, bulk, 'large harness change with changelog row');
-  const { code, out } = lint(src);
-  assert.doesNotMatch(out, /VIOLATION L10/,
-    `the commit touched engineering-team/CHANGELOG.md; the size of its file list must not change the answer\n${out}`);
+  try {
+    addCommit(src, bulk, 'large harness change with changelog row');
+    const { code, out } = lint(src);
+    assert.doesNotMatch(out, /VIOLATION L10/,
+      `the commit touched engineering-team/CHANGELOG.md; the size of its file list must not change the answer\n${out}`);
+    assert.strictEqual(code, 0, out);
+  } finally {
+    fs.rmSync(src, { recursive: true, force: true }); // ~16 MB; unlike the small fixtures, don't leave it behind
+  }
+});
+
+test('L10 in a linked worktree of a shallow clone: the boundary is still recognised (the shallow list lives in the shared git dir)', () => {
+  const src = withClean({});
+  addCommit(src, { 'protocols/notes.md': 'a docs change outside the harness definition\n' }, 'docs: outside the harness');
+  const boundary = headSha(src);
+  const clone = shallowClone(src, 1);
+  const wt = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-wt-')), 'wt');
+  execSync(`git worktree add -q --detach "${wt}" HEAD`, { cwd: clone, stdio: 'pipe' });
+  const { code, out } = lint(wt);
+  assert.doesNotMatch(out, /VIOLATION L10/, out);
+  const info = infoLine(out, 'L10');
+  assert.ok(info && info.includes(boundary.slice(0, 7)),
+    `expected an INFO line naming L10 and the boundary ${boundary.slice(0, 7)} from inside the worktree\n${out}`);
   assert.strictEqual(code, 0, out);
 });
 

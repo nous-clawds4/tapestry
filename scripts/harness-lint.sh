@@ -253,8 +253,10 @@ check_L9() {
     gs=$(date_to_epoch "$gitd") || continue
     days=$(( (gs - hs) / 86400 ))
     [ "$days" -gt 14 ] || continue
-    # A boundary's date is never earlier than the file's real last change, so a
-    # pass against it is a real pass; only a would-be violation is undecidable.
+    # A boundary is newer than the file's real last change, so its date is
+    # normally no earlier and a pass against it is a real pass; only a would-be
+    # violation is undecidable. (Author dates can run backwards after a rebase;
+    # the full-history gate in CI still judges those.)
     if is_shallow_boundary "$sha"; then
       echo "INFO L9 $f — its last visible change is this shallow clone's boundary commit $short ($gitd), which may not be its real last change, so 'Last updated: $hdr' can't be checked (run \`git fetch --unshallow\` to check it)"
     else
