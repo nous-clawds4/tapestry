@@ -22,4 +22,4 @@ Alternatively keep a short per-preset history (last N runs). Either is a small c
 record step and the tab's last-run line; through the per-story cycle (ADR amendment + tests).
 
 **Pointer:** `src/api/strfry/negentropyPresets.js` (record step); `ui/src/pages/settings/RelaySettings.jsx` (preset
-row); story `engineering-team/stories/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` AC-4.
+row); story `engineering-team/stories/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` AC-4.

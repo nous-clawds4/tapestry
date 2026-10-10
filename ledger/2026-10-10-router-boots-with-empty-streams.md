@@ -31,3 +31,10 @@ an hour or more at staging's rates, and the scheduled negentropy presets (relay-
 
 **Pointer:** epic `engineering-team/epics/relay-stream-gaps.md`; book
 `engineering-team/audits/relay-stream-gaps/book.md` § Staging verification; ADR relay-stream-gaps/0002.
+
+**Update 2026-10-10 (book `relay-stream-gaps` close).** With the download streams at limit 500, WoT lost nothing at
+deploys #553, #554 and #555 (its one event inside #553's outage, 02:05:13Z, came back). `userProfiles`, still without
+a limit then, lost two kind-0 events at #553 and one at #554; all three arrived once the owner gave it limit 500 and it
+reconnected without a router restart. So the late connect no longer costs content at staging's rates. Its cause is
+still unread: nobody has looked at the router log after a deploy (recipe: OPEN.md row
+`2026-10-10-staging-delivery-check-recipe`).

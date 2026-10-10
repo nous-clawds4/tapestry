@@ -12,4 +12,4 @@ the edited JSX. The Reviewer exported the tree to scratch with `git archive HEAD
 fallback in the Implementer and Reviewer guidance for UI changes (`engineering-team/workflows/4-implementation.md`,
 `5-review.md`), so a UI diff is never shipped on a parse check alone.
 
-**Pointer:** `engineering-team/reviews/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` § Harness friction 2.
+**Pointer:** `engineering-team/reviews/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` § Harness friction 2.

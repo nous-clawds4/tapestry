@@ -57,10 +57,12 @@
 
 ## 6. Carry-forward register
 
-- [ ] **Router Management tag filters** — the sibling feature: per-stream tag filters in the persistent strfry-router config (the panel one tab left). Directly serves the ledgered tags-federation ops plan (OPEN.md #25: a `#z`-filtered both-direction dcosl stream). Triaged: `stories/_intake.md` 2026-07-15 entry; next-phase scoping in `prd-seed.md` §6–7. *(from this close's ask)*
+- [x] **Router Management tag filters** — the sibling feature: per-stream tag filters in the persistent strfry-router config (the panel one tab left). Directly serves the ledgered tags-federation ops plan (OPEN.md #25: a `#z`-filtered both-direction dcosl stream). Triaged: `stories/_intake.md` 2026-07-15 entry; next-phase scoping in `prd-seed.md` §6–7. *(from this close's ask)*
+  *Resolved by book `router-stream-tag-filters` (closed 2026-07-16: relay-management #2, per-stream tag filters in the router config). Ticked 2026-10-10 at the `relay-stream-gaps` close.*
 - [ ] Promote the staging-held feature to prod when the operator is ready (OPEN.md #30). *(release sequencing)*
 - [ ] Optional UX: strip a leading `#` typed into the letter box (review non-blocking #1).
 - [ ] Deferred by story Out of scope: saved filter presets / persistence; in-place value editing; concept-handle autocomplete (tempting for tag-federation); semantic validation for free letters.
+  *2026-10-10: saved presets shipped for the Negentropy Sync panel (book `relay-stream-gaps`, story 3: named presets with the one-shot's filters, an on/off switch each, run on a schedule by the Sync Negentropy Presets task). In-place value editing, concept-handle autocomplete and semantic validation remain.*
 - [ ] Ops nicety (adjacent, pre-existing): set `maxFilterLimitCount` on dcosl's strfry to enable remote NIP-45 counts (surfaced by Count's remote leg; also noted in OPEN.md #25's orbit).
 
 ## 7. Process findings (harness)

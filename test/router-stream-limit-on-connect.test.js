@@ -5,7 +5,7 @@
  * sends a stream's configured `limit` and keeps 0 only when the filter has none; presets and
  * new streams default to 500; ingress drops a negative limit; the editor, OPERATIONS.md and
  * BIBLE §14 say what the Limit does.
- * Test plan: engineering-team/stories/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.test-plan.md
+ * Test plan: engineering-team/stories/done/relay-stream-gaps/2-stream-limit-refetches-on-reconnect.test-plan.md
  *
  * Stack-free: no Docker, strfry build, supervisord or network.
  *   P  the new patches/strfry-router/apply-patches.sh is RUN (bash, via spawnSync) against

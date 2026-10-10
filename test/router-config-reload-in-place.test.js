@@ -4,7 +4,7 @@
  * ADR relay-stream-gaps/0001 (Accepted): apply stream changes by rewriting the router
  * config IN PLACE and confirming the reload from the router's stderr log; restart only
  * as the fallback (router not running, or no reload logged within the timeout).
- * Test plan: engineering-team/stories/relay-stream-gaps/1-stream-changes-without-router-restart.test-plan.md
+ * Test plan: engineering-team/stories/done/relay-stream-gaps/1-stream-changes-without-router-restart.test-plan.md
  *
  * Stack-free: no supervisord, strfry, Docker or network. The seams, all installed inside
  * run() and removed when it ends, so no other suite sees them:
