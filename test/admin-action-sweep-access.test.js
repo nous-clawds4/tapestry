@@ -349,7 +349,7 @@ test('AC7: refusals are 401/403 with { success:false, error } naming who may act
   assert(refusalNamesWho(s.body), `the 403 body must be { success:false, error:<names who> }; got ${JSON.stringify(s.body)}`);
 });
 
-test('PARAM1: signing as the instance assistant is owner-only — an admin is refused 403, the owner is allowed', () => {
+test('PARAM1: signing as the instance assistant is owner-only — an admin is refused 403, the owner and direct-local callers are allowed', () => {
   const { data } = handlers_();
   assert(data, `the handlers harness did not run: ${handlers_().child.stderr && handlers_().child.stderr.slice(0, 300)}`);
   assert(data.ownerFromConfig === OWNER, `the conf seam is missing (ownerFromConfig ${JSON.stringify(data.ownerFromConfig)}); the owner's pass on signAs:assistant can't be shown`);
@@ -359,6 +359,9 @@ test('PARAM1: signing as the instance assistant is owner-only — an admin is re
   const owner = hget('assistant-owner');
   assert(owner.status !== 403 && owner.keyReads >= 1,
     `the owner must be allowed to sign as the assistant; got status ${owner.status}, keyReads ${owner.keyReads}`);
+  const local = hget('assistant-local');
+  assert(local.status !== 403 && local.keyReads >= 1,
+    `a direct-local caller (the instance's own scripts) must be allowed to sign as the assistant; got status ${local.status}, keyReads ${local.keyReads}`);
 });
 
 test('PARAM1b: client-signed publish still never reads the assistant key (regression)', () => {

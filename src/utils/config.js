@@ -8,14 +8,15 @@ const { execSync } = require('child_process');
 const { config } = require('../../lib/config');
 
 /**
- * Get configuration values from /etc/brainstorm.conf
+ * Get configuration values from /etc/brainstorm.conf (or the file BRAINSTORM_CONF_PATH names, the same shape as
+ * TAPESTRY_SETTINGS_PATH; ADR security-auth-exposure/0005 Decision 5)
  * @param {string} varName - Name of the configuration variable
  * @param {*} defaultValue - Default value to return if variable is not found
  * @returns {string} Value of the configuration variable or default value
  */
 function getConfigFromFile(varName, defaultValue = null) {
     try {
-        const confFile = '/etc/brainstorm.conf';
+        const confFile = process.env.BRAINSTORM_CONF_PATH || '/etc/brainstorm.conf';
         if (fs.existsSync(confFile)) {
             // Read the file content directly
             const fileContent = fs.readFileSync(confFile, 'utf8');

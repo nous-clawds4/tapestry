@@ -281,10 +281,11 @@ const suites = [
   { file: 'auth-head-requests.test.js' },
   // security-auth-exposure #8 — the admin-action sweep: one total route table, default-deny (ADR 0005). The structural
   // half (route-walk coverage, AC-6, resolver agreement) and the behavioural half (AC-1/2/3/4/5/7 + the two owner-only
-  // parameter rules) through the real middleware and the conf seam. Both fail until the table + seam land. The named
-  // half (test/admin-action-sweep-named.test.js) is HELD until the fix ships (disclosure) — registered with the fix.
+  // parameter rules) through the real middleware and the conf seam. The named half pins class-A members and the two
+  // closed reads by name, so it ships only in the same commit as the fix (disclosure).
   { file: 'admin-action-sweep.test.js' },
   { file: 'admin-action-sweep-access.test.js' },
+  { file: 'admin-action-sweep-named.test.js' },
   { file: 'shell-input-hardening.test.js' },
   { file: 'assistant-profile-check.test.js' },
   { file: 'assistant-trusted-content.test.js' },

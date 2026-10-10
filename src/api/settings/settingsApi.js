@@ -57,6 +57,23 @@ function requireOwner(req, res, next) {
   next();
 }
 
+// Changing the admin list is the owner's alone (ADR security-auth-exposure/0005, owner's decision 3): an admin may change
+// every other setting, but an update or reset touching adminPubkeys would sidestep the owner-only /api/admin/add and
+// /api/admin/remove (ADR task-queue-scheduler/0016). Checked against the owner pubkey, not owner-or-admin; a
+// direct-local caller keeps it.
+const ADMIN_LIST_KEY = 'adminPubkeys';
+
+function mayChangeAdminList(req) {
+  if (req.localTrusted) return true;
+  const { getOwnerPubkey } = require('../../utils/config');
+  const ownerPubkey = getOwnerPubkey();
+  return !!(ownerPubkey && req.session?.pubkey === ownerPubkey);
+}
+
+function refuseAdminListChange(res) {
+  return res.status(403).json({ success: false, error: 'Only the owner can change the admin list.' });
+}
+
 function handleGetSettings(req, res) {
   try {
     res.json({
@@ -93,6 +110,9 @@ function handleUpdateSettings(req, res) {
     if (!patch || typeof patch !== 'object') {
       return res.status(400).json({ success: false, error: 'Request body must be a JSON object' });
     }
+    if (Object.prototype.hasOwnProperty.call(patch, ADMIN_LIST_KEY) && !mayChangeAdminList(req)) {
+      return refuseAdminListChange(res);
+    }
 
     // Validate relay URLs if aRelays section is being updated
     if (patch.aRelays) {
@@ -127,6 +147,9 @@ function handleResetSetting(req, res) {
     const keyPath = req.params.keyPath || req.params[0];
     if (!keyPath) {
       return res.status(400).json({ success: false, error: 'keyPath required' });
+    }
+    if (String(keyPath).split('.')[0] === ADMIN_LIST_KEY && !mayChangeAdminList(req)) {
+      return refuseAdminListChange(res);
     }
     const updated = resetOverride(keyPath);
     res.json({

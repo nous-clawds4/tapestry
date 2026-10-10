@@ -25,20 +25,21 @@ for more members.
 *(Ticked only after the review that re-derives each bullet from the code — ledger
 `2026-10-10-frame-ticked-before-review`.)*
 
-- [ ] **Every route has been looked at and sorted.** Every route the instance serves, under any method (GET and HEAD
+- [x] **Every route has been looked at and sorted.** Every route the instance serves, under any method (GET and HEAD
       included) and inside or outside the API prefix, is classed as a read, an action for the owner's side, or an action
       the owner has opened to signed-in people or to visitors. Nothing is left unsorted.
-- [ ] **Actions are the owner's side's unless the owner opened them.** Every action not on the approved allowlist
+- [x] **Actions are the owner's side's unless the owner opened them.** Every action not on the approved allowlist
       refuses everyone except the owner, admins and the instance's own scripts (direct-local callers): 401 when not
       signed in, 403 when signed in. This holds whatever method reaches the route and however its path is spelled.
-- [ ] **What everyone else may do is written down, once.** The allowlist of actions open to ordinary signed-in people
+- [x] **What everyone else may do is written down, once.** The allowlist of actions open to ordinary signed-in people
       (and, within it, to visitors) is explicit and kept in one place. The Architecture proposes it, and the owner
       approves it before any fix is built.
-- [ ] **Nothing the owner's side does breaks.** The owner, admins and the instance's own scripts keep every action.
+- [x] **Nothing the owner's side does breaks.** The owner, admins and the instance's own scripts keep every action.
       Public reads stay public, and anyone may still publish an event they signed themselves.
-- [ ] **The next new action can't slip in.** The test gate fails, naming the route, when an action is added without a
+- [x] **The next new action can't slip in.** The test gate fails, naming the route, when an action is added without a
       guard or an allowlist entry, GET routes included.
-- [ ] **What people who can't act see** is as the owner decides (story 8, open question b).
+- [x] **What people who can't act see** is as the owner decides (story 8, open question b): the bare 403, no page
+      changes. *(Bullets 1–6 ticked after review `security-auth-exposure/8-admin-action-sweep` re-derived them, PASS.)*
 - [ ] **Shipped wherever it is live:** production, `staging`, and both long-lived sandboxes (`feat/tags`,
       `feature-magic-carpet`) in the same round (ledger `2026-10-10-sandboxes-got-security-fixes`). No route this book
       fixes is named in public before its fix is in production.

@@ -1,6 +1,6 @@
 # Story 8: Every admin action checks who is asking — the sweep
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Bug (security / access control)
 **Epic:** `security-auth-exposure`
@@ -176,4 +176,26 @@ public reads to the owner's side; they are named in the private inventory, commi
 - Intake: `engineering-team/stories/_intake.md`, entry 2026-07-21 (security-auth-exposure phase 2) and its addenda
 - ADR: `engineering-team/decisions/security-auth-exposure/0005-one-route-table-default-deny.md`
 - Test plan: `engineering-team/stories/security-auth-exposure/8-admin-action-sweep.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/security-auth-exposure/8-admin-action-sweep.md`
+
+## Deviations
+
+Logged by the Implementer (2026-10-10).
+
+- `resolveRouteAccess` returns the access string (`'owner'`, …), not `{ access }` as ADR 0005 Decision 2.4's sketch
+  destructures; the suites pin the string. `routeAccess.js` also exports `matchesRoute(key, method, path)`, the same
+  matcher, so the customer-or-owner quirk is keyed by its three registered routes (Decision 2.3) without a second matcher.
+- Not keyed in the table, with the reason in its header: the entrypoint's app-shell catch-all (`GET *`; a key would match
+  every path and, strictest match winning, set the floor for every GET) and the static-file and API-docs mounts (files and
+  documentation only). The conditional task-queue dashboard mount is keyed (`USE /admin/queues`, owner).
+- Every route guard's read keeps its guard's level; the one guarded by `requireOwnAssistant` is therefore `signed-in`
+  (kind read), not `owner`. Routes behind `requireOwnerOnly` are `owner` in the table (no route-wide `owner-only`
+  entries, owner's decision 3); the guard still narrows them to the owner.
+- The publish handler's owner-only rule keeps the gate's existing shape, `if (!isOwner(req) && !req.localTrusted)`, with
+  a module-local `isOwner` that checks the owner pubkey only (documented there as deliberately not the middleware's
+  owner-or-admin alias), so the earlier suites that pin that gate hold unchanged.
+- The held named suite's HEAD probe required a refusal body, which no HEAD response carries; it now checks status and
+  that the handler did not run (test defect, fixed with the suite's registration).
+- API reference: besides stating the rule and both answers on every owner's-side entry it already had, five
+  task-control entries were added (story 6's scheduled-task and per-customer schedule actions). The saved presets list
+  (a read) is still without an entry.
