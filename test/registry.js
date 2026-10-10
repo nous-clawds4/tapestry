@@ -274,6 +274,7 @@ const suites = [
   { file: 'assistant-identification-tags-page.test.js' },
   { file: 'assistant-taggings-publish.test.js' },
   { file: 'negentropy-sync-input.test.js' },
+  { file: 'negentropy-sync-access.test.js' },
   { file: 'assistant-profile-check.test.js' },
   { file: 'assistant-profile-checklist-page.test.js' },
   { file: 'assistant-stamped-avatar-for-everyone.test.js' },
