@@ -1,7 +1,7 @@
 # Epic: security-auth-exposure
 
 **Created:** 2026-07-19
-**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment. Stories 4–7 added 2026-10-10 the same way, under book `audits/negentropy-sync-access/`, closed 2026-10-10; the epic's folders stay outside `done/`, as after the 2026-09-11 close — see that book's audit §2.)
+**Status:** Done (stories 1–2 retired 2026-07-20 at first book close. Story 3 added 2026-09-11 — a distinct auth-exposure root cause found live on staging + prod; reviewed PASS and shipping under the new open book `audits/auth-signature-verification/`, which carries the active-work signal. The original book `audits/security-auth-exposure/` stays Closed, so this epic stays Done — the new book, not a reopened epic, tracks story 3's deployment. Stories 4–7 added 2026-10-10 the same way, under book `audits/negentropy-sync-access/`, closed 2026-10-10; the epic's folders stay outside `done/`, as after the 2026-09-11 close — see that book's audit §2. Story 8 added 2026-10-10 the same way, under the open book `audits/admin-action-owner-check/`, which carries its active-work signal; the epic stays Done.)
 
 ## Goal
 
@@ -28,6 +28,8 @@ The write surface signs events **as the instance's Tapestry Assistant** and can 
 6. `stories/security-auth-exposure/6-task-control-owner-and-admins.md` — any signed-in session could start or schedule any registered task; the six task-control POSTs now join the owner-only list, and the saved presets list is guarded like the sync status. Found by story 4's review; hotfix PR #840. Same book. **Done** (review PASS 2026-10-10; shipped to production, deploy run 144).
 
 7. `stories/security-auth-exposure/7-head-judged-as-get.md` — Express answers HEAD with the GET handler, but the middleware's GET-only checks ignored HEAD, so a HEAD request ran protected and owner-only GET handlers. Both checks now cover HEAD. Found by story 4's review round 2; hotfix PR #841. Same book. **Done** (review PASS 2026-10-10; shipped to production, deploy run 145).
+
+8. `stories/security-auth-exposure/8-admin-action-sweep.md` — the sweep the owner chose (2026-10-10): every route that changes state or starts heavy work, under any method (GET and HEAD included) and however its path is spelled, refuses anyone but the owner, admins and direct-local callers, unless it is on an explicit allowlist the owner approves. A test fails when a new action is added without a guard or an allowlist entry. Book: `audits/admin-action-owner-check/`. Members of the class are described, never named, until their fixes ship. **Draft** (Planning 2026-10-10; owner questions a–e open).
 
 *(Further stories drawn at Planning as the work proceeds.)*
 

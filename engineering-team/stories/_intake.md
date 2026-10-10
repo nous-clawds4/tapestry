@@ -1813,6 +1813,8 @@ If this holds, the following are reachable unauthenticated from the internet on 
 
 ## 2026-07-21 — Security: gate authenticated-non-owner access to admin mutations (security-auth-exposure phase 2)
 
+**PICKED UP** 2026-10-10 → book `engineering-team/audits/admin-action-owner-check/book.md`, story `security-auth-exposure` #8 (`engineering-team/stories/security-auth-exposure/8-admin-action-sweep.md`, Draft). The whole entry moves there, addenda included; see the last addendum.
+
 **Origin:** the post-fix regression audit of 2026-07-21 (after the `run-query` client-caller regression). The audit confirmed **0 active regressions** from the security changes, but surfaced a concrete instance of a **pre-existing** gap: `POST /api/strfry/wipe` had no owner check and could be triggered by a **logged-in non-owner** to wipe the local relay (it execs `strfry delete --filter='{}'`). That one instance was **closed this session** (`7873f156` — `isOwner || localTrusted → 403` gate + `test/strfry-wipe-owner-gate.test.js` + hid the button; shipped staging/prod/tags). This entry scopes the **class** it was one instance of. Operator explicitly asked to scope it as a follow-up.
 
 **The gap (pre-existing; deferred at the security-auth-exposure book close — audit §5–6 / prd-seed §7 Q4):**
@@ -1847,6 +1849,8 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Addendum (2026-10-10, book `negentropy-sync-access`):** `security-auth-exposure` story 6 put `/api/run-task`, `/api/scheduled-tasks/create`, `/update`, `/delete` and `/api/customer-schedule/update`, `/trigger` on the middleware's owner-only list (PR #840, in production). Stories 5 and 7 closed two bypasses of the middleware's own checks (capitalized paths, HEAD requests). The rest of this class is still open, including `streaming-etl/control` named above. The owner decided to sweep it exhaustively as its own story rather than hotfix members one by one; that story is the next step for this entry.
 
 **Addendum (2026-10-10, story 7 review):** the inventory covers GET routes too, not only POST/PUT/PATCH/DELETE. The middleware's owner-only list matches POST only, and at least one owner-only path is served by a GET that can perform an action (`security-auth-exposure` story 7, Out of scope; book `negentropy-sync-access` decision 11). A GET that starts heavy work belongs in the same inventory.
+
+**Addendum (2026-10-10, picked up):** promoted to book `engineering-team/audits/admin-action-owner-check/book.md` (human-gated, acceptance frame) and story `security-auth-exposure` #8, `engineering-team/stories/security-auth-exposure/8-admin-action-sweep.md` (Draft). The story states the scope by class: every route that changes state or starts heavy work, under any method (GET and HEAD included) and however its path is spelled, inside or outside the API prefix. It is refused to everyone except the owner, admins and direct-local callers unless the owner puts it on an explicit allowlist. It also asks for a test that fails when a new action arrives without a guard or an allowlist entry. The owner's questions (what signed-in people keep, what the UI shows, task reads, release shape, admin vs owner) are in the story's Open questions. From here on, the inventory with route names lives in the Architecture phase and is committed only with its fixes. Further addenda here should describe members by class, not by name.
 
 ## 2026-07-28 — Harness story proposal: Direction-mode blinding rebuild (OPEN.md #117, #119)
 
