@@ -84,6 +84,6 @@ None blocking. The Architect settles the rest within the handoff's § 4 shapes.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md`](../../decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
