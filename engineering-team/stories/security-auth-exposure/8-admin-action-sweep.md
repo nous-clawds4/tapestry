@@ -199,3 +199,23 @@ Logged by the Implementer (2026-10-10).
 - API reference: besides stating the rule and both answers on every owner's-side entry it already had, five
   task-control entries were added (story 6's scheduled-task and per-customer schedule actions). The saved presets list
   (a read) is still without an entry.
+
+## Shipped (2026-10-11)
+
+One release, all four sites in one round (AC-9):
+
+- `staging` `151e39fb` (deploy succeeded).
+- Production: PR #847 (merge `175cffa6`, deploy run 147), after a green `stack-free` check and a safe-to-merge verdict.
+- `feat/tags`: PR #848 (merge `1e888786`, deploy run 93). `feature-magic-carpet`: PR #849 (merge `41fe9363`, deploy
+  run 36).
+- Live probes on each site after its deploy, as a visitor: 401 with `{ success:false, error }` naming who may act on a
+  fixed mutation, on a fixed GET that acts (GET, HEAD and a capitalised spelling) and on the two closed reads; every
+  page and public read the smoke tiers check still answers.
+
+**Sandbox ports.** Each sandbox serves routes staging doesn't, so each got its own table. `feat/tags` drops the routes
+it doesn't serve, adds two public reads, and keeps its avatar upload on the owner's side (its handler admits only the
+owner's side). `feature-magic-carpet` drops the routes it doesn't serve and sorts its own (relay discovery, bounties,
+receiving). The owner allowlisted three of its signed-in actions on the caller's own things (2026-10-11): posting a
+bounty, checking one's own Lightning address, and building one's own receiving-method update. On that branch the route
+walker stubs the bounty store's database modules, and five older suites now probe routes the branch serves. There, an
+API path the branch doesn't serve now answers 401 where it answered 404 (fail closed, as ADR 0005 says).

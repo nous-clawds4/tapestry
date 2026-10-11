@@ -40,9 +40,10 @@ for more members.
       guard or an allowlist entry, GET routes included.
 - [x] **What people who can't act see** is as the owner decides (story 8, open question b): the bare 403, no page
       changes. *(Bullets 1–6 ticked after review `security-auth-exposure/8-admin-action-sweep` re-derived them, PASS.)*
-- [ ] **Shipped wherever it is live:** production, `staging`, and both long-lived sandboxes (`feat/tags`,
+- [x] **Shipped wherever it is live:** production, `staging`, and both long-lived sandboxes (`feat/tags`,
       `feature-magic-carpet`) in the same round (ledger `2026-10-10-sandboxes-got-security-fixes`). No route this book
-      fixes is named in public before its fix is in production.
+      fixes is named in public before its fix is in production. *(Shipped 2026-10-11 in one round: staging `151e39fb`,
+      PR #847 to production, PRs #848 and #849 to the sandboxes; live probes on all four. Story 8 § Shipped.)*
 
 ## Epics in this book
 
