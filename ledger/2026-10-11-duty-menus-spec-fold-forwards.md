@@ -45,6 +45,10 @@ Also (finding 27): `docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`'s Status li
 stale since story 1. The book's last frame bullet flips it to ✅ SUPERSEDED at the end; until then a reader of the
 Status line is misinformed.
 
+- *Added 2026-10-11 (story 3, ADR 0003 A1-2):* Duty Menus § 2's "the observer's own Assistant" says "its own key
+  included". After ADR 0003 A1-2 no fill rule reaches a self-entry, so that clause applies nowhere. Harmless; story 4
+  either drops it or says why it stays.
+
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Findings
 (round 3), non-blocking 12–24, 26 and 27; `engineering-team/epics/duty-menus-and-self-maps.md` (story 3's list).
 

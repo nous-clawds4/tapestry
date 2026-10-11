@@ -1,6 +1,6 @@
 # ADR 0003: Self-Maps — a key's own Map reports what is live, and element 3 is a hint resolved per insight at read time
 
-**Status:** Accepted; Amendment A1 proposed (2026-10-11)
+**Status:** Accepted; amended by A1 (2026-10-11)
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`
 
@@ -1054,6 +1054,8 @@ notes say what changes under another.
      (plus, under (b), "and nothing the observer gave another key"), and that AC3's "shows only that key's slice" holds
      for the insights the self-entries speak for: stale copies of insights outside the observer's supported sets (and,
      under (a), of insights the observer gave to another key) can show too.
+     *(Amended by A1-3: "A's menu gives it the relay" reads as § 9.2's Its relay states it, which asks for the menu's
+     relay only where A publishes a Duty Menu that is not a storefront, save during a move (A1-1).)*
 
 2. **At what level does the self-entry come first, and what does AC5's "one answer" mean?**
    AC5: "Reading both specs gives one answer for element 3, and they agree on it." Under sub-decision 3's relay rule,
@@ -1148,8 +1150,9 @@ notes say what changes under another.
   Deviations section records how the owner reads "one answer".
   *(Amended by A1-4 and A1-9. A1-4: the self-entry keyed K comes first with no condition where it gives a relay; one
   whose element 3 is the empty string gives none, and the fill goes on as for a K with no self-entry (Duty Menus § 6.2
-  step 5, No menu found included). AC5's words still hold. A1-9 departs from AC7's "the rest of the user-signed
-  designation is unchanged" at one sentence of Assistant Designation § Relationship to NIP-85.)*
+  step 5, No menu found included). AC5's words still hold, and AC3's "plus a matching self-entry" gives way for such a
+  self-entry (named at A1's revision 3). A1-9 departs from AC7's "the rest of the user-signed designation is
+  unchanged" at one sentence of Assistant Designation § Relationship to NIP-85.)*
 - **Publishers carry more:** a self-Map that stays true may need narrower keys than the observer's (96.5% of published
   duties claimable in the model without a single false claim under answer (a); 93.1% under (b)); each self-entry names
   the relay A's menu gives its key; a new duty at another relay means narrowing first; every version needs a later
@@ -1612,7 +1615,9 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
 
 ## Amendment A1 — nine kick-backs from story 3's implementation (2026-10-11)
 
-**Status of A1:** proposed, for the owner's approval at this gate. The rest of this ADR stands as accepted (owner
+**Approved** by the owner, 2026-10-11.
+
+**Status of A1:** proposed at the gate; approved by the owner, 2026-10-11 (above). The rest of this ADR stands as accepted (owner
 answers 1(a)–4(a), 2026-10-11).
 
 **Revision 1 of A1** (2026-10-11) answers an independent skeptic review of A1's first text. A1-4 now also changes
@@ -1625,6 +1630,11 @@ relay, the other half of answer 1(a). For a self-entry whose relay is the empty 
 on as for a key with no self-entry, not that it takes the menu's relay, which there may not be. A1-2's Verification
 allows for A1-4's change to step 5's binding sentence. The Why paragraph says which amendment a bare A1-n names. The
 new check is `s3a1/r2/a13r2.py`, with output in `s3a1/r2/a13r2.out`.
+
+**After approval (revision 3, 2026-10-11)** answers two non-blocking findings on revision 2, and changes no rule. A1-4
+names its departure from story 3's AC3, which the approved rule already made (Questions for the owner). Not A1's no
+longer says that the record's AC2 reading is unchanged: it gives the PO that reading as it stands after A1-3, and
+question 1's "Either way" bullet carries an A1-3 marker.
 
 **Why.** The Implementer carried this ADR into the three drafts (`05225a6b`). Three review rounds and three fix passes
 left nine findings it could not fix without changing this ADR's text (story 3, § Deviations, fix 1's "Left for the
@@ -1641,11 +1651,17 @@ story 3's § Deviations (sub-decision 15; Implementation notes). The PO's block 
 questions" is in the working tree as A1 is written, not yet committed. A1 answers the two points it leaves with the
 Architect: whether "Its key" has a second reading (A1-3 removes it), and the move case (A1-1 keeps question 2's three
 conforming cases, the partial move among them). A1 does not edit the record. The record says that the PO revises it
-when an amendment changes a reading, and at A1's approval three points in it call for the PO, who cites A1's items
+when an amendment changes a reading, and at A1's approval four points in it call for the PO, who cites A1's items
 there as "ADR 0003 A1-n":
 - its two open pointers, "is with the Architect (kicked back at fix 1)" under AC2 and "The move case waits on the
-  Architect's open item on the relay rule", now point at ADR 0003 A1-3 and A1-1, and no reading changes (A1-3's Its
-  key has both conditions of the record's AC2 reading);
+  Architect's open item on the relay rule", now point at ADR 0003 A1-3 and A1-1. AC2's "copied verbatim" then reads
+  "verbatim where that key claims nothing false and Its relay (Treasure Maps § 9.2) allows that key the relay where A
+  publishes what it claims; narrower keys otherwise". The record's "A's menu gives it the relay" made A's menu a
+  condition even where A publishes no menu, or only a storefront. Its relay asks for the menu's relay only where A
+  publishes a Duty Menu that is not a storefront, save during a move (ADR 0003 A1-1), as answer 1(a)'s "or where A's
+  menu gives it another relay" does. The move case's reading does not change;
+- AC3 gains a line for ADR 0003 A1-4's departure: a self-entry keyed as the observer's entry, whose element 3 is the
+  empty string, matches by AC3's words but confirms no duty (Treasure Maps § 9.2, Its relay);
 - AC5's first bullet ("the self-entry keyed K comes first, with no condition") gains one case from ADR 0003 A1-4: a
   self-entry keyed K whose element 3 is the empty string gives no relay, and the fill goes on as for a K with no
   self-entry (Duty Menus § 6.2 step 5, No menu found included). The record's When no menu is found ("no self-entry
@@ -1782,7 +1798,7 @@ one relay" quote.)*
 **A1-4 — How readers take a self-entry whose relay is the empty string** (KB-coherence/C11). *(Supersedes: sub-decision
 3's "Its relay" quote, which gains a last sentence, and three phrases of sub-decision 9's step 5 lead. Qualifies, for
 such a self-entry: sub-decision 5's Confirmed duty, sub-decision 8's § 3 quote, and "with no condition" wherever this
-ADR says it.)*
+ADR says it. Departs from story 3's AC3, below.)*
 - New text, Treasure Maps § 9.2, Its relay (a last sentence):
   > Readers take a self-entry whose element 3 is the empty string to claim nothing: it still wins insights among A's
   > self-entries (§ 6), but confirms no duty, and § 3 takes no relay from it.
@@ -1819,6 +1835,12 @@ ADR says it.)*
     Duty Menu's answering row", and a blank self-entry gives none, so AC5's words hold. What A1-4 qualifies is this
     ADR's gloss "with no condition", and only for a self-entry that breaks § 9.2's "never the empty string". The PO's
     record of AC5's first bullet quotes that gloss (Not A1's, above).
+  - AC3's words do not hold for such a self-entry, so A1-4 departs from story 3 as approved. AC3's confirmed duty is an
+    entry naming A "plus a matching self-entry", and "matching" means "the same key, or a key that wins for it under
+    § 6". A blank self-entry keyed as the observer's entry matches by those words, and A1-4 has it confirm no duty.
+    Sub-decision 5's "that the reader takes to speak for it" does not cover the case, because what a self-entry speaks
+    for turns on its key, the observer's Map and supported sets, not its relay (§ 9.2, What a self-entry speaks for).
+    A1-4 changes nothing for a self-Map that follows § 9.2, which has no blank self-entry.
 - Not taken:
   - *Readers ignore it* (the kick-back's example). It is one sentence too, and it follows § 9.2's rule for a Concept
     kind and a colon. But there a reader cannot run § 6 on a key whose meaning is open, while here it can, and
@@ -1936,14 +1958,18 @@ sub-decision 12's "Nothing else in the user-signed designation changes." Departs
 ### Questions for the owner
 
 No new question. Each item corrects wording or scope under the owner's answers 1(a)–4(a), or adds a reading rule
-that the answers do not bear on (A1-4, A1-5). A1 as a whole awaits the owner's approval at this gate, and two items
-need that approval by name:
+that the answers do not bear on (A1-4, A1-5). The owner approved A1 as a whole on 2026-10-11. Two items called
+for that approval by name:
 - ADR 0003 A1-8 changes a publisher rule from story 2: it widens Duty Menus § 4's MUST NOT to cover the events that
   § 6.1 (sub-decision 11, accepted) already rejects for every reader.
 - ADR 0003 A1-9 departs from story 3 as approved: AC7's "the rest of the user-signed designation is unchanged" gives
   way, at one sentence of Assistant Designation § Relationship to NIP-85, to AC7's "no longer contradicts it".
   Treasure Maps § 9 already reads such a triple this way (sub-decision 1), so no reader of both specs does anything
   new.
+
+**Named after approval (revision 3).** ADR 0003 A1-4 also departs from story 3 as approved: AC3's "plus a matching
+self-entry" gives way, for a self-entry whose element 3 is the empty string, to § 9.2's "confirms no duty". The rule
+was in the text the owner approved; the departure was not named there.
 
 ### Consequences of A1
 
@@ -1963,10 +1989,12 @@ need that approval by name:
 - **One place per fact** still holds. A1-2's two sentences each scope their own spec's rules. A1-8 states § 6.1's
   condition again as a publisher MUST NOT inside the same spec.
 - **Departures from story 3 as approved:** AC7's "the rest of the user-signed designation is unchanged" (ADR 0003
-  A1-9). AC5's words hold: ADR 0003 A1-4 qualifies only this ADR's "with no condition", for a self-entry keyed K whose
-  element 3 is the empty string.
-- **Story 3's § Deviations:** A1 does not edit the PO's record. At A1's approval the PO revises it at three points (Not
-  A1's, above): the two open pointers, AC5's first bullet with its When no menu is found, and an AC7 line.
+  A1-9), and AC3's "plus a matching self-entry", for a self-entry whose element 3 is the empty string (ADR 0003 A1-4,
+  named at revision 3). AC5's words hold: ADR 0003 A1-4 qualifies only this ADR's "with no condition", for a
+  self-entry keyed K whose element 3 is the empty string.
+- **Story 3's § Deviations:** A1 does not edit the PO's record. At A1's approval the PO revises it at four points (Not
+  A1's, above): the two open pointers with AC2's reading, an AC3 line, AC5's first bullet with its When no menu is
+  found, and an AC7 line.
 - **New wire surface:** none. A1-4 is a reading rule. A1-8 narrows what a publisher may carry to what readers accept.
 - **Firmware reinstall required?** No. No concept definition changes.
 
