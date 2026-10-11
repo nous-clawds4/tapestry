@@ -17,15 +17,16 @@
  * newest Treasure Map (its relays for entries naming this Assistant), the Assistant's newest kind 10002 and Nous'
  * (their write relays; a found Nous list is remembered for an hour). A failed hint lookup only shrinks the second
  * round. Then one strict local scan, and in parallel every hinted relay plus the offer's relays, outside this
- * instance's own. A relay named inside an event is read only when the SSRF guard accepts its host; a configured relay
- * is read as every other check reads one. The latest version among all answers counts, and if it is not a menu by
- * § 6.1 the Assistant has none. "Finished" means the local scan succeeded or at least one relay answered.
+ * instance's own. Relays named inside events are capped at the first 50, and each is read only when the SSRF guard
+ * accepts its host (Amendment 2); a configured relay is read as every other check reads one. The latest version among
+ * all answers counts, and if it is not a menu by § 6.1 the Assistant has none. "Finished" means the local scan
+ * succeeded or at least one relay answered.
  *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored but the in-process Nous list.
  */
 
 const net = require('net');
-const { normalizeRelayUrl, parseRelayList } = require('../../lib/relay-list');
+const { normalizeRelayUrl, parseRelayList, MAX_RELAYS } = require('../../lib/relay-list');
 const {
   DUTY_MENU_KIND, DUTY_MENU_D, isDutyMenu, readMenuRows, sameRows, buildOffer,
 } = require('../../lib/duty-menu');
@@ -173,8 +174,11 @@ async function lookupPublishedMenu({ assistantPubkey, viewer, offer }, deps = {}
   const { readWithinBudget, newest } = shared();
   const who = String(assistantPubkey || '').toLowerCase();
 
-  // Round 1: the hints. Relays named inside events are read only when the SSRF guard accepts their host.
-  const named = d.outsideOnly((await hintRelays({ viewer, assistantPubkey }, d)).map(normalizeRelayUrl).filter(Boolean), d);
+  // Round 1: the hints. Relays named inside events: at most MAX_RELAYS, the first in § 8.1's order once each is in its
+  // one spelling, outside this instance and named once (ADR 0001 Amendment 2 item 2), and read only when the SSRF guard
+  // accepts their host.
+  const named = d.outsideOnly((await hintRelays({ viewer, assistantPubkey }, d)).map(normalizeRelayUrl).filter(Boolean), d)
+    .slice(0, MAX_RELAYS);
   const accepted = await Promise.all(named.map((url) => attempt(async () => ((await d.isPublicRelayHostWithin(new URL(url).hostname)) === true ? url : null), null)));
   const configured = (Array.isArray(offer) ? offer : []).map((row) => row && row.relay).filter(Boolean);
   const relays = d.outsideOnly([...accepted.filter(Boolean), ...configured], d);

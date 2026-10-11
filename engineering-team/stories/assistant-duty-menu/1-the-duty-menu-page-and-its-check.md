@@ -236,6 +236,8 @@ pubkey (epic § Key facts).
   - `categoryOf('*')` joins the three names as "Scores, Lists and Concepts" (ADR 0001 sub-decision 6 says "joined").
   - § 8.1 Map hints: element 3 of every tag of the viewer's newest Map whose element 2 is the Assistant, the key not
     parsed (the ADR's wording); every such relay still goes through `outsideOnly` and the SSRF guard.
+  - ADR 0001 Amendment 2 item 1: a `z` of `39998:<64 hex>:concept-header` is matched with the hex in either case, as
+    the codebase's other 64-hex checks are.
 
 ## Linked artifacts
 

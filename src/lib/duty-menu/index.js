@@ -25,6 +25,9 @@ const DUTY_MENU_HEADER = `39998:${NOUS_PUBKEY}:duty-menu`;
 /** A key's kind slot in the Treasure Maps grammar (§ 4.7), as /treasure-map tests it (editTreasureMap.js). */
 const KIND_SLOT = /^(\d{5}|3038x|3039x|\*)$/;
 
+/** A `z` naming any author's concept header: such an event is not a menu (ADR 0001 Amendment 2 item 1). */
+const CONCEPT_HEADER_Z = /^39998:[0-9a-f]{64}:concept-header$/i;
+
 /** The keys § 5.3 tells readers to ignore, until Treasure Maps settles what they mean. */
 const IGNORED_KEYS = ['39998:', '39999:'];
 
@@ -36,8 +39,10 @@ function tagsOf(event) {
 }
 
 /**
- * Is this event a Duty Menu by § 6.1? Kind 39999; its `d` is `duty-menu`; exactly one `p`, equal to the author; and a
- * `z` naming Nous' header exactly. Other `z` tags are allowed.
+ * Is this event a Duty Menu by § 6.1? Kind 39999; its `d` is `duty-menu`; exactly one `p`, equal to the author; a
+ * `z` naming Nous' header exactly; and no `["z", "list"]` and no `z` naming any author's
+ * `39998:<64 hex>:concept-header` (ADR 0001 Amendment 2 item 1, following ADR duty-menus-and-self-maps/0003
+ * sub-decision 11). Other `z` tags are allowed.
  * @param {*} event
  * @param {string} author - the key whose menu it should be (compared lower-cased)
  * @returns {boolean}
@@ -50,7 +55,9 @@ function isDutyMenu(event, author) {
   const who = typeof author === 'string' ? author.toLowerCase() : '';
   const ps = tags.filter((t) => t[0] === 'p');
   if (!who || ps.length !== 1 || typeof ps[0][1] !== 'string' || ps[0][1].toLowerCase() !== who) return false;
-  return tags.some((t) => t[0] === 'z' && t[1] === DUTY_MENU_HEADER);
+  const zs = tags.filter((t) => t[0] === 'z').map((t) => t[1]);
+  if (zs.some((z) => z === 'list' || (typeof z === 'string' && CONCEPT_HEADER_Z.test(z)))) return false;
+  return zs.includes(DUTY_MENU_HEADER);
 }
 
 /**

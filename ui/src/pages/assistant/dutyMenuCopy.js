@@ -20,7 +20,8 @@ export const DUTY_MENU_COPY = {
   notOffered: 'not offered',
   publishedHeading: "Your Assistant's published Duty Menu",
   checking: 'Checking…',
-  none: 'Your Assistant has not published a Duty Menu yet.',
+  // Amended by ADR 0001 Amendment 2 item 3, so it no longer repeats the not-published status line.
+  none: 'No Duty Menu was found for your Assistant.',
   couldNotCheck: {
     'no-relay-answered': "No relay answered, so your Assistant's Duty Menu could not be checked.",
     'request-failed': 'Could not check: this instance did not answer.',
