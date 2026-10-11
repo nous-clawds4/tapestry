@@ -19,7 +19,8 @@
  * engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md § Copy,
  * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md § Copy (since
  * then the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
- * categories), and
+ * categories; their alert criteria and the hub's Shared words since
+ * engineering-team/stories/assistant-shared-categories/1-done-but-shared.md § Copy), and
  * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy (the Duty Menu's
  * alert criteria since engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md, ADR
  * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page).
@@ -117,7 +118,7 @@ export const ASSISTANT_ACTIONS = [
       { text: 'NIP-85 Trusted Assertions', href: NIP_LINKS.trustedAssertions },
       ', curated by your trusted and extended community. This includes trust scores for pubkeys as well as for other categories of content. From a technical standpoint, this means your Assistant will publish kinds 3038x events on your behalf.',
     ],
-    alertCriteria: 'Needs attention until your Treasure Map gives Scores to your Tapestry Assistant on this instance, on its own or alongside other Assistants.',
+    alertCriteria: 'Needs attention until your Treasure Map gives Scores to an Assistant. Shared while any of it goes to an Assistant other than your Tapestry Assistant on this instance.',
     planningNotes: null,
     editLink: TREASURE_MAP_LINK,
   },
@@ -131,7 +132,7 @@ export const ASSISTANT_ACTIONS = [
       { text: 'Trusted Lists NIP', href: NIP_LINKS.trustedLists },
       '.',
     ],
-    alertCriteria: 'Needs attention until your Treasure Map gives Lists to your Tapestry Assistant on this instance, on its own or alongside other Assistants.',
+    alertCriteria: 'Needs attention until your Treasure Map gives Lists to an Assistant. Shared while any of it goes to an Assistant other than your Tapestry Assistant on this instance.',
     planningNotes: null,
     editLink: TREASURE_MAP_LINK,
   },
@@ -145,7 +146,7 @@ export const ASSISTANT_ACTIONS = [
       { text: 'Decentralized Lists NIP', href: NIP_LINKS.decentralizedLists },
       '.',
     ],
-    alertCriteria: 'Needs attention until your Treasure Map gives Concepts to your Tapestry Assistant on this instance, on its own or alongside other Assistants.',
+    alertCriteria: 'Needs attention until your Treasure Map gives Concepts to an Assistant. Shared while any of it goes to an Assistant other than your Tapestry Assistant on this instance.',
     planningNotes: null,
     editLink: TREASURE_MAP_LINK,
   },
@@ -236,6 +237,11 @@ export const ASSISTANT_COPY = {
   // ADR assistant-profile-checklist/0001 sub-decision 7 specifies it).
   done: 'Done',
   doneSrPrefix: 'Done: ',
+  // Done, but shared: a category another Assistant holds too, or only (assistant-shared-categories #1 § Copy).
+  shared: 'Shared',
+  doneSharedSrPrefix: 'Done, shared: ',
+  sharedLine: { partly: 'Partly handled by another Assistant', entirely: 'Handled by another Assistant' },
+  sharedMoveLink: 'Move it here →',
   faqToggle: 'Frequently asked questions',
   placeholder: 'Placeholder page.',
   alertCriteriaHeading: 'Alert criteria',
@@ -281,22 +287,27 @@ export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays
  *   - the pill reading, `alertCount`: a placeholder always counts; a checked action counts only when its answer says
  *     `pending` (a finished check found something missing) — the confident reading, as the Setup Alert counts;
  * and the hub's Done list, `done`: the checked actions whose answer says `done` (never a placeholder), which the hub
- * badges "Done" (ADR assistant-profile-checklist/0001 sub-decision 7; assistant-outbox-relays #1 AC-4).
+ * badges "Done" (ADR assistant-profile-checklist/0001 sub-decision 7; assistant-outbox-relays #1 AC-4); and `shared`:
+ * for those done actions whose answer says another Assistant holds the category too ('partly') or only ('entirely'),
+ * the extent, which the hub adds a Shared pill and a line for (assistant-shared-categories #1). A shared action is
+ * done and not pending, so neither reading counts it.
  * All are about a viewer who has an assistant on this instance — sign-in's user.assistantPubkey, the
  * getAssistantPubkeyFor answer that also marks /setup's first step done — and empty for anyone else.
  * @param {?{ assistantPubkey?: ?string }} user
- * @param {?{ answered?: boolean, actions?: Object<string, { done?: boolean, pending?: boolean }> }} [attention]
+ * @param {?{ answered?: boolean, actions?: Object<string, { done?: boolean, pending?: boolean, shared?: ?string }> }} [attention]
  *   what useAssistantAttention() returns (ui/src/context/AssistantAttentionContext.jsx); omitted = not answered
- * @returns {{ hasAssistant: boolean, needsAttention: string[], done: string[], count: number, alertCount: number }}
+ * @returns {{ hasAssistant: boolean, needsAttention: string[], done: string[], shared: Object<string, string>,
+ *   count: number, alertCount: number }}
  */
 export function assistantAttention(user, attention = null) {
   const hasAssistant = Boolean(user && user.assistantPubkey);
-  if (!hasAssistant) return { hasAssistant: false, needsAttention: [], done: [], count: 0, alertCount: 0 };
+  if (!hasAssistant) return { hasAssistant: false, needsAttention: [], done: [], shared: {}, count: 0, alertCount: 0 };
   const answers = attention && attention.answered === true && attention.actions && typeof attention.actions === 'object'
     ? attention.actions
     : {};
   const needsAttention = [];
   const done = [];
+  const shared = {};
   let alertCount = 0;
   for (const action of ASSISTANT_ACTIONS) {
     if (!CHECKED_ACTIONS.includes(action.key)) {
@@ -306,8 +317,11 @@ export function assistantAttention(user, attention = null) {
     }
     const answer = answers[action.key];
     if (!answer || answer.done !== true) needsAttention.push(action.key);
-    else done.push(action.key);
+    else {
+      done.push(action.key);
+      if (answer.shared === 'partly' || answer.shared === 'entirely') shared[action.key] = answer.shared;
+    }
     if (answer && answer.pending === true) alertCount += 1;
   }
-  return { hasAssistant, needsAttention, done, count: needsAttention.length, alertCount };
+  return { hasAssistant, needsAttention, done, shared, count: needsAttention.length, alertCount };
 }

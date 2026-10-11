@@ -322,10 +322,12 @@ paths:
         Tapestry Assistant for My Tapestry Owner). Scores, Lists and Concepts are checked too, under their action keys
         `trusted-assertions`, `trusted-lists` and `dlists` (assistant-trusted-content-status ADR 0001): each is `done`
         when the viewer's newest Treasure Map (kind 10040, local relay first, then the outside relays a Map is
-        published to) gives that `category` (`scores`, `lists`, `concepts`) to the viewer's own assistant here, alone
-        or beside others, read through the Treasure Map page's category rule; otherwise `pending` with `reason`
-        `no-map`, `not-assigned` or `other-assistants-only`, or unfinished with the lookup's `reason` (`check-failed`
-        when the check itself failed). `source` says where the Map was found. `duty-menu` (assistant-duty-menu ADR
+        published to) gives that `category` (`scores`, `lists`, `concepts`) to any Assistant, read through the
+        Treasure Map page's category rule; a done category is `shared` when any of those Assistants is not the
+        viewer's own assistant here, `partly` beside it or `entirely` without it, and `shared` is null otherwise
+        (assistant-shared-categories #1). Otherwise `pending` with `reason` `no-map` or `not-assigned`, or unfinished
+        with the lookup's `reason` (`check-failed` when the check itself failed). `source` says where the Map was
+        found. `duty-menu` (assistant-duty-menu ADR
         0001): `offer` is the Duty Menu rows this instance offers for the viewer's own assistant (Scores `30382` for
         the Owner and active customers, Lists `30392`–`30394` and Concepts `39998`, `39999` for every assistant), each
         at this instance's relay at its public address, or Concepts at the first public DList relay when there is none;
@@ -361,6 +363,7 @@ paths:
                         category: { type: string, enum: [scores, lists, concepts], description: 'trusted-assertions, trusted-lists, dlists: the Treasure Map category' }
                         reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays; duty-menu: no-relay-answered), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
                         source: { type: string, nullable: true, description: 'outbox-relays: local or relay; trusted-assertions, trusted-lists, dlists: where the Map was found (local, relay, or null)' }
+                        shared: { type: string, nullable: true, enum: [partly, entirely], description: 'trusted-assertions, trusted-lists, dlists: when done, whether another Assistant holds the category beside the viewer''s own (partly) or instead of it (entirely); null otherwise' }
                         createdAt: { type: integer, nullable: true, description: 'outbox-relays: the relay list created_at' }
                         outbox: { type: array, items: { type: string }, description: 'outbox-relays: the outbox relays, in the list order' }
                         inboxOnlyCount: { type: integer, description: 'outbox-relays: how many read-only entries the list names' }

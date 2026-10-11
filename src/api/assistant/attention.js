@@ -33,10 +33,11 @@
  * and a failing outbox check becomes a `check-failed` action instead of failing the answer.
  *
  * Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001): `trusted-assertions`, `trusted-lists` and
- * `dlists`, each done when the viewer's newest Treasure Map gives that category to their own assistant here, alone or
- * beside others, read through the Treasure Map page's category rule (src/api/assistant/trustedContent.js). Otherwise each
- * is pending with a reason (`no-map`, `not-assigned`, `other-assistants-only`), or unfinished with /setup's lookup
- * reason. It runs beside the others and is isolated the same way: if it throws, the three answer `check-failed`.
+ * `dlists`, each done when the viewer's newest Treasure Map gives that category to any Assistant, read through the
+ * Treasure Map page's category rule (src/api/assistant/trustedContent.js), and `shared` ('partly' / 'entirely') when any
+ * of them is not the viewer's own assistant here (assistant-shared-categories #1). Otherwise each is pending with a
+ * reason (`no-map`, `not-assigned`), or unfinished with /setup's lookup reason. It runs beside the others and is
+ * isolated the same way: if it throws, the three answer `check-failed`.
  *
  * `duty-menu` (assistant-duty-menu ADR 0001): the Duty Menu this instance offers for the viewer's own Assistant (its
  * `offer`, built from where this instance publishes each duty), the menu found for that Assistant now (`published`,
@@ -290,7 +291,7 @@ function trustedContentActions(settled) {
   const { TRUSTED_CONTENT_ACTIONS } = require('./trustedContent');
   const out = {};
   for (const [key, category] of Object.entries(TRUSTED_CONTENT_ACTIONS)) {
-    out[key] = { category, finished: false, done: false, pending: false, reason: 'check-failed', source: null };
+    out[key] = { category, finished: false, done: false, pending: false, reason: 'check-failed', source: null, shared: null };
   }
   return out;
 }

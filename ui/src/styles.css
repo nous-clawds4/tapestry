@@ -8912,6 +8912,14 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   z-index: 1;
   color: #a5b4fc;
 }
+/* Done, but shared: the line under a shared card's description (assistant-shared-categories #1). Faded by colour, not
+   opacity, as .bs-assistant-hub-card-text is; its "Move it here →" is a .bs-assistant-hub-inline-link, above the card. */
+.bs-assistant-hub-card-shared {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(226,232,240,0.6);
+}
 
 /* The placeholder pages */
 .bs-assistant-hub-notes-heading {

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import TopBar from '../../components/TopBar';
 import { useAuth } from '../../context/AuthContext';
 import { useAssistantAttention } from '../../context/AssistantAttentionContext';
+import { MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks';
 import ActionText from './ActionText';
 import {
   ASSISTANT_SECTIONS, ASSISTANT_ACTIONS, ASSISTANT_FAQ, ASSISTANT_COPY, assistantAttention, attentionCountText,
@@ -22,15 +23,20 @@ import {
  *   - signed in with no assistant here: the cards, unmarked, and a line pointing to Account Setup;
  *   - signed in with an assistant: every card marked "Needs attention" until its answer says done, and the count; a
  *     checked action that is done shows a "Done" badge instead (ADR assistant-profile-checklist/0001 sub-decision 7,
- *     first built by assistant-outbox-relays #1).
+ *     first built by assistant-outbox-relays #1). A done card whose category another Assistant holds too, or only,
+ *     also shows a muted "Shared" pill and one line linking to /treasure-map to move it here; it is still done, and
+ *     still not counted (assistant-shared-categories #1).
  */
 
 /**
  * One action's card. The title is the card's link, stretched over the whole card (its ::after), so a click
- * anywhere opens the action's page; the description's NIP links sit above it (ADR 0001 sub-decision 4).
+ * anywhere opens the action's page; the description's NIP links sit above it (ADR 0001 sub-decision 4), and so does
+ * a shared card's "Move it here →", which opens /treasure-map.
+ * `shared` is 'partly', 'entirely' or nothing (assistant-shared-categories #1).
  */
-function ActionCard({ action, marked, done }) {
+function ActionCard({ action, marked, done, shared }) {
   const isDone = done && !marked;
+  const isShared = isDone && (shared === 'partly' || shared === 'entirely');
   return (
     <div className={`bs-assistant-hub-card${marked ? ' needs-attention' : ''}${isDone ? ' is-done' : ''}`}>
       <span className="bs-assistant-hub-card-marker" aria-hidden="true">{marked ? '!' : isDone ? '✓' : ''}</span>
@@ -38,13 +44,22 @@ function ActionCard({ action, marked, done }) {
         <div className="bs-assistant-hub-card-head">
           <Link to={action.path} className="bs-assistant-hub-card-link">
             {marked && <span className="bs-sr-only">{ASSISTANT_COPY.needsAttentionSrPrefix}</span>}
-            {isDone && <span className="bs-sr-only">{ASSISTANT_COPY.doneSrPrefix}</span>}
+            {isDone && <span className="bs-sr-only">{isShared ? ASSISTANT_COPY.doneSharedSrPrefix : ASSISTANT_COPY.doneSrPrefix}</span>}
             {action.title}
           </Link>
           {marked && <span className="bs-setup-step-badge" aria-hidden="true">{ASSISTANT_COPY.needsAttention}</span>}
           {isDone && <span className="bs-setup-step-badge is-done" aria-hidden="true">{ASSISTANT_COPY.done}</span>}
+          {isShared && <span className="bs-setup-step-badge is-neutral" aria-hidden="true">{ASSISTANT_COPY.shared}</span>}
         </div>
         <p className="bs-assistant-hub-card-text"><ActionText parts={action.description} /></p>
+        {isShared && (
+          <p className="bs-assistant-hub-card-shared">
+            <span aria-hidden="true">◐ </span>
+            {ASSISTANT_COPY.sharedLine[shared]}
+            <span aria-hidden="true"> · </span>
+            <Link to={MANAGE_TREASURE_MAP_PATH} className="bs-assistant-hub-inline-link">{ASSISTANT_COPY.sharedMoveLink}</Link>
+          </p>
+        )}
       </div>
       <span className="bs-assistant-hub-card-chevron" aria-hidden="true">›</span>
     </div>
@@ -54,7 +69,7 @@ function ActionCard({ action, marked, done }) {
 export default function AssistantManagementPage() {
   const { user, loading, login } = useAuth();
   const attention = useAssistantAttention();
-  const { hasAssistant, needsAttention, done, count } = assistantAttention(user, attention);
+  const { hasAssistant, needsAttention, done, shared, count } = assistantAttention(user, attention);
   const signedIn = !loading && !!user;
   const signedOut = !loading && !user;
   const marked = (action) => signedIn && needsAttention.includes(action.key);
@@ -113,7 +128,7 @@ export default function AssistantManagementPage() {
             <ul className="bs-assistant-hub-cards">
               {ASSISTANT_ACTIONS.filter((action) => action.section === section.key).map((action) => (
                 <li key={action.key}>
-                  <ActionCard action={action} marked={marked(action)} done={isDone(action)} />
+                  <ActionCard action={action} marked={marked(action)} done={isDone(action)} shared={shared[action.key]} />
                 </li>
               ))}
             </ul>

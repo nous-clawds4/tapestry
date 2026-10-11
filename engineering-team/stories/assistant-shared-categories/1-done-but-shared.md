@@ -330,6 +330,31 @@ with no code change; one result per test):
   `BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/assistant-shared-categories.spec.js tests/brainstorm/assistant-trusted-content.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/assistant-management-page.spec.js tests/brainstorm/assistant-alert.spec.js tests/brainstorm/assistant-attention.spec.js --project=chromium`
   That is this story's spec and SV18, the two re-aimed specs, and three hub specs as regression.
 
+## Implementation *(J3 evidence, 2026-10-11)*
+
+- **Files:**
+  - Code: `src/api/assistant/trustedContent.js`, `src/api/assistant/attention.js`,
+    `ui/src/pages/assistant/actions.js`, `ui/src/pages/assistant/Index.jsx`, `ui/src/styles.css`.
+  - Docs: `src/api/openapi.yaml`, BIBLE.md §11 and its *Last updated* line, and the superseded-in-part line on ADR
+    `assistant-trusted-content-status/0001`.
+  - All of these are in the Design note's blast radius. No deviation from the Design note.
+- **Shared-lines recheck before Implementation:** `git merge-tree --write-tree HEAD origin/staging` is clean.
+  assistant-duty-menu #1's Amendment 2 (`b5c732e`) touched none of these files.
+- **Scoped gate** (the header command, foreground, exit code captured): `EXIT=0`, `TOTAL_FAIL=0`.
+  - Passed per suite: assistant-shared-categories 20, assistant-trusted-content 30, assistant-attention 38 (+1 skipped),
+    assistant-management-page 23 (+1 skipped), assistant-alert 15, treasure-map-needs-attention 6,
+    assistant-duty-cards 12, assistant-duty-menu-check 55.
+  - The two skips were there before this story; both need a live stack.
+- **Wider Node regression:** every `test/assistant-*`, `treasure-map-*`, `manage-treasure-map-*` and `my-assistant*`
+  suite, 36 suites, 0 failures.
+- **Browser** (`vite build` of this tree, served on :7799; the command in *How to run*): 73 passed, 0 failed.
+  - Passed: SC1–SC6, SV1–SV18, TC1–TC5, and the hub, alert and attention specs.
+  - 4 skipped: assistant-management-page B8 for pages that are no longer placeholders, skips that were in the spec
+    before this story.
+- **Seen on screen:** at 1100 px and 390 px, Scores and Lists show ✓, **Done** and **Shared** with their lines;
+  Concepts shows ✓ and **Done**. The **◐** mark draws small in the page's font, close to a dot. It is decorative and
+  hidden from screen readers; whether to keep it is for Gate B.
+
 ## Linked artifacts
 
 - ADR: — (Light: the Design note above; no irreversibility trigger)
