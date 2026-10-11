@@ -218,3 +218,127 @@ Blocking: B1 (`protocols/drafts/duty-menus.md:38` against `:134`) and B2 (`proto
 
 ## Close-out on a pass (same commit)
 - n/a this round: the story stays `Approved`. There is no completion detection, because the book cannot be complete with story 2 open.
+
+## Round 2 (2026-10-11)
+
+**Diff:** `git show c17c945f`. It changes `protocols/drafts/duty-menus.md`, `protocols/worksheet.md`, the story's Deviations, the epic's story-3 bullet, and adds `ledger/2026-10-11-tapestry-concepts-namespace-wording.md`. The unrelated `151e39fb` (security-auth-exposure #8) sits between the rounds and is not reviewed here.
+**Owner input since round 1:** record non-personalized providers as open question 3.
+**Method:** every changed statement was re-derived from its sources as a fresh claim, including the wording this review suggested in round 1 (reviewer.md step 10). Line numbers are in `protocols/drafts/duty-menus.md` unless a file is named.
+
+### Quality gates (round 2)
+
+- [x] `npm test` was run as `GATE_LABEL=duty-menus-2-review-r2 npm test` on a clean tree at `c17c945f`. `npm run -s gate:status -- --label duty-menus-2-review-r2` reports:
+  `20261011T001826Z-819-fd63 [duty-menus-2-review-r2] started 2026-10-11T00:18:26.409Z on c17c945f — PASS, exit 0, 5578 passed, 0 failed, 591 skipped, 298/298 suites`
+  - This is better than the 11-suite red baseline the dispatch quoted. `151e39fb` landed between the rounds and turned all 11 suites green. It also added the 298th suite, the route-table walk its commit message names.
+  - The Implementer's round-2 run (`20261011T001032Z-30120-f0d6`, 27 failed) was on `d130e0c3+dirty`, before `151e39fb` was in history.
+  - The diff touches no code and no test, so the green run means no regression.
+- [x] `bash scripts/harness-lint.sh`: `harness-lint: clean (0 violations)`. This was run before this section was appended.
+- [x] NIP-85 was fetched from `https://raw.githubusercontent.com/nostr-protocol/nips/master/85.md` with curl through the proxy (166 lines). This Reviewer has no WebFetch (see Harness friction).
+
+### Round-1 blockers, re-derived
+
+| # | New text | Source check | OK |
+|---|---|---|---|
+| B1 | :38: a Treasure Map "names no algorithm (Treasure Maps § 1, principle 3)" | treasure-maps.md:48: "no algorithm, data sources, point of view, cutoffs". | ✓ |
+| B1 | :38: a menu may name the algorithm "the way NIP-85 asks a service key's kind 0 to describe its algorithm" | 85.md:145: providers "SHOULD sign a kind `0` of each service key that explains … what the current version of the algorithm is about". "Asks" fits a SHOULD. NIP-85's own kind-0 example (85.md:154) also describes the point of view and the inputs. The menu stays narrower than the kind 0 by design, and that is consistent. | ✓ |
+| B1 | :38 against § 5.4 (:134) | The principle now permits exactly what § 5.4 defines (a name, such as a `score-algorithm` `d`). It keeps parameters, point of view and cutoffs off the menu, which matches the Method fields in treasure-maps.md:313. No contradiction remains. | ✓ |
+| B2 | :283: "NIP-85 lets a kind 10040 carry entries encrypted in its `.content`" | 85.md:109: "keep them private by JSON-stringifying and encrypting the tag list within the `.content` field using NIP-44". | ✓ |
+| B2 | :283: "Treasure Maps keeps its delegation entries public for now (§ 13, question 8)" | treasure-maps.md:527: "Delegation entries in the Map stay public until NIP-85's current private-entry text is checked." The sentence no longer claims Treasure Maps has a private-entry pattern. | ✓ |
+
+B1 and B2 are fixed.
+
+### § 6.2 resolution, re-derived
+
+To avoid hand-waving, I wrote a small model of Treasure Maps § 4.2/§ 4.4 matching and § 6 precedence for non-Concept keys. It resolves each insight once against the menu's rows and once against the Map entries that option 1 writes, then compares the relays.
+
+| Case | Menu rows | K | Option 1 writes | Result |
+|---|---|---|---|---|
+| A (the spec's example) | `*`→R0, `*:tag`→R1 | `3039x` | `3039x`→R0, `3039x:tag`→R1 | ✓ for Tag lists, DList lists and profile lists |
+| B | `3039x`→R0, `3039x:tag:⟨D⟩`→R2 | `30396:tag` | `30396:tag`→R0, `30396:tag:⟨D⟩`→R2 | ✓ |
+| C | `3039x`→R0, `30396:tag::⟨T⟩`→R1 (narrower), `3039x:tag:⟨D⟩`→R2 (overlapping) | `30396` | `30396`→R0, `30396:tag::⟨T⟩`→R1, `30396:tag:⟨D⟩`→R2 | ✗ `30396:tag:⟨D⟩:⟨T⟩`: the menu gives R1 (the exact kind beats the family), the Map gives R2 |
+| D | `3039x`→R0, `3039x:tag`→R1, `30396:tag`→R0 | `3039x` | `3039x`→R0, `3039x:tag`→R1 (`30396:tag` answers with K's relay, so it is not "such a row") | ✗ `30396:tag:⟨D⟩:⟨T⟩`: the menu gives R0, the Map gives R1 |
+| Concept | any | `39998`, `39998:<d>`, `*` | — | The overlap branch never arises. A Concept key has one verbatim scope, there is no Concept family wildcard, and `*:…` never reaches a Concept (treasure-maps.md:162). Every row is covering, narrower or disjoint. |
+
+The intersection key the dispatch asked about:
+- **(a) In the § 4.7 grammar:** yes, in every case tried (`3039x:tag`, `30396:tag:⟨D⟩`, `30396:tag:⟨D⟩:⟨T⟩`, `3038x:rank`). One gap: "whichever value either key names" is undefined for the kind slot, where both keys always name a value. The example implies "the more specific".
+- **(b) Narrower than K:** yes. If a row wins part of K without covering it, the segment-wise intersection differs from K in at least one segment, where it is more specific.
+- **(c) Wins over K for exactly the insights the row wins:** only for a row taken on its own. The intersection beats K on every insight under both, so case A and case B are exact. Combined with other written parts it can fail. In case C, raising the overlapping row's kind slot to K's removes the left-most difference the menu's § 6 decided on (the effect treasure-maps.md:273 describes). The category then decides the other way.
+
+Case D uses only narrower rows, so it also fails under ADR 0002 sub-decision 5's wording ("If rows narrower than K give a different relay", ADR :164). Round 1 missed it. The round-2 text makes it explicit by writing entries only "for each such row".
+
+**§ 13.3 against § 6.2:** all five rows re-derive the same way as in round 1:
+- `30382:rank`: answered by `3038x`.
+- `30385:rank`: answered by `30385`, so not offered.
+- `3038x`: partly offered through the narrower `not-offered 30385`.
+- `3039x`: no covering row; `3039x:tag` is narrower, so "instead" matches the new no-answering-row sentence at :164.
+- `39998`: answered by `39998`.
+
+No row of the table uses the overlap branch or depends on the faults above, so the table still agrees with § 6.2.
+
+### Other folded fixes
+
+| Fix | Where | Source check | OK |
+|---|---|---|---|
+| Concept keys exempt from trailing-segment trimming | :118 | treasure-maps.md:162 ("the rest is the `d` tag, verbatim, and may contain colons"). `39998:foo:` keeps `d` = `foo:`. See NB11 on `39998:`. | ✓ |
+| Withdrawal SHOULD | :215 | ADR 0002 sub-decision 12 (:212) says SHOULD. "Travels by the same `#z`-filtered relay sync as the old one" is a true conditional: both versions carry Nous' `z`. | ✓ |
+| Deletion `e` names earlier versions, never the empty menu | :216 | `docs/TAG_FEDERATION_OPS.md`:112 (kind 5 has no `z`, so `#z` streams don't carry it) and :129 (dcosl honours `e`, not `a`). Naming the empty menu's id on an `e`-only relay removes the newest version, so an older copy is accepted again. The reasoning holds. The required `k` 39999 is also what Tapestry's `tagDeletions` stream selects (:119). | ✓ |
+| Nous' kind 10002 | :186 | Not asked for in round 1. See NB10. | ✓ (scope note) |
+| camelCase namespace | :126 | It now says "namespaced by the concept, here under its camelCase key", and no longer attributes camelCase to Tapestry Concepts. `src/api/normalize/index.js:49` (`toCamelCase`) and `:1329` (`names.oKeys.singular`, "e.g. coffeeHouse"). | ✓ |
+| Ledger row | `ledger/2026-10-11-…` | tapestry-concepts.md:67 ("namespaced by concept slug") and :171 (Primary Property: "the main property key for this concept's namespace"). The code references resolve. The row's line-free pointers survive drift. | ✓ |
+| W1 wording | worksheet.md:21 | "tags-branch ADR 0015" matches W1's own Refs line (:23). "a person adds it to their own dictionary by pointer-`b`" matches the spec at :80. | ✓ |
+| Open question 3 | :285 | 85.md:39 requires a per-user key only "when the algorithm is personalized", so one key for a non-personalized algorithm is allowed. § 7's MUST NOT (:175) is quoted accurately. It records the owner's answer. | ✓ |
+| Story Deviation 1 corrected | story | `protocols/drafts/dlist-auxiliary-events.md:101` cites Show and Tell. The corrected reason is honest. | ✓ |
+| Epic carry-forwards | epic | Bullets 1 and 2 are round 1's NB2. Bullet 3 is ADR 0002's Consequences (:258–260), nearly verbatim. | ✓ |
+
+### Scope and the logged deviation
+
+- Everything in `c17c945f` answers a round-1 finding or the owner's answer, with two exceptions:
+  - **The § 6.2 generalization.** It is logged as a deviation that generalizes sub-decision 5.
+  - **The Nous kind-10002 locator (NB10).** It is not logged as its own deviation.
+- **Judging the deviation:**
+  - **Detection is accepted.** Counting any row that wins part of K, overlapping rows included, follows from sub-decision 5's intent and from Treasure Maps § 6. It is what round 1 NB1(b) asked for.
+  - **The construction is not accepted as written.** The intersection-key rule and the "for each such row" selection are new mechanism that sub-decision 5 does not contain. They make a claim ("so that the Map's own § 6 gives each insight its relay") that cases C and D falsify (B4).
+
+### Findings (round 2)
+
+#### Blocking
+
+3. **B3 — protocols/drafts/duty-menus.md:157: "covers" misstates Treasure Maps § 4.4 and leaves out `*`.**
+   - "an omitted or empty trailing segment covers any value (§ 4.4)". § 4.4 (treasure-maps.md:155–156) covers an omitted *trailing* segment or an empty segment *anywhere*: "An empty segment may sit in the middle: `30396:tag::⟨Vegan⟩`". Read literally, a `30396:tag::⟨T⟩` row (the § 10.7 pattern) does not cover `30396:tag:⟨D⟩:⟨T⟩`, so a broader row answers instead.
+   - The list names family wildcards (§ 4.2) but not `*`. § 4.2 lists `*` separately ("every insight", treasure-maps.md:96), and a bare `*` also covers Concepts (:327; only `*:tag` and `*:dlist` never reach one, :162). Step 4's own example, "when `*` answers K" (:160), needs `*` to cover `3039x`.
+   - Origin: the enumeration copies ADR 0002's Context paraphrase (:44, "omitted and empty trailing segments"). The ADR's rule itself cites § 4.4 whole ("under § 4.4 scopes", :161). So the round-1 text was correct by reference, and spelling the rule out made it wrong.
+   - **Asked change:** either state § 4.4 as written and add `*`, or define "covers" by matching. One possible wording: "every insight K matches, the row's key also matches (Treasure Maps §§ 4.2, 4.4, 4.5)". This suggestion is a claim too, and round 3 should check it as one.
+4. **B4 — protocols/drafts/duty-menus.md:160–164: option 1 does not do what it says ("so that the Map's own § 6 gives each insight its relay").**
+   - **(i) Swallowed nested rows** (case D). A row that answers with K's relay is not "such a row", so it gets no entry. A broader written part then claims its insights. The same happens to a `duty` row nested inside a `not-offered` row: the client would say insights won't come from the key when they will. This gap was inherited from sub-decision 5 (ADR :164) and is now explicit.
+   - **(ii) Order reversal** (case C, new this round). Intersecting with K raises an overlapping row's kind slot. Two written parts can then compare differently in the Map than their rows did in the menu.
+   - **(iii) Kind-slot intersection undefined.** "Whichever value either key names" doesn't say which kind wins when both keys name one, which is always.
+   - **(iv) Unclear wording.**
+     - Option 1 no longer says that K itself is written; the ADR's "as well" was dropped.
+     - "An entry for each such row" includes `not-offered` rows, which cannot have one.
+   - **Asked change:** make the guarantee true, or narrow the claim and the construction. For example:
+     - write K, plus an entry for every `duty` row narrower than K that wins some insight under K, whatever its relay. Then every key compared in the Map is K or one of the menu's own keys, and § 6 keeps its order;
+     - leave overlapping rows to the second option (K plus read-time resolution), or give a construction that keeps § 6's order among all written parts.
+
+     Point (i) changes sub-decision 5's rule, so it needs an ADR amendment (Architect) or a logged deviation for round 3 to judge. Round 3 should re-check whatever lands against cases A–D.
+
+#### Non-blocking
+
+10. **protocols/drafts/duty-menus.md:186** — "found through Nous' own kind 10002 write relays" was neither a round-1 ask nor in ADR sub-decision 8 (:191–192). The story's Round 2 block lists it under "Smaller fixes from round 1", which is wrong.
+    - It fits D3 (kind 10002 "stays useful as a fallback locator") and gives readers a way to actually find those relays, so the change itself is fine.
+    - However, it narrows "where Nous' header is published" to Nous' write relays, while the publisher SHOULD at :188 keeps the broader phrase.
+    - Suggest logging it as its own deviation with its reason, and aligning :188.
+11. **protocols/drafts/duty-menus.md:118** — I re-derived round 1's NB3, which was my own claim.
+    - `39998:foo:` keeping `d` = `foo:` holds, so the exemption is right.
+    - My round-1 claim that reading `39998:` as the bare kind would be wrong is not settled by Treasure Maps. § 4.5 makes its `d` the empty string; § 4.4 makes an empty segment "any". The exemption takes § 4.5's reading, but § 6.2 step 1's "empty trailing segment covers any value" takes § 4.4's.
+    - Suggest saying which reading the spec uses for `39998:` and `39999:`, or carrying the question to Treasure Maps (story 3).
+
+#### Harness friction
+
+1. **The dispatch's gate baseline is stale.** `151e39fb` turned the 11 red suites green between the rounds, so the next dispatch should quote the green baseline. This is not a defect and needs no row.
+2. **The dispatch's tool instruction is wrong for this agent.** It says to load WebFetch via ToolSearch, but this agent's tool list (`.claude/agents/reviewer.md:4`, "Read, Write, Bash, Glob, Grep") has neither. NIP-85 was fetched with curl instead. This needs an OPEN.md `meta` row: either the dispatch template should name curl, or the Reviewer agent should get WebFetch.
+3. **Commit instruction conflict.** This run's dispatch again said not to commit, which conflicts with `workflows/5-review.md` § Per-phase commits. This is the same conflict as round 1's friction item 2. The review is left uncommitted for the orchestrator.
+
+### Verdict (round 2)
+**CHANGES_REQUESTED**
+
+Blocking: B3 (`protocols/drafts/duty-menus.md:157`) and B4 (`protocols/drafts/duty-menus.md:160–164`). B1 and B2 are fixed, and every other folded fix checks out against its sources. The story stays `Approved`.
