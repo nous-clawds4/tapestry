@@ -1,6 +1,6 @@
 # Story 1: The hub's Duty Menu and Your Assistant's Treasure Map cards, as placeholders
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-11
 **Type:** Feature
 **Epic:** `assistant-duty-cards`
