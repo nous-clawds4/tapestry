@@ -1,6 +1,6 @@
 # Story 2: The Duty Menus pre-NIP
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-10
 **Type:** Doc
 

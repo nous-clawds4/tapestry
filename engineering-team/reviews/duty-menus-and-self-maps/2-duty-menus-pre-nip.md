@@ -342,3 +342,226 @@ No row of the table uses the overlap branch or depends on the faults above, so t
 **CHANGES_REQUESTED**
 
 Blocking: B3 (`protocols/drafts/duty-menus.md:157`) and B4 (`protocols/drafts/duty-menus.md:160–164`). B1 and B2 are fixed, and every other folded fix checks out against its sources. The story stays `Approved`.
+
+## Round 3 (2026-10-11)
+
+**Diff:** `git diff b8909914 427b0123 -- protocols/ engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md engineering-team/epics/duty-menus-and-self-maps.md` (deliverable commits `b591f6c0` and `427b0123`). The ADR's changes in the range come from `01498f02`, `02bd64c6`, `cf2085d1` and `427b0123`. They are reviewed only for internal consistency, and for whether the deliverables can satisfy them. The range also holds four commits that belong to other work (`5a3397f5`, `522c0274`, `803d8852`, `d966fa0c`); they are not reviewed here.
+**Owner input since round 2:** ADR 0002 Amendment A1 (A1-1 to A1-8) was approved at the round-2 gate, 2026-10-11, with A1-4's insisted-key relay and A1-8's provisional Concept reading confirmed. A1-9, A1-10 and A1-12 were approved as written at a second gate the same day, and A1-11 was replaced there by the short "observer's choice" rule (ADR Revision 4). A1 governs wherever it conflicts with text above it.
+**Method:** every changed statement was re-derived as a fresh claim (reviewer.md step 10), including round 2's suggested wording for B3. An independent check was then applied to this review before it was committed, and its two findings were re-derived and folded in (last bullet).
+- I wrote an independent model of § 6.2 from the HEAD spec text alone (`scratchpad/rv3/reviewer/dm.py`, `cases.py`; not durable). It has six Score and six List kinds, the four systems, the Profiles, `1`, `30023`, `39998` and `isbn` categories, three DLists and three Tags (one of each never named in a key), and Concepts under A1-8's order. I ran every named A1 case through it.
+- I re-ran the design-time scripts `r4/k1k2.py` (N = 4000), `r4/k4_stale.py` and `r5/k4_p3.py` with `python3 -I`.
+- I fetched NIP-01, 09, 65, 73 and 85 with curl through the proxy.
+- I checked each of the five auditor lenses' findings against the sources before using it.
+- **Independent check.** A checker audited this review before commit, read-only. It re-ran the gate, the models and the scripts, re-fetched the NIPs, and spot-checked the prior blockers and the A1 rows. It raised two non-blocking corrections. I re-derived both and accepted both:
+  - CHK-1: finding 19 said the entry for a Map key `39998:` or `39999:` does not depend on the reading. That is false for an insisted key. I reproduced it in the checker's `rv3/checker/f19.py` and in my own `rv3/reviewer/chk1.py`. Over 40,000 random Concept menus, the answering row differs between the readings 0 times and a `duty`-row entry 0 times, but an insisted key's relay differs 9,231 times. Finding 19 and its ledger bullet are narrowed.
+  - CHK-2: finding 25 quoted the ADR's :1003 as "as the owner approved them" and cut off the rest of the sentence, which discloses the words added after approval. Finding 25 and its ledger row now name only the status line (:3) as the tension.
+  - Neither changes the verdict.
+
+Line numbers are in `protocols/drafts/duty-menus.md` at `427b0123` unless a file is named.
+
+### Quality gates (round 3)
+
+- [x] `npm test`, run as `GATE_LABEL=duty-menus-2-review-r3 npm test` on a clean tree at `427b0123`. `npm run -s gate:status -- --label duty-menus-2-review-r3` reports:
+  `20261011T152827Z-18435-6761 [duty-menus-2-review-r3] started 2026-10-11T15:28:27.283Z on 427b0123 — PASS, exit 0, 5578 passed, 0 failed, 591 skipped, 298/298 suites`
+  The diff touches no code and no test, so the green run means no regression.
+- [x] `npm run test:playwright`: not applicable (no UI).
+- [x] `bash scripts/harness-lint.sh | tail -1`: `harness-lint: clean (0 violations)`. I ran it before writing this section, and again with this round's three new ledger rows in place.
+- [x] **Vocabulary.** `grep -n -i -E "canonical|consensus|\broot\b"` over the spec finds only `:3`, the metadata label. Outside the metadata block, the spec body names no ADR, story, handoff, amendment number or deployment (grep for `ADR|story|A1-|handoff|engineering-team|brainstorm.world` after line 8: no hits).
+- [x] **Links.** All 9 relative links resolve. The external links are NIP-01, NIP-09 and NIP-85.
+- [x] **Nous' key.** It appears 7 times in full in the spec, always the same 64 hex characters, and matches the handoff (D4) and `protocols/worksheet.md`.
+- [x] **External sources fetched** (raw `nostr-protocol/nips` master):
+  - NIP-09 `09.md:35` matches the § 11 quote (:286). The spec lower-cases "When" inside a sentence.
+  - NIP-01 `01.md:101`: lowest id on a tie (:246).
+  - NIP-01 `01.md:97–103`: relays MUST store the latest version, MAY discard older ones, and SHOULD return just the latest (finding 15).
+  - NIP-01 `01.md:80`: `a` refers to "an addressable or replaceable event" (finding 18).
+  - NIP-65 `65.md:39`: "2-4 relays of each category". The 5-to-9 arithmetic at :249 holds: one hint, plus 2–4, plus 2–4.
+  - NIP-85 `85.md:39`: one key per algorithm, and per user when personalized (:234). `85.md:109` (encrypted `.content`) and `85.md:145` (kind 0 per service key) also match.
+
+### Prior blockers, re-derived
+
+| # | Round-3 text | Check | OK |
+|---|---|---|---|
+| B3 "covers" | § 6.2 step 1 (:161–182) defines covering by matching under Treasure Maps §§ 4.2–4.5, for every insight in principle, with § 4.3 agreement judged from the key alone. | Matches treasure-maps.md:155–156 (an empty segment anywhere means any), :96 (`*`), :135–142 (§ 4.3) and :162 (§ 4.5). My model reproduces every example at :172–181 (table below). Round 2's suggested wording ("every insight K matches, the row's key also matches") went in with two additions it needed: § 4.3 agreement from the key alone, and A1-8's Concept readings. Without them the suggestion was not decidable for `3039x:tag:⟨D⟩` or for `39999`. | ✓ |
+| B4 multi-entry option | Step 5 (:194–223): one entry per chosen key, and "MUST NOT turn a menu's rows into Map entries the observer did not choose" (:198). Rows within K are listed with their meets, and the meet is offered as a key. | Cases A–D, Nested and § 4.3 re-derive (table below). Case C's order reversal no longer happens, because no intersection key is written. Case D's swallowed row is listed (`30396:tag` → R0, not differing). Two round-2 sub-points are closed by definition: the kind slot of the meet is "the narrower" one (:187), and a `not-offered` row gets no entry. | ✓ |
+| NIP-09 timestamp (auditor, round 2) | § 11 (:286–290): the deletion's `created_at` MUST be strictly earlier than the empty menu's; timestamps decide; the `e` tags never name an empty menu. | Re-derived by hand from `09.md:35`. The `a` removes versions up to the deletion's own `created_at`, so an empty menu with a later `created_at` survives in either arrival order. A version between the two timestamps is replaced by the empty menu on any relay that keeps the latest version, and is removed by its `e` tag on an `e`-only relay. "Strictly" covers the equal-second case, which "up to" leaves open. The rule at :287 ("if … not later than the deletion's") is the exact condition under which an earlier empty menu would itself be deleted. `rv3/adversarial/stale.py` and `r4/k4_stale.py` reproduce it ("withdraw + deletion": ok under P1 and P2). | ✓ |
+| NB10 | § 8.1 step 3 (:244) and the publisher sentence (:251) both name Nous' kind 10002 write relays. The publisher sentence also names the key's own write relays and the relays named by the `duty` rows of each version and of earlier versions. The story logs the locator as its own deviation (story :124–126). | A1-7, plus A1-12's widening. | ✓ |
+| NB11 | § 5.3 (:122) ignores rows keyed `39998:` or `39999:`, names both readings, and carries the writers' SHOULD. § 14 Q5 (:362). | A1-8. As :122 says, under either reading such a row ties with the bare kind's row under Treasure Maps § 6 (one segment omitted, one empty). | ✓ |
+
+### A1 conformance
+
+| Item | Spec | Verdict |
+|---|---|---|
+| A1-1 covers by matching | :161–182, including the bare `*`, the empty middle segment, the § 4.3 cover, "no `*:<scope>` key covers a Concept key" (:177) and "`30392` does not cover `3039x:tag:⟨D⟩`" (:169). Score kinds sit beside List kinds, a logged judgment call that follows treasure-maps.md:147. | ✓ |
+| A1-2 the answering row | :183, with step 1's Concept order. Its second clause is overstated (finding 13). | ✓ |
+| A1-3 rows within K, the meet, the part, differing rows | :185–193, using "differing row", never "exception". The A1-10 exception for the meet is at :187. The part is defined by "both match" rather than "its meet" (:189), which is needed once a meet can have no key. | ✓ |
+| A1-4 one entry per chosen key | :194–223. The warning is a MAY, as sub-decision 10's MAY; A1-4 qualifies sub-decision 10 only for the relay. The insisted key gets its offering rows' shared relay, else `""`, with no kind 10002 guess (:221–222). | ✓ |
+| A1-5 § 13.3 `3039x` | :353, verbatim. | ✓ |
+| A1-6 the deletion's timestamp | :286–288. | ✓ |
+| A1-7 Nous' relays | :244, :251. | ✓ |
+| A1-8 the Concept kinds | § 5.3 :122; step 1 :178–181; Q5 :362. Nothing says that a bare `39998` covers only `39998:<d>`. | ✓ |
+| A1-9 category `39998` | :163 (`30393`, `30394`, `30397` and their Score kinds, citing Content Categories §§ 1.3 and 2); Q6 :363. content-categories.md:52–64 and :82–89 support "four kinds, referenced by id, by address or as lists". | ✓ |
+| A1-10 the profiles category slot | :165–168, :174, :187, :199, :210–212; Q7 :364. "Limited to the Profiles category" (:187) is the only reading of A1-10's "has" that fits A1-10's own first example. | ✓ |
+| A1-11 Alternates | :215. It keeps "never a fallback" (Treasure Maps § 7, treasure-maps.md:282). It has the SHOULD to show the new key's Assistants and to say that K's other Assistants do not back it up unless they are listed on it, the MAY to add them, and no default. Nothing else in step 5 picks providers or an order: a grep finds no "Backup" and no "K's order". "Unless they are listed on it" is judged under Deviations below, and in finding 25. | ✓ |
+| A1-12 a replaced menu does not survive | § 8.1 :240–255 (all three places, the latest version, lowest id on a tie, skipping, fewer relays, the cost, the publisher rule, the stale-hint bullet); § 11 :282, :289; § 12 :295. § 8.2 :261–263 carries "the latest version counts", as the Implementer's logged extension. | ✓ |
+| Implementation notes: story and epic | The story's round-2 bullets are re-filed (story :96–99, :116–117, :124–126). The story has a round-3 block, a Fix pass 4 block, and the inline Fix pass 4 note (:155–157). The epic's carry-forwards (:21–30) carry every bullet from both note blocks. | ✓ |
+
+### A1's Verification cases, re-derived
+
+Each case was worked by hand from the spec text and confirmed in my own model (`cases.py`).
+
+| Case | Expected (A1) | Re-derived | OK |
+|---|---|---|---|
+| A1-1 covers | `*` covers Concept keys; `30396:tag::⟨T⟩` covers `30396:tag:⟨D⟩:⟨T⟩`; family; `30393` covers `3039x:tag:1`; bare `39998` covers `39999` and `39999:<d>`; bare `39999` covers `39999:<d>`; `*:tag`, `*:dlist` and `*:rank` cover no Concept key; `30392` does not cover `3039x:tag:⟨D⟩` | Same, 20 of 20. Also: `30397` does not cover `3039x:tag:39998`; `30392:tag::⟨T⟩` does not cover `30392:tag:⟨D⟩:⟨T⟩`; `3039x:tag::⟨T⟩` covers it; `30392:tag::` trims to `30392:tag` | ✓ |
+| § 13.2 vs `39999` | Answered by `39998`; `["39999","<A>","wss://concepts.example"]` | Covering rows: `39998` only. Same entry | ✓ |
+| A | Answered by `*`, R0; differing `*:tag` → R1, meet `3039x:tag`, which resolves to `*:tag` → R1 | Same | ✓ |
+| B | R0; differing `3039x:tag:⟨D⟩` → R2, meet `30396:tag:⟨D⟩` | Same | ✓ |
+| C | `30396` → R0. Differing: `30396:tag::⟨T⟩` → R1 (its part includes D's T list) and `3039x:tag:⟨D⟩` → R2 (meet `30396:tag:⟨D⟩`, D's other Tags). `30396:tag:⟨D⟩` → R2, listing `30396:tag::⟨T⟩` as differing, meet `30396:tag:⟨D⟩:⟨T⟩` → R1 | Same. K beats both rows' own keys in the second step. Choosing `30396:tag::⟨T⟩` there does change insights outside K (finding 12) | ✓ |
+| D | R0. `3039x:tag` → R1 differing (part: Tag-based lists of every List kind but `30396`); `30396:tag` → R0 listed, not differing. Choosing `3039x:tag` lists `30396:tag` → R0 as differing | Same | ✓ |
+| Nested | `30396:tag` → R0 listed inside `not-offered 3039x:tag` | Same. The listing rule (:199) compares rows' own keys | ✓ |
+| § 4.3 | Differing `3039x:tag:1`, meet `30393:tag:1`. The row's own key does nothing (K's kind slot is narrower) | Same. In a Map simulation, choosing `3039x:tag:1` changes no insight's winner | ✓ |
+| Other Assistant | Nothing added for `3039x:tag:⟨D1⟩`, so `30392:tag:⟨D1⟩:⟨T1⟩` stays with B | Map `3039x:tag` → B, `3039x` → A: the winner is B | ✓ |
+| A1-9 kick-back | `3039x` → R0, `30397` → R1, K = `3039x:tag:39998`: R0, differing `30397`, meet `30397:tag:39998` | Same | ✓ |
+| A1-10 kick-back | `30392` → R0, `30392:tag::⟨T⟩` → R1, K = `30392:tag:⟨D⟩:⟨T⟩`: R0 | Same. `30392:tag::⟨T⟩` is not even within K | ✓ |
+| A1-10 per key | `3039x` → R0, `3039x:tag::⟨T⟩` → R1, K = `3039x:tag:⟨D⟩:⟨T⟩`: R1, no differing row | Same | ✓ |
+| Keyless meets (:211, :212) | Meet `30392:tag::⟨T⟩` has no key. In the first example the row's key beats K; in the second, K beats the row's key | Meet ≠ K ∩ row in both. The comparisons match | ✓ |
+| A1-12 | P2 / P3 and the reader rule | `k4_stale.py`: every P2 row "ok". `k4_p3.py`: P3 is as good as P2. The spec's reader (`Rn_all`) is wrong 0–1 times per 2,000 with 20% of sends failing | ✓ |
+| Scripts | `k1k2.py` zeros | Under all six reading pairs, the following print 0: `ties`, `unstable`, `any_tie_shared`, `within_covers`, `meet_wrong_outside_class`, `meet_beats`, `meet_ans`, `listing`, `guarantee`, `insisted_bad` and `rowkey_iff_bad`. Several-keys "unlisted wrong" is 0. `meet_wrong` is 7–10 at N = 4000, all inside the keyless class. Kick-back lines: R1/R0/R0 and R1/R0. Cross-reading under the spec's readings (C, b1) against narrower worlds: 0 | ✓ |
+
+### § 13.3, re-derived
+
+| K | Covering → answering | Rows within K | Result | Table (:350–354) | OK |
+|---|---|---|---|---|---|
+| `30382:rank` | `3038x` | none | `["30382:rank","<A>","wss://scores.example"]` | same | ✓ |
+| `30385:rank` | `3038x`, `30385` → `not-offered 30385` | none | not offered | same | ✓ |
+| `3038x` | `3038x` | `not-offered 30385`, differing | entry at scores, with `30385` listed | same | ✓ |
+| `3039x` | none | `3039x:tag` → lists, differing (meet `3039x:tag`) | no entry; meet offered; insisted → `wss://lists.example` | same (A1-5) | ✓ |
+| `39998` | `39998` | none | `["39998","<A>","wss://concepts.example"]` | same | ✓ |
+
+Only the `3039x` row changed, and it changed as A1-5 says.
+
+### Deviations, judged (round 3)
+
+- **The round-2 re-filings** (story :96–99, :116–117, :124–126) are accepted. Each does what A1's implementation notes ask.
+- **Round-3 judgment calls** (story :145–169) are accepted:
+  - the principle 3 pointer;
+  - the § 2 line for "observer" and "insight". It quotes treasure-maps.md:57 and :59 accurately;
+  - the § 7 MUST NOT, reworded to "fill … from". It forbids the same act;
+  - the Score kinds, which follow Treasure Maps § 4.3's Score-key rule;
+  - the shorthand;
+  - "does not replace it with a guess", from A1-4's Set-aside list;
+  - the examples.
+- **Fix pass 1** (story :170–191) is accepted, item by item:
+  - "Differing row is not an exception": the corrected :193 is true. `not-offered 30385` is both.
+  - The listing compares the rows' own keys, not their meets. Case C at :201 shows that the meets order the other way. This states what A1-3's part already means; it adds no rule.
+  - The warning is a MAY. This is judged in the A1-4 row of the conformance table.
+  - "One entry for each key and Assistant", and "only the observer chooses keys": both accepted.
+  - The whole-class entry (Treasure Maps § 10.1) avoids a clash with the term "category": accepted.
+  - § 11's narrower claim for the `a`: accepted. The spec is right, and the ADR's A1-6 Why overstates (finding 25).
+- **Kick-backs in fix passes 1–3** are accepted. The Implementer left the text as A1 said and did not invent answers, and A1-9 to A1-12 now answer all four questions.
+- **Fix pass 4** (story :223–264) is accepted:
+  - "Limited to" the Profiles category: see the A1-10 row.
+  - The two one-line examples re-derive.
+  - § 8.1 keeps its numbered list.
+  - The stale-hint bullet names A1-12's three examples.
+  - Q7 spells out "per key" and "per insight".
+  - "A relay, too, returns only the latest version" is accepted. Finding 15 asks for the SHOULD. The story's own entry admits that NIP-01 has only a SHOULD here.
+- **Fix pass 5** (story :265–290) is accepted. That includes the words "unless they are listed on it" in the Alternates SHOULD (:215):
+  - I checked them as a claim. With a Map `3039x` → [B, A] and `3039x:tag` → [B], choosing `3039x:tag` for A gives a key that B does back up. Without the words, the SHOULD would have the client say something false.
+  - They restate A1-11's approved Why (ADR :828–829).
+  - **I accept them in the spec as a logged deviation.** The ADR's own pending-ratification sentence is the Architect's to close (finding 25).
+  - Also accepted: "Assistants" for "providers", the "Adding one chooses the new key" sentence, the part defined by "both match", and § 8.2's latest-version rule. Without that rule, § 8.2 could show a version that § 8.1 does not count.
+- **Fix passes 6–7** (story :291–303) are accepted for the spec, which they did not change. They edited ADR 0002, and that is process friction, not a deliverable defect (Harness friction 1).
+
+### Scope
+
+- Inside `protocols/`, this round changes only `drafts/duty-menus.md`. Over the whole story (`1b6602e6^..427b0123`), the changes are exactly `drafts/duty-menus.md`, `README.md` and `worksheet.md`. AC6 holds.
+- Outside `protocols/`, the deliverables are the story's Deviations and the epic's story-3 carry-forwards. ADR 0002 and the ledger note on row `2026-10-09-draft-grammar-bare-39999` (`02bd64c6`, which records the owner's provisional answer) are Architect-phase artifacts.
+- No concept definitions changed, so no firmware reinstall is needed. There is no code, no secret and no debug content.
+- The ACs stand as judged in round 1. AC4's resolution text is now A1's, and it is checked above.
+
+### Findings (round 3)
+
+#### Blocking
+
+None. B1 to B4 and the NIP-09 timestamp defect are fixed, and nothing found this round makes the spec wrong or impossible to implement for a well-formed menu.
+
+#### Non-blocking
+
+The fold-forward target for 12–24, 26 and 27 is story 3, which edits `duty-menus.md` § 5.3 and § 6.2 anyway, or a doc-lane pass on the spec. They are collected in ledger row `2026-10-11-duty-menus-spec-fold-forwards`.
+
+12. **protocols/drafts/duty-menus.md:208**: "choosing `30396:tag::⟨T⟩` changes nothing" is true only for K's insights. The key also matches `30396:tag:⟨D′⟩:⟨T⟩` for every other DList.
+    - Evidence (my model): a Map with `30396` → B and `30396:tag:⟨D⟩` → A, plus `30396:tag::⟨T⟩` → A, changes the winner of 2 insights, both outside K, taking them from B. The :207 example is a true no-op (0 changes), because `3039x:tag:1` matches only `30393` lists.
+    - The sentence copies ADR A1-4 (:537–540) and Verification case C (:1113–1115).
+    - **Asked change:** "changes nothing under K". Add to :206's bullet that such a key may still take insights outside K from other entries.
+13. **protocols/drafts/duty-menus.md:183**: "the same row answers for every insight under K" reads as "wins every insight under K", which :185–190 then contradict. In § 13.2, `not-offered 30385` answers K = `3038x`'s `30385` insights.
+    - The wording follows the ADR's implementation note (:962). A1-2's real property is narrower.
+    - **Asked change:** "among the covering rows, the same one is the most specific for every insight under K".
+14. **protocols/drafts/duty-menus.md:186** (with :161): only covering is pinned to "in principle, not only the observer's supported sets". "Insight under K" in steps 2–5 is not.
+    - Example: menu `not-offered 3039x`, `30396:tag` → R1, `30393:tag` → R2, and K = `3039x`, which the observer keeps for A. In principle the two offering rows within K differ, so the insisted entry is `[3039x, A, ""]`. An observer with no supported Tags for event kinds who counts only supported sets gets `[3039x, A, R1]`, which goes silently wrong once such a Tag is supported.
+    - **Asked change:** one sentence in § 6.2's lead: every "insight under K" in steps 1–5 means in principle (Treasure Maps § 8).
+15. **protocols/drafts/duty-menus.md:246**: "a relay, too, returns only the latest version at the address" states as fact what NIP-01 only recommends. `01.md:103` says SHOULD; `01.md:97–99` says relays MUST store the latest and MAY discard older versions.
+    - The reader rule is normative on its own, so no behaviour changes.
+    - **Asked change:** "a relay, too, SHOULD return only the latest version at the address (NIP-01)".
+16. **protocols/drafts/duty-menus.md:144–149** with :89, :246 and :261: § 6.1 gives necessary conditions only ("only when"). § 4's MUST NOT on a header-declaring `z` is not among them.
+    - Since round 3, § 8.1 and § 8.2 decide which version counts by "is it a menu (§ 6.1)". So for a latest version carrying `["z","list"]`, one reader fills the relay and another finds no menu.
+    - This is pre-existing text (sub-decision 4), reached only through a MUST NOT violation.
+    - **Asked change:** add a fifth condition ("it carries no `z` that declares it a header"), or say the four are sufficient. This pairs with the epic's `39999:duty-menu` bullet (epic :27).
+17. **protocols/drafts/duty-menus.md:105, :123; :93, :128**: two gaps for malformed menus, both pre-existing:
+    - It is not said whether an ignored `duty` row (missing relay) still counts as "the first row" for duplicates. `["duty","3038x",""]` followed by `["duty","3038x","wss://r"]` is offered under one order of checks and not offered under the other.
+    - "At most one `json`" gives no rule for several.
+    - **Asked change:** "ignored rows take no part in the duplicate check", and "if there are several `json` tags, the first is used".
+18. **protocols/drafts/duty-menus.md:163**: "`30394` for an addressable one" leaves replaceable kinds (0, 3, 10000–19999) open. NIP-01 references them by `a` coordinate (`01.md:80`), and Content Categories § 2 gives "items referenced by address" `30394`.
+    - Menu `3039x` → R0, `30394` → R1, with K = `3039x:tag:10002`, gives R0 under NIP-01's strict term (`01.md:99`), and R0 with a differing `30394` (or R1) under the wider one.
+    - The ambiguity is Treasure Maps § 4.3's.
+    - **Asked change:** add replaceable kinds to the epic's A1-9 bullet, as a question for Treasure Maps § 4.3. Meanwhile the spec could say "an addressable kind (30000–39999, NIP-01)".
+19. **protocols/drafts/duty-menus.md:187, :362**: for a Map key `39998:` or `39999:`, the spec defers "what it matches, and so its meets" (as A1-8 says), but does not say what is already settled. *(Narrowed after the independent check, CHK-1.)*
+    - Worked under both readings: the covering rows of `39998:` are `*` and `39998`, and those of `39999:` are `*`, `39998` and `39999`. Rows keyed `39998:` or `39999:` are ignored at :122. So the covering rows and the answering row do not depend on the reading, and neither does the entry when the answering row is a `duty` row.
+    - The rows within K do depend on the reading. So do an insisted key's relay (:221–222) and the differing-row listing. Example: a menu `["duty","39998:a","R1"]`, with or without `not-offered 39998`, and K = `39998:` kept for A. Read as the bare kind, `39998:a` is an offering row within K, so the entry is `["39998:",<A>,"R1"]`. Read as a Concept key with an empty `d`, no row is within K, so the entry is `["39998:",<A>,""]`. The deferral at :362 already implies this, since what K matches decides the rows within it. The spec is not wrong.
+    - **Asked change:** one sentence, so that an implementer does not stall. For a Map key `39998:` or `39999:`, the covering rows and the answering row are the same under either reading, so the entry is the same when the answering row is a `duty` row. The rows within K, and so an insisted key's relay and the differing-row listing, wait on Treasure Maps (open question 5).
+20. **protocols/drafts/duty-menus.md:199, :204, :216, :222**: step 5's central obligations carry no RFC keyword: the client "shows", "offers", "lists every differing row", "does not replace it with a guess". Sentences beside them carry MAY, MUST NOT and SHOULD (:197, :198, :215). The guarantee leans on the listing.
+    - **Asked change:** mark each obligation's level (for example, MUST list every row within K; SHOULD offer the meet; MUST NOT replace the empty relay with a guess), or state once that unmarked statements in step 5 are requirements.
+21. **protocols/drafts/duty-menus.md:233**: "the observer's own Assistant", the only exception to § 7's MUST NOT, is not defined. § 13.2 names a per-customer key "Alice's Assistant" (:337), which invites the reading "the Assistant the observer chose". Open question 3 (:360) works only under "a key the observer itself runs".
+    - This is pre-existing text (sub-decision 7, verbatim).
+    - **Asked change:** define the term in § 2. Self-Maps in story 3 are the natural place.
+22. **protocols/drafts/duty-menus.md:105**: "an entry with an empty relay still names a provider" uses Treasure Maps' sense of "provider" (an entry's Assistant). § 2 (:44) defines Provider as "whoever runs Assistant keys". Round 3 removed the same collision from step 5's Alternates bullet but left this one.
+    - **Asked change:** "still names an Assistant".
+23. **protocols/drafts/duty-menus.md:49, :184, :352**: by § 2 and step 3, `3038x` is "offered" in § 13.2 although `30385` is not, and § 13.3 calls it "Partly offered". The warning "A does not offer K as a whole" (:197, :223) fires for `3039x` but not for `3038x`.
+    - Both terms are defined, so implementers agree. The risk is UI copy taken from the terms.
+    - **Asked change:** define "Offered" per insight through § 6.2, or rename step 3's outcome ("K's answering row offers it").
+24. **protocols/drafts/duty-menus.md:259, :95**: § 8.2 gives the filter but not where to send it. :95's "a `#z` query on that handle finds them all" holds only on the relays that hold them.
+    - **Asked change:** name Nous' kind 10002 write relays (the one place every publisher SHOULD reach, :251) and any relays the reader trusts.
+25. **engineering-team/decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md:3, :370–375**: the ADR marks "unless they are listed on it" as added after the owner's approval. It says so the same way in three places: the "After approval" paragraph (:370–375, "they await the Architect's ratification"), the note under A1-11's rule (:818), and the implementation notes (:1003–1004, "with the words added after approval"). The one tension is the status line (:3), "Accepted; amended by A1 (2026-10-11)", which does not mention the pending words. *(Corrected after the independent check, CHK-2. An earlier draft quoted :1003 as "as the owner approved them" and cut off the rest of the sentence.)*
+    - I accept the words in the spec (Deviations, fix pass 5). A Reviewer cannot ratify the ADR's own text.
+    - The same Architect touch should also fix four overstatements in A1. The spec has each one right:
+      - A1-6's Why (:596–597, "removes every earlier version"). NIP-09's `a` removes only up to its own `created_at`.
+      - A1-10's "has the Profiles category" (:777–778). Read as "includes", it contradicts its own first example.
+      - A1-12's "a relay, which keeps only the latest version" (:855–856). See finding 15.
+      - A1-4's and case C's "changes nothing" (:537–540, :1113–1115). See finding 12.
+    - **Asked change:** the Architect (or the owner) ratifies the words with one line under "After approval" and drops the pending sentence. Ledger row `2026-10-11-duty-menus-adr-0002-ratification-open`.
+26. **engineering-team/epics/duty-menus-and-self-maps.md:20–30**: ADR 0002's Consequences of A1 (:917–919) keep the handoff's § 6 fill order with A's self-entry first (handoff § 6, step 1). The epic's story-3 carry-forwards do not record it.
+    - Meanwhile the spec's insisted-key rule states its relay without condition (:220–222, "no relay is known"). Step 5's lead scopes it to "a client that fills the entry from A's menu" (:195), so the spec is not wrong today, but it leaves a seam for story 3.
+    - **Asked change:** when story 3 is planned, add a carry-forward saying how a self-entry composes with § 6.2 step 5.
+27. **docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md:3**: the Status line says "nothing landed in `protocols/` yet". That has been stale since story 1. The book's last frame bullet flips it to ✅ SUPERSEDED at the end.
+    - **Asked change:** refresh the line at story 3, or at the next touch.
+
+Considered and not raised: Q7's "predates" (:364). Both Treasure Maps passages entered the file in one commit (`b12e3ce7`), so git cannot date them. But § 13 question 3 is struck through as "resolved", while § 4.4's bullet still describes the unresolved state. The claim is a fair inference, and it is A1-10's own wording.
+
+### Harness friction (round 3)
+
+1. **An Implementer fix pass edited an accepted ADR, and the owner-gate ADR revision landed in an `impl:` commit.**
+   - `427b0123` (subject `impl: …`) carries ADR 0002's Revision 4 and status line, both Architect-phase text decided at the owner's gate. It also carries fix pass 5's edit to A1-11's approved rule text, which was unmarked at first, and fix pass 6's "After approval" paragraph.
+   - `roles/implementer.md` step 8 says the Implementer stops and the Architect amends. The edit was right in substance and was logged in the open.
+   - The round-3 dispatch then described all of `427b0123`'s ADR changes as "Architect-phase and owner-approved", which the ADR itself contradicts.
+   - New `meta` row: `2026-10-11-implementer-edited-accepted-adr`.
+2. **The template's docs-mode filename note, and the dispatch's commit instruction**, are already ledgered (`2026-10-10-review-template-docs-mode-filename`, `2026-10-11-reviewer-dispatch-tools-and-commit`). This round's dispatch holds the commit until an independent checker has read the review. That is a stated hand-off, not a new defect.
+
+### Verdict (round 3)
+**PASS**
+
+The spec carries A1-1 to A1-12 faithfully. Every Verification case, § 13.3 and the prior blockers re-derive by hand and in an independent model, and the gate is green on a clean tree. The 16 findings above are non-blocking wording gaps or ADR bookkeeping, each with a ledger row or fold-forward target.
+
+### Close-out (round 3)
+
+- The story's `**Status:**` is flipped to `Done` in place, in this review's commit. No files are moved: retirement is per epic.
+- New ledger rows: `2026-10-11-duty-menus-spec-fold-forwards`, `2026-10-11-duty-menus-adr-0002-ratification-open`, `2026-10-11-implementer-edited-accepted-adr`.
+- Completion detection was run, and its result is reported in the chat, not in this file, as the review template says.
