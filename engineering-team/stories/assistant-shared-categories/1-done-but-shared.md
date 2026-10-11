@@ -140,94 +140,106 @@ None open. Settled at intake: split counts as shared (Decision 1); a pill and a 
   away), no auth or trust default, no schema or firmware, no dependency, no cross-repo contract, no routing,
   middleware or headers.
 - **Scoped gate:** the command in this file's header. Baseline on `origin/staging` `2a4e63a` with dependencies
-  installed: the seven existing suites, 176 passed, 0 failed. The new suite is written at J2.
+  installed: the seven existing suites, 176 passed, 0 failed. The new suite is written at J2. *(Base note, J1,
+  2026-10-11: since `d8cdb0f`, another book's failing tests sit on staging. assistant-duty-menu #1 committed failing
+  tests for its ADR 0001 Amendment 2, so `assistant-duty-menu-check` L12, U31 and U32 are red on the base until that
+  book implements them. J3 counts this gate green when its only failures are exactly those three, and they fail the
+  same way on the base it is compared with. If that book has landed by then, there must be none.)*
 - **Expected re-aims, not weakenings:** existing pins that encode the old rule move with the owner's decision.
   These are `test/assistant-trusted-content.test.js` U1 (Concepts given only to another Assistant), U2 (Mixed), U4
   (a backup) and the "other Assistants only" case near line 359, `tests/brainstorm/assistant-trusted-content.spec.js`
-  near line 138, and the three *Alert criteria* strings. Each re-aim is named in the Design note.
+  near line 138, and the three *Alert criteria* strings. Each re-aim is named in the Design note. *(Added at J1,
+  2026-10-11: U3's "`*` hidden for Scores" case also encodes the old rule; the Design note names it.)*
 
-## Design note *(Light profile — provisional here, ratified at Gate B)*
+## Design note *(Light profile — provisional here, ratified at Gate B; revised after J1, 2026-10-11)*
 
-- **Chosen approach, server.** `evaluateTrustedContent` in `src/api/assistant/trustedContent.js` keeps its walk and its
-  one reading of the Map (`categoryAssistants` from `src/lib/treasureMapCategories.mjs`, unchanged). For a finished
-  lookup with a Map, a category with no Assistant stays `pending` with reason `not-assigned`. Any other category is
-  `done: true, pending: false, reason: null`, plus a new field `shared`:
-  - `null` when every Assistant in `assignments[category]` is the viewer's here;
-  - `'partly'` when the viewer's Assistant is among them, beside another;
-  - `'entirely'` when it is not among them.
-
-  Every other answer carries `shared: null`: no Map, unfinished, and `check-failed`, including the failure path in
-  `trustedContentActions` in `src/api/assistant/attention.js`. So each of the three answers is exactly
-  `{ category, finished, done, pending, reason, source, shared }`, and `shared` is non-null only when `done` is true.
-  The reason `other-assistants-only` is retired. The Assistant compared is the one `handleAssistantAttention` already
-  passes in (the session's own; lowercased as today), so whose Assistant it is cannot change.
-- **Chosen approach, hub.** `assistantAttention(user, attention)` in `ui/src/pages/assistant/actions.js` gains one
-  returned field, `shared`: an object from action key to `'partly'` or `'entirely'`. It holds only checked actions that
-  are in `done` and whose answer's `shared` is one of those two values. It is empty for visitors, viewers with no
-  Assistant, and while the answer is not in. `needsAttention`, `done`, `count` and `alertCount` are computed exactly as
-  today. A shared action is in `done` and its answer is not `pending`, so the count line and the pill leave it out
-  without any new counting logic (AC-3).
+- **Server: one new field, `shared`.** `evaluateTrustedContent` in `src/api/assistant/trustedContent.js` keeps its walk
+  and its one reading of the Map (`categoryAssistants`, `src/lib/treasureMapCategories.mjs`, unchanged).
+  - For a finished lookup with a Map, a category with no Assistant stays `pending`, reason `not-assigned`.
+  - Any other category is `done: true, pending: false, reason: null`, with `shared`:
+    - `null` when every Assistant in `assignments[category]` is the viewer's here;
+    - `'partly'` when the viewer's is among them beside another;
+    - `'entirely'` when it is not among them.
+  - Every other answer carries `shared: null`: no Map, unfinished, and `check-failed`, including the failure shape in
+    `trustedContentActions` in `src/api/assistant/attention.js`.
+  - So each of the three answers is exactly `{ category, finished, done, pending, reason, source, shared }`, and
+    `shared` is non-null only when `done`. The reason `other-assistants-only` is retired.
+  - The Assistant compared is the one `handleAssistantAttention` already passes (the session's own, lowercased), so
+    no request can change whose it is.
+- **Hub and card.**
+  - `assistantAttention(user, attention)` in `ui/src/pages/assistant/actions.js` gains one returned field, `shared`:
+    an object from action key to `'partly'` or `'entirely'`, for checked actions in `done` whose answer's `shared` is
+    one of those two values. It is empty for visitors, viewers with no Assistant, and while the answer is not in.
+    `needsAttention`, `done`, `count` and `alertCount` are computed exactly as today. A shared action is done and not
+    `pending`, so the count line and the pill leave it out with no new counting logic (AC-3).
   - `ASSISTANT_COPY` gains `shared: 'Shared'`, `doneSharedSrPrefix: 'Done, shared: '`,
     `sharedLine: { partly: 'Partly handled by another Assistant', entirely: 'Handled by another Assistant' }` and
-    `sharedMoveLink: 'Move it here →'`. The three actions' `alertCriteria` take § Copy's words.
-  - `actions.js` keeps its one import. `MANAGE_TREASURE_MAP_PATH` is already imported there.
-- **Chosen approach, card.** `ActionCard` in `ui/src/pages/assistant/Index.jsx` takes `shared` (`'partly'`,
-  `'entirely'` or nothing). When the card is done and shared, it adds a muted pill after the Done badge and a line
-  after the description; the marker stays ✓ and the card class stays `is-done`.
-  - The pill reuses the existing neutral pill, `<span className="bs-setup-step-badge is-neutral" aria-hidden="true">`,
-    with slate text `#cbd5e1`: not green, quieter than the amber Needs attention pill.
-  - The line is `<p className="bs-assistant-hub-card-shared">`: an `aria-hidden` "◐ ", the `sharedLine` words, an
-    `aria-hidden` " · ", and a router `<Link to={MANAGE_TREASURE_MAP_PATH} className="bs-assistant-hub-inline-link">`.
-    That existing class lifts the link above the card-wide link (`position: relative; z-index: 1`), so a click opens
+    `sharedMoveLink: 'Move it here →'`. The three actions' `alertCriteria` take § Copy's words. `actions.js` keeps its
+    one import (it already imports `MANAGE_TREASURE_MAP_PATH`).
+  - `ActionCard` in `ui/src/pages/assistant/Index.jsx` takes `shared`. When the card is done and shared, it keeps the
+    ✓ marker and `is-done`, and uses `doneSharedSrPrefix` in place of `doneSrPrefix`. After the Done badge it draws
+    `<span className="bs-setup-step-badge is-neutral" aria-hidden="true">`, the existing neutral pill: slate
+    `#cbd5e1`, not green, quieter than the amber Needs attention pill.
+  - After the description it draws `<p className="bs-assistant-hub-card-shared">`: an `aria-hidden` "◐ ", the
+    `sharedLine` words, an `aria-hidden` " · ", and a router `<Link to={MANAGE_TREASURE_MAP_PATH}
+    className="bs-assistant-hub-inline-link">`. `Index.jsx` imports `MANAGE_TREASURE_MAP_PATH` from
+    `../../config/avatarMenuLinks`. The existing class lifts the link above the card-wide link, so a click opens
     `/treasure-map`, not the card's page.
-  - The screen-reader prefix becomes `doneSharedSrPrefix` instead of `doneSrPrefix`.
-  - New CSS, one rule, `.bs-assistant-hub-card-shared`: `margin: 0; font-size: 0.8rem; line-height: 1.5;` and
-    `color: rgba(226,232,240,0.6)`. It is faded by colour, not opacity, for the reason the
-    `.bs-assistant-hub-card-text` comment gives.
+  - One new CSS rule, `.bs-assistant-hub-card-shared { margin: 0; font-size: 0.8rem; line-height: 1.5; color:
+    rgba(226,232,240,0.6); }`. It is faded by colour, not opacity, for the reason `.bs-assistant-hub-card-text`'s
+    comment gives.
   - A done card that is not shared renders exactly as today.
 - **Rejected alternatives.**
-  - *Derive "shared" on the client from the existing `reason`.* A split Map answers plain `done` with `reason: null`,
-    so the client can't know another Assistant holds part of it. And a rule on the client would break the one-answer
-    design (ADR assistant-identification-tags/0001: the rules live on the server).
-  - *Replace `done`/`pending` with one three-valued `state`.* Every reader of `done`/`pending` would change: the count
-    line, the pill, the Done list, and the Duty Menu and Outbox Relays pages' own marks. An orthogonal `shared` field
-    leaves them all untouched.
+  - *Derive "shared" on the client from `reason`.* It can't work: a split Map answers plain `done` with `reason: null`,
+    so the client can't see the other Assistant. It would also put a rule on the client, against the one-answer design
+    (ADR assistant-identification-tags/0001).
+  - *Replace `done`/`pending` with one three-valued `state`.* Every consumer of those two fields would change:
+    `assistantAttention`'s two readings and Done list, which feed the count line and the pill, and the four suites
+    that pin them. An orthogonal `shared` leaves them untouched.
 - **Blast radius.**
   - Code: `src/api/assistant/trustedContent.js` (`evaluateTrustedContent`, header comment);
-    `src/api/assistant/attention.js` (the `trustedContentActions` failure shape, header comment);
-    `ui/src/pages/assistant/actions.js` (`ASSISTANT_COPY`, three `alertCriteria`, `assistantAttention`);
-    `ui/src/pages/assistant/Index.jsx` (`ActionCard` and its caller); `ui/src/styles.css` (one rule).
-  - Docs: `src/api/openapi.yaml` (the `/api/assistant/attention` description); BIBLE.md §11's row for that route and
-    the *Last updated* line.
+    `src/api/assistant/attention.js` (the failure shape, header comment); `ui/src/pages/assistant/actions.js`
+    (`ASSISTANT_COPY`, three `alertCriteria`, `assistantAttention`, header comment);
+    `ui/src/pages/assistant/Index.jsx` (`ActionCard`, its caller, one import); `ui/src/styles.css` (one rule).
+  - Docs:
+    - `src/api/openapi.yaml`: the route's description, and its per-action schema gains
+      `shared: { type: string, nullable: true, enum: [partly, entirely] }`; the `reason` text drops
+      `other-assistants-only`.
+    - BIBLE.md §11's `/api/assistant/attention` row, and the *Last updated* line.
+    - ADR `decisions/done/assistant-trusted-content-status/0001-…md` gets one
+      `> **Superseded in part (2026-10-11):**` line under its header. It records that sub-decision 4's "only others"
+      row is retired and the answer gains `shared` (this story); the rest of that ADR stands. This is the repo's
+      convention (e.g. `decisions/done/my-curated-dlists/0002-the-two-headers.md`).
   - Tests: new `test/assistant-shared-categories.test.js` (+ `test/registry.js`) and
-    `tests/brainstorm/assistant-shared-categories.spec.js`. Re-aims, below.
+    `tests/brainstorm/assistant-shared-categories.spec.js`, plus the re-aims below.
   - **Not consumers** (grep-verified 2026-10-11):
-    - `ui/src/components/TopBarAlert.jsx` reads only `alertCount`.
-    - `ui/src/pages/assistant/DutyMenu.jsx` and `OutboxRelays.jsx` read only `needsAttention` and `done`.
-    - `ui/src/utils/assistantAttention.js` passes `actions` through untouched.
-    - `ui/src/context/AssistantAttentionContext.jsx` already refreshes after the viewer's kind 10040 save.
-    - `src/lib/treasureMapCategories.mjs` and `ui/src/pages/treasure-map/` are read, not changed.
-    - `assistant-attention`, `assistant-duty-menu-check`, `assistant-outbox-check` and `assistant-profile-check`
-      stub `checkTrustedContent` as `async () => ({})`, so they don't see the answer's shape.
+    - `TopBarAlert.jsx` reads only `alertCount`.
+    - `DutyMenu.jsx` and `OutboxRelays.jsx` read only `needsAttention` and `done`.
+    - `ui/src/utils/assistantAttention.js` passes `actions` through.
+    - `AssistantAttentionContext.jsx` already refreshes after the viewer's kind 10040.
+    - `src/lib/treasureMapCategories.mjs` and `ui/src/pages/treasure-map/` are read only.
+    - Four suites stub `checkTrustedContent` as `async () => ({})`: `assistant-attention`, `assistant-duty-menu-check`,
+      `assistant-outbox-check` and `assistant-profile-check`.
 - **Re-aims (the rule changed by the owner's decision, book Decision 1; not weakenings).**
-  - `test/helpers/trustedContentFixtures.js`:
-    - the three answer builders gain `shared: null`;
-    - a new `shared(category, extent)` builder;
+  - `test/helpers/trustedContentFixtures.js` (whose header names ADR 0001 sub-decision 4 as its source; it will name
+    this story too):
+    - the answer builders gain `shared: null`, and a new builder is `shared(category, extent)`;
     - `REASONS.finished` drops `other-assistants-only`;
     - `criteria()` takes § Copy's words.
   - `test/assistant-trusted-content.test.js`:
-    - U1: Concepts given only to another Assistant becomes `done`, `shared: 'entirely'`;
-    - U2: Mixed becomes `done`, `shared: 'partly'`;
-    - U4: a backup becomes `done`, `shared: 'entirely'`;
-    - U11: the table's "assigned" Lists row (`[OTHER, ASSISTANT]`) becomes shared `partly`, and its "others only"
-      row becomes `done`, shared `entirely`;
+    - U1: Concepts given only to another Assistant becomes `done`, shared `entirely`.
+    - U2: Mixed becomes shared `partly`.
+    - U3: its "`*` hidden for Scores" case (`['*', ASSISTANT]`, `['3038x', OTHER]`, which `categoryAssistants` reads
+      as `scores: [OTHER]`) becomes `done`, shared `entirely`.
+    - U4: the backup case becomes `done`, shared `entirely`.
+    - U11: the "assigned" Lists row (`[OTHER, ASSISTANT]`) becomes shared `partly`, and the "others only" row
+      becomes `done`, shared `entirely`.
     - U12: the exact shape gains `shared`.
-
-    S2 (BIBLE and openapi name the three keys) stays as it is; the new suite pins the new words.
-  - `tests/brainstorm/assistant-trusted-content.spec.js` TC3, and `tests/brainstorm/treasure-map-save.spec.js` SV17:
-    their "pending, other Assistants only" stand-in answers become `not-assigned`, the finished pending reason that
-    remains.
-- **Wire fidelity:** none. Nothing is signed, published or stored; the Map is read exactly as before.
+    - S2 stays as it is; the new suite pins the new words.
+  - Browser: `tests/brainstorm/assistant-trusted-content.spec.js` TC3, and `tests/brainstorm/treasure-map-save.spec.js`
+    SV17. Their "pending, other Assistants only" stand-in answers become `not-assigned`, the finished pending reason
+    that remains.
+- **Wire fidelity:** none. Nothing is signed, published or stored, and the Map is read exactly as before.
 
 ## Linked artifacts
 
