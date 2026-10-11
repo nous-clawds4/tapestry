@@ -370,8 +370,9 @@ against it were still open. The passages that relied on it are rewritten or remo
 **After approval.** Fix pass 5 of story 2 (the Implementer) added "unless they are listed on it" to A1-11's rule and
 to its four restatements below. Without those words the SHOULD is false once one of K's other providers is listed on
 the new key, which the rule leaves to the observer. The words come from A1-11's own Why: "They do not, unless the
-observer lists them on the new key." The owner's substance is unchanged, but these words were not on the gate, and
-they await the Architect's ratification. Fix pass 5 also corrected the implementation note on A1-4's Backup offer. The
+observer lists them on the new key." The owner's substance is unchanged. The words were not on the gate; the owner
+ratified them on 2026-10-11, after review round 3 (ledger row `2026-10-11-duty-menus-adr-0002-ratification-open`),
+with the four corrections that row lists. Fix pass 5 also corrected the implementation note on A1-4's Backup offer. The
 client may still offer to add K's providers. A1-11 dropped A1-4's SHOULD that it offer to carry them over in K's order.
 
 **How it was settled.** The orchestrator built a brute-force model of Treasure Maps matching and precedence, in the
@@ -535,11 +536,13 @@ entry bullet, and its "writes the narrower Map entries as well"; spec § 6.2 ste
     another Map entry beats the meet.
   - The row's own key is no substitute when K beats it by § 6: K's kind slot is narrower, or, with the same kind slot,
     K names a value at the first segment where the two keys differ. K then wins every insight they share. Case C shows
-    both. Under K = `30396`, choosing `3039x:tag:⟨D⟩` changes nothing; its meet, `30396:tag:⟨D⟩`, gives D's other
-    Tags R2. Under `30396:tag:⟨D⟩`, choosing its differing row's key, `30396:tag::⟨T⟩`, changes nothing, because
-    `30396:tag:⟨D⟩` names D at the third segment; its meet, `30396:tag:⟨D⟩:⟨T⟩`, gives that list R1.
+    both. Under K = `30396`, choosing `3039x:tag:⟨D⟩` changes nothing within K; its meet, `30396:tag:⟨D⟩`, gives
+    D's other Tags R2. Under `30396:tag:⟨D⟩`, choosing its differing row's key, `30396:tag::⟨T⟩`, changes nothing
+    within that key, because `30396:tag:⟨D⟩` names D at the third segment; its meet, `30396:tag:⟨D⟩:⟨T⟩`, gives that
+    list R1. Outside K such a key can still take insights from other entries: `30396:tag::⟨T⟩` also takes
+    `30396:tag:⟨D′⟩:⟨T⟩` for every other DList D′, from whichever entry held it.
   - When the row's key beats K, choosing it also gives the row's part its relay, unless another Map entry beats it.
-    It may reach insights outside K as well. (`arch/a1r2.py`: the row's key does nothing exactly when K beats it.)
+    It may reach insights outside K as well. (`arch/a1r2.py`: the row's key does nothing within K exactly when K beats it.)
   - A new key can take insights that K's entry already got right. They show up among the new key's differing rows. In
     case D, choosing `3039x:tag` gives `30396:tag:⟨D⟩:⟨T⟩` R1 in the Map. Resolving `3039x:tag` lists `30396:tag` → R0
     as its differing row, whose meet the observer may choose in turn.
@@ -593,8 +596,8 @@ MAY follow that republish"; spec § 11's last bullet.)*
 - A NIP-09 deletion MAY accompany a withdrawal. Its `created_at` MUST be strictly earlier than the empty menu's. The
   timestamps decide, not the order of publishing or of arrival. (See A1-12.)
 - If an empty menu is already out, publish a new empty menu with a `created_at` later than the deletion's.
-- Why: NIP-09's `a` rule, quoted under **Why**. A deletion older than the empty menu removes every earlier version and
-  spares the empty menu, whichever reaches a relay first. "Strictly", because "up to" does not say whether an equal
+- Why: NIP-09's `a` rule, quoted under **Why**. A deletion older than the empty menu removes the versions up to its own
+  `created_at` and spares the empty menu, whichever reaches a relay first. "Strictly", because "up to" does not say whether an equal
   timestamp counts.
 - The deletion carries `["k", "39999"]`, so it travels by Tapestry's `tagDeletions` stream (`#k` 39999,
   `docs/TAG_FEDERATION_OPS.md:110–131`), not with the menu's `#z` streams. It may arrive before or after the empty menu.
@@ -775,7 +778,7 @@ A1-3's "the meet is always defined, and it is a § 4.7 key"; A1-4's "A new key w
     duty-answered keys (the example first), and the reverse for 50.
 - **Some meets have no key.** Treasure Maps has no key for a named Tag, Pin or metric in every category of a profile
   kind. So when a meet would be a `30392` or `30382` `tag` or `pin` key with an empty category, and neither K nor the
-  row has the Profiles category, its spelling means the Profiles category only, while the insights both keys match
+  row is limited to the Profiles category, its spelling means the Profiles category only, while the insights both keys match
   span every category. Then:
   - A1-3: the meet is a § 4.7 key except in this case and A1-8's Concept case. A meet that has a key still beats K,
     and, resolved afresh, its answering row is still the row.
@@ -815,7 +818,8 @@ A1-11 text (commit cf2085d1); spec § 6.2 step 5's Alternates bullet.)*
   `treasure-maps.md:282`). So when the observer chooses a new key within K, the client SHOULD show which providers the
   new key will have, and say that K's other providers do not back it up unless they are listed on it. It MAY offer to
   add them. Which providers the new key has, and in what order, is the observer's choice. The spec sets no default.
-  *("Unless they are listed on it" was added after approval; see "After approval", under revision 4.)*
+  *("Unless they are listed on it" was added after approval and ratified by the owner, 2026-10-11; see "After
+  approval", under revision 4.)*
   - Example: K = `3039x` → [B, A], and the observer chooses for A the meet of one of A's differing rows. The client
     shows that the meet will have A alone, and that B does not back it up there. The observer may add B, before A or
     after it, or leave it off.
@@ -852,8 +856,9 @@ reader order; spec § 8.1, § 11 and § 12.)*
   - The order of § 8.1's list says where to look first, not where to stop.
   - A reader may ask fewer relays, to save queries or to keep Nous' relays from seeing its lookups (§ 12). It may then
     get an older version.
-  - If the latest version is not a menu by § 6.1, the key has none, as on a relay, which keeps only the latest version
-    at the address.
+  - If the latest version is not a menu by § 6.1, the key has none, as on a relay that returns only the latest version
+    at the address. (NIP-01, `01.md:97–103`: relays MUST store the latest version, MAY discard older ones, and SHOULD
+    return just the latest.)
 - **The reader's cost.** Two kind 10002 lookups, the key's and Nous', then the hint relays, the key's write relays and
   Nous' write relays. With one hint and NIP-65's "2-4 relays of each category" (`65.md:39`), that is 5 to 9 relays per
   key, where a reader that stopped at the first menu asked one. Nous' kind 10002 is the same for every key and can be
@@ -1001,7 +1006,7 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   the owner's decision in ledger row `2026-10-09-draft-grammar-bare-39999`.
 
 **For A1-9 to A1-12**, as the owner approved them, 2026-10-11 (A1-11 in its revision 4 form, with the words added
-after approval; see "After approval", under revision 4). AC6 still holds: inside `protocols/`, only
+after approval and since ratified; see "After approval", under revision 4). AC6 still holds: inside `protocols/`, only
 `drafts/duty-menus.md` changes.
 
 `protocols/drafts/duty-menus.md`:
@@ -1018,7 +1023,7 @@ after approval; see "After approval", under revision 4). AC6 still holds: inside
     key an empty category means any, a profile kind's DList categories included. Point to open question 7.
   - The example at :171 gains the exception: `30392:tag::⟨T⟩` does not cover `30392:tag:⟨D⟩:⟨T⟩`.
 - **§ 6.2 step 4** (:184): the meet's exception gains A1-10's case, with a one-sentence reason: a `30392` or `30382`
-  `tag` or `pin` meet with an empty category, from two keys neither of which has the Profiles category, has no key.
+  `tag` or `pin` meet with an empty category, from two keys neither of which is limited to the Profiles category, has no key.
 - **§ 6.2 step 5:**
   - "Every row within K is listed" (:196): where the meet has no key, the client describes the part.
   - "A new key within K" (:201–208): A1-10's case. The client offers the row's own key when it beats K, and otherwise
@@ -1110,9 +1115,9 @@ A1-10 add two bullets, after the last (:28):
     `3039x:tag:⟨D⟩` → R2, with meet `30396:tag:⟨D⟩`.
   - **C.** Menu `3039x` → R0, `30396:tag::⟨T⟩` → R1, `3039x:tag:⟨D⟩` → R2; K = `30396`. The entry is R0. The differing
     rows are `30396:tag::⟨T⟩` → R1, which takes `30396:tag:⟨D⟩:⟨T⟩`, and `3039x:tag:⟨D⟩` → R2 (meet `30396:tag:⟨D⟩`),
-    for D's other Tags. Choosing `3039x:tag:⟨D⟩` changes nothing. Choosing `30396:tag:⟨D⟩` gives D's other Tags R2,
-    and lists `30396:tag::⟨T⟩` as its own differing row. Choosing that row's key, `30396:tag::⟨T⟩`, changes nothing
-    either; its meet, `30396:tag:⟨D⟩:⟨T⟩`, gives that list R1.
+    for D's other Tags. Choosing `3039x:tag:⟨D⟩` changes nothing within K. Choosing `30396:tag:⟨D⟩` gives D's other
+    Tags R2, and lists `30396:tag::⟨T⟩` as its own differing row. Choosing that row's key, `30396:tag::⟨T⟩`, changes
+    nothing within `30396:tag:⟨D⟩` either (outside it, it takes other DLists' T lists); its meet, `30396:tag:⟨D⟩:⟨T⟩`, gives that list R1.
   - **D.** Menu `3039x` → R0, `3039x:tag` → R1, `30396:tag` → R0; K = `3039x`. The entry is R0. The rows within K are
     `3039x:tag` → R1, differing, for Tag-based lists of kinds other than `30396`; and `30396:tag` → R0, listed but not
     differing. Choosing `3039x:tag` gives `30396:tag:⟨D⟩:⟨T⟩` R1 in the Map, and resolving it lists `30396:tag` → R0 as

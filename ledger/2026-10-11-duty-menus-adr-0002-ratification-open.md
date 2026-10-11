@@ -3,8 +3,8 @@
 **Id:** 2026-10-11-duty-menus-adr-0002-ratification-open
 **Type:** docs
 **Opened:** 2026-10-11 (`duty-menus-and-self-maps` #2, review round 3, non-blocking 25)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-11 — the owner ratified "unless they are listed on it"; ADR 0002's "After approval" note, A1-4, A1-6, A1-10, A1-12 and the Verification wording corrected as below.
 
 ADR `duty-menus-and-self-maps/0002` marks the words "unless they are listed on it" as added after the owner's
 approval. Fix pass 5 of story 2 added them to A1-11's rule and its four restatements. The ADR says so the same way in
