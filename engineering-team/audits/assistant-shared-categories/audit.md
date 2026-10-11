@@ -170,7 +170,14 @@ its Gate B record. SV18, a test added beyond the Design note's list, is named an
 ## 6. Carry-forward register
 
 - [ ] **1. Production.** It ships with the owner's next `staging` → `main` promotion. Production needs its own
-  explicit approval (`/cycle-prod`).
+  explicit approval (`/cycle-prod`). **Held 2026-10-11 by the owner's choice, "wait, then promote all".**
+  - **Why it waits.** `staging` carries assistant-duty-menu #2's Phase-3 failing tests (`f6f976c`, 43 failures), so a
+    promotion PR's test check would be red.
+  - **Why not alone.** A selective `promote/*` branch of this book's commits conflicts with assistant-duty-menu #1 in
+    `ui/src/pages/assistant/actions.js`, `src/api/openapi.yaml` and BIBLE §11, checked by a trial cherry-pick onto
+    `origin/main` `36212ac`. It would ship a hand-merged variant that was never run on staging.
+  - **When.** Promote all of `staging` once assistant-duty-menu #2's implementation turns those tests green. The bundle
+    then holds this change, the Duty Menu page and publish button, and the self-maps drafts.
 - [ ] **2. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check:
   - Scores and Lists read **Done** and **Shared**, each with its line, and Concepts reads plain **Done**;
   - the count line and the top-bar pill leave the three out;
