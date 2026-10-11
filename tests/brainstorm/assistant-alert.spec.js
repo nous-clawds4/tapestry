@@ -187,7 +187,7 @@ test.describe('The Assistant Alert (assistant-management #2)', () => {
   });
 
   /* ───────── B1 — where and what ───────── */
-  test('B1: beside the avatar menu on every kind of page — or where the menu would be on the developer pages — the pill reads "Manage your Tapestry Assistant · 11 actions need attention" with "Manage Assistant →", and leads to /assistant (AC-1)', async ({ page }) => {
+  test('B1: beside the avatar menu on every kind of page — or where the menu would be on the developer pages — the pill reads "Manage your Tapestry Assistant · 13 actions need attention" with "Manage Assistant →", and leads to /assistant (AC-1)', async ({ page }) => {
     test.setTimeout(120000);
     await page.setViewportSize({ width: 1280, height: 800 });
     await mock(page);

@@ -108,5 +108,5 @@ None.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-duty-cards/0001-two-placeholder-entries-in-the-one-action-list.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.test-plan.md`
 - Review: (filled in after Review phase)

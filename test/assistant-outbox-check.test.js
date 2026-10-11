@@ -402,15 +402,17 @@ test('U14: lookupNewestReplaceable answers the three shapes ADR 0001 sub-decisio
 
 /* ───────────────────────── C — the hub's data module ───────────────────────── */
 
-test('C1: the hub has eleven actions — Outbox Relays is the third persona card, right after Identification Tags, with its approved title, address, description, NIP-65 link and alert criteria (AC-1)', async () => {
+// Re-aimed by assistant-duty-cards #1 (AC-1): the hub has thirteen actions, and Duty Menu and Your Assistant's Treasure
+// Map follow Outbox Relays in the persona section; Outbox Relays is still its third card.
+test('C1: the hub has thirteen actions — Outbox Relays is the third persona card, right after Identification Tags, with its approved title, address, description, NIP-65 link and alert criteria (AC-1)', async () => {
   const mod = await actionsModule();
   const actions = mod.ASSISTANT_ACTIONS || [];
-  assert(actions.length === 11, `eleven actions, got ${actions.length}`);
+  assert(actions.length === 13, `thirteen actions, got ${actions.length}`);
   const i = actions.findIndex((a) => a && a.key === O.KEY);
   assert(i >= 0, `no action with key ${show(O.KEY)}`);
   assert(actions[i - 1] && actions[i - 1].key === 'identification-tags', `right after identification-tags, got after ${show(actions[i - 1] && actions[i - 1].key)}`);
   const persona = actions.filter((a) => a.section === 'persona').map((a) => a.key);
-  assert(sameJson(persona, ['profile', 'identification-tags', O.KEY]), `the persona section: ${show(persona)}`);
+  assert(sameJson(persona.slice(0, 3), ['profile', 'identification-tags', O.KEY]), `the persona section's first three: ${show(persona)}`);
   const a = actions[i];
   const text = (a.description || []).map((p) => (typeof p === 'string' ? p : p.text)).join('');
   const links = (a.description || []).filter((p) => p && typeof p === 'object').map((p) => ({ text: p.text, href: p.href }));

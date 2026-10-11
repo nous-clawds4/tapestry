@@ -14,10 +14,16 @@
  * Publication of Trusted Content cards are Scores, Lists and Concepts, with their rule as alert criteria and a link to
  * the Treasure Map page. Keys, addresses, descriptions and NIP links are unchanged. Their words come from
  * test/helpers/trustedContentFixtures.js.
+ *
+ * Re-aimed 2026-10-11 by assistant-duty-cards #1 (its story § Copy, approved 2026-10-11): Duty Menu and Your
+ * Assistant's Treasure Map close the persona section, after Outbox Relays, as placeholders. Their words come from
+ * test/helpers/dutyCardsFixtures.js.
  */
 
 const TC = require('./trustedContentFixtures');
 const tc = (key) => TC.CARDS.find((c) => c.key === key);
+const DUTY = require('./dutyCardsFixtures');
+const dutyCard = ({ section, path, title, text, link, alertCriteria, planningNotes }) => ({ section, path, title, text, link, alertCriteria, planningNotes });
 
 // ─── Addresses (story 1 § Copy; ADR assistant-management/0001) ───────────────────────────────
 const HUB = '/assistant';
@@ -43,7 +49,8 @@ const SECTIONS = [
 const NOT_YET_DEFINED = 'Not yet defined.';
 
 /**
- * The eleven actions, in order (ten from assistant-management #1; Outbox Relays from assistant-outbox-relays #1). `text` is the description as a reader sees it (links as their words); `link` is the
+ * The thirteen actions, in order (ten from assistant-management #1; Outbox Relays from assistant-outbox-relays #1; Duty
+ * Menu and Your Assistant's Treasure Map from assistant-duty-cards #1). `text` is the description as a reader sees it (links as their words); `link` is the
  * one NIP link inside it, or null; `alertCriteria` / `planningNotes` are null where the owner gave none.
  */
 const ACTIONS = [
@@ -76,6 +83,8 @@ const ACTIONS = [
     alertCriteria: "If your Assistant's relay list (kind 10002) names no outbox relay.",
     planningNotes: null,
   },
+  // The twelfth and thirteenth actions, the fourth and fifth persona cards (assistant-duty-cards #1 AC-1 and § Copy).
+  ...DUTY.CARDS.map(dutyCard),
   {
     section: 'trusted-content',
     path: '/assistant/trusted-assertions',
