@@ -29,5 +29,10 @@ exactly this reason. Readers that don't verify could act on a forged event.
   reporting them per item.
 - Either way, add a stack-free test that an unsigned or forged event is refused.
 
+**2026-10-11: the access half is closed.** Both import routes are now on the owner's side (owner, admins, direct-local
+callers) through the route table: story `security-auth-exposure` #8, ADR 0005, production PR #847 and the sandbox
+ports. The verification half (`--no-verify`, OPEN.md row 276 F3) is still open, so the row stays OPEN. Its title now
+overstates who can reach the import.
+
 **Pointer:** the review of the wired Create New Concept change, round 2, R2-2 (the PR to `staging` that adds
 `src/api/adoption/newConcept.js`).

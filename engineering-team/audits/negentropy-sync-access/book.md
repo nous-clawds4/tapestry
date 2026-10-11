@@ -1,9 +1,9 @@
-# Book of Work: Who may run a negentropy sync
+# Book of Work: Who may run a negentropy sync, and the access holes found on the way
 
 **Slug:** negentropy-sync-access
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-10
-**Closed:** —
+**Closed:** 2026-10-10
 **Gating:** **Human-gated.** A live access-control fix; the owner answers every gate. No Direction mode.
 
 ## Intent anchor
@@ -26,10 +26,17 @@ Asked about the saved presets: owner and admins.
 - [x] The saved sync presets are managed by the owner and admins (already true: their guard's `isOwner` is the
       owner-or-admin alias).
 - [x] Shipped to production as a hotfix (PR #837) and to `staging` (`dc318717`), with the story and ADR recorded after.
+- [x] **Story 5 (found by story 4's review):** the central auth check judges a path however it is capitalized, as
+      Express routes it. Shipped as a hotfix (PR #839).
+- [x] **Story 6 (found by story 4's review):** starting a registered task and changing what runs on a schedule are for
+      the owner, admins and direct-local callers; the saved presets list is guarded like the sync status. Shipped as a
+      hotfix (PR #840). With it, bullet 2 holds for the task routes too.
+- [x] **Story 7 (found by story 4's review round 2):** a HEAD request is judged as its GET is. Shipped as a hotfix
+      (PR #841).
 
 ## Epics in this book
 
-- `security-auth-exposure` — story 4 (the epic stays Done; this book carries story 4's active-work signal, as
+- `security-auth-exposure` — stories 4–7 (the epic stays Done; this book carries their active-work signal, as
   `audits/auth-signature-verification/` did for story 3).
 
 ## Decisions taken at intake (2026-10-10)
@@ -42,9 +49,36 @@ Asked about the saved presets: owner and admins.
 5. **Which relays** (any `ws(s)://` address or public ones only) was not decided. Owner and admins are trusted with
    any relay, as with the relay router; whether the POV sync should be limited to public relays is carried as ledger
    row `2026-10-10-pov-sync-relay-scope`.
+6. **Capitalized paths (story 5): hotfix now, middleware fix only.** *(Owner, recommended options.)* Case-sensitive
+   routing as a second safeguard is ledger row `2026-10-10-case-sensitive-routing`.
+7. **Task control (story 6): owner, admins and direct-local callers, as a hotfix.** *(Owner, recommended option.)*
+8. **The saved presets list: guarded like the sync status.** *(Owner.)*
+9. **HEAD requests (story 7): hotfix now.** *(Owner, recommended option.)*
+10. **The remaining admin actions with no owner check of their own** (`_intake.md` 2026-07-21): an exhaustive sweep
+    as its own story, not piecemeal hotfixes. *(Owner.)* Not part of this book's frame.
+11. **Kept after two more facts** (2026-10-10): story 6's round-1 review, committed in `deca5b15`, names several open
+    members of that class publicly; and one owner-only path is served by a GET that can act. The owner kept the
+    sweep-first plan for both. *(Owner.)*
 
 ## Artifacts
 
 - Story: `engineering-team/stories/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` (+ `.test-plan.md`)
 - ADR: `engineering-team/decisions/security-auth-exposure/0004-one-guard-for-negentropy-syncs.md`
-- Review: `engineering-team/reviews/security-auth-exposure/4-negentropy-sync-owner-and-admins.md`
+- Stories 5–7: `engineering-team/stories/security-auth-exposure/5-paths-judged-case-insensitively.md`,
+  `6-task-control-owner-and-admins.md`, `7-head-judged-as-get.md` (+ `.test-plan.md` each)
+- Reviews: `engineering-team/reviews/security-auth-exposure/4-…`, `5-…`, `6-…` `7-…`
+
+## Provenance
+
+- **Mode:** Acceptance-frame
+- **Confidence at close:** high. Every frame bullet is backed by a PASS review that re-derived it, a green gate, a
+  successful production deploy (runs 141, 143, 144, 145) and live anonymous checks recorded in the reviews. The frame
+  is narrow on purpose: the remaining admin actions with no owner check of their own (decisions 10–11) are outside it
+  and still open.
+- **Epic housekeeping at close:** `security-auth-exposure` stays Done. Its folders stay outside `done/`, as after the
+  2026-09-11 close (audit §2).
+
+## Close artifacts *(filled by `/close-book`)*
+
+- Build audit: `engineering-team/audits/negentropy-sync-access/audit.md`
+- Product feedback: `engineering-team/audits/negentropy-sync-access/prd-seed.md`

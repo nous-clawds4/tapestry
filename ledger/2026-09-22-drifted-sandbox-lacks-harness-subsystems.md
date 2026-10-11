@@ -22,4 +22,17 @@ This is a more extreme case of what OPEN.md row 195 already named for `feat/tags
 1. **A written playbook** for "sync one feature to a long-lived sandbox branch," covering: which harness files to check for before attempting a cherry-pick (ledger, registry, intake, deploy-safety endpoint), and the default judgment when a file is absent (drop it, don't force it) versus present-but-diverged (row 195's existing guidance).
 2. **A periodic drift-and-gap audit** across the named long-lived sandbox branches (`scripts/long-lived-branches.txt`) that reports, per branch: commits behind `staging`, and which of {`OPEN.md`, `test/registry.js`, `_intake.md`, `deploy-safety` endpoint} are present. Would have surfaced `feature-magic-carpet`'s gap without anyone needing to hit it mid-sync.
 
+**Seen again, 2026-10-11 (book `admin-action-owner-check`, the story `security-auth-exposure` #8 ports, PRs #848 and
+#849; audit §7 #2 and #8).**
+- A fix that carries a route table needs its own table on each sandbox, because each serves different routes:
+  `feat/tags` +2 −36 keys against `staging`, `feature-magic-carpet` +20 −129, three of them new allowlist entries the
+  owner approved that day. On `feature-magic-carpet` the stack-free route walk was incomplete until a branch-only
+  module's database dependencies were stubbed.
+- No CI runs on PRs into sandbox branches (neither PR has a check run), so local runs were the gate, read against each
+  branch's known failures. As the coordinator reported them: `feat/tags` has 8 failures in 5 suites before and after;
+  on `feature-magic-carpet` the chained runner crashes on `better-sqlite3`.
+- The playbook (fix shape 1) should name each sandbox's baseline and how to read a run against it, and say that a
+  port's branch-specific part is new work that gets reviewed. The Architecture half is proposed at that close as a
+  harness commit (audit §7 #2).
+
 **Pointer:** `engineering-team/audits/llms-txt/audit.md` §4 #2/#3, §7; OPEN.md rows 73 (closed, precedent) and 195 (open, narrower sibling case); `scripts/long-lived-branches.txt`.

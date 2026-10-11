@@ -1,7 +1,7 @@
 # Epic: relay-stream-gaps
 
 **Created:** 2026-10-09
-**Status:** Done (book closed 2026-10-10; the story, ADR and review folders sit under `done/`; on staging via PRs #826, #831 and #834; stories 1–2 also on production via PR #829, story 3 pending)
+**Status:** Done (book closed 2026-10-10; the story, ADR and review folders sit under `done/`; on staging via PRs #826, #831 and #834; stories 1–2 on production via PR #829, story 3 via PR #838 on 2026-10-10)
 **Book:** `engineering-team/audits/relay-stream-gaps/book.md` (acceptance-frame)
 **Provenance:** Operator report 2026-10-09 (in-session). Content the operator expected on the
 local relay was missing until a manual negentropy sync, while 11 router streams on

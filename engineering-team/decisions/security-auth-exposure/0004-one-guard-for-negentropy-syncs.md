@@ -6,7 +6,8 @@
 
 ## Context
 
-Eight routes start or inspect a negentropy sync: the strfry family (`POST /api/strfry/negentropy-sync`; `GET …/stream`,
+Eight routes start, count against or inspect a negentropy sync from a caller's request (the registered sync tasks are
+started through the task-control routes; story 6): the strfry family (`POST /api/strfry/negentropy-sync`; `GET …/stream`,
 `…/status`, `…/count` in `src/api/strfry/negentropySync.js`) and four legacy POSTs (`/api/negentropy-sync`, `-wot`,
 `-profiles`, `-personal` in `src/api/index.js`). The central auth middleware (`src/middleware/auth.js`) lets any
 authenticated session through for paths on its `authenticatedEndpoints` list, which names all of them by substring, and
@@ -56,5 +57,7 @@ comment pointing at the guard. Refusals are 401 when not signed in and 403 when 
 - A future sync route must mount one of the two guards. A5/A6 catch a guard removed from the current routes, not a new
   unguarded route.
 - The POV sync can still name any `ws(s)://` relay (ledger `2026-10-10-pov-sync-relay-scope`).
+- The registered sync tasks are started through the task-control routes, not these eight; story 6 puts those behind
+  the middleware's owner-only list, and mounts `requireSyncManager` on the presets list GET.
 - The middleware's `authenticatedEndpoints` entries now only route signed-in sessions to the guard; removing them later
   would not widen access.

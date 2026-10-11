@@ -59,7 +59,7 @@ Derived from the diff (`git diff 27004981..8e9888b9` — src/ changes are exactl
 - [ ] **Firmware-install overwrite protection** — documentation-only here by operator decision (2026-07-18); a real installer guard is its own epic. The second-brain queue's story 8 (export/restore) is the interim protection.
 - [ ] **Whitelist growth to core-node wiring types** — needs a cardinality-safety design first (ADR 0001 Consequences).
 - [ ] **Un-awaited error-path + freeze hardening** — OPEN.md row 77 (trivial; next touch).
-- [ ] **Wider authenticated-non-owner gap on the admin-mutation surface** — pre-existing scoped follow-up (intake 2026-07-21), not this book's.
+- [x] **Wider authenticated-non-owner gap on the admin-mutation surface** — pre-existing scoped follow-up (intake 2026-07-21), not this book's. *(Closed 2026-10-11 by book `admin-action-owner-check`: one route table, default-deny; production PR #847 and the sandbox ports.)*
 
 ## 7. Process findings (harness)
 

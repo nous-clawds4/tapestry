@@ -153,7 +153,9 @@ test.describe('Outbox Relays — the hub card, the page and the publish (assista
     const main = await open(page, X.HUB);
     const persona = main.getByRole('region', { name: X.SECTIONS[0].heading });
     const items = persona.getByRole('listitem');
-    await expect(items).toHaveCount(3);
+    // Re-aimed by assistant-duty-cards #1: Duty Menu and Your Assistant's Treasure Map follow Outbox Relays, which
+    // stays the third persona card.
+    await expect(items).toHaveCount(X.ACTIONS.filter((a) => a.section === 'persona').length);
     await expect(items.nth(2).locator(`a[href="${O.PATH}"]`), 'the third persona card links to /assistant/outbox-relays').toHaveCount(1);
     expect(squash(await items.nth(2).innerText())).toContain(O.ACTION.text);
     const card = hubCard(page);

@@ -1,0 +1,334 @@
+# Story 3: Self-Maps
+
+**Status:** Approved
+**Created:** 2026-10-11
+**Type:** Doc
+
+## Background
+
+The handoff ([`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md))
+splits one question in two (D1):
+- what an Assistant key *offers*, which is its Duty Menu;
+- what it is *actively* publishing, which is its own Treasure Map, a *self-Map*.
+
+Story 2 ratified the first half as `protocols/drafts/duty-menus.md`. Its § 10 says that *active* is for the key's own
+Map to say, and points at Treasure Maps § 9. Nothing there says it yet.
+
+Without this story, three things in the specs go wrong:
+- **A self-Map would create duties.** Under Treasure Maps § 9, an entry naming an Assistant is a duty, unless it names
+  someone else's Assistant ("Naming someone else's Assistant"). A self-entry is neither case. So an Assistant whose own
+  Map names itself would keep a duty alive after its customer dropped it (handoff § 5).
+- **A self-Map would break a stated rule.** `protocols/drafts/assistant-designation.md` § Authorship says "A TA cannot
+  designate itself", and the instance's Tapestry Assistant is meant to publish a self-Map too.
+- **Some insights have nowhere to be found.** Treasure Maps § 3 gives element 3 as "a relay where the insight can be
+  found" and allows the empty string, but gives a reader nothing to do when the insight isn't there. Story 2 left
+  insights in that state: those in a differing row's part (`duty-menus.md` § 6.2 step 4), and insisted keys that carry
+  the empty string (step 5). Two places in `duty-menus.md` (§ 6.2 step 5 and § 14 question 4) wait on Treasure Maps for
+  read-time resolution. The same gap is behind the live defect in ledger row
+  `2026-10-10-external-assistant-relay-left-empty`, whose code fix is a later book.
+
+This story covers the book's frame bullet 3 (Self-Maps in `treasure-maps.md`, and the narrowed sentence in
+`assistant-designation.md`) and the handoff flip in frame bullet 4
+([`engineering-team/audits/duty-menus-and-self-maps/book.md`](../../audits/duty-menus-and-self-maps/book.md)).
+It also takes story 2's carry-forwards that belong with Self-Maps.
+
+Who is affected: implementers of Tapestry, Brainstorm and other NIP-85 providers and clients. They need to say what an
+Assistant publishes right now, read that claim, and find an insight when the relay written in a Map is empty or wrong.
+
+**Proposed scope (the PO, 2026-10-11; the owner decides, open question 2).** Story 2 left a long list of
+carry-forwards: the epic's story-3 bullets and the 14 items plus finding 27 in ledger row
+`2026-10-11-duty-menus-spec-fold-forwards`. This story takes only those that belong with Self-Maps, and a planned
+story 4 takes the rest. ADR 0002 and the owner's gate of 2026-10-11 say that story 3 settles A1-8, A1-9 and A1-10, so
+moving them changes terms the owner set. Reasons for the split:
+- **They are different kinds of work.** Self-Maps are the handoff's settled design (D1, D6, § 5), and the frame already
+  confirms them. The key-grammar questions (A1-8, A1-9, A1-10) are something else: three owner decisions about what
+  Treasure Map keys mean for every reader, with or without Self-Maps. They came out of story 2's resolution rules, not
+  out of the handoff. If they rode along here, Self-Maps would wait on three unrelated decisions.
+- **Size.** Story 2 took three review rounds and seven fix passes for one new spec. The frame's bullet 3 already has
+  eight parts. Adding three grammar decisions and the wording items would make a story that no one review can carry.
+- **What stays here pairs with Self-Maps:**
+  - the read-time fallback, whose first stop is the self-Map;
+  - the self-entry's place ahead of the menu when element 3 is filled (finding 26);
+  - the two qualifiers on the insisted-key relay and the no-guess rule, which the fallback and finding 26 rely on:
+    "insight under K" means in principle (finding 14), and the level of § 6.2 step 5's obligations (finding 20);
+  - "the observer's own Assistant" (finding 21);
+  - telling a menu from a Concept header at the address `duty-menu` (the epic's `39999:duty-menu` bullet, finding 16).
+- **The rest of `duty-menus.md`'s wording goes with story 4, not to a separate doc pass.** Findings 12, 13 and 19 sit
+  in § 6.2 paragraphs that story 4 changes to follow its grammar answers, and finding 19 is A1-8's own. Finding 17
+  touches § 5.3, which A1-8's answer also changes, and finding 18 rides A1-9. Finding 23 spans § 2, § 6.2 step 3 and
+  § 13.3. Findings 15, 22 and 24 are one-line fixes. Putting them in one planned story closes the ledger row in one
+  place and means nothing waits on a lane that hasn't been planned.
+
+## User-facing description
+
+As an implementer of an Assistant service, a Tapestry instance or a NIP-85 client, I want Treasure Maps to say:
+- what an Assistant's own Map means;
+- how a reader uses it;
+- where a reader looks when the relay in a Map doesn't hold the insight.
+
+That lets an Assistant tell everyone which duties it is publishing now, without giving itself duties. A client switching
+a duty between two Assistants can see which one is already live. And a reader can still find an insight when the relay
+written in the Map is empty or wrong.
+
+## Acceptance criteria
+
+Docs-mode: each criterion is checked by reading the specs as they stand after the change. The criteria assume the
+recommended answer to open question 2. If the owner picks another, the PO revises them before approval.
+
+- [ ] **AC1, a self-Map is not a customer's Map.** In `treasure-maps.md`, a reader finds that:
+  - a self-entry creates no duty and designates no one. An Assistant takes duties only from entries that name it in the
+    Maps of the observers it serves.
+    - *Check:* observer O's Map drops A for key K, and A's self-Map still lists K. A reader of § 9 concludes that A has
+      no duty for K from O.
+    - *Check:* the self-entry rule and § 9's existing "Naming someone else's Assistant" rule read as one. For any
+      entry, a reader can tell which of the two applies, if either.
+  - if `p` tags are adopted for finding Maps (§ 13 question 5), an Assistant skips Maps it wrote itself;
+  - the counting rule is stated for outside clients, in the form the owner chooses in open question 5. It covers counts
+    of adopters, of participation, and of points of view to enumerate. *Check:* under either answer, an Assistant key
+    that serves other observers, and whose Map holds only self-entries, is not counted as an adopter.
+- [ ] **AC2, what a self-Map says.** A new § 9.2 defines:
+  - **Terms:** *self-entry* and *self-Map*.
+  - **Meaning:** a self-entry means "published and maintained at this relay", not merely assigned.
+  - **Timing:**
+    - added once the first full set of insights has landed on the named relay;
+    - kept through brief gaps;
+    - removed before upkeep stops.
+    - The spec says what follows removal for every insight family: Scores, Lists and Concepts (Treasure Maps principle
+      4). For Lists that is the existing retraction convention (`trusted-lists.md`). For Scores the removal is the
+      "stopped" signal.
+  - **Content:**
+    - a self-entry names only the Map's author;
+    - its key is the customer's winning key, copied verbatim;
+    - its element 3 is the relay where the insights actually are.
+    - Where A publishes the insights under one key at more than one relay, the spec says what the self-entry's element
+      3 means and whether A may add narrower self-entries. A key with a differing row at another relay
+      (`duty-menus.md` § 6.2 step 4) is such a key. The spec also says which of handoff § 5's "one entry per key" and
+      "where the insights actually are" gives way. AC4's case 1 checks the result.
+    - A self-entry never copies the customer's Preferred/Alternate order or the customer's other providers. A self-Map
+      may also carry ordinary entries (AC7).
+    - Private duties never go in a self-Map's public tags.
+  - **No expiration** (D6).
+
+  `treasure-maps.md` § 9.2 and `duty-menus.md` § 10 point at each other: the menu says *offered*, and the self-Map says
+  *active*.
+- [ ] **AC3, reading a self-Map.** In Treasure Maps' own terms (Preferred and Alternate, § 7; no new "Backup" term), a
+  reader finds that:
+  - a **confirmed duty** is an entry naming A in the observer's Map plus a matching self-entry in A's Map. "Matching"
+    means the same key, or a key that wins for it under § 6.
+  - a confirmed Alternate is a standby that is ready now;
+  - a key that lists a duty in its self-Map counts as maintained whatever the insights' age. This refines § 7's "older
+    than they'll accept";
+  - before relying on a self-entry to switch providers, a client SHOULD spot-check a few insights, because the
+    self-entry is a claim and the events are the proof;
+  - a Map entry names who is asked to publish. It does not promise that the insight exists;
+  - reading a self-Map as a point of view is coherent, and it shows only that key's slice.
+- [ ] **AC4, the relay is a hint, with a read-time fallback.** `treasure-maps.md` § 3 says:
+  - element 3 is a hint, written when the entry was written;
+  - when an insight is not found at the relay its winning entry gives, a reader has a fallback, whatever the cause:
+    an empty relay, an unreachable one, or a reachable one that doesn't hold that insight. The fallback re-resolves
+    that insight, not the entry's key, against A's current self-Map, then A's Duty Menu, then A's kind 10002 write
+    relays as a last resort;
+  - whether a storefront menu's rows count in the menu step, consistent with `duty-menus.md` § 7;
+  - the order between this fallback and § 7's fallback to the next Alternate. *Check:* for a key with Preferred A and
+    Alternate B, where A's insight is not found at element 3, the specs give one answer for whether a reader runs A's
+    fallback before moving to B, or the other way round. § 7's fallback sentence agrees with § 3.
+
+  *Check:* for each of these four cases, a reader can trace where to look next:
+  1. an insight in a differing row's part (`duty-menus.md` § 6.2 step 4). Where that row offers at another relay, the
+     trace reaches that row's relay, not the relay of K's answering row, even when A's self-Map has an entry for K;
+  2. an insisted key whose entry carries the empty string (step 5);
+  3. a key whose Assistant has no menu found;
+  4. the last resort, A's kind 10002 write relays (D3's fallback locator).
+
+  Two more checks:
+  - The fallback stays a read-time act. It does not contradict `duty-menus.md` § 6.2 step 5's rule against writing a
+    guess into element 3. Each of step 5's obligations states its level, that rule included (finding 20).
+  - `duty-menus.md` nowhere says that Treasure Maps lacks read-time resolution. § 6.2 step 5 ("What the entry
+    guarantees") and § 14 question 4 both point at the Treasure Maps rule.
+- [ ] **AC5, a self-entry when the relay is filled.** When a client fills element 3 of an entry that gives K to A, the
+  specs say:
+  - **The self-entry comes first.** A's own self-entry for K, if any, gives the relay ahead of the Duty Menu's
+    answering row (handoff § 6 step 1, kept by ADR 0002's Consequences of A1).
+  - **How it composes with an insisted key.** *Check:* take an insisted key K (`duty-menus.md` § 6.2 step 5) where A's
+    self-Map names a relay for K. Reading both specs gives one answer for element 3, and they agree on it.
+  - **The insisted key's relay does not move with supported sets.** Every "insight under K" in `duty-menus.md` § 6.2
+    means in principle (Treasure Maps § 8), as covering already does (finding 14). *Check:* with menu
+    `not-offered 3039x`, `30396:tag` → R1, `30393:tag` → R2, and K = `3039x` kept for A, a reader gets the same entry
+    whatever Tags the observer supports.
+  - **When no menu is found.** Where A has no self-entry for K and no menu of A's is found, the specs give one answer
+    for element 3. This is the case A1 left with the handoff's § 6 steps 3–4. A key whose menu is found but does not
+    offer it stays as A1-4 settled it (`duty-menus.md` § 6.2 step 5).
+- [ ] **AC6, the address `duty-menu`.** A reader of the specs finds that:
+  - the Concept key `39999:duty-menu` never resolves to a Duty Menu, and a Duty Menu is never read as a Concept header;
+  - Nous' header and every dictionary copy (`39998:<author>:duty-menu`) stay valid under Treasure Maps' rule for
+    reserved words;
+  - no Map key asks an Assistant to publish a Concept header at its own menu's address (`39999:<A>:duty-menu`).
+    *Check:* this holds for the key `39999:duty-menu` and for the bare Concept kinds `39998` and `39999`, under any
+    answer story 4 gives A1-8;
+  - `duty-menus.md` § 6.1 says whether its conditions for "is a menu" are complete, and what a reader does with a kind
+    39999 event at `d` = `duty-menu` that declares itself a header. *Check:* two readers given the same event agree on
+    whether it is a menu (finding 16).
+  - `duty-menus.md` § 4's reservation of `duty-menu` as the `d` of a kind-39999 menu stays (ADR 0002 sub-decision 2).
+    What `treasure-maps.md` § 4.6 says about `duty-menu` follows the owner's answer to open question 1, and each fact
+    about `duty-menu` is normative in one spec only.
+- [ ] **AC7, self-Maps from keys the observer runs.**
+  - `assistant-designation.md` § Authorship forbids a TA designating itself *on anyone else's behalf* (handoff § 5). Its
+    own self-Map therefore no longer contradicts it, and the rest of the user-signed designation is unchanged.
+  - Treasure Maps says:
+    - the instance's TA publishes a self-Map of what it actually publishes for its owner;
+    - that self-Map is never the TA's source of duties;
+    - the TA's kind 10040 is both its self-Map and the instance's own Map (the instance as its own person, BIBLE §31).
+      Entries in it that name other providers are ordinary entries.
+  - Treasure Maps says what the Map of a person who runs their own key as their own Assistant means, so that "a
+    self-entry means active" holds for every key.
+  - `duty-menus.md` defines "the observer's own Assistant", the one exception to § 7's MUST NOT, per the owner's answer
+    to open question 4. The definition is consistent with Self-Maps and with its open question 3 (finding 21).
+- [ ] **AC8, bookkeeping and gates.**
+  - **Tracking what stays open.** Before the handoff flips, an OPEN ledger row or `_intake.md` entry carries handoff
+    Q6 (NosFabrica adoption) and the handoff's later code plan (§ 6 and § 8's engineering steps), beyond what ledger row
+    `2026-10-10-external-assistant-relay-left-empty` already covers. It also points at the two placeholder cards the
+    `assistant-duty-cards` book added to the Assistant Management hub (Duty Menu, `/assistant/duty-menu`; Your
+    Assistant's Treasure Map, `/assistant/treasure-map`), which the later code book replaces rather than duplicates,
+    and at that book's open product questions (`engineering-team/audits/assistant-duty-cards/prd-seed.md` § 7).
+  - **The handoff.** Its Status line flips as the owner answers open question 3 (finding 27; frame bullet 4). The
+    flipped line says:
+    - where each part landed in `protocols/`;
+    - where each § 9 question still open is now tracked: Q4 private duties, and Q6 NosFabrica adoption at the surface
+      above. It also says that Q5 and Q7 were settled by the owner on 2026-10-10;
+    - that the code in its §§ 6–8 is a later book and is not built, and where it is tracked. A session that scans
+      `*HANDOFF*` Status lines must not read SUPERSEDED as shipped.
+  - **The ledger.**
+    - Row `2026-10-11-duty-menus-spec-fold-forwards` records which items this story handled and that the rest went to
+      story 4. It stays OPEN.
+    - Row `2026-10-09-draft-grammar-bare-39999` names story 4, not story 3, as where Treasure Maps settles it. It stays
+      OPEN.
+  - **ADR 0002's "story 3".** That ADR 0002's "until story 3" and "story 3 settles" for A1-8, A1-9 and A1-10 now mean
+    story 4 is on record: in this story's ADR, the epic and the bare-39999 row. ADR 0002's accepted text is not edited
+    (ledger row `2026-10-11-implementer-edited-accepted-adr`).
+  - **One place for each wire fact** (frame bullet 4). The Self-Map rules and the read-time fallback are normative in
+    Treasure Maps, and `duty-menus.md` points to them rather than restating them.
+  - **Vocabulary.** No "canonical" or "consensus" in any text this story adds or changes (`docs/NIP_REORG_DESIGN_HANDOFF.md`
+    D2).
+  - **Gates.** Every link and § reference resolves, `harness-lint` is clean, and the stack-free `npm test` shows no
+    regression.
+  - **Scope.** Inside `protocols/`, changes are limited to `drafts/treasure-maps.md`, `drafts/assistant-designation.md`
+    and `drafts/duty-menus.md`. No BIBLE change: handoff § 8 adds the BIBLE pointer when code ships.
+
+## Concepts touched
+
+None changed (docs-mode). Self-Maps are kind 10040 events (NIP-85), not concept-graph concepts. The Duty Menu header,
+`39998:15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270:duty-menu`, is named, not changed, and is still
+unpublished. No firmware reinstall.
+
+The counting rule (AC1) decides whose activity is counted for others, which is what Show and Tell covers
+(`design-philosophies/show-and-tell.md`). The Architect should read it before writing the rule.
+
+## Out of scope
+
+- **Story 4 (planned), the Treasure Maps key grammar and `duty-menus.md`'s remaining wording**, subject to open question
+  2. Each grammar question needs an owner decision:
+  - A1-8: the two Concept readings and the order of `39998` and `39999` keys. This is ledger row
+    `2026-10-09-draft-grammar-bare-39999`, together with finding 19.
+  - A1-9: which kinds take category `39998`, with finding 18 (are replaceable kinds "addressable"?).
+  - A1-10: the profiles category slot.
+
+  The other wording items from ledger row `2026-10-11-duty-menus-spec-fold-forwards` also go to story 4: findings 12,
+  13, 15, 17, 22, 23 and 24. Until story 4 lands, `duty-menus.md`'s provisional readings (§ 6.2 step 1, § 14 questions
+  5–7) stay in force.
+- **Any code:**
+  - publishing menus and self-Maps;
+  - the counting rule in this instance's queries and pages;
+  - `/treasure-map`'s fill order, its per-card Not offered/Offered/Active states and its "Make preferred" swap (handoff
+    § 6);
+  - the fix for ledger row `2026-10-10-external-assistant-relay-left-empty`.
+
+  All of these come in a later book (the book's "Not in this book").
+- **Private duties** in a self-Map's `.content` (handoff Q4; Treasure Maps § 13 question 8). This story keeps them out
+  of public tags and settles nothing more.
+- **NosFabrica adoption** (handoff Q6), beyond giving it a tracking surface (AC8).
+- **Nous publishing the header**, which happens outside the repo.
+- **The `canonical` uses already in `treasure-maps.md`**: "canonical naddr" and "canonical nevent" in §§ 1, 2, 4.1, 4.3
+  and 11, and the metadata header's "Canonical" field. AC8's vocabulary gate covers only text this story adds or
+  changes.
+- **ADR 0002's ratification fix** (review round 3 finding 25), done in `ab8f2f2b`. Its ledger row is DONE.
+
+## Open questions
+
+Owner decisions this story needs before approval. Each has a recommended default.
+
+**Answered by the owner, 2026-10-11, at story approval:** the recommended default for all five: 1 (a), 2 (a), 3 (a),
+4 (a), 5 (a). The book's acceptance frame gains the story-4 bullet that 2 (a) calls for.
+
+1. **What does "`duty-menu` is reserved" mean in Treasure Maps?** The book's frame bullet 3 says "§ 4.6: `duty-menu` is
+   reserved". Today:
+   - `duty-menus.md` § 4 already reserves `duty-menu` as the `d` of a kind-39999 menu. No key may use it for any other
+     kind-39999 event (ADR 0002 sub-decision 2). That already answers the handoff's reason for reserving it (§ 4.2):
+     `39999:<d>` is also a Concept key, and such a key would ask an Assistant to publish a header at the address of its
+     own menu.
+   - Treasure Maps § 4.6's rule for reserved words forbids them as any Concept `d`. Listing `duty-menu` there as it
+     stands would forbid Nous' header and every dictionary copy, which ADR 0002's Consequences rule out.
+
+   The options:
+   - (a) Treasure Maps § 4.6 names `duty-menu`, points at `duty-menus.md` § 4 for the reservation, and adds only what it
+     means for Map keys: `39999:duty-menu` names no Concept, and `39998:duty-menu` stays legal. The reservation is
+     normative in `duty-menus.md` alone, and the key rule in Treasure Maps alone.
+   - (b) Treasure Maps § 4.6 stays as it is. `duty-menus.md` § 4 remains the only statement, and AC6's key rules sit
+     wherever the Architect places them. The owner rereads the frame's "§ 4.6" as met by `duty-menus.md` § 4.
+   - (c) A general reservation in § 4.6, as the frame's words read literally. This forbids Nous' header and its copies,
+     so D4 and D10 would have to be reopened, and ADR 0002 amended.
+
+   **Recommended: (a).** It keeps the frame's words, places each fact in the spec that owns it, and keeps ADR 0002's
+   constraint. If the Architect finds (a) unsound, the question comes back to the owner rather than falling back.
+2. **Should the carry-forwards be split, and where does story 4 live?** The owner confirmed A1-8 "as the spec's reading
+   of the bare Concept kinds until story 3" (ADR 0002, gate 2026-10-11). ADR 0002 also says story 3 settles A1-9 and
+   A1-10. Ledger row `2026-10-09-draft-grammar-bare-39999` stays OPEN "until … story 3". The split in the Background
+   changes those terms.
+   - (a) Split, with story 4 on this epic and in this book. ADR 0002's "story 3" for A1-8, A1-9 and A1-10 then means
+     story 4, and the A1-8 provisional reading holds until story 4 (AC8 records this). The owner extends the
+     acceptance frame with a bullet for story 4: the three grammar decisions and the remaining `duty-menus.md` wording.
+     Then completion detection does not fire after story 3. The epic's Goal and the book's "stories 1–3" line follow.
+   - (b) Split, with a new epic and book for story 4. This book closes after story 3, and the provisional readings hold
+     until the new book's story lands. Frame bullet 4 ("each wire fact is normative in exactly one place") is the
+     catch. While story 4 is open, `duty-menus.md` holds provisional readings of rules that belong to Treasure Maps.
+     At story 3's close, the owner either rereads bullet 4 as met or keeps this book open until the new one lands.
+   - (c) No split. Story 3 also settles A1-8, A1-9 and A1-10 and the remaining wording, as ADR 0002 says. The PO
+     revises the ACs before approval.
+
+   **Recommended: (a).** The reasons for splitting are in the Background. Keeping story 4 in this book means the frame
+   anchors all of the remaining work, and the book doesn't close while `duty-menus.md` still holds provisional
+   readings. Ledger row `2026-10-11-duty-menus-spec-fold-forwards` also closes with story 4.
+3. **When does the handoff flip to ✅ SUPERSEDED?**
+   - (a) In this story. After story 3, every part of the handoff's design is in `protocols/`, and story 4's questions
+     aren't in the handoff.
+   - (b) When the book closes.
+
+   **Recommended: (a).** The Status line is wrong today (finding 27). Under (b) it stays wrong for another story. One
+   cost: the flip takes the handoff off the open roll-up (`/whats-open` lists only 🔴 handoffs), so Q6 and the code plan
+   would drop out of sight. AC8 puts them on an open tracking surface before the flip.
+4. **What is "the observer's own Assistant"?** It is the one exception to `duty-menus.md` § 7's MUST NOT.
+   - (a) A key the observer itself runs: its own instance's TA, or a key it runs as its own Assistant.
+   - (b) Any key the observer names in its Map.
+
+   **Recommended: (a).** Under (b), the exception covers every storefront key an observer names, which is the case
+   § 7's MUST NOT exists to stop. Open question 3 (non-personalized providers) stays open either way.
+5. **Does the counting rule leave out a person who serves as their own Assistant for every duty?** That person's Map is
+   all self-entries, so a rule that skips Maps made only of self-entries drops them from counts of adopters, of
+   participation, and of points of view to enumerate. A person who names other Assistants for some keys is still
+   counted.
+   - (a) Accept it, and say so in the spec. Outsiders can't tell such a person from an Assistant without classifying
+     keys, and the owner set that aside (handoff § 3).
+   - (b) Narrow the rule so such a person still counts. The Architect looks for a signal that needs no key
+     classification. If there is none, fall back to (a).
+
+   **Recommended: (a).** Such people are rare today. The cost (one person's point of view not enumerated by others'
+   counts) is smaller than reopening key classification. Revisit when such users exist.
+
+Docs-mode note: Test Design is skipped. There is no executable behavior, and the ACs are checked by reading the specs.
+
+## Deviations
+
+## Linked artifacts
+
+- ADR: (filled in after Architecture phase)
+- Test plan: skipped (docs-mode)
+- Review: (filled in after Review phase)

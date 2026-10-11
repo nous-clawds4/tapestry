@@ -20,5 +20,9 @@
   (`src/api/strfry/negentropyPresets.js:162–167`), not built from `RELAY_STALL_MS` / `SYNC_TIMEOUT_MS`; R13 would still
   pass if the constant moved. Build the texts from the constants or comment the coupling.
 
+**2026-10-11:** the first item (a second auth layer) is done. The hand-kept owner-only list is gone, and the route table
+keys the four preset POSTs and the list GET `owner` (story `security-auth-exposure` #8, `151e39fb`). The other three
+items stand.
+
 **Pointer:** `engineering-team/reviews/done/relay-stream-gaps/3-scheduled-negentropy-sync-presets.md` (round 1 non-blocking
 4, 7, 8; round 2 R2-3).

@@ -9,8 +9,8 @@ import { ASSISTANT_MANAGEMENT_PATH } from '../../config/avatarMenuLinks';
  *
  * It says plainly that it is a placeholder, shows the action's description, and carries what the owner has
  * said so far about the page to come — its alert criteria and planning notes — for the session that builds
- * it. One component serves all ten actions; App.jsx routes each action's address here with its entry from
- * ASSISTANT_ACTIONS. When an action is built, its route points at its own page instead.
+ * it. One component serves every action whose page is not built yet; App.jsx routes each such action's address
+ * here with its entry from ASSISTANT_ACTIONS. When an action is built, its route points at its own page instead.
  */
 export default function AssistantActionPage({ action }) {
   return (

@@ -18,7 +18,7 @@
  *        isOwnerOrAdmin.
  *   A8 — the three pages that sync a point of view send exactly the POV-sync shape, so the narrow rule keeps them working.
  *   A9 — the default guards use the real isOwnerOrAdmin from src/middleware/auth.js.
- *   A10 — where the presets module exists, its list GET is behind requireSyncManager (owner decision, 2026-10-10).
+ *   A10 — the presets list GET is behind requireSyncManager (owner decision, 2026-10-10).
  */
 
 const fs = require('fs');
@@ -161,12 +161,9 @@ test('A7: the saved presets\' guard admits the owner and admins', () => {
     'requireOwnerOrLocal admits isOwner(req) or a direct-local caller');
   const auth = read('src/middleware/auth.js');
   assert(/function isOwner\(req\) \{\s*return isOwnerOrAdmin\(req\);\s*\}/.test(auth), 'isOwner is the alias of isOwnerOrAdmin');
-  // The presets module reached staging after main's last promotion; on a line without it there is nothing to guard.
-  if (fs.existsSync(path.join(ROOT, 'src/api/strfry/negentropyPresets.js'))) {
-    const presets = read('src/api/strfry/negentropyPresets.js');
-    const guarded = (presets.match(/if \(!requireOwnerOrLocal\(req, res\)\) return;/g) || []).length;
-    assert(guarded === 4, `save, toggle, delete and run are guarded (got ${guarded})`);
-  }
+  const presets = read('src/api/strfry/negentropyPresets.js');
+  const guarded = (presets.match(/if \(!requireOwnerOrLocal\(req, res\)\) return;/g) || []).length;
+  assert(guarded === 4, `save, toggle, delete and run are guarded (got ${guarded})`);
 });
 
 test('A8: the three pages that sync a point of view send exactly the POV-sync shape', () => {
@@ -185,9 +182,9 @@ test('A9: the default guards use the real isOwnerOrAdmin', () => {
   assert(!user.nexted && user.status === 403, `the real check refuses an unknown signed-in pubkey: ${show(user)}`);
 });
 
-test('A10: the presets list GET is behind requireSyncManager, where the presets module exists', () => {
+test('A10: the presets list GET is behind requireSyncManager', () => {
   const PRESETS = path.join(ROOT, 'src/api/strfry/negentropyPresets.js');
-  if (!fs.existsSync(PRESETS)) return; // the module reached staging after main's last promotion
+  assert(fs.existsSync(PRESETS), 'src/api/strfry/negentropyPresets.js does not exist');
   const a = access();
   const routes = {};
   const app = { get: (p, ...h) => { routes[`GET ${p}`] = h; }, post: (p, ...h) => { routes[`POST ${p}`] = h; } };

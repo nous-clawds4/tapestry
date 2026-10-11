@@ -58,7 +58,7 @@
 
 - [ ] **F1 (Critical, live):** `POST /api/strfry/publish` writes forged events into Neo4j from a claimed pubkey without `verifyEvent`. (private advisory)
 - [ ] **F2:** per-consumer `authenticated` checks (defense-in-depth; the exploitable path is closed by this book's reframe). (private advisory)
-- [ ] **F3–F5:** io-import `--no-verify` + Cypher injection; `trusted-list/publish` missing `requireAuth`; POST-only owner gate. (private advisory)
+- [ ] **F3–F5:** io-import `--no-verify` + Cypher injection; `trusted-list/publish` missing `requireAuth`; POST-only owner gate. (private advisory) *(2026-10-11: F4 and F5 are closed by book `admin-action-owner-check`; F3 is still open, OPEN.md row 276.)*
 - [ ] **F6:** decouple kind10040's challenge from login so the NIP-85 publish page works again (§4 #1).
 - [ ] **Sandbox propagation:** merge `staging` → `feat/tags`, `feat/communities`, `feature-magic-carpet`, `feat/curate` (still expose the bypass).
 - [ ] File the private GitHub Security Advisory (F1–F6) per SECURITY.md.

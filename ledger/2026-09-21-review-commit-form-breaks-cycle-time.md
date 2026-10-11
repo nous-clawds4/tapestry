@@ -61,6 +61,17 @@ The second is the better shape: the first makes the number correct while leaving
 divergent form just as silent. Both touch `scripts/harness-stats.sh`, a harness-definition path, so
 the change owes a CHANGELOG row.
 
+**(d) Another book's drift, 2026-10-11 (book `admin-action-owner-check` close, audit §7 #11).** Story
+`security-auth-exposure` #8's phase commits were:
+- `story:` (`9326094a`), counted;
+- `architecture:` (`9186a8c2`), not counted;
+- `tests:` (`ad61b9ad`), not counted;
+- the review, which rode inside the `fix:` commit (`151e39fb`), not counted.
+
+`harness-stats.sh` moved `security-auth-exposure` from 19 to 20, and matches story 8 first→last rather than
+story→review. Since 2026-09-01, `git log` shows `architecture:` once and `tests:` five times. This is more support for
+the second fix shape: print the phase-commit subjects it can't match.
+
 **Pointer:** `scripts/harness-stats.sh:40,48,169,170`; `engineering-team/workflows/5-review.md:34`;
 `engineering-team/workflows/1-planning.md:32`; the three review commits above; the `plan(...)`
 commits at `nip05-ssrf-guard` `4371c765` and `llms-txt` `eb08b102`/`b6ffee98`/`8f6ecb29`. Sibling

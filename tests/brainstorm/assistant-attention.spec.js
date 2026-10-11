@@ -169,32 +169,34 @@ test.describe('The one answer, and the hub\'s first real mark (assistant-identif
     expect(found, `the bundle served by ${baseURL} does not ask /api/assistant/attention (${why}). Rebuild the UI, or the story is not built yet — B1–B6 say so directly.`).toBe(true);
   });
 
-  test('B1: a done answer — ten cards marked, the Identification Tags card not, "10 actions need attention", and 9 in the pill (AC-5)', async ({ page }) => {
+  // Re-aimed by assistant-duty-cards #1: Duty Menu and Your Assistant's Treasure Map are two more placeholders, always
+  // marked and always counted, so every count in B1–B5 is two higher than before.
+  test('B1: a done answer — twelve cards marked, the Identification Tags card not, "12 actions need attention", and 11 in the pill (AC-5)', async ({ page }) => {
     await mock(page, { attention: T.DONE });
     const hub = await hubState(page);
-    expect(hub, 'the hub with the check done').toEqual({ marks: 10, count: 10, idMarked: false });
-    expect(await pillCount(page), 'the pill counts nine').toBe(9);
+    expect(hub, 'the hub with the check done').toEqual({ marks: 12, count: 12, idMarked: false });
+    expect(await pillCount(page), 'the pill counts eleven').toBe(11);
   });
 
-  test('B2: a pending answer — eleven marks, "11 actions need attention", and 10 in the pill (AC-5)', async ({ page }) => {
+  test('B2: a pending answer — thirteen marks, "13 actions need attention", and 12 in the pill (AC-5)', async ({ page }) => {
     await mock(page, { attention: T.PENDING });
     const hub = await hubState(page);
-    expect(hub).toEqual({ marks: 11, count: 11, idMarked: true });
-    expect(await pillCount(page)).toBe(10);
+    expect(hub).toEqual({ marks: 13, count: 13, idMarked: true });
+    expect(await pillCount(page)).toBe(12);
   });
 
-  test('B3: an unfinished answer — the hub marks eleven and says "11 actions"; the pill counts only the confident nine (AC-5)', async ({ page }) => {
+  test('B3: an unfinished answer — the hub marks thirteen and says "13 actions"; the pill counts only the confident eleven (AC-5)', async ({ page }) => {
     await mock(page, { attention: T.UNFINISHED });
     const hub = await hubState(page);
-    expect(hub, 'the page marks until proven done').toEqual({ marks: 11, count: 11, idMarked: true });
-    expect(await pillCount(page), 'the pill counts a checked action only from a finished, missing answer').toBe(9);
+    expect(hub, 'the page marks until proven done').toEqual({ marks: 13, count: 13, idMarked: true });
+    expect(await pillCount(page), 'the pill counts a checked action only from a finished, missing answer').toBe(11);
   });
 
-  test('B4: the fetch fails — the hub marks eleven; the pill counts only the five placeholders (AC-5; re-aimed by assistant-profile-checklist #1, assistant-outbox-relays #1 and assistant-trusted-content-status #1: the profile, Outbox Relays, Scores, Lists and Concepts are checked too)', async ({ page }) => {
+  test('B4: the fetch fails — the hub marks thirteen; the pill counts only the seven placeholders (AC-5; re-aimed by assistant-profile-checklist #1, assistant-outbox-relays #1 and assistant-trusted-content-status #1: the profile, Outbox Relays, Scores, Lists and Concepts are checked too; by assistant-duty-cards #1: two more placeholders)', async ({ page }) => {
     await mock(page, { attention: 'error' });
     const hub = await hubState(page);
-    expect(hub).toEqual({ marks: 11, count: 11, idMarked: true });
-    expect(await pillCount(page)).toBe(5);
+    expect(hub).toEqual({ marks: 13, count: 13, idMarked: true });
+    expect(await pillCount(page)).toBe(7);
   });
 
   test('B5: while the answer is on its way no pill shows (setup done); it then shows with the answer\'s count, which never changes under the viewer (ADR 0001 sub-decision 8)', async ({ page }) => {
@@ -216,7 +218,7 @@ test.describe('The one answer, and the hub\'s first real mark (assistant-identif
       }
       await page.waitForTimeout(100);
     }
-    expect([...seen], 'the pill showed only the answered count').toEqual([9]);
+    expect([...seen], 'the pill showed only the answered count').toEqual([11]);
   });
 
   test('B6: read-only — one GET of /api/assistant/attention per full load with no parameters, nothing but GETs, and nothing new when moving inside the app (AC-7)', async ({ page }) => {

@@ -15,7 +15,7 @@ Node suite `test/negentropy-sync-access.test.js` (stack-free; the owner/admin ch
 | AC-3 the POV sync only | A1 (the accepted shape, keys in either order), A2 (19 refused shapes: up/both/absent direction, other or extra kinds, a string kind, zero or two authors, uppercase or short hex, `since`, a tag key, non-object filters and bodies), A4 | unit |
 | AC-4 managers run anything | A3, A4 (owner/admin and `localTrusted` with an upload sync) | unit (DI) |
 | AC-5 the three pages | A8 (each page's fetch body is exactly the AC-3 shape) | source |
-| AC-6 presets | A7 (`requireOwnerOrLocal` admits `isOwner` or direct-local; `isOwner` is the alias of `isOwnerOrAdmin`; the four preset POSTs call it, where the module exists) | source |
+| AC-6 presets | A7 (`requireOwnerOrLocal` admits `isOwner` or direct-local; `isOwner` is the alias of `isOwnerOrAdmin`; the four preset POSTs call it, where the module exists); A10 (the list GET behind `requireSyncManager`) and `negentropy-sync-presets` P12 (story 6) | source |
 | Default wiring | A9 (the exported guards use the real `isOwnerOrAdmin`; an unknown signed-in pubkey is refused) | unit |
 | AC-7 docs | `src/api/openapi.yaml` parses; the five documented routes carry 401 and 403 (checked by hand at the record step) | manual |
 

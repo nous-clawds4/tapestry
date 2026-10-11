@@ -21,4 +21,6 @@ CHANGES_REQUESTED review must read `CR`.
 section with an `### On PASS` heading after a CHANGES_REQUESTED verdict; harness-lint L1 reported the story as
 "PASS-final but status 'Approved'" until the heading was renamed (`### Story status and completion (round 2)`).
 
+**Fourth occurrence, 2026-10-11 (book `duty-menus-and-self-maps`, story 2 review round 1, `72d34d23`).** A reviewer agent wrote the review to the template, so `## On PASS (same commit)` followed the CHANGES_REQUESTED verdict. The commit went lint-red (L1, "PASS-final but status 'Approved'") until the heading was renamed `## Close-out on a pass (same commit)` in the next commit.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7.

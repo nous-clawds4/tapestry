@@ -36,5 +36,11 @@ runs a load gate on purpose sees a red suite that isn't theirs.
 wall-clock checks as load-sensitive in the suite's header, so a review's load run can tell them apart from real
 failures. Never skip them.
 
+**2026-10-10, story `security-auth-exposure` #8 review (appended at book `admin-action-owner-check`'s close,
+2026-10-11).** RW7 failed in `20261010T224631Z-30352-3e98`: the restart came 0.77 s after the first start, against the
+0.8 s floor, while the Reviewer ran a CPU-heavy probe beside the gate. The clean rerun, `20261010T225218Z-2967-fdbe`,
+passed. That review asked for a row because the flake "has no ledger row", and `2026-10-10-rw7-timing-flake` was filed.
+It is closed as a duplicate of this one.
+
 **Pointer:** `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Quality gates and
 § Harness friction 3; `engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md` § Harness friction 2.

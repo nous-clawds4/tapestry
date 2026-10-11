@@ -332,7 +332,7 @@ const router = createBrowserRouter([
     path: MY_ASSISTANT_PATH,
     element: <EditAssistantProfilePage />,
   },
-  // The ten action pages under /assistant: one route per ASSISTANT_ACTIONS entry — the action's own page where one
+  // The action pages under /assistant: one route per ASSISTANT_ACTIONS entry — the action's own page where one
   // is built (ACTION_PAGES, keyed by action key), the placeholder otherwise (ADR assistant-identification-tags/0002).
   ...ASSISTANT_ACTIONS.map((action) => ({ path: action.path, element: ACTION_PAGES[action.key] ?? <AssistantActionPage action={action} /> })),
   {

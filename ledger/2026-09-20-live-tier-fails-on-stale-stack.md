@@ -60,6 +60,16 @@ live tier in a worktree has verified nothing at all.
    whenever the new contract is missing would skip exactly when a genuine regression appears. The
    probe must key on *build identity*, not on the feature under test.
 
+
+**A variant, 2026-10-11 (`assistant-duty-cards` #1, Implementation).** With no stack in the container, a throwaway
+Express server served the built UI on `:7778` for the browser specs. A full `npm test` run while it was up
+(`20261011T160755Z-22581-fad5`) failed 15 tests in 8 unrelated suites (`site-trust-signals`, `llms-txt`,
+`information-for-agents`, `event-tagging-for-tag` and others) and ran 24 tests that normally skip. The live tiers take
+*anything* answering on `:7778` for the control panel. With the server stopped the same tree was green
+(`20261011T161342Z-27517-20b8`). Moving the browser server to `:7799` (`BRAINSTORM_BASE_URL`) avoided it. The
+build-identity probe in the fix shape would catch this case too: a live tier should check that the responder is a
+control panel before it runs.
+
 **Pointer:** `test/profile-lookup-bounds.test.js` (`stackPresent`, E1–E3);
 `.claude/skills/cycle-local/SKILL.md`; related: `2026-09-20-claude-md-overstates-bind-mount`,
 `2026-09-20-smoke-tier3-cannot-verify-a-negative`, `OPEN.md` #192/#194/#27/#204/#205; audit

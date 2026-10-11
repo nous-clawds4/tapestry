@@ -2,7 +2,7 @@
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
 > **Implementation (reference deployment):** the **pointer-`b` affiliation seed** is **implemented** (firmware emitter — `community-reference` ADR 0034, applied to the tag concepts via `tag-federation` ADR 0002). The **resolver, deference aggregation, and cloud computation** (§ "Aggregated deference", § "Clouds") are **not implemented** on any deployment; the cloud model is ratified design (`community-reference` ADR 0033), gated on on-wire inherit-typed `b` tags.
-> **Sources:** `community-reference` ADR 0033 (cloud formation; graduated worksheet W11); [inherit-from.md](./inherit-from.md) § "Aggregation" (origin of the migrated aggregation text, per `nip-reorg` ADR 0001); worksheet [W1](../worksheet.md#w1--cross-deployment-concept-identity); `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md`; `docs/NIP_REORG_DESIGN_HANDOFF.md`.
+> **Sources:** `community-reference` ADR 0033 (cloud formation; graduated worksheet W11); [inherit-from.md](./inherit-from.md) § "Aggregation" (origin of the migrated aggregation text, per `nip-reorg` ADR 0001); worksheet [W1](../worksheet.md#w1--cross-deployment-concept-identity); `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md`; `docs/NIP_REORG_DESIGN_HANDOFF.md`; `duty-menus-and-self-maps` ADR 0001 (self-declaration).
 
 ---
 
@@ -35,6 +35,8 @@ Three terms, one per referent — signal, process, outcome:
 An author affiliates their own header with a shared definition by carrying a **pointer-typed `b` tag** on it, naming the shared header's a-tag — wire format specified once, in [Inherit-From](./inherit-from.md) § "The `b` tag". The inherit-family types (`"inherit"`, `"inherit-items"`) never affiliate: deference and item inheritance are claims of a different kind, and an author who wants both carries a pointer-typed `b` alongside. Inherit-family tags anchor no stamps (the affiliation-anchored tier of [Stamping](./stamping.md) is pointer-only); an `inherit-items` target is reachable, and so at most a demand-selected extra.
 
 Affiliation is **navigation, not agreement**: it says "my concept corresponds to that one," names the community the author has chosen, and gives consumers a path to walk — while carrying no deference, no trust-coupling, and **zero aggregation weight** (v1 — § "Aggregated deference"). Affiliation is the author's own declaration; no third party can affiliate a header the author didn't sign. Affiliation is the **single hop**; the transitive candidate set it opens is defined in § "Reach".
+
+**Self-declaration.** An author may also offer their own header as a shared concept, for others to affiliate with, by pointing its `b` at the header's own coordinate (wire form and meaning: [Inherit-From](./inherit-from.md) § "The `b` tag"). Coverage tooling treats a self-declared header as dispositioned: the third state beside *wired* and *deliberately unaffiliated* (§ "Deliberate non-affiliation").
 
 In the reference deployment, a cold-start affiliation is **seeded** at firmware install — a pointer-typed `b` published on the deployment's own header, targeting the concept named by the firmware manifest (`community-reference` ADR 0034; applied to the tag concepts by `tag-federation` ADR 0002). A seed is an affiliation like any other: pointer-typed, never deference.
 

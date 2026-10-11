@@ -1,6 +1,6 @@
 # Epic: assistant-trusted-content-status — Scores, Lists and Concepts on the hub, renamed and told true
 
-**Status:** Done (book closed 2026-10-09; the folders sit under `done/`; on staging via PR #832, production pending)
+**Status:** Done (book closed 2026-10-09; the folders sit under `done/`; on staging via PR #832; in production 2026-10-10 via PR #838)
 **Created:** 2026-10-08
 **Book:** `engineering-team/audits/assistant-trusted-content-status/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-08, quoted verbatim in the book, settled through two questions at

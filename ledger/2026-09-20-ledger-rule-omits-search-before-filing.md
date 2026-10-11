@@ -39,4 +39,10 @@ unquoted variable (row 342).
 
 Does it port to the other flow? Yes, unchanged: product roles write ledger rows under the same rule.
 
+**Seen again, 2026-10-11 (book `admin-action-owner-check` close, audit §7 #9).** Story `security-auth-exposure` #8's
+review asked for a row because the RW7 timing flake "has no ledger row", and `2026-10-10-rw7-timing-flake` was filed.
+`2026-10-08-realtime-wrapper-timing-flake-under-load` already recorded the same flake, RW7 by name. The search this row
+asks for, `git grep -n -i -e 'RW7' -- OPEN.md ledger/`, finds the older row at once. The close merged the occurrence
+into the older row and closed the new one as a duplicate.
+
 **Pointer:** `OPEN.md` § "How to use this ledger"; `engineering-team/templates/open-row.md`; rows 290 and 330; PR #690; the `ledger-row-identity` book's audit, §7 (F1).

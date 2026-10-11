@@ -19,3 +19,9 @@ readers that look a kind up exactly.
 
 **Pointer:** `protocols/drafts/treasure-maps.md` § 4.5, § 10.12; `ui/src/pages/treasure-map/editTreasureMap.js`
 `FAMILY`; `ui/src/pages/treasure-map/manageTreasureMap.js` `shadowed`.
+
+**Note, 2026-10-11 (provisional answer).** At the gate of ADR `duty-menus-and-self-maps/0002` Amendment A1, the owner
+confirmed A1-8 as the Duty Menus spec's reading until story 3 of that epic settles it here: a bare `39998` covers every
+Concept key, `39999` headers included; a bare `39999` covers the `39999:<d>` keys; a `39999` kind slot beats a bare
+`39998`; and menu rows keyed `39998:` / `39999:` (nothing after the colon) are ignored. The row stays OPEN until Treasure
+Maps § 4.5, § 6 and § 10 say so (story 3, `engineering-team/epics/duty-menus-and-self-maps.md`).

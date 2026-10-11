@@ -192,7 +192,7 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
   });
 
   /* ───────── B1 — a viewer with an assistant ───────── */
-  test('B1: a viewer with an assistant sees the page — kicker, heading, three sections, eleven cards in order — every card marked "Needs attention", and "11 actions need attention" (AC-1, AC-2; re-aimed by assistant-outbox-relays #1)', async ({ page }) => {
+  test('B1: a viewer with an assistant sees the page — kicker, heading, three sections, thirteen cards in order — every card marked "Needs attention", and "13 actions need attention" (AC-1, AC-2; re-aimed by assistant-outbox-relays #1 and assistant-duty-cards #1)', async ({ page }) => {
     await mock(page, { who: CUSTOMER_USER });
     const main = await open(page, X.HUB);
     await expect(page.getByRole('heading', { name: 'Page not found' }), 'AC-1: /assistant is the hub, not "Page not found"').toHaveCount(0);
@@ -363,7 +363,7 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
     expect(await faqState(toggle), 'closed again on a fresh load').toBe('closed');
   });
 
-  /* ───────── B8 — the ten placeholder pages ───────── */
+  /* ───────── B8 — the placeholder pages (every action whose page is not built) ───────── */
   for (const a of X.ACTIONS) {
     test(`B8 ${a.path}: a placeholder page with the title, "Placeholder page.", the description, the alert criteria${a.planningNotes ? ', the planning notes' : ''}${a.editLink ? ', a link to the editor' : ''} and a way back (AC-5)`, async ({ page }) => {
       // assistant-identification-tags #2 builds this action's page; tests/brainstorm/assistant-identification-tags-page.spec.js pins it.
@@ -428,7 +428,7 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
   });
 
   /* ───────── B11 — direct loads ───────── */
-  test('B11: all thirteen addresses load when typed in, and again when refreshed — never "Page not found" (AC-7)', async ({ page }) => {
+  test('B11: all fifteen addresses load when typed in, and again when refreshed — never "Page not found" (AC-7)', async ({ page }) => {
     test.setTimeout(180000);
     await mock(page, { who: CUSTOMER_USER });
     for (const address of [X.HUB, ...X.ACTIONS.map((a) => a.path), X.EDITOR]) {
