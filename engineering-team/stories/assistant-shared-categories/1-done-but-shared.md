@@ -151,7 +151,7 @@ None open. Settled at intake: split counts as shared (Decision 1); a pill and a 
   near line 138, and the three *Alert criteria* strings. Each re-aim is named in the Design note. *(Added at J1,
   2026-10-11: U3's "`*` hidden for Scores" case also encodes the old rule; the Design note names it.)*
 
-## Design note *(Light profile — provisional here, ratified at Gate B; revised after J1, 2026-10-11)*
+## Design note *(Light profile — provisional here, ratified at Gate B; revised after J1's first verdict, then approved at J1, 2026-10-11)*
 
 - **Server: one new field, `shared`.** `evaluateTrustedContent` in `src/api/assistant/trustedContent.js` keeps its walk
   and its one reading of the Map (`categoryAssistants`, `src/lib/treasureMapCategories.mjs`, unchanged).
@@ -212,6 +212,12 @@ None open. Settled at intake: split counts as shared (Decision 1); a pill and a 
       convention (e.g. `decisions/done/my-curated-dlists/0002-the-two-headers.md`).
   - Tests: new `test/assistant-shared-categories.test.js` (+ `test/registry.js`) and
     `tests/brainstorm/assistant-shared-categories.spec.js`, plus the re-aims below.
+  - J1's notes, folded in:
+    - `ui/src/pages/assistant/ActionPage.jsx` shows the new `alertCriteria` with no code change.
+    - `evaluateTrustedContent`'s JSDoc `@returns` and `Index.jsx`'s header comment on the card states change with the
+      code.
+    - In openapi, the retired reason is in the route's description (the trusted-content sentence), not in the schema's
+      `reason` field.
   - **Not consumers** (grep-verified 2026-10-11):
     - `TopBarAlert.jsx` reads only `alertCount`.
     - `DutyMenu.jsx` and `OutboxRelays.jsx` read only `needsAttention` and `done`.
