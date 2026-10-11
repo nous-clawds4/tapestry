@@ -1,6 +1,6 @@
 # ADR 0001: Duty Menu and Your Assistant's Treasure Map are two more placeholder entries in the hub's one action list
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md`
 
