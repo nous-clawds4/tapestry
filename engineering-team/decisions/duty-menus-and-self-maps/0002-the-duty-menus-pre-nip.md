@@ -1,6 +1,6 @@
 # ADR 0002: The Duty Menus pre-NIP — one self-signed item per Assistant key under Nous' header
 
-**Status:** Accepted; Amendment A1 proposed (2026-10-11)
+**Status:** Accepted; amended by A1 (2026-10-11)
 **Date:** 2026-10-10
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md`
 
@@ -390,6 +390,9 @@ meet and the Backup offer (A1-4), A1-7's restored publishing target, and A1-8's 
 also takes a side on an open owner question (ledger row `2026-10-09-draft-grammar-bare-39999`; see A1-8). A1 itself is
 proposed and awaits approval at this gate.
 
+**Approved** by the owner, 2026-10-11, with both gate points confirmed: A1-4's insisted-key relay (the offering rows'
+shared relay, else the empty string), and A1-8 as the spec's reading of the bare Concept kinds until story 3.
+
 **What stays.**
 - Sub-decisions 1, 2, 4, 6, 7, 9, 11 and 13–15. Sub-decision 3 gains A1-8's reader rule and writer advice, and
   sub-decision 10 gains A1-4's relay rule.
@@ -623,7 +626,7 @@ bullet, and A1-1.)*
     entry is `["39999", "<A>", "wss://concepts.example"]`.
   - Keeping it as provisional and adding a `39999` row to § 13.2 would fix only the example. Every real menu that
     offers `39998` alone would still leave the editor's `39999` entry empty.
-- **This takes a side on the open owner question.** The gate should say so. If the owner decides that a bare `39998`
+- **This takes a side on the open owner question.** The owner confirmed it at the gate, 2026-10-11, until story 3. If the owner decides that a bare `39998`
   does not cover 39999-declared headers, story 3 changes Treasure Maps and the spec follows it.
 - Otherwise § 5.3 stays as round 2 wrote it: Concept keys are not trimmed, because their `d` is verbatim
   (`treasure-maps.md:162`).
@@ -646,10 +649,11 @@ bullet, and A1-1.)*
   empty string with the warning. Step 3's same-category relay is not used.
 - **The owner's "or none".** The approved proposal writes no entry when the answering row is not a `duty` row. A1-4
   keeps that as the default, and adds the insisted-key entry that sub-decision 10 requires when the observer keeps K.
-  The gate should confirm this reading.
+  The owner confirmed this reading at the gate, 2026-10-11.
 - **A1-8 takes a side on an open owner question.** It reads a bare `39998` as § 4.5's words and the card rule do, gives
   a bare `39999` a meaning, and orders the two. Ledger row `2026-10-09-draft-grammar-bare-39999` asks the owner to
-  decide these. The gate should confirm A1-8 as the reading until story 3, which settles it in Treasure Maps.
+  decide these. The owner confirmed A1-8 as the reading until story 3 (gate, 2026-10-11), which settles it in Treasure
+  Maps.
 - **Withdrawal with a deletion needs two timestamps in order.**
 - **No new wire surface. Firmware reinstall required? No.** No concept definition changes.
 
