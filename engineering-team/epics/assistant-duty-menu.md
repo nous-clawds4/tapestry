@@ -19,7 +19,7 @@ valid, current menu is found.
 
 1. `1-the-duty-menu-page-and-its-check.md`: what this instance offers for the viewer's Assistant, the menu found
    for it now, whether they match, the hub's real mark, and the page that shows all three. Read-only.
-2. *(planned)* Your Assistant publishes its Duty Menu: the button, the event (`duty-menus.md` §§ 4–5), where it
+2. `2-your-assistant-publishes-its-duty-menu.md` (approved 2026-10-11): Your Assistant publishes its Duty Menu: the button, the event (`duty-menus.md` §§ 4–5), where it
    goes (§ 8.1's publisher rule), and the report. Depends on 1. Carried from story 1's review (non-blocking):
    - **Hub latency.** Every hub load waits for the slowest outside relay, up to 8 s, even when this instance's relay
      holds the menu. The measured worst case is about 24 s, against the ADR's about 19 s (NB1, NB2). Once story 2
