@@ -2826,3 +2826,17 @@ holds no Lists signed by that Assistant. A reader that looks there finds nothing
 **Classification:** feature, Standard (all five phases). When picked up: `/plan-feature`. Check it against the Show
 and Tell philosophy (`design-philosophies/show-and-tell.md`), since a customer's Lists are built from other people's
 activity.
+
+## 2026-10-11 — Scores, Lists and Concepts: Done, but shared (feature)
+
+**PICKED UP** 2026-10-11 at intake → book `engineering-team/audits/assistant-shared-categories/book.md`, epic
+`assistant-shared-categories`, story 1. **Strictness:** Light (trial) — workflows/light-profile.md (the owner's
+choice).
+
+**Raw request:** quoted verbatim in the book. In short, a category the Treasure Map gives to another Assistant (alone
+or beside the person's Tapestry Assistant here) should be done on `/assistant`, with a quiet Shared pill and a line
+to move it, and not counted by the hub's count line or the top-bar pill. It replaces `assistant-trusted-content-status`
+book Decision 1.
+
+**Classification:** feature, page and one read-only check (no event shape, auth default, schema, dependency or
+routing change), so the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B.
