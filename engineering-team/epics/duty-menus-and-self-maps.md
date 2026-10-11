@@ -17,10 +17,15 @@ This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` �
 
 1. `stories/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` — the self-pointing `b` (self-declared Shared Concepts) in `inherit-from.md`, with a pointer in `shared-concepts.md`.
 2. `stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` — the Duty Menus pre-NIP: `protocols/drafts/duty-menus.md`, its README row, and the worksheet W1 note. Depends on 1.
-3. *(planned)* Self-Maps in `treasure-maps.md`, and the narrowed sentence in `assistant-designation.md`. Depends on 2, because its relay fallback cites the Duty Menu spec. Carried forward from story 2's review round 1:
-   - the read-time relay fallback (§ 3) must cover `duty-menus.md` § 6.2's "partly offered" case, where a client writes a scope entry and leaves per-insight relays to read-time resolution;
+3. *(planned)* Self-Maps in `treasure-maps.md`, and the narrowed sentence in `assistant-designation.md`. Depends on 2, because its relay fallback cites the Duty Menu spec. Carried forward from story 2's review round 1 and ADR 0002 Amendment A1:
+   - Treasure Maps § 3's read-time relay fallback must cover:
+     - an insight in a differing row's part (`duty-menus.md` § 6.2 step 4; A1-3). The Map entry that wins it carries a relay that is reachable but wrong for it, so the fallback must not fire only when element 3 is "empty or unreachable" (handoff § 5). When an insight is not found at element 3, a reader re-resolves it against A's current self-Map and Duty Menu;
+     - an insisted key whose entry carries the empty string (A1-4);
+     - a key whose Assistant has no menu found, which A1 leaves to the handoff's § 6 steps 3–4;
+     - A's kind 10002 write relays, D3's fallback locator, as a last resort at read time;
    - the new § 9.2 (Self-Maps) is what `duty-menus.md` § 10's pointer to Treasure Maps § 9 means;
-   - `39999:duty-menu` as a Concept key (§ 4.5, § 5.3) must never read as a menu. Do not reserve `duty-menu` as a general Concept `d` (ADR 0002, Consequences).
+   - `39999:duty-menu` as a Concept key (§ 4.5, § 5.3) must never read as a menu. Do not reserve `duty-menu` as a general Concept `d` (ADR 0002, Consequences);
+   - settle A1-8's two Concept readings (`39998:` and `39999:`; what a bare `39998` and a bare `39999` cover) and the order of `39998` and `39999` keys in Treasure Maps § 6, and say how `duty-menus.md` § 5.3 and § 6.2 follow. This is the owner's decision in ledger row `2026-10-09-draft-grammar-bare-39999`.
 
 ## Not on this epic's path
 

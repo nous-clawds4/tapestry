@@ -3,7 +3,7 @@
 > **Canonical:** not yet published
 > **Companion to:** [NIP-85: Trusted Assertions](https://nips.nostr.com/85) and [Treasure Maps](./treasure-maps.md) (kind `10040`); built on [Decentralized Lists](../nips/decentralized-lists.md).
 > **Implementation (reference deployment):** none. Nous' header is not yet published, and nothing publishes or reads menus.
-> **Sources:** [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md) (the owner's decisions D1–D10, 2026-10-10); `duty-menus-and-self-maps` ADR 0001 (self-declaration, which the header relies on) and ADR 0002 (this spec).
+> **Sources:** [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md) (the owner's decisions D1–D10, 2026-10-10); `duty-menus-and-self-maps` ADR 0001 (self-declaration, which the header relies on) and ADR 0002 with Amendment A1 (this spec).
 
 ---
 
@@ -33,12 +33,13 @@ link     ["storefront", "39999:<S>:duty-menu", "<relay>"] a per-customer menu's 
 
 1. **Offered, not active.** A menu lists what a key will publish if a Treasure Map asks it to. It does not say that anything is being published now, and it creates no duty: duties come only from the observer's Map ([Treasure Maps](./treasure-maps.md) § 9).
 2. **Only the key speaks for itself.** Anyone may publish under the header, but a key's offers come only from its own menu (§ 6.1).
-3. **A hint, never a gate.** A client MAY warn that a key doesn't offer a duty. It MUST NOT refuse to write a Treasure Map entry naming that key for that duty.
+3. **A hint, never a gate.** A client MAY warn that a key doesn't offer a duty. It MUST NOT refuse to write a Treasure Map entry naming that key for that duty. § 6.2 says which relay such an entry carries.
 4. **One shared header.** Every menu files under one header, so one query finds them all (§ 8.2).
 5. **What and where, with no price and no settings.** A menu carries no price and no tier. Unlike a Treasure Map, which names no algorithm (Treasure Maps § 1, principle 3), a menu may name the algorithm behind a duty (§ 5.4), the way NIP-85 asks a service key's kind 0 to describe its algorithm. A method's parameters, point of view and cutoffs stay off the menu.
 
 ## 2. Terms
 
+- **Observer**, **insight** — as in [Treasure Maps](./treasure-maps.md) § 2: the author of a Treasure Map, and one Score, List or Concept that a Map entry can name.
 - **Assistant key** — a NIP-85 service key: the key that signs insights. It is element 2 of a Treasure Map entry.
 - **Provider** — whoever runs Assistant keys, such as a WoT service.
 - **Per-customer key** — an Assistant key that serves one observer. NIP-85 requires a separate key for each user of a personalized algorithm (Treasure Maps § 9, "One key per observer").
@@ -118,6 +119,7 @@ Each Assistant key publishes one replaceable kind-`39999` event with `d` = `duty
   - omitted or empty trailing segments dropped (§ 4.4), except in Concept keys, whose `d` is taken verbatim and may end in `:` (§ 4.5);
   - `39998:dlist-header` read as `39998` (§ 4.5).
 - A row whose key does not parse is ignored.
+- A row keyed `39998:` or `39999:` (the kind, a colon, and nothing more) is also ignored, until Treasure Maps settles what that key means (open question 5 below). Whether it is read as the bare kind with an empty segment (Treasure Maps § 4.4) or as a Concept key with an empty `d` (§ 4.5), it would tie with the bare kind's row under Treasure Maps § 6. Writers SHOULD write the bare kind, `39998` or `39999`, instead.
 - At most one row per normalized key, whatever its tag. On duplicates the first row wins.
 - Elements after those defined here are reserved and ignored.
 
@@ -152,17 +154,67 @@ An item under the header whose `p` names a different key is not a menu. Under th
 
 ### 6.2 Resolution
 
+In the examples below, `<key>` → R stands for the row `["duty", "<key>", "R"]`, and `not-offered <key>` for `["not-offered", "<key>"]`.
+
 For a Treasure Map key K, exact or scope, and a menu:
 
-1. A row **covers** K when its key is K or broader than K: a family wildcard covers its kinds (Treasure Maps § 4.2), an omitted or empty trailing segment covers any value (§ 4.4), and a bare Concept kind covers that kind's Concept keys (§ 4.5).
-2. The **answering row** is the most specific covering row, by Treasure Maps § 6, among `duty` and `not-offered` rows together.
+1. A row **covers** K when the row's key matches every insight that K could match, under Treasure Maps §§ 4.2–4.5, kind–category agreement (§ 4.3) included. That means every such insight in principle, not only the observer's supported sets (Treasure Maps § 8), so covering does not change when the supported sets do. What a key matches is Treasure Maps' to define. Where it leaves the Concept kinds open, this spec reads them as below.
+   - § 4.3 agreement is judged from the key alone, from the category segment's own value:
+     - an event-kind number agrees with the List kinds § 4.3 gives that number, and with their Score kinds: `30393` for a non-addressable kind, `30394` for an addressable one, `30397` for `39998` (*DList headers*);
+     - a NIP-73 type agrees with `30395`, and with its Score kind `30385`;
+     - an empty segment means any category (§ 4.4), not the Profiles type;
+     - a DList's naddr or nevent agrees with every Score and List kind that § 4.3 lets a DList yield. So `30392` does not cover `3039x:tag:⟨D⟩`, even when D's subject is `p`.
+   - A reader never fetches a header or items to decide covering. A DList's header can change, and anyone may publish items, so covering judged from them would go stale.
+   - Examples, not a closed list:
+     - a bare `*` covers every key, Concept keys included (§ 4.2);
+     - a family wildcard covers its kinds (§ 4.2);
+     - in a Score or List key, an empty segment covers any value in any position, so `30396:tag::⟨T⟩` covers `30396:tag:⟨D⟩:⟨T⟩` (§ 4.4);
+     - an omitted trailing segment covers any value (§ 4.4);
+     - a row can cover K through § 4.3: `30393` covers `3039x:tag:1`, because `30393` is the only List kind that takes category `1`;
+     - no `*:<scope>` key covers a Concept key (§ 4.5; Treasure Maps § 13, question 12).
+   - The Concept kinds, until Treasure Maps settles them (open question 5 below):
+     - a bare `39998` covers every Concept key, `39999` and `39999:<d>` included;
+     - a bare `39999` covers the `39999:<d>` keys: the headers declared as kind-`39999` items;
+     - a `39999` kind slot beats a bare `39998`, as an exact kind beats a family. This order holds wherever this spec compares keys by Treasure Maps § 6, Map keys included.
+   - A key that matches no insight, because its kind and category disagree (§ 4.3), has nothing to resolve.
+2. The **answering row** is the most specific covering row, by Treasure Maps § 6 with step 1's order for the Concept kinds, among `duty` and `not-offered` rows together. Two covering rows never tie, and the same row answers for every insight under K.
 3. If the answering row is a `duty` row, K is **offered** at its relay. If it is a `not-offered` row, or no row covers K, K is **not offered as a whole**.
-4. K is **partly offered** when another row wins, by Treasure Maps § 6, for some of the insights under K and answers them differently: with another relay, with `not-offered`, or with an offer where K has none. Such a row may be narrower than K, or merely overlap it, as `*:tag` overlaps `3039x` when `*` answers K. A client then either:
-   - writes, for each such row, an entry for the part of K that the row wins, so that the Map's own § 6 gives each insight its relay. That part's key is the row's own key when the row is narrower than K; otherwise it names, segment by segment, whichever value either key names (`3039x` with `*:tag` gives `3039x:tag`); or
-   - writes K with the answering row's relay, if there is one, and leaves per-insight relays to read-time resolution.
-
-   Where no row covers K, the client writes only the entries for the parts that are offered (§ 13.3, `3039x`). For a part that is `not-offered`, the client says that those insights won't come from this key, so the observer can give them to another Assistant.
-5. A Treasure Map entry built from a menu names the menu's author and takes the relay of the row that answers its key: `[K, <menu author>, <answering row's relay>]`.
+4. **Rows within K.** Other rows can still win some of the insights under K.
+   - A **row within K** is a row, other than the answering row, that wins at least one insight under K, by Treasure Maps § 6 over all of the menu's rows. It never covers K. It is narrower than K, as `not-offered 30385` is within `3038x`, or it overlaps K, as `*:tag` overlaps `3039x` when `*` answers K.
+   - The **meet** of K and a row within K is the key for the insights both keys match. It takes the narrower kind slot, and every value either key names. It is always a Treasure Maps § 4.7 key, except for a Map key `39998:` or `39999:`, whose meets wait on Treasure Maps (open question 5 below). The meet is K made more specific, so it beats K by Treasure Maps § 6. Resolved on its own, its answering row is the row itself.
+     - Example: `3039x` and `*:tag` give `3039x:tag`; `30396` and `3039x:tag:⟨D⟩` give `30396:tag:⟨D⟩`; `*` and `39998:<d>` give `39998:<d>`; `39998` and `39999:<d>` give `39999:<d>`.
+   - A row's **part** is the insights under K that it wins: the insights of its meet, less those also matched by a row within K that beats it (Treasure Maps § 6). A part may have no key of its own.
+   - A row within K is a **differing row** when it answers its part differently from the answering row: with another relay; with `not-offered`, where K is offered; or with an offer, where K is not offered as a whole. A row within K with the same answer is not a differing row.
+   - K is **partly offered** when it has at least one differing row. That includes a K whose every insight is offered, some at another relay.
+   - For example, take a menu `3039x` → R0, `3039x:tag` → R1, `30396:tag` → R0, and K = `3039x`. The answering row is `3039x`. `3039x:tag` is a differing row: its part is the Tag-based lists of every List kind but `30396`, which has no key of its own. `30396:tag` is a row within K, but not a differing row.
+   - "Differing row" is not another name for an exception (§ 5.2). Every `not-offered` row is an exception. Whether a row is a differing row depends on K, and a differing row may offer. `not-offered 30385` is a differing row of `3038x`, but a `not-offered` row that answers K is not a differing row of K.
+5. **Writing the Map.** Entries come only from keys the observer chooses: one entry for each key and Assistant.
+   - **One entry per chosen key.** For each key K the observer chooses for an Assistant A, a client that fills the entry from A's menu resolves K (§ 7 limits which menus may fill entries):
+     - when the answering row is a `duty` row, it writes `[K, <A>, <answering row's relay>]`;
+     - otherwise the menu gives K no relay. The client MAY warn that A does not offer K as a whole (§ 1, principle 3). If the observer keeps K for A, the client writes the insisted-key entry (below). If not, the Map stays as it was.
+   - **Menus supply relays; only the observer chooses keys.** A client MUST NOT turn a menu's rows into Map entries the observer did not choose, for differing rows or anything else. An entry the observer picks some other way, such as a whole-class entry (Treasure Maps § 10.1) that an editor writes when the observer gives A all of their Scores, Lists or Concepts, is the observer's choice.
+   - **Every row within K is listed.** For each row within K, the client shows its meet with K and its answer. Each applies to its meet's insights, except where a listed row whose own key beats this row's key (Treasure Maps § 6) also matches, so no nested row is hidden. The client compares the rows' own keys, not their meets, which can order the other way.
+     - Example: with a menu `3039x` → R0, `not-offered 3039x:tag`, `30396:tag` → R0, and K = `3039x`, the client lists `30396:tag` → R0 inside `3039x:tag`, so it does not say that Tag-based lists of DList items won't come from A.
+     - Example: with a menu `3039x` → R0, `30396:tag::⟨T⟩` → R1, `3039x:tag:⟨D⟩` → R2, and K = `30396`, the row `30396:tag::⟨T⟩` beats `3039x:tag:⟨D⟩`, so `30396:tag:⟨D⟩:⟨T⟩` is R1, not R2. Their meets, `30396:tag::⟨T⟩` and `30396:tag:⟨D⟩`, order the other way.
+     - For a `not-offered` part, the client says that those insights won't come from A, so the observer can give them to another Assistant.
+     - The client MAY note that another entry in the observer's Map wins a part (Treasure Maps § 6). It still lists the part, because the observer may later remove that entry.
+   - **A new key within K.** For each differing row, the client offers the row's meet with K as a key the observer may choose: for A when the row offers, or for another Assistant when the row is `not-offered`. The observer may choose it, or any other key. The client resolves a chosen key afresh, by steps 1–5, and lists the rows within it.
+     - The meet beats K. So when the row offers, choosing its meet for A gives the row's part the row's relay, unless another Map entry beats the meet.
+     - The row's own key is no substitute when K beats it by Treasure Maps § 6: K's kind slot is narrower, or, with the same kind slot, K names a value at the first segment where the two keys differ. K then wins every insight they share.
+       - Example: with a menu `3039x` → R0, `3039x:tag:1` → R1, and K = `30393`, choosing `3039x:tag:1` changes nothing, because K's kind slot is narrower. Its meet, `30393:tag:1`, gives the Tag-based lists of notes R1.
+       - Example: with a menu `3039x` → R0, `30396:tag::⟨T⟩` → R1, `3039x:tag:⟨D⟩` → R2, and K = `30396:tag:⟨D⟩`, choosing `30396:tag::⟨T⟩` changes nothing, because K names D at the third segment. Its meet, `30396:tag:⟨D⟩:⟨T⟩`, gives that list R1.
+     - When the row's own key beats K, choosing it also gives the row's part the row's relay, unless another Map entry beats it. It may reach insights outside K as well.
+     - A new key can take insights that K's entry already got right. They show up among the new key's differing rows.
+       - Example: under step 4's menu, choosing `3039x:tag` gives the Tag-based lists of DList items R1 in the Map, though the menu gives them R0. Resolving `3039x:tag` lists `30396:tag` → R0 as its differing row, whose meet the observer may choose in turn.
+     - **Alternates.** An entry with a less specific key is never a fallback for a more specific one (Treasure Maps § 7). So when the observer chooses a new key within K, the client SHOULD offer to carry K's other providers onto it, in K's order, each resolved from its own menu the same way. If the observer declines, the client says that the new key has no fallback provider.
+   - **What the entry guarantees, and no more.** For each chosen key K whose answering row is a `duty` row, the entry's relay is the menu's relay for every insight under K except those in a differing row's part. The client lists every differing row.
+     - Whether the Map gives an insight to K's entry at all depends on the observer's other, more specific entries (Treasure Maps § 6). That is the observer's choice.
+     - The exact relay for an insight in a differing row's part comes from read-time resolution, which Treasure Maps does not yet define (open question 4 below).
+     - An insisted key's guarantee is weaker (below).
+   - **The insisted key.** K is an **insisted key** when the menu does not offer K as a whole (step 3), and the observer keeps K for A anyway. § 1, principle 3, forbids refusing to write its entry. The entry is `[K, <A>, R]`:
+     - R is the relay of the rows within K that offer something, when they all name the same one. Then R is the menu's relay for every insight under K that A offers. § 13.3's `3039x` row is an example.
+     - Otherwise R is the empty string, which Treasure Maps § 3 allows. The empty string says that no relay is known. The client does not replace it with a guess, such as one of A's kind 10002 write relays or the relay where it found the menu: a guess looks like a real relay, and gives a reader no cue to look further.
+     - The client MAY still warn that A does not offer K as a whole.
 
 § 13.3 works an example.
 
@@ -172,7 +224,7 @@ For a Treasure Map key K, exact or scope, and a menu:
 - **Per-customer menu.** The menu of a key that serves one observer. It MAY name its provider's storefront: `["storefront", "39999:<storefront key>:duty-menu", "<relay>"]`. A provider may decline to publish that link. The link is the per-customer key's own claim; it does not prove that the storefront's author runs the key.
 - **Rows mean different things on the two.**
   - A per-customer menu's rows say what this key will publish for the one observer it serves.
-  - A storefront's rows say what the provider offers, and where its per-customer keys will publish. Readers MUST NOT turn a storefront's rows into Treasure Map entries naming the storefront key, unless that key is the observer's own Assistant.
+  - A storefront's rows say what the provider offers, and where its per-customer keys will publish. Readers MUST NOT fill a Treasure Map entry naming the storefront key from a storefront's rows, unless that key is the observer's own Assistant.
 - **One key per algorithm.** NIP-85 requires a separate service key for each algorithm, so each key has its own menu, and a provider with two algorithms publishes two storefronts.
 
 ## 8. Finding menus
@@ -185,7 +237,7 @@ The filter is `{"kinds":[39999], "authors":["<key>"], "#d":["duty-menu"]}`. Look
 2. on the key's NIP-65 (kind 10002) write relays;
 3. on the relays where Nous' header is published, found through Nous' own kind 10002 write relays.
 
-Publishers SHOULD publish their menu to their write relays and to the relays where Nous' header is published.
+Publishers SHOULD publish their menu to their own kind 10002 write relays, to the relays their `duty` rows name, and to Nous' kind 10002 write relays.
 
 ### 8.2 All menus
 
@@ -213,7 +265,11 @@ A menu says what a key offers. Whether the key is publishing those insights now 
 - Publish the menu where § 8.1 says.
 - Change the offers by republishing the one replaceable item.
 - Withdrawing every offer SHOULD be done by republishing the menu with no `duty` rows. The empty menu still carries Nous' `z`, so it travels by the same `#z`-filtered relay sync as the old one, and replaces it wherever it arrives.
-- A NIP-09 deletion MAY follow that republish. It MUST name `["a", "39999:<key>:duty-menu"]`, `["k", "39999"]`, and an `["e", "<id>"]` for each earlier version being removed, never for the empty menu that replaced them. Some relays apply only the `e`, and a deletion naming the empty menu would remove the very version that keeps a stale copy from coming back. Deletions also don't travel with `#z`-filtered relay sync, so a deletion on its own can let an older copy return.
+- A [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) deletion MAY accompany a withdrawal.
+  - Its `created_at` MUST be strictly earlier than the empty menu's. The timestamps decide, not the order of publishing or of arrival. NIP-09 says that "when an `a` tag is used, relays SHOULD delete all versions of the replaceable event up to the `created_at` timestamp of the deletion request event". So the `a` removes the versions up to the deletion's own `created_at`, and spares the empty menu, whichever reaches a relay first. The `e` tags (below) name every earlier version with `duty` rows. "Strictly", because "up to" does not say whether an equal timestamp counts.
+  - If an empty menu is already out and its `created_at` is not later than the deletion's, publish a new empty menu with a `created_at` later than the deletion's.
+  - The deletion MUST name `["a", "39999:<key>:duty-menu"]`, `["k", "39999"]`, and an `["e", "<id>"]` for each earlier version with `duty` rows. The `e` tags never name an empty menu, old or new. Some relays apply only the `e`, and removing an empty menu there can let an older copy come back.
+  - Deletions also don't travel with `#z`-filtered relay sync, so a deletion on its own can let an older copy return.
 
 ## 12. Security and privacy
 
@@ -275,7 +331,7 @@ A menu says what a key offers. Whether the key is publishing those insights now 
 | `30382:rank` | `3038x` | Offered: `["30382:rank", "<A>", "wss://scores.example"]` |
 | `30385:rank` | `not-offered 30385` | Not offered |
 | `3038x` | `3038x` | Partly offered: write `["3038x", "<A>", "wss://scores.example"]`, and say that Scores about external things (`30385`) won't come from `<A>` |
-| `3039x` | none (`3039x:tag` is narrower) | Not offered as a whole; partly offered through `3039x:tag`. Write `["3039x:tag", "<A>", "wss://lists.example"]` instead |
+| `3039x` | none (`3039x:tag` is narrower) | Not offered as a whole; partly offered through `3039x:tag`. No entry from the menu. The client offers the meet, `3039x:tag`, which resolves to `["3039x:tag", "<A>", "wss://lists.example"]`. If the observer keeps `3039x` for `<A>`, the entry is `["3039x", "<A>", "wss://lists.example"]`, the one relay its offering rows share |
 | `39998` | `39998` | Offered: `["39998", "<A>", "wss://concepts.example"]` |
 
 ## 14. Open questions
@@ -283,3 +339,5 @@ A menu says what a key offers. Whether the key is publishing those insights now 
 1. **Private duties.** May a per-customer menu list duties meant only for its observer, NIP-44-encrypted? NIP-85 lets a kind 10040 carry entries encrypted in its `.content`, but Treasure Maps keeps its delegation entries public for now (Treasure Maps § 13, question 8). Until this is settled, menus list only public duties.
 2. **Identical menus.** May a per-customer key whose offers match its storefront exactly skip publishing its own menu, with readers falling back to the storefront? The link is optional (§ 7), so a reader would not always know which storefront applies.
 3. **Non-personalized providers.** NIP-85 lets a provider of a non-personalized algorithm serve every observer from one key. If that key marks itself a storefront, § 7 forbids filling Treasure Map entries from its rows, though the key itself is the one that publishes. Should a storefront row be able to say that this key itself publishes the duty for every observer?
+4. **Read-time resolution.** Where does a reader look for an insight in a differing row's part (§ 6.2), or under an entry whose relay is the empty string? Treasure Maps does not yet define read-time resolution. Until it does, a reader that follows the Map alone looks for such an insight at the relay of the entry that wins it, and may not find it there; an empty relay gives it nowhere to look. Meanwhile the observer can choose a differing row's meet as a key (§ 6.2, step 5).
+5. **The Concept kinds.** Treasure Maps leaves three things open: whether `39998:` and `39999:` are the bare kind with an empty segment (Treasure Maps § 4.4) or a Concept key with an empty `d` (§ 4.5); what a bare `39999` covers, and whether a bare `39998` covers the headers declared as kind-`39999` items; and how its § 6 orders a `39999` key against a bare `39998`. Until Treasure Maps settles them, this spec ignores rows keyed `39998:` or `39999:` (§ 5.3), reads a bare `39998` as covering every Concept key and a bare `39999` as covering the `39999:<d>` keys, and ranks a `39999` kind slot above a bare `39998` (§ 6.2, step 1). What a Map key `39998:` or `39999:` matches, and so its meets, follows Treasure Maps' answer.
