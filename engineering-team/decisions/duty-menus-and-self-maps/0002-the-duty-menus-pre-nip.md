@@ -1,6 +1,6 @@
 # ADR 0002: The Duty Menus pre-NIP — one self-signed item per Assistant key under Nous' header
 
-**Status:** Accepted; amended by A1 (2026-10-11)
+**Status:** Accepted; amended by A1 (2026-10-11); A1-9 to A1-12 proposed
 **Date:** 2026-10-10
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md`
 
@@ -42,7 +42,7 @@ It is docs-mode.
 - **Treasure Maps:**
   - § 4.1: naddrs and nevents are canonicalized before comparison;
   - § 4.4: omitted and empty trailing segments mean "any", so `30396:tag` = `30396:tag::`;
-    *(Amended by A1-1: in a Score or List key, an empty segment means "any" in any position, not only at the end.)*
+    *(Amended by A1-1: in a Score or List key, an empty segment means "any" in any position, not only at the end.)* (See A1-10.)
   - § 4.5: `39998:dlist-header` = `39998`;
   - § 4.7: the key grammar;
   - § 6: the most specific matching key wins, compared left to right;
@@ -197,10 +197,10 @@ We chose **Option A**.
    - The filter is `{"kinds":[39999], "authors":["<key>"], "#d":["duty-menu"]}`.
    - Readers look first wherever they already hold a relay hint, then on the key's NIP-65 (kind 10002) write relays
      (D3), then on the relays where Nous' header is published.
-     *(Amended by A1-7: found through Nous' kind 10002 write relays.)*
+     *(Amended by A1-7: found through Nous' kind 10002 write relays.)* (See A1-12.)
    - Publishers SHOULD publish the menu to its own write relays and to the relays where Nous' header is published.
      *(Amended by A1-7: the key's own kind 10002 write relays, the relays its `duty` rows name, and Nous' kind 10002
-     write relays.)*
+     write relays.)* (See A1-12.)
 9. **Listing all menus and the provider directory.**
    - `{"kinds":[39999], "#z":["39998:<Nous>:duty-menu"]}` lists all menus. Anyone may publish there, so readers filter
      the results per point of view (CLAUDE.md invariants 2 and 3).
@@ -225,7 +225,7 @@ We chose **Option A**.
     - A NIP-09 deletion MAY follow that republish, and it MUST name `["a", "39999:<key>:duty-menu"]`, `["e", "<id>"]` and
       `["k", "39999"]`. That follows Assistant Designation's curation-copy removal, since some relays honour only the
       `e`.
-      *(Amended by A1-6: the deletion's `created_at` is strictly earlier than the empty menu's.)*
+      *(Amended by A1-6: the deletion's `created_at` is strictly earlier than the empty menu's.)* (See A1-12.)
 13. **Security and privacy** (the spec's § 11 content):
     - Under D9, per-customer keys are listable under Nous' header (accepted).
     - Staying out of the directory is a courtesy that directories following this spec honour. It is not privacy: a
@@ -344,6 +344,21 @@ editor. A1-1 judges § 4.3 agreement from the key alone. A1-4 says exactly when 
 "How it was settled" limits the several-keys result to keys a `duty` row answers. After a final check, A1-1 judges § 4.3
 agreement from the category segment's value, not its type.
 
+**Revision 3** (2026-10-11) answers the round-3 kick-back: four questions that came up while the spec took in A1, and
+that A1 does not decide. A1-9 says which kinds category `39998` agrees with. A1-10 reads an empty category in a
+`30392` or `30382` key as Treasure Maps does, and says what follows for meets. A1-11 says where A goes when K's
+providers are carried onto a new key. A1-12 keeps a replaced menu from surviving at the relays an earlier version
+named. A skeptic review then revised them. A1-9's cost now names the keys that a narrower reading would offer whole.
+A1-10 gives its real reason for reading the carve-out per key, and asks Treasure Maps about family and `*` keys too.
+A1-11's order no longer depends on which differing row led to the new key: the providers that offer it keep K's order,
+and a provider that partly offers it is offered keys that keep it where it offers. A1-12 says which relays a reader
+asks, and sends each version to the relays that earlier `duty` rows named. A second skeptic review then found that
+A1-11 could still carry K's order onto insights another Map entry held, that a nested meet lay within two Map keys
+that gave two orders, and that a new Assistant that replaced no one went last. A1-11 now carries the providers of the
+one entry a new key takes insights from, names every entry it takes insights from, carries nothing when there are
+several, builds a nested meet from the Map before the new key, and puts a new Assistant that replaces no one first.
+A1-9 to A1-12 are proposed and await the owner's approval. The rest of A1 stands as approved.
+
 **How it was settled.** The orchestrator built a brute-force model of Treasure Maps matching and precedence, in the
 session scratchpad (`model/check.py`, `model/check2.py`; not durable). It models § 4.4 (an empty or omitted segment
 means any) and § 6 (kind-slot rank, then the left-most difference). Its kind slot is a reduced § 4.2: exact kinds
@@ -409,9 +424,9 @@ than K under § 4.4 scopes"; the Context paraphrase of § 4.4 (:44); spec § 6.2
   (§ 8, `treasure-maps.md:289`). Covering must not change when the observer's supported sets do.
 - § 4.3 agreement is judged from the key alone, from the category segment's own value:
   - an event-kind number agrees with the kinds § 4.3 gives that number: `30393` for a non-addressable kind, `30394` for
-    an addressable one, `30397` for `39998` (*DList headers*);
+    an addressable one, `30397` for `39998` (*DList headers*). (See A1-9.)
   - a NIP-73 type agrees with `30395` (and its Score kind);
-  - an empty segment means any category (§ 4.4), not the Profiles type;
+  - an empty segment means any category (§ 4.4), not the Profiles type. (See A1-10.)
   - a DList's naddr or nevent agrees with every Score and List kind that § 4.3 lets a DList yield.
 
   A reader never fetches a header or items to decide covering.
@@ -426,14 +441,14 @@ than K under § 4.4 scopes"; the Context paraphrase of § 4.4 (:44); spec § 6.2
   - a bare `*` covers every key, Concept keys included (§ 4.2, `treasure-maps.md:96`);
   - a family wildcard covers its kinds (§ 4.2);
   - in a Score or List key, an empty segment covers any value in any position, so `30396:tag::⟨T⟩` covers
-    `30396:tag:⟨D⟩:⟨T⟩` (§ 4.4);
+    `30396:tag:⟨D⟩:⟨T⟩` (§ 4.4). (See A1-10.)
   - an omitted trailing segment covers any value (§ 4.4);
   - a row can cover K through § 4.3: `30393` covers `3039x:tag:1`, because only `30393` takes category `1`;
   - a bare `39998` covers every Concept key, `39999` and `39999:<d>` included, and a bare `39999` covers the
     `39999:<d>` keys, in A1-8's reading;
   - no `*:<scope>` key covers a Concept key (`treasure-maps.md:162`, `:531`).
 - What a key matches stays Treasure Maps' to define. Where Treasure Maps leaves it open, A1-8 says which reading the spec
-  uses until story 3.
+  uses until story 3. (See A1-9 and A1-10.)
 - A key that matches no insight, because its kind and category disagree (§ 4.3), has nothing to resolve.
 
 **A1-2 — The answering row, unchanged.**
@@ -464,7 +479,7 @@ than K give a different relay …"; spec § 6.2 step 4's first paragraph.)*
   every value either key names. The two keys share an insight, so their kind slots nest and their named values agree.
   So the meet is always defined, and it is a § 4.7 key. Examples: `3039x` and `*:tag` give `3039x:tag`; `30396` and
   `3039x:tag:⟨D⟩` give `30396:tag:⟨D⟩`; `*` and `39998:<d>` give `39998:<d>`; `39998` and `39999:<d>` give
-  `39999:<d>` (A1-8).
+  `39999:<d>` (A1-8). (See A1-10.)
 - The meet is K made more specific, so it beats K by § 6. Resolved afresh, its answering row is the row itself.
 - A row's **part** is the insights under K that it wins: the insights of its meet, except those that a row within K
   beating it (§ 6) also matches. A part may have no key of its own. In case D, `3039x:tag`'s part is the Tag-based lists
@@ -499,9 +514,10 @@ entry bullet, and its "writes the narrower Map entries as well"; spec § 6.2 ste
     observer may later remove that entry.
 - **A new key within K.** For each differing row, the client offers the row's meet with K as a key the observer may
   choose: for A when the row offers, or for another Assistant when it is `not-offered`. The observer may choose it, or
-  any other key. The client resolves the chosen key afresh by A1-1 to A1-4, and lists the rows within it.
+  any other key. The client resolves the chosen key afresh by A1-1 to A1-4, and lists the rows within it. (See A1-10
+  and A1-11.)
   - The meet beats K. So when the row offers, choosing its meet for A gives the row's part the row's relay, unless
-    another Map entry beats the meet.
+    another Map entry beats the meet. (See A1-11.)
   - The row's own key is no substitute when K beats it by § 6: K's kind slot is narrower, or, with the same kind slot,
     K names a value at the first segment where the two keys differ. K then wins every insight they share. Case C shows
     both. Under K = `30396`, choosing `3039x:tag:⟨D⟩` changes nothing; its meet, `30396:tag:⟨D⟩`, gives D's other
@@ -515,7 +531,7 @@ entry bullet, and its "writes the narrower Map entries as well"; spec § 6.2 ste
   - **Backups.** A less specific key is never a fallback for a more specific one (Treasure Maps § 7, `:282`). So when
     the observer chooses a new key within K, the client SHOULD offer to carry K's other providers onto it, in K's
     order, each resolved from its own menu the same way. If the observer declines, the client says the new key has no
-    Backup.
+    Backup. (See A1-11.)
 - **The guarantee, and no more.**
   - For each chosen key K whose answering row is a `duty` row, the entry's relay is the menu's relay for every insight
     under K except those in a differing row's part. The client lists every differing row.
@@ -563,7 +579,7 @@ entry bullet, and its "writes the narrower Map entries as well"; spec § 6.2 ste
 **A1-6 — The deletion is older than the empty menu.** *(Supersedes: sub-decision 12's third bullet, "A NIP-09 deletion
 MAY follow that republish"; spec § 11's last bullet.)*
 - A NIP-09 deletion MAY accompany a withdrawal. Its `created_at` MUST be strictly earlier than the empty menu's. The
-  timestamps decide, not the order of publishing or of arrival.
+  timestamps decide, not the order of publishing or of arrival. (See A1-12.)
 - If an empty menu is already out, publish a new empty menu with a `created_at` later than the deletion's.
 - Why: NIP-09's `a` rule, quoted under **Why**. A deletion older than the empty menu removes every earlier version and
   spares the empty menu, whichever reaches a relay first. "Strictly", because "up to" does not say whether an equal
@@ -587,11 +603,11 @@ MAY follow that republish"; spec § 11's last bullet.)*
   write relays, as NIP-65 expects of any author (`65.md:31–33`).
 - The publisher sentence becomes: "Publishers SHOULD publish their menu to their own kind 10002 write relays, to the
   relays their `duty` rows name, and to Nous' kind 10002 write relays." Spec § 11's "Publish the menu where § 8.1 says"
-  then agrees with it.
+  then agrees with it. (See A1-12.)
 - The middle clause restores the handoff's "at least the relays the menu names" (§ 4, `:114`). Sub-decision 8 dropped
   it without logging the change. It makes § 8.1 step 1 work: every non-empty relay in an entry built from a menu is
   one the menu names, so a reader holding that entry finds the menu there. The handoff's other target, "the DList
-  relays" (`aDListRelays`), is a deployment setting. The spec names Nous' kind 10002 write relays instead.
+  relays" (`aDListRelays`), is a deployment setting. The spec names Nous' kind 10002 write relays instead. (See A1-12.)
 - The story logs the Nous locator as its own deviation, no longer under "Smaller fixes from round 1".
 
 **A1-8 — Concept keys: two readings and an order, until story 3.** *(Qualifies: sub-decision 3's normalization
@@ -633,10 +649,350 @@ bullet, and A1-1.)*
 - What a Map key `39998:` or `39999:` matches, and so its meets, follows story 3's answer.
 - Story 3 settles both readings, and the order, in Treasure Maps.
 
+**A1-9 — Category `39998` agrees with `30393`, `30394` and `30397`, until story 3.** *(Qualifies: A1-1's first
+agreement bullet, "`30397` for `39998` (*DList headers*)"; spec § 6.2 step 1.)*
+- **The rule.** Judged from the key alone (A1-1), a category segment `39998` agrees with `30393`, `30394` and `30397`,
+  and so with `30383`, `30384` and `30387`. Every other event-kind number keeps A1-1's rule: `30393` for a
+  non-addressable kind, `30394` for an addressable one. So `30397` does not cover `3039x:tag:39998`.
+- **Treasure Maps leaves it open.** § 4.3 gives `30394` "an addressable event kind" and `30397` "the *DList headers*
+  category (`39998`)" (`treasure-maps.md:139`, `:142`). It never says whether naming `39998` under `30397` takes it
+  away from the other kinds. Content Categories, whose slot values § 4.3 uses, makes *DList headers* "one content
+  category, of the event-kind type" over kinds `39998`, `9998`, `39999` and `9999`, always spelled `39998`
+  (`content-categories.md:58`, `:61`). Its list-kind table gives an event-kind category `30393` when items are
+  referenced by id, `30394` when by address, and `30397` when the members are lists, naming *DList headers* there
+  (`:82–86`). A `9998` or `9999` header has only an id, a `39998` or `39999` header has an address, and any header can
+  be a list. So the category can yield all three kinds.
+- **Why all three.** It is A1-1's rule for a DList category: agree with every kind the category can yield, since the
+  key alone cannot say which. It is also the only reading that keeps A1-4's guarantee however story 3 settles § 4.3.
+  `r4/k1k2.py` resolves menus under one reading and checks the entries against another reading's insights:
+  - read as `30397` only, 801 of 6,171 duty-answered keys get an unlisted wrong relay when `30394` also takes
+    `39998`, and 1,050 of 5,713 when `30393` does too;
+  - read as `30394` and `30397`, 419 of 6,171 fail when `30393` does too;
+  - read as all three, none fail against either narrower reading (0 of 6,274, and 0 of 6,710).
+- **The kick-back's example.** Menu `3039x` → R0, `30397` → R1; K = `3039x:tag:39998`. Under A1-9 the answering row is
+  `3039x`, the entry is `[3039x:tag:39998, A, R0]`, and `30397` → R1 is a differing row, with meet `30397:tag:39998`.
+  Read as `30397` only, the entry would be R1, with no row listed. If `30394` does take `39998`, the
+  `30394:tag:39998:⟨T⟩` lists would then get R1 from the Map while the menu gives them R0, and nothing would say so.
+- **A1-2 and A1-4 still hold.** In `r4/k1k2.py`, under each reading of `39998` and of A1-10, no two keys that share an
+  insight tie (checked over every pair of the model's keys), and the answering row is the same for every insight
+  under K. The guarantee, the insisted-key check and the several-keys check fail 0 times (40,000 menus per pair of
+  readings).
+- **The cost.** If story 3 settles that `39998` agrees with `30397` alone, a key with a family or `*` kind slot and
+  category `39998` fares worse under A1-9 than under that reading, in two ways:
+  - The client lists a `30397` row as differing where that row answers all of K, and offers meets such as
+    `30393:tag:39998` that match nothing.
+  - A menu that offers all of K, read narrowly, can leave K not offered as a whole. Three menus, each giving the entry
+    R1 when read narrowly:
+    - `30397` → R1 alone, and K = `3039x:tag:39998`. No row covers K, since none matches its `30393` and `30394` lists;
+    - `30397:tag` → R1 and `30393` → R0, and K = `3039x:tag:39998:⟨T⟩`;
+    - `not-offered 3039x`, `30397` → R1 and `30394` → R2, and K = `3039x:tag:39998`.
+  - Under A1-9 the client then warns, and writes no entry unless the observer keeps K for A. The insisted relay is R1
+    in the first case and the empty string in the other two. The observer can still choose the meet with the `30397`
+    row (`30397:tag:39998`, or `30397:tag:39998:⟨T⟩`), which resolves to R1 (`r4/sk/sk_k1simple.py`).
+  - Of 40,000 sampled family or `*` keys with category `39998`, 3,193 go from offered (read narrowly) to not offered
+    as a whole (A1-9), and 439 of those get the empty insisted relay. None gets a wrong relay that is not empty, so
+    A1-4's weaker guarantee holds (`r4/sk/sk_k1cost.py`).
+- **Why A1-9 stays.** Its costs show: a warning, a listed row, an empty relay. The narrower readings' cost is silent:
+  the unlisted wrong relays above. The owner weighs both. Such keys are rare. The editor adds only bare family entries
+  (`FAMILY`, `ui/src/pages/treasure-map/editTreasureMap.js:23`), and Treasure Maps' own category-`39998` keys name
+  `30397` or `30387` exactly (§ 8, § 10.10). Nothing reads menus yet, so no entry is written meanwhile.
+- **Until story 3.** The spec reads `39998` this way, and says so in § 6.2 step 1 and in a new § 14 question. Story 3
+  settles § 4.3 in Treasure Maps, and the spec follows it.
+- **Not taken:**
+  - *`30397` and `30387` only.* It reads § 4.3's `30397` bullet as a mapping, and matches § 10.10's examples. But it
+    breaks A1-4's guarantee if story 3 settles any wider reading, and it leaves out Content Categories' rule.
+  - *`30394`, `30397` and their Score kinds.* The literal § 4.3 reading, since `39998` is an addressable kind number.
+    It breaks the guarantee if story 3 counts `9998` and `9999` headers, as Content Categories does.
+  - *Ignoring rows with category `39998` under a family or `*` kind slot*, as A1-8 ignores `39998:`. That settles rows
+    only. `3039x:tag:39998` is also a Map key an observer may choose, and its insights still need one reading.
+
+**A1-10 — In a `30392` or `30382` key, an empty category is the Profiles category.** *(Qualifies: A1-1's "an empty
+segment means any category (§ 4.4), not the Profiles type" and its example of an empty segment in any position;
+A1-3's "the meet is always defined, and it is a § 4.7 key"; A1-4's "A new key within K"; spec § 6.2 steps 1, 4 and
+5.)*
+- **The rule.** After trimming (sub-decision 3; spec § 5.3), an empty category segment in a `tag` or `pin` key whose
+  kind slot is `30392` or `30382` is the Profiles category, not "any". It matches only insights whose category is
+  Profiles. So `30392:tag::⟨T⟩` is exact, and does not cover `30392:tag:⟨D⟩:⟨T⟩`.
+  - An omitted category means any category. So does an empty one in every other key: a family or `*` kind slot, any
+    other kind, or the `dlist` system, whose slot names a DList. For family and `*` keys that is the per-key reading
+    (below), which Treasure Maps neither states nor rules out.
+  - A trailing empty category is trimmed, so `30392:tag::` is `30392:tag`.
+  - Where A1-1's words say otherwise, A1-10 governs.
+- **Why: the spec defers to Treasure Maps.** A menu row is a Treasure Maps key (spec § 5.1), and the entry a client
+  writes is read by Treasure Maps § 6. Treasure Maps reads `30392:tag::⟨T⟩` as exact in four places:
+  - § 4.4's last bullet: "For profiles the category slot is always empty and doesn't count" (`treasure-maps.md:158`);
+  - the § 6 table, whose "Its exact key" column gives `30392:tag::⟨Podcaster⟩` (`:263`);
+  - § 10.5, whose row for it lacks the "except where this Map says otherwise" that ends every scope key (`:321`,
+    `:376`);
+  - § 13 question 2: "an empty category is always a scope (except for profiles)" (`:521`).
+
+  Content Categories spells the Profiles category's slot value "empty" (`content-categories.md:70`). A1-1's "not the
+  Profiles type" was written against family keys such as `3039x:tag::⟨T⟩`: revision 2's check
+  (`model/skeptic4_type.py`) set aside reading an empty category as the Profiles type in every key. It did not
+  consider the profile kinds.
+- **Family and `*` keys: Treasure Maps does not say.** § 4.4's profiles bullet does not say whether it reaches a key
+  whose kind slot is a family or `*`. Its general rule makes an empty segment "any" (`:155`), and its middle-segment
+  example, `30396:tag::⟨Vegan⟩` (`:156`), names an exact kind that is not a profile kind. Two readings fit its words:
+  - *per key*, A1-10's: the carve-out holds only where the key's own kind slot is `30392` or `30382`. So
+    `3039x:tag::⟨T⟩` matches T's profile lists in every category, `30392:tag:⟨D⟩:⟨T⟩` included;
+  - *per insight*: an empty category in any key matches only the Profiles category among profile-kind insights. So
+    `3039x:tag::⟨T⟩` matches T's lists in every category for the other kinds, but only the Profiles list of `30392`.
+- **Why per key.** A key then has one meaning, decided from its own segments, as A1-1 judges agreement from the key
+  alone. And a meet never reaches outside K:
+  - Read per insight, a meet can. With K = `3039x:tag::⟨T⟩` and a row `3039x:tag:⟨D⟩`, the meet `3039x:tag:⟨D⟩:⟨T⟩`
+    matches `30392:tag:⟨D⟩:⟨T⟩`, a list K does not match (`r4/k2_variants.py`). An observer who chose that meet would
+    take an insight outside K without being told.
+  - Read per key, a meet can only fall short, which the client sees and says (below).
+  - In `r4/sk/sk_b2checks.py` (40,000 menus each), per-insight meets reach outside the two keys' shared insights in
+    311 menus, and per-key meets fall short in 60. Both readings keep A1-2 (no tie between keys that share an insight,
+    checked over every pair; a stable answering row) and A1-4's guarantee, with 0 failures each.
+  - Neither reading is safe against the other. In `r4/sk/sk_b2cross.py`, resolving per key where the Map is read per
+    insight leaves an unlisted wrong relay for 918 of 11,786 duty-answered keys, and the reverse for 624 of 10,933.
+    With menu `3039x` → R0, `3039x:tag::⟨T⟩` → R1 and K = `3039x:tag:⟨D⟩:⟨T⟩`, the entry is R1 per key, with no
+    differing row; per insight it is R0, with `3039x:tag::⟨T⟩` as a differing row.
+  - Story 3 settles this with the rest of § 4.4's profiles bullet (below).
+- **Why not keep "any".** The same key would mean one thing in a menu and another in the Map, and A1-4's promises
+  would fail in the Map's own reading.
+  - The kick-back's example: menu `30392` → R0, `30392:tag::⟨T⟩` → R1; K = `30392:tag:⟨D⟩:⟨T⟩`. Read as "any", the
+    answering row is `30392:tag::⟨T⟩`, and the entry R1. Under A1-10 it is `30392`, and the entry R0. A publisher who
+    wrote that menu from Treasure Maps offers D's T list at R0.
+  - A meet such as `30392:tag::⟨T⟩`, offered under "any" for T's lists in every category, would give only the
+    Profiles list its relay once it is in the Map.
+  - Neither reading is safe against the other, so the spec takes the one Treasure Maps writes. In `r4/k1k2.py`,
+    resolving with "any" where the menu and the Map mean the carve-out leaves an unlisted wrong relay for 3 of 6,953
+    duty-answered keys (the example first), and the reverse for 50.
+- **Some meets have no key.** Treasure Maps has no key for a named Tag, Pin or metric in every category of a profile
+  kind. So when a meet would be a `30392` or `30382` `tag` or `pin` key with an empty category, and neither K nor the
+  row has the Profiles category, its spelling means the Profiles category only, while the insights both keys match
+  span every category. Then:
+  - A1-3: the meet is a § 4.7 key except in this case and A1-8's Concept case. A meet that has a key still beats K,
+    and, resolved afresh, its answering row is still the row.
+  - A1-4's listing: the client still lists the row, its part and its answer, and describes the part ("Tag-based lists
+    of profiles tagged T, in every category") in place of a key.
+  - A1-4's new key: the client offers the row's own key when it beats K (§ 6), with A1-4's note that it may reach
+    outside K. Otherwise it says that Treasure Maps has no key for the part as a whole. The observer may still choose
+    keys for some of its categories, such as `30392:tag::⟨T⟩` for the Profiles category, each resolved afresh.
+  - Examples. K = `3039x:tag::⟨T⟩`, with menu `3039x` → R0, `30392` → R1: the differing row `30392` takes T's profile
+    lists in every category; the meet has no key; `30392` beats K and may be chosen, though it also takes `30392`
+    lists outside K. K = `30392:tag`, with menu `3039x` → R0, `3039x:tag::⟨T⟩` → R1: the part is again T's profile
+    lists in every category, K beats the row's key, and no one key gives the part its relay.
+- **The model.** `r4/k1k2.py` has five Score and five List kinds; categories Profiles, `1`, `30023`, `39998` and two
+  DLists; `tag`, `dlist` and native keys (`pin` keys share the `tag` layout, Treasure Maps § 4.3); and Concepts as
+  A1-8 reads them. Under A1-10, each meet whose key misses part of the two keys' shared insights (58 to 60 per 40,000
+  menus) is in the case above, and none is outside it. The row's own key beats K in 31 to 35 of them; in 25 to 29 no
+  key does. A1-2's no-tie (over every pair of keys) and stable answering row, the listing by true intersections, the
+  guarantee, the insisted-key check and the several-keys check all give 0, under each reading of `39998`.
+- **Treasure Maps is stale here.** § 4.4's "always empty" predates § 13 question 3, which made a DList whose subject is
+  `p` a category of `30392` (`:522`; § 10.5's `30392:tag:⟨Nashville Chefs⟩:⟨Vegan⟩`, `:377`). The spec reads it as
+  above until story 3. Story 3 says in § 4.4 whether an empty category in a profile-kind key is the Profiles category,
+  whether `30392:tag::` equals `30392:tag`, whether a profile kind gets a key for a Tag in every category, and whether
+  an empty category in a family or `*` key reaches a profile kind's DList categories, judged per key (the spec's
+  reading meanwhile) or per insight. A new § 14 question records it.
+- **Not taken:**
+  - *Keep "any", and name the conflict in § 14* (the kick-back's option (a)). The spec would have one reading, but the
+    menu and the Map would read the same key two ways, and the meet's promise would fail in the Map.
+  - *The carve-out judged per insight*, in family and `*` keys too. Its meets can reach outside K, in about five times
+    as many menus as per-key meets fall short, and a key's meaning would vary with the insight it is read against
+    (above).
+  - *A trailing empty category as the Profiles category too*, so that `30392:tag::` would differ from `30392:tag`. It
+    conflicts with the spec's trimming and with § 4.4's "`30396:tag` and `30396:tag::` both mean" the same.
+
+**A1-11 — Carrying providers onto a new key: those of the one entry it takes insights from, in that entry's order.**
+*(Qualifies: A1-4's "A new key within K" and its Backups bullet; spec § 6.2 step 5's Alternates bullet.)*
+- **Holders.** The observer chooses a key K′ that has no entries yet, for an Assistant X. Each insight that K′ would
+  win once added (Treasure Maps § 6) is won now by a Map key, its **holder**, or by none. K′ takes those insights from
+  their holders. The client finds them from the keys alone, as A1-3 finds the rows within K, so they do not change
+  with the observer's supported sets.
+  - The rule applies to every such choice, whatever led to it: a differing row's meet or own key (A1-4), a nested meet
+    (below), or the observer's own pick. A1-4's "new key within K" is one that K covers (A1-1), as every meet that has
+    a key is. The rule does not depend on it.
+  - The client names every holder: the insights K′ takes from it, its providers, and who becomes Preferred for those
+    insights. A1-4 says a meet loses insights to a Map entry that beats it. A meet can also beat a Map entry, and then
+    takes that entry's insights. So no key takes insights from another entry unsaid.
+- **One holder: the carry.** When every insight K′ takes has the same holder H, the client SHOULD offer to give K′
+  H's providers, each resolved against its own menu by A1-1 to A1-4. A provider **offers** K′ when its answering row
+  is a `duty` row. Each provider has a place: its place on H. X keeps its own place when it is on H. Otherwise X
+  takes the place of the first of H's providers that does not offer K′, just ahead of it, or the first place when
+  they all offer K′. The offer gives K′:
+  1. first, the providers that offer K′, by place;
+  2. then the providers that do not offer K′ and that the observer keeps (sub-decision 10), by place, as insisted
+     keys (A1-4). X counts as kept: the observer chose it, after A1-4's warning when it does not offer K′.
+
+  Each entry's relay comes from its provider's own menu (A1-4). A provider with no menu that may fill its entries
+  (none is found, or sub-decision 7 forbids it) counts as offering K′, since nothing says it does not, and its entry
+  keeps the relay of its entry for H. When K′ comes from A1-4's flow, H is K unless another entry holds what K′
+  takes. In these examples H is K, and B and D offer every key named.
+  - K = [B, A], and the observer chooses for A the meet of a row that A offers: [B, A]. B stays Preferred.
+  - K = [B, A], A's differing row is `not-offered`, and the observer chooses its meet for C: [B, C]. With K = [A, B]:
+    [C, B]. Chosen for B: [B].
+  - K = [A, B, D], A does not offer the meet, and the observer chooses it for D, already on K: [B, D]. D keeps its own
+    place; it does not take A's.
+  - K = [A, B]. A's menu is `3039x` → R0, `not-offered 3039x:tag`, and B's is `3039x` → S0, `3039x:tag` → S1. The
+    meet `3039x:tag` is a differing row of both. Chosen for B, by either route, with A kept: [B, A], A's entry with
+    the empty string (A1-4).
+  - K = `3039x` → [A], and the observer chooses `30396:tag` for C. A and C each have no menu, or one that offers
+    `30396:tag`: [C, A]. C replaces no one, so it goes first, and A is its Backup. With K = [A, B], both offering:
+    [C, A, B].
+- **Another entry as the one holder.** K = `3039x` → [B, A], A's menu is `3039x` → R0, `30396:tag` → R1, and the Map
+  also has `3039x:tag` → [E, F], neither of which has a menu. `3039x:tag` holds every insight that the meet
+  `30396:tag` takes. Chosen for A, the meet gets [A, E, F], and the client says that it takes the `30396` Tag-based
+  lists from `3039x:tag` → [E, F]. K's order is not carried there: carried, it would make B Preferred for insights
+  the observer gave E.
+- **Several holders, or none for part: no carry.** A holder's order is the observer's order for its own insights
+  only. Carried onto another holder's insights, it would make its providers Preferred where the observer chose others.
+  Carried onto insights no entry holds, it would give its providers insights the observer never gave them. So K′ gets
+  X alone, the client names the holders, and the observer may add providers in an order it sets. If K′ takes no
+  insight, because other entries beat it everywhere, nothing is carried either.
+  - The same menu, with `3039x:tag::⟨T1⟩` → [E] in the Map in place of `3039x:tag`: the meet takes T1's lists from E
+    and the rest from K. Chosen for A, it gets [A], and the client names both holders.
+  - A row's own key that reaches outside K (A1-4, A1-10) takes insights from K and, outside K, from other entries or
+    from none. Example, A1-10's: K = `3039x:tag::⟨T⟩` → [B, A], the Map also has `3039x` → [E], and the observer
+    chooses `30392` for A. Inside K, T's profile lists in every category go from [B, A] to [A]: B is dropped, and A
+    becomes Preferred. Outside K, the other `30392` lists go from [E] to [A].
+- **A provider that partly offers K′.** A provider on H that does not offer K′ as a whole may still offer rows within
+  it. Left off K′, it loses those insights. So the client lists those rows, says that choosing K′ takes their
+  insights from that provider, and offers, with K′, each row's meet with K′ for that provider. It builds them by this
+  rule from the Map as it stood before K′, so each keeps its part as it was. Where that meet has no key, A1-10
+  applies. The observer may instead keep the provider on K′, as an insisted key at A1-4's relay, after the providers
+  that offer K′.
+  - Example: A's menu is `3039x` → R0, `not-offered 3039x:tag`, `30396:tag` → R0, and K = `3039x` → [B, A]. The
+    observer chooses `3039x:tag` for C: [B, C]. The client lists `30396:tag` → R0 within `3039x:tag`, and offers
+    `30396:tag` for A, built from K, its one holder before `3039x:tag`: [B, A]. With it, `30396:tag:⟨D⟩:⟨T⟩` keeps
+    [B, A]. With K = [A, B], `3039x:tag` gets [C, B] and `30396:tag` gets [A, B]. If the observer keeps A on
+    `3039x:tag` instead, that key gets [B, C, A] (with K = [A, B]: [C, B, A]), A's entry at R0.
+  - Chosen later, on its own, `30396:tag` for A is a new choice against the Map as it then stands. Its one holder is
+    `3039x:tag` → [B, C]. A has no place there, and B and C offer it, so the offer is [A, B, C] (with K = [A, B]:
+    [A, C, B]).
+- **A key that already has entries.** X is added after them, unless already listed, and nothing is carried: the key
+  already has the observer's order.
+- **Declined, or no carry.** The client says that the new key has no fallback provider, as A1-4 says.
+- **Why.**
+  - The observer set each entry's order. The first is the Preferred provider, whose insight clients use (Treasure Maps
+    § 7, `treasure-maps.md:279–280`). A key chosen through A1-4's flow gives part of K the right relay, or replaces a
+    provider where its own menu does not offer, and the providers that offer keep their order.
+  - The insights a new key takes are its holders', and not K's wherever another entry holds them. Carrying from the
+    one holder keeps every insight with the providers that served it, and X. No other provider gains an insight it
+    did not serve. So a new key moves insights only to the Assistant the observer chose, and the client says from
+    whom.
+  - Each provider is judged by its own menu, so the offer depends only on K′, X, the menus and the Map it is built
+    from, not on which differing row led there. Revision 3's text put X in the place of the one Assistant whose row
+    led there. Where a meet was a differing row of two providers, the two routes gave [A, B] and [B, A]
+    (`r4/skep_k3.py`, case 3). Where X was already on K, behind a provider that stays, X moved ahead of it: [A, B, D]
+    gave [D, B] (`r4/skep_k3_order.py`).
+  - Every listed provider is asked to publish (Treasure Maps § 9). So a provider whose menu does not offer K′ is not
+    carried unless the observer keeps it, and then goes after those that offer K′. The Preferred provider is then one
+    that offers K′, whenever one does.
+  - X, when new to H, takes the place of the first provider that does not offer K′: it replaces where a replacement
+    is needed. Where none is needed, the observer has chosen X for that part over H's providers, so X goes first, and
+    they follow as its Backups, A1-4's word. In A1-4's flow with K as the one holder that never happens: X is on K,
+    or replaces A, which does not offer its own `not-offered` row's meet.
+  - A nested meet is built from the Map before K′ because it exists to leave its part as it was. The same key chosen
+    later is a new choice against a Map that now has K′, and the client shows that offer before writing it.
+  - `r6/k3_holder.py` checks the rule on the model's menus: 2,368 meets chosen from random menus of two to four
+    providers, with up to two more Map entries for other Assistants. 2,344 have one holder (45 of them not K), 18
+    have several, and 6 take nothing. No provider but X gains an insight it did not serve; the providers that offer
+    K′ keep the holder's order; no provider that does not offer K′ is carried unless kept; the holder's Preferred
+    provider stays Preferred whenever it offers K′, unless X is new and replaces no one; and with K as the one holder,
+    A1-4's flow gives the same offer as the text before the second review (0 failures each). In 192 a provider partly
+    offers K′. Its nested meets keep it, in its order, wherever it offers, except once, where the nested meet has no
+    key (A1-10). 6,000 free choices of any key for any Assistant (429 with one holder) give the same zeros.
+- **Not taken:**
+  - *X first always, then the holder's other providers in their order* (the kick-back's second reading). For a relay
+    fix X is A, already on K, and going first would make A Preferred for that part, which the observer did not choose.
+    For a replacement, X belongs in the place of the provider it replaces.
+  - *X last when it replaces no one* (the text after the first skeptic review). An observer who gives part of K to a
+    new Assistant would see the offer keep K's Preferred provider ahead of it, and the providers carried would not be
+    the Backups A1-4 names.
+  - *X in the place of the Assistant whose row led to K′* (revision 3's text): two routes to one key gave two orders,
+    and X already on K could move ahead of a provider that stays (above).
+  - *Each carried provider keeps its place, whether or not it offers K′.* A provider whose menu does not offer K′
+    could stay Preferred for it.
+  - *K's providers, onto every key within K* (the text after the first skeptic review). A key within K can beat an
+    entry more specific than K and take its insights, and a nested meet lies within two Map keys, which gave two
+    orders (`r4/fresh/fe_k3.py`).
+  - *The providers of the most specific Map key that covers K′, counting a key chosen in the same step.* That key may
+    not hold every insight K′ takes: in the `3039x:tag::⟨T1⟩` example it is `3039x`, and its order would reach E's
+    insights. Counting K′ for its own nested meets would build them from `3039x:tag` → [B, C], where A has no place:
+    [B, C, A] under the text the second review read, [A, B, C] under this one. Neither keeps the part as it was,
+    which is what the nested offer is for.
+  - *Limiting the rule to keys reached through A1-4's flow.* A1-4's Backups bullet speaks of any new key within K, so
+    every other choice would keep the kick-back's open question.
+  - *Carrying nothing and saying nothing*, when there are several holders: the key would drop providers unsaid.
+
+**A1-12 — A replaced menu does not survive where readers look first.** *(Qualifies: A1-6, A1-7, and sub-decision 8's
+reader order; spec § 8.1, § 11 and § 12.)*
+- **Publishers.** A key SHOULD send each new version of its menu, the empty menu included, to every relay that a `duty`
+  row of an earlier version named, as well as where A1-7 says. A deletion that accompanies a withdrawal (A1-6) SHOULD
+  go wherever the empty menu goes.
+  - Why those relays: entries built from an earlier version carry its relays as element 3 (A1-7), and § 8.1 step 1
+    looks there first. The key's and Nous' former write relays are no § 8.1 place, so the rule leaves them out.
+  - A publisher may drop a relay it knows is gone.
+  - A publisher that no longer knows its earlier versions' relays, such as a key moved to new software, sends to those
+    it can still find, and relies on the reader rule for the rest. It may not be able to read them back: a relay need
+    keep only the latest version at the address (NIP-01).
+- **Readers.** A reader SHOULD ask every relay in all three § 8.1 places, and use the latest version among the answers:
+  the latest `created_at`, and on a tie the lowest id (NIP-01, `01.md:99–101` in `nostr-protocol/nips`).
+  - The relays are every relay hint in hand for the key (step 1), every write relay in the key's kind 10002 (step 2),
+    and every write relay in Nous' kind 10002 (step 3).
+  - A relay that does not answer within the reader's own timeout is skipped. If none answers, no menu is found.
+  - The order of § 8.1's list says where to look first, not where to stop.
+  - A reader may ask fewer relays, to save queries or to keep Nous' relays from seeing its lookups (§ 12). It may then
+    get an older version.
+  - If the latest version is not a menu by § 6.1, the key has none, as on a relay, which keeps only the latest version
+    at the address.
+- **The reader's cost.** Two kind 10002 lookups, the key's and Nous', then the hint relays, the key's write relays and
+  Nous' write relays. With one hint and NIP-65's "2-4 relays of each category" (`65.md:39`), that is 5 to 9 relays per
+  key, where a reader that stopped at the first menu asked one. Nous' kind 10002 is the same for every key and can be
+  cached, and step 3 can ask for many keys in one REQ, with `authors` listing them. Every lookup now reaches Nous'
+  write relays, which § 12 notes.
+- **Why both.** The publisher rule replaces the old copy at the hints in entries built from the key's own menu. The
+  reader rule makes a stale copy harmless whenever A's or Nous' write relays answer, even for a publisher that skips
+  the SHOULD. `r4/k4_stale.py` models a withdrawal, a withdrawal with a deletion, a moved relay, two moves and then a
+  withdrawal, and a hint at a middle relay, each with places 2 and 3 reachable and unreachable. Its hints are relays
+  that earlier `duty` rows named:
+  - With A1-7 alone, a reader that stops at the first menu reads the stale offers in every case. A reader that keeps
+    the newest reads the right menu only while places 2 and 3 answer.
+  - Adding the replaced version's `duty`-row relays (the kick-back's option 1, as worded) covers one move but not two.
+    After `wss://scores.example` → `scores2` → `scores3` → withdrawal, the first relay keeps the `scores2` version,
+    and a reader that holds it and stops there writes `["30382:rank", "<A>", "wss://scores2.example"]`.
+  - With every relay an earlier version went to, either reader is right in every case, places 2 and 3 down included.
+    So is it with every relay that an earlier version's `duty` rows named, the narrower set above (`r5/k4_p3.py`).
+  - A relay that applies only a deletion's `e` (Context: dcosl) still gets the empty menu, which replaces the old one.
+- **Other hints.** The publisher rule does not reach a hint that is not taken from the key's own menu: a `storefront`
+  link's relay, or element 3 of an entry not built from the menu, such as a hand-written entry or one filled before the
+  menu was found. The key may never have sent there, and a copy that reached such a relay by `#z` sync stays stale.
+  There only the reader rule protects a reader. One that stops at the first menu can still read the stale copy
+  (`r4/skK4lens/k4_skeptic_b.py`).
+- **Why every relay, and place 3 always.**
+  - A relay of a place may have missed the newest version. With 20% of sends failing, a reader that asks one relay per
+    place is wrong in 6 to 21 of 2,000 trials per scenario, and one that asks every relay in 0 or 1 (`r5/k4_p3.py`, on
+    `r4/skK4lens/k4_skeptic.py`'s model).
+  - A key may publish no kind 10002. A stale copy at a hint the publisher did not update (other hints, above, or a
+    skipped SHOULD) then answers place 1, and only place 3 holds the newest version. A reader that asks place 3 only
+    when places 1 and 2 find nothing reads the stale copy in each such scenario (`r5/k4_p3.py`). With 20% of sends
+    failing, it is wrong in 10 to 15 of 2,000.
+- **What the reader then writes.** After `3038x` → `wss://scores.example` is withdrawn, the menu gives K =
+  `30382:rank` no relay. There is no entry, unless the observer keeps K for A, when the insisted-key entry is
+  `["30382:rank", "<A>", ""]` (A1-4). An old relay keeps a stale copy only if it is not also one of A's or Nous' kind
+  10002 write relays.
+- **No new wire surface.** Both rules say where events go and which copy counts. NIP-09 already asks clients to
+  "broadcast deletion request events to other relays which don't have it" (`09.md:33`).
+- **Not taken:**
+  - *The reader rule alone* (the kick-back's option 2). It fails when only the hint answers, and it leaves stale copies
+    for readers that follow no such rule.
+  - *The publisher rule alone.* A publisher that skips the SHOULD, or a relay that missed the update, leaves a reader
+    that stops at the first menu wrong.
+  - *The replaced version's `duty`-row relays only*, the kick-back's option 1 as worded: one move back only (above).
+  - *Every relay an earlier version went to* (revision 3's text). It adds the key's and Nous' former write relays, which
+    are no § 8.1 place, and it needs a log of past sends that a publisher may have lost.
+  - *Place 3 only when places 1 and 2 find nothing.* It saves queries and keeps more lookups from Nous' relays, but it
+    reads a stale hint copy for a key with no kind 10002 (above).
+  - *Checking only step 2 after a step-1 hit.* A key may publish no kind 10002, and then step 3 holds the newest copy.
+
 ### Consequences of A1
 
 - **The Map stays the observer's.** A client writes only the entries the observer chose, so a menu cannot move insights
-  away from another Assistant.
+  away from another Assistant. (See A1-11.)
 - **Insights in a differing row's part get their relay at read time.** Until story 3's read-time resolution exists, a
   reader that follows the Map alone looks for them at K's relay, and may not find them there. Meanwhile the observer can
   choose a differing row's meet as a key. That gives the row's part its relay, unless another entry beats the meet.
@@ -655,7 +1011,27 @@ bullet, and A1-1.)*
   decide these. The owner confirmed A1-8 as the reading until story 3 (gate, 2026-10-11), which settles it in Treasure
   Maps.
 - **Withdrawal with a deletion needs two timestamps in order.**
-- **No new wire surface. Firmware reinstall required? No.** No concept definition changes.
+- **Category `39998` is read broadly until story 3 (A1-9).** Under a family or `*` kind slot it may list `30393`,
+  `30394` and `30397` rows as differing. If Treasure Maps settles a narrower reading, a key that a `30397` or `30387`
+  row offers whole, read narrowly, can be reported as not offered as a whole: the client warns, writes no entry unless
+  the observer keeps the key, and may then write the empty relay. The observer can choose the meet instead. If story 3
+  narrows Treasure Maps § 4.3, the spec narrows with it.
+- **Menus and Maps read a profile key alike (A1-10).** `30392:tag::⟨T⟩` is exact in both. Some parts of K then have no
+  key of their own: a Tag, Pin or metric in every category of a profile kind. The client lists them and says so. Unless
+  the row's own key beats K, only keys for some of their categories, or read-time resolution (story 3), give such a
+  part its relay.
+- **A new key carries the providers of the one entry it takes insights from (A1-11)**, in that entry's order among the
+  providers that offer it. A new Assistant that replaces no one goes first. A provider whose menu does not offer the
+  key is carried only if the observer keeps it, after them. A key that takes insights from several entries, or from
+  none for part, gets no carry. The client names every entry a new key takes insights from, so no provider but the
+  chosen one gains an insight it did not serve.
+- **Readers ask every relay in all three places (A1-12):** 5 to 9 relays per key with one hint, and every lookup
+  reaches Nous' write relays (§ 12). Publishers keep sending each menu to every relay that an earlier version's `duty`
+  rows named, and may drop a relay they know is gone.
+- **Story 3 carries forward two more Treasure Maps questions:** § 4.3 for category `39998` (A1-9), and § 4.4's
+  profiles bullet, family and `*` keys included (A1-10).
+- **No new wire surface. Firmware reinstall required? No.** No concept definition changes. A1-9 to A1-12 add no
+  tag, kind or field either.
 
 ### Implementation notes for round 3
 
@@ -712,7 +1088,95 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   order of `39998` and `39999` keys in Treasure Maps § 6, and say how `duty-menus.md` § 5.3 and § 6.2 follow. This is
   the owner's decision in ledger row `2026-10-09-draft-grammar-bare-39999`.
 
-**This ADR, on approval:** the status line becomes "**Status:** Accepted; amended by A1 (2026-10-11)".
+**For A1-9 to A1-12**, once the owner approves them. AC6 still holds: inside `protocols/`, only
+`drafts/duty-menus.md` changes.
+
+`protocols/drafts/duty-menus.md`:
+- **§ 6.2 step 1** (:161–179):
+  - The lead's "Where it leaves the Concept kinds open, this spec reads them as below" covers every question the spec
+    reads ahead of Treasure Maps: the Concept kinds, category `39998` and the profiles category slot (open questions 5
+    to 7 below).
+  - The event-kind bullet (:163): A1-9. Category `39998` (*DList headers*) agrees with `30393`, `30394` and `30397`,
+    and their Score kinds `30383`, `30384` and `30387`, because its headers may be of four kinds, referenced by id, by
+    address or as lists (Content Categories § 1.3 and § 2). Point to open question 6.
+  - The empty-segment bullet (:165): A1-10. An empty category means any category, not the Profiles type, except in a
+    `tag` or `pin` key whose kind slot is `30392` or `30382`. There, after § 5.3's trimming, it is the Profiles
+    category, so `30392:tag::⟨T⟩` is exact (Treasure Maps § 4.4). An omitted category means any. In a family or `*`
+    key an empty category means any, a profile kind's DList categories included. Point to open question 7.
+  - The example at :171 gains the exception: `30392:tag::⟨T⟩` does not cover `30392:tag:⟨D⟩:⟨T⟩`.
+- **§ 6.2 step 4** (:184): the meet's exception gains A1-10's case, with a one-sentence reason: a `30392` or `30382`
+  `tag` or `pin` meet with an empty category, from two keys neither of which has the Profiles category, has no key.
+- **§ 6.2 step 5:**
+  - "Every row within K is listed" (:196): where the meet has no key, the client describes the part.
+  - "A new key within K" (:201–208): A1-10's case. The client offers the row's own key when it beats K, and otherwise
+    says that Treasure Maps has no key for the part as a whole; the observer may still choose keys for some of its
+    categories. Use A1-10's two examples.
+  - "Alternates" (:209): A1-11.
+    - The rule applies to every key with no entries that the observer chooses, whatever led to it. Define its
+      holders: the Map keys that now win the insights it would win once added. The client names each holder, the
+      insights the key takes from it, its providers, and who becomes Preferred for them. Say that a meet can also beat
+      another Map entry, and then takes its insights.
+    - With one holder: resolve the key against the menus of the holder's providers and of the chosen Assistant. The
+      providers that offer it come first, in the holder's order. The chosen Assistant keeps its place when it is on
+      the holder; otherwise it takes the place of the first provider that does not offer the key, or the first place
+      when they all offer it. Then come the providers that do not offer it and that the observer keeps, the chosen
+      Assistant included, as insisted keys. A provider with no menu found counts as offering, and keeps the relay of
+      its entry for the holder.
+    - With several holders, or none for part of the key, or no insight taken: no carry; the key gets the chosen
+      Assistant alone.
+    - A provider that partly offers the key: list its rows within it, say that choosing the key takes their insights
+      from it, and offer, with the key, their meets for it, built the same way from the Map as it stood before the
+      key, or keeping it as an insisted key.
+    - A key that already has entries gets the chosen Assistant after them, and nothing is carried. Keep the sentence
+      for a declined offer, and say the same where nothing is carried.
+    - Use A1-11's examples: the two-provider and nested ones, the new Assistant that replaces no one, another entry
+      as the one holder, and the two-holder case.
+- **§ 8.1** (:234–240): A1-12.
+  - "Look, in order:" becomes: ask every relay in all three places (every hint in hand for the key, every write relay
+    in the key's kind 10002, every write relay in Nous' kind 10002), and use the latest version among the answers (the
+    latest `created_at`, and on a tie the lowest id, as NIP-01 keeps). A relay that does not answer within the
+    reader's timeout is skipped. The order says where to look first, not where to stop. A reader may ask fewer relays,
+    and may then get an older version. If the latest version is not a menu (§ 6.1), the key has none.
+  - One sentence gives the cost: two kind 10002 lookups, then 5 to 9 relays with one hint and NIP-65's 2–4 per list.
+    Nous' kind 10002 can be cached, and step 3 can ask for many keys in one REQ.
+  - The publisher sentence adds "and to every relay that a `duty` row of an earlier version named", with its reason:
+    entries built from an earlier version carry its relays, and readers look there first. A publisher may drop a relay
+    it knows is gone. One that no longer knows those relays sends to those it can still find.
+  - Say that a hint not taken from the key's own menu, such as a `storefront` link's relay, may hold a stale copy that
+    only the reader rule guards against.
+- **§ 11** (:265–272): "Publish the menu where § 8.1 says" now includes those relays. A deletion goes wherever the
+  empty menu it accompanies goes.
+- **§ 12:** a new bullet, **Lookups**. Every lookup asks Nous' write relays (§ 8.1), so their operators can see which
+  keys a client looks up, and when. A reader may skip them, at the risk of an older version.
+- **§ 14:** add two questions.
+  - (6) Category `39998`: which List and Score kinds take the *DList headers* category. This spec reads `30393`,
+    `30394` and `30397` meanwhile (§ 6.2 step 1).
+  - (7) The profiles category slot: Treasure Maps § 4.4's "always empty" predates its § 13 question 3. Is an empty
+    category in a `30392` or `30382` key the Profiles category? Does `30392:tag::` equal `30392:tag`? Does a profile
+    kind get a key for a Tag in every category? Does an empty category in a family or `*` key reach a profile kind's
+    DList categories, judged per key or per insight? This spec reads A1-10's carve-out, per key, meanwhile.
+- The spec names no story, ADR or deployment, and the vocabulary gate applies.
+
+**The story's Deviations:** a block after "Fix pass 3", answering the questions kicked back there:
+- category `39998` → A1-9; where A goes on a new key, and a new key chosen for another Assistant → A1-11; the profiles
+  category slot → A1-10; the stale menu → A1-12;
+- the Fix pass 3 example, tightened on two points. The newest-copy reader writes `["30382:rank", "<A>", ""]` only if
+  the observer keeps K for A (the insisted key); otherwise it writes no entry. And the old relay keeps the stale copy
+  only when it is not also one of A's or Nous' kind 10002 write relays;
+- § 14's questions 6 and 7.
+
+**The epic's story-3 carry-forwards** (`epics/duty-menus-and-self-maps.md:20–28`), two more bullets:
+- settle which List and Score kinds take the *DList headers* category (`39998`) in Treasure Maps § 4.3, in line with
+  Content Categories § 1.3 and § 2, and say how `duty-menus.md` § 6.2 step 1 follows (A1-9; the spec reads `30393`,
+  `30394` and `30397` meanwhile);
+- restate Treasure Maps § 4.4's profiles bullet in the light of § 13 question 3: whether an empty category in a
+  `30392` or `30382` key is the Profiles category, whether `30392:tag::` equals `30392:tag`, whether a profile kind
+  gets a key for a Tag in every category, and whether an empty category in a family or `*` key reaches a profile
+  kind's DList categories (per key, as the spec reads it meanwhile, or per insight); and say how `duty-menus.md` § 6.2
+  follows (A1-10).
+
+**This ADR, on approval:** the status line becomes "**Status:** Accepted; amended by A1 (2026-10-11)". On approval of
+A1-9 to A1-12, it returns to that line, and the approval is recorded after the Revision 3 paragraph.
 
 **Gates:** as in Implementation notes above, except the scope line: `git diff --stat` touches, inside `protocols/`, only
 `drafts/duty-menus.md`; outside it, the story and the epic.
@@ -767,3 +1231,49 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   reading and the order. § 14 carries both questions. Nothing in the spec says a bare `39998` covers only `39998:<d>`.
 - **§ 13.3.** Only the `3039x` row changed. The other four re-derive as in round 2.
 - **Scope.** AC6, and the vocabulary gate.
+- **A1-9.** § 6.2 step 1 gives category `39998` the kinds `30393`, `30394` and `30397`, with their Score kinds, cites
+  Content Categories, and points to open question 6. The kick-back's example re-derives: menu `3039x` → R0, `30397` →
+  R1, K = `3039x:tag:39998`; the entry is R0, and `30397` → R1 is a differing row, with meet `30397:tag:39998`.
+- **A1-10.** § 6.2 step 1 carries the carve-out and its limits (`tag` and `pin` keys of `30392` and `30382`, after
+  trimming; an omitted category means any). Menu `30392` → R0, `30392:tag::⟨T⟩` → R1, K = `30392:tag:⟨D⟩:⟨T⟩`: the
+  answering row is `30392`, and the entry R0. Step 4 names the meet with no key, and step 5 handles it, with A1-10's
+  two examples. § 14 has question 7, which also asks about family and `*` keys. Read per key, menu `3039x` → R0,
+  `3039x:tag::⟨T⟩` → R1 and K = `3039x:tag:⟨D⟩:⟨T⟩` give R1, with no differing row.
+- **A1-11.** Step 5's Alternates bullet defines a new key's holders, names them for every key chosen, whatever led to
+  it, and carries only from one holder. With K the one holder: [B, A] gives [B, A] for A; with C chosen for a
+  `not-offered` part, [B, C]; with B chosen, [B]. [A, B, D], with A not offering and D chosen, gives [B, D]. The
+  two-provider case gives [B, A] by either route. K = `3039x` → [A], with no menus, and `30396:tag` chosen for C,
+  gives [C, A]. With `3039x:tag` → [E, F] also in the Map, the meet `30396:tag` chosen for A gives [A, E, F] and names
+  `3039x:tag`; with `3039x:tag::⟨T1⟩` → [E] instead, it gives [A] and names both holders. The nested case lists
+  `30396:tag` → R0 and offers `30396:tag` for A, with `3039x:tag`, as [B, A] (K = [A, B]: [A, B]); chosen later, on
+  its own, it gives [A, B, C] (K = [A, B]: [A, C, B]). A1-10's example carries nothing to `30392`, and names what it
+  takes from each holder. A key that already has entries gets the chosen Assistant after them.
+- **A1-12.** § 8.1 asks every relay in all three places, keeps the latest version (lowest id on a tie), skips a relay
+  that does not answer, allows fewer relays at the risk of an older version, and states the cost. Its publisher
+  sentence adds every relay that a `duty` row of an earlier version named, with the way out and the case of a
+  publisher that no longer knows them, and says that only the reader rule guards a hint not taken from the key's own
+  menu. § 11 sends a deletion wherever the empty menu goes, and § 12 has the Lookups bullet. The story's Fix pass 3
+  example carries both corrections.
+- **The revision 3 scripts**, run with `python3 -I` from the scratchpad's `r4/` folder, if still present:
+  - `k1k2.py` prints the two kick-back examples: category `39998` read as `30397` only, as `30394` and `30397`, and as
+    all three gives R1, R0 and R0; the profiles slot read as "any" and as A1-10 gives R1 and R0. For each of the six
+    pairs of readings it prints 0 for `ties`, `unstable`, `any_tie_shared`, `within_covers`, `meet_none`,
+    `meet_wrong_outside_class`, `meet_beats`, `meet_ans`, `listing`, `guarantee`, `insisted_bad` and
+    `rowkey_iff_bad`, and 0 several-keys "unlisted wrong". `meet_wrong` is 0 under "any" and 58 to 60 under A1-10.
+    The cross-reading lines give 0 wherever the spec's reading of `39998` is at least as wide as the world's, non-zero
+    wherever it is narrower, and non-zero both ways for the profiles slot.
+  - `k2_variants.py` shows the per-insight carve-out's meet matching a list its first key does not.
+  - `k3_order.py` holds revision 3's order rule, which A1-11 now replaces. `skep_k3.py` and `skep_k3_order.py` show
+    its defects.
+  - `k4_stale.py` prints the stale-menu table. Every row for "every relay an earlier version went to" (`P2`) reads
+    "ok".
+  - `sk/sk_k1simple.py` and `sk/sk_k1cost.py` give A1-9's cost. `sk/sk_b2checks.py` and `sk/sk_b2cross.py` compare
+    A1-10's per-key and per-insight readings. `skK4lens/k4_skeptic.py` and `skK4lens/k4_skeptic_b.py`, run from their
+    own folder, model failed sends, the readers, and a stale hint the publisher never sent to.
+  - From the scratchpad's `r5/` folder: `k3_rule.py` holds A1-11 as it stood before the second skeptic review, whose
+    defects `r4/fresh/fe_k3.py` and `r4/fresh/fe_k3_scope.py` show. `k4_p3.py` shows that the relays earlier `duty`
+    rows named do what `P2` does, that a reader asking place 3 only when places 1 and 2 find nothing fails for a key
+    with no kind 10002, and how each reader fares when 20% of sends fail.
+  - From the scratchpad's `r6/` folder: `k3_holder.py` prints A1-11's named cases, the second review's among them, and
+    asserts its properties over random menus and Maps, for meets and for free choices.
+  - The scratchpad is not durable. If the scripts are gone, rebuild them from A1-9 to A1-12.
