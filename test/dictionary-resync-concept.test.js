@@ -276,13 +276,14 @@ test('E9: the route is registered, and no auth list gates it to owners or custom
   const m = mod();
   assert(m.ROUTE === '/api/dictionaries/concepts/resync', m.ROUTE);
   assert(/require\('\.\/resyncConcept'\)\.register\(app\);/.test(code(src(ADOPTION_INDEX))), 'registered');
-  const auth = src(AUTH_JS);
-  for (const list of ['ownerOnlyEndpoints', 'customerOrOwnerEndpoints']) {
-    const block = auth.match(new RegExp(`const ${list} = \\[([\\s\\S]*?)\\]`));
-    assert(block, `${list} must still be readable in auth.js`);
-    const hit = [...block[1].matchAll(/'([^']+)'/g)].map((x) => x[1]).find((e) => m.ROUTE.includes(e));
-    assert(!hit, `${list} entry ${hit} would gate the route`);
-  }
+  // Re-aimed for security-auth-exposure #8 (ADR 0005): the auth middleware's hand-kept lists are gone; the route table
+  // decides access. The route is an allowlisted signed-in action (the author's own concept header), so it must resolve
+  // to 'signed-in'.
+  const TABLE = path.join(ROOT, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const access = require(TABLE).resolveRouteAccess('POST', m.ROUTE);
+  assert(access === 'signed-in', `ADR 0005: ${m.ROUTE} must resolve to 'signed-in'; got '${access}'`);
   assert(!/getOwnerAssistantKeys|getOwnerAssistantPubkey/.test(code(src(MODULE))), 'no owner-key helper');
 });
 

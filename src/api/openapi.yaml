@@ -651,8 +651,14 @@ paths:
     post:
       tags: [Auth]
       summary: Sign up as a new customer
-      description: Requires an authenticated session. Creates a customer account with relay keys.
+      description: >-
+        Creates a customer account with relay keys. Owner, admin or a direct-local caller only
+        (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Customer created
           content:
@@ -664,7 +670,14 @@ paths:
     get:
       tags: [Auth]
       summary: Test authentication endpoint
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Test result
           content:
@@ -686,6 +699,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create a full concept with all 8 core nodes
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -710,6 +726,10 @@ paths:
                 conceptHeaderOverrides:
                   type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Concept created
           content:
@@ -730,6 +750,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create missing core nodes for an existing concept
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -747,6 +770,10 @@ paths:
                 dryRun:
                   type: boolean
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Skeleton result
           content:
@@ -771,6 +798,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Regenerate JSON for core nodes
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -784,6 +814,10 @@ paths:
                 node:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: JSON regenerated
           content:
@@ -802,6 +836,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create a new element of a concept
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -817,6 +854,10 @@ paths:
                 json:
                   type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Element created
           content:
@@ -833,6 +874,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Save or update a concept's JSON Schema
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -847,6 +891,10 @@ paths:
                   type: object
                   description: JSON Schema object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Schema saved
           content:
@@ -863,6 +911,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Save or update an element's JSON data
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -878,6 +929,10 @@ paths:
                 json:
                   type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Element JSON saved
           content:
@@ -889,6 +944,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create a property for a concept
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -917,6 +975,10 @@ paths:
                 required:
                   type: boolean
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Property created
           content:
@@ -933,6 +995,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Generate property tree from JSON Schema (idempotent)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -948,6 +1013,10 @@ paths:
                 strategy:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Property tree generated
           content:
@@ -966,6 +1035,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Wire an existing node as element of a concept
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -981,6 +1053,10 @@ paths:
                 elementName:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Node wired as element
           content:
@@ -992,6 +1068,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create IS_A_SUPERSET_OF between concepts
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1007,6 +1086,10 @@ paths:
                 relType:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Concepts linked
           content:
@@ -1023,6 +1106,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create ENUMERATES relationship
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1040,6 +1126,10 @@ paths:
                   items:
                     type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Enumeration created
           content:
@@ -1056,6 +1146,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Set or update a node's slug
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1069,6 +1162,10 @@ paths:
                 slug:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Slug set
           content:
@@ -1080,6 +1177,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Create a new Set node under a Superset
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1095,6 +1195,10 @@ paths:
                 description:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Set created
           content:
@@ -1111,6 +1215,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Add an element to a Set
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1126,6 +1233,10 @@ paths:
                 elementName:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Element added to set
           content:
@@ -1137,6 +1248,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Fork another author's node
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1150,6 +1264,10 @@ paths:
                 newName:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Node forked
           content:
@@ -1166,6 +1284,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Set or update any node's json tag
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1179,6 +1300,10 @@ paths:
                 json:
                   type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: JSON tag set
           content:
@@ -1190,6 +1315,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Prune redundant direct Superset edges
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1204,6 +1332,10 @@ paths:
                   type: string
                   enum: [HAS_ELEMENT, IS_A_SUPERSET_OF]
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Edges pruned
           content:
@@ -1222,6 +1354,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Apply enumeration relationships for a concept
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1233,6 +1368,10 @@ paths:
                 concept:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Enumerations applied
           content:
@@ -1251,6 +1390,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Wire implicit HAS_ELEMENT edges from z-tags
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1262,6 +1404,10 @@ paths:
                 concept:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Elements wired
           content:
@@ -1280,6 +1426,9 @@ paths:
     post:
       tags: [Normalize]
       summary: Migrate z-tags to point to primary property concept
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1291,6 +1440,10 @@ paths:
                 concept:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Z-tags migrated
           content:
@@ -1585,7 +1738,10 @@ paths:
     post:
       tags: [Firmware]
       summary: Install or reinstall firmware concepts
-      description: Two-pass process that bootstraps all concepts and elements, then enriches JSON Schemas. Long-running (up to 10 minutes).
+      description: >-
+        Two-pass process that bootstraps all concepts and elements, then enriches JSON Schemas. Long-running (up to 10
+        minutes). Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in,
+        403 for any other signed-in person.
       requestBody:
         content:
           application/json:
@@ -1595,6 +1751,10 @@ paths:
                 versionId:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Installation log
           content:
@@ -1770,6 +1930,9 @@ paths:
     post:
       tags: [Neo4j]
       summary: Import or update a single event in Neo4j
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -1782,6 +1945,10 @@ paths:
                 uuid:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Event updated
           content:
@@ -1817,7 +1984,14 @@ paths:
     post:
       tags: [Neo4j]
       summary: Set up Neo4j constraints and indexes
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Constraints and indexes created
           content:
@@ -1910,6 +2084,10 @@ paths:
     post:
       tags: [Strfry]
       summary: Sign and publish an event to strfry
+      description: >-
+        Anyone may publish an event they signed themselves (signAs "client", the default; the signature is verified).
+        signAs "assistant" signs with the instance's assistant key and is the owner's alone, or a direct-local caller's:
+        403 for anyone else, admins included.
       requestBody:
         required: true
         content:
@@ -1921,6 +2099,8 @@ paths:
                   type: object
                   description: Nostr event object
       responses:
+        '403':
+          description: signAs "assistant" from anyone but the owner or a direct-local caller, or a kind 0 signed as the assistant
         '200':
           description: Event published
           content:
@@ -1937,8 +2117,14 @@ paths:
     post:
       tags: [Strfry]
       summary: Wipe all strfry events
-      description: Dangerous! Deletes all events from the local relay.
+      description: >-
+        Dangerous! Deletes all events from the local relay. Owner, admin or a direct-local caller only
+        (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Wipe result
           content:
@@ -1967,6 +2153,9 @@ paths:
     post:
       tags: [Strfry]
       summary: Enable or disable a sync stream
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
@@ -1976,6 +2165,10 @@ paths:
                 enabled:
                   type: boolean
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Stream toggled
           content:
@@ -2004,12 +2197,19 @@ paths:
     post:
       tags: [Strfry]
       summary: Update router configuration
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Config updated
           content:
@@ -2038,7 +2238,14 @@ paths:
     post:
       tags: [Strfry]
       summary: Restart the strfry router
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Router restarted
           content:
@@ -2050,7 +2257,14 @@ paths:
     post:
       tags: [Strfry]
       summary: Restore router to default configuration
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Defaults restored
           content:
@@ -2152,7 +2366,14 @@ paths:
     get:
       tags: [Settings]
       summary: Get merged settings (owner-only)
+      description: >-
+        Owner or admin only (src/middleware/routeAccess.js, then the requireOwner route guard, which also refuses a
+        caller with no session); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Settings object
           content:
@@ -2173,6 +2394,10 @@ paths:
     put:
       tags: [Settings]
       summary: Update settings (owner-only, deep merge)
+      description: >-
+        Owner or admin only (src/middleware/routeAccess.js, then the requireOwner route guard, which also refuses a
+        caller with no session); 401 when not signed in, 403 for any other signed-in person. Changing adminPubkeys is
+        the owner's alone: an admin gets 403 and nothing is written (ADR security-auth-exposure/0005).
       requestBody:
         required: true
         content:
@@ -2181,6 +2406,10 @@ paths:
               type: object
               description: Key-value pairs to merge into settings
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Settings updated
           content:
@@ -2192,7 +2421,14 @@ paths:
     get:
       tags: [Settings]
       summary: Get default settings (owner-only)
+      description: >-
+        Owner or admin only (src/middleware/routeAccess.js, then the requireOwner route guard, which also refuses a
+        caller with no session); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Default settings
           content:
@@ -2209,7 +2445,14 @@ paths:
     get:
       tags: [Settings]
       summary: Get settings overrides (owner-only)
+      description: >-
+        Owner or admin only (src/middleware/routeAccess.js, then the requireOwner route guard, which also refuses a
+        caller with no session); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Override settings
           content:
@@ -2226,6 +2469,10 @@ paths:
     delete:
       tags: [Settings]
       summary: Reset a setting key to default (owner-only)
+      description: >-
+        Owner or admin only (src/middleware/routeAccess.js, then the requireOwner route guard, which also refuses a
+        caller with no session); 401 when not signed in, 403 for any other signed-in person. Changing adminPubkeys is
+        the owner's alone: an admin gets 403 and nothing is written (ADR security-auth-exposure/0005).
       parameters:
         - name: keyPath
           in: path
@@ -2234,6 +2481,10 @@ paths:
             type: string
           description: Dot-separated key path
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Setting reset
           content:
@@ -2392,8 +2643,14 @@ paths:
     post:
       tags: [Search]
       summary: Trigger live ingester resync
-      description: Clears dedup map and reconnects to relay.
+      description: >-
+        Clears dedup map and reconnects to relay. Owner, admin or a direct-local caller only
+        (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Resync triggered
           content:
@@ -2422,7 +2679,9 @@ paths:
     post:
       tags: [Search]
       summary: Batch upsert WoT scores into profiles index
-      description: 'Scores use suffixed field names: wot_<metric>_<8char>.'
+      description: >-
+        Scores use suffixed field names: wot_<metric>_<8char>. Owner, admin or a direct-local caller only
+        (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in person.
       requestBody:
         content:
           application/json:
@@ -2434,6 +2693,10 @@ paths:
                   items:
                     type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Scores loaded
           content:
@@ -2482,8 +2745,14 @@ paths:
     delete:
       tags: [Search]
       summary: Delete entire Meilisearch index
-      description: Requires re-ingest afterwards.
+      description: >-
+        Requires re-ingest afterwards. Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401
+        when not signed in, 403 for any other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Index wiped
           content:
@@ -2519,7 +2788,14 @@ paths:
     post:
       tags: [Search]
       summary: Prune unscored profiles from index
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Pruned
           content:
@@ -2555,6 +2831,9 @@ paths:
     post:
       tags: [Search]
       summary: Backfill profile data for scored profiles
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
@@ -2566,6 +2845,10 @@ paths:
                   items:
                     type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Backfill result
           content:
@@ -2667,6 +2950,9 @@ paths:
     put:
       tags: [Grapevine]
       summary: Save search preferences
+      description: >-
+        Owner or admin only (src/middleware/routeAccess.js, then the requireOwner route guard, which also refuses a
+        caller with no session); 401 when not signed in, 403 for any other signed-in person.
       requestBody:
         required: true
         content:
@@ -2674,6 +2960,10 @@ paths:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Preferences saved
           content:
@@ -2704,7 +2994,9 @@ paths:
     put:
       tags: [User Preferences]
       summary: Save user preferences (shallow merge)
-      description: 'Key fields: pov, rankAuthor, rankRelay, filters, sortConfig, selectedMetrics.'
+      description: >-
+        Key fields: pov, rankAuthor, rankRelay, filters, sortConfig, selectedMetrics. Any signed-in person
+        (src/middleware/routeAccess.js); 401 when not signed in.
       requestBody:
         required: true
         content:
@@ -2712,6 +3004,8 @@ paths:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
         '200':
           description: Preferences saved
           content:
@@ -2726,7 +3020,10 @@ paths:
     post:
       tags: [Property]
       summary: Generate JSON Schema from property tree
-      description: Reads a concept's property tree and generates a JSON Schema, saving it to the JSONSchema node.
+      description: >-
+        Reads a concept's property tree and generates a JSON Schema, saving it to the JSONSchema node. Owner, admin or a
+        direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in
+        person.
       requestBody:
         required: true
         content:
@@ -2738,6 +3035,10 @@ paths:
                 concept:
                   type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Schema generated
           content:
@@ -2991,7 +3292,9 @@ paths:
     post:
       tags: [Trusted List]
       summary: Publish a trusted list event
-      description: Signs and publishes kind 30392-30395 Trusted List events to local strfry.
+      description: >-
+        Signs and publishes kind 30392-30395 Trusted List events to local strfry. Owner, admin or a direct-local caller
+        only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in person.
       requestBody:
         required: true
         content:
@@ -2999,6 +3302,10 @@ paths:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Event published
           content:
@@ -3013,7 +3320,14 @@ paths:
     get:
       tags: [IO]
       summary: List available export zip files
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Export list
           content:
@@ -3030,6 +3344,9 @@ paths:
     post:
       tags: [IO]
       summary: Create a new export zip
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         required: true
         content:
@@ -3037,6 +3354,10 @@ paths:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Export created
           content:
@@ -3048,6 +3369,9 @@ paths:
     get:
       tags: [IO]
       summary: Download an export zip file
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       parameters:
         - name: filename
           in: path
@@ -3055,6 +3379,10 @@ paths:
           schema:
             type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Zip file
           content:
@@ -3067,7 +3395,9 @@ paths:
     post:
       tags: [IO]
       summary: Upload a zip for import
-      description: Parses manifest from uploaded zip. Multipart file upload.
+      description: >-
+        Parses manifest from uploaded zip. Multipart file upload. Owner, admin or a direct-local caller only
+        (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in person.
       requestBody:
         required: true
         content:
@@ -3079,6 +3409,10 @@ paths:
                   type: string
                   format: binary
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Import parsed
           content:
@@ -3123,7 +3457,10 @@ paths:
     post:
       tags: [IO]
       summary: Execute an import
-      description: Writes events to strfry, creates Neo4j nodes, wires concepts, and builds graph relationships.
+      description: >-
+        Writes events to strfry, creates Neo4j nodes, wires concepts, and builds graph relationships. Owner, admin or a
+        direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any other signed-in
+        person.
       parameters:
         - name: tempId
           in: path
@@ -3131,6 +3468,10 @@ paths:
           schema:
             type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Import executed
           content:
@@ -3162,7 +3503,14 @@ paths:
     post:
       tags: [Tapestry Key]
       summary: Assign tapestryKey to nodes that lack one
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Keys initialized
           content:
@@ -3191,7 +3539,14 @@ paths:
     post:
       tags: [Tapestry Key]
       summary: Offload a single tag's inline JSON to LMDB
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: JSON offloaded
           content:
@@ -3203,7 +3558,14 @@ paths:
     post:
       tags: [Tapestry Key]
       summary: Offload all inline json tags to LMDB
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: All offloaded
           content:
@@ -3232,6 +3594,9 @@ paths:
     post:
       tags: [Tapestry Key]
       summary: Derive tapestryJSON for all nodes with given label
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       parameters:
         - name: label
           in: path
@@ -3239,6 +3604,10 @@ paths:
           schema:
             type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Derivation result
           content:
@@ -3250,6 +3619,9 @@ paths:
     post:
       tags: [Tapestry Key]
       summary: Derive tapestryJSON for a single node
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       parameters:
         - name: key
           in: path
@@ -3257,6 +3629,10 @@ paths:
           schema:
             type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Derivation result
           content:
@@ -3312,6 +3688,9 @@ paths:
     post:
       tags: [Tapestry Key]
       summary: Write tapestryJSON to LMDB
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       parameters:
         - name: key
           in: path
@@ -3325,6 +3704,10 @@ paths:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Value written
           content:
@@ -3375,12 +3758,19 @@ paths:
     post:
       tags: [Customers]
       summary: Create a new customer (owner-only)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Customer created
           content:
@@ -3392,12 +3782,19 @@ paths:
     post:
       tags: [Customers]
       summary: Delete a customer (owner-only)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Customer deleted
           content:
@@ -3409,12 +3806,19 @@ paths:
     post:
       tags: [Customers]
       summary: Activate or deactivate a customer (owner-only)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Status changed
           content:
@@ -3426,12 +3830,19 @@ paths:
     post:
       tags: [Customers]
       summary: Update customer display name (owner-only)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Display name updated
           content:
@@ -3592,6 +4003,9 @@ paths:
     post:
       tags: [Algos]
       summary: Update algorithm config
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       parameters:
         - name: pubkey
           in: query
@@ -3606,6 +4020,10 @@ paths:
           schema:
             type: string
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Config updated
           content:
@@ -3629,7 +4047,14 @@ paths:
     post:
       tags: [Algos]
       summary: Update GrapeRank config
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Config updated
           content:
@@ -3641,7 +4066,14 @@ paths:
     post:
       tags: [Algos]
       summary: Generate GrapeRank scores
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Generation result
           content:
@@ -3653,7 +4085,14 @@ paths:
     post:
       tags: [Algos]
       summary: Generate PageRank scores
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Generation result
           content:
@@ -3665,7 +4104,14 @@ paths:
     post:
       tags: [Algos]
       summary: Calculate hops from owner
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Calculation result
           content:
@@ -3716,7 +4162,14 @@ paths:
     post:
       tags: [NIP-85]
       summary: Create and publish kind 10040 event
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Event created and published
           content:
@@ -3773,7 +4226,14 @@ paths:
     post:
       tags: [Pipeline]
       summary: Batch transfer events
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Transfer result
           content:
@@ -3785,7 +4245,14 @@ paths:
     post:
       tags: [Pipeline]
       summary: Run reconciliation pipeline
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Reconciliation result
           content:
@@ -3800,14 +4267,141 @@ paths:
     post:
       tags: [Manage]
       summary: Execute a task by name
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Task result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/scheduled-tasks/create:
+    post:
+      tags: [Manage]
+      summary: Add a scheduled task entry
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
+        '200':
+          description: Entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/scheduled-tasks/update:
+    post:
+      tags: [Manage]
+      summary: Update a scheduled task entry by entryId
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
+        '200':
+          description: Entry updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/scheduled-tasks/delete:
+    post:
+      tags: [Manage]
+      summary: Remove a scheduled task entry (refuses an enabled entry without force)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
+        '200':
+          description: Entry removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/customer-schedule/update:
+    post:
+      tags: [Manage]
+      summary: Set a customer's processing schedule
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
+        '200':
+          description: Schedule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/customer-schedule/trigger:
+    post:
+      tags: [Manage]
+      summary: Run a customer's processing now
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
+        '200':
+          description: Run started
           content:
             application/json:
               schema:
@@ -3829,12 +4423,19 @@ paths:
     post:
       tags: [Manage]
       summary: Control a service (start/stop/restart)
+      description: >-
+        Owner, admin or a direct-local caller only (src/middleware/routeAccess.js); 401 when not signed in, 403 for any
+        other signed-in person.
       requestBody:
         content:
           application/json:
             schema:
               type: object
       responses:
+        '401':
+          description: Not signed in
+        '403':
+          description: Signed in, but not the owner or an admin
         '200':
           description: Control result
           content:
