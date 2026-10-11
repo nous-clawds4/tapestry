@@ -360,3 +360,28 @@ ADR left open. The Architect settles them here. Each is pinned by a test, and no
    sub-decision 3 says. `assistant-relay-list-publish` S3 is re-aimed narrowly to allow that one read-only import.
    Moving the guard into `src/utils/ssrfGuard.js` would be cleaner, but it is a refactor of a shipped security module
    that this story doesn't need. It is left for a follow-up.
+
+## Amendment 2: the fifth § 6.1 condition, a cap on event-named relays, and one sentence (2026-10-11)
+
+Chosen by the owner after Implementation's first pass, before Review.
+
+1. **`isDutyMenu` gets a fifth condition**, following ADR `duty-menus-and-self-maps/0003` sub-decision 11, which
+   was accepted on 2026-10-11 and whose edit to `duty-menus.md` § 6.1 has not landed yet. An event is not a menu if
+   either holds:
+   - it carries `["z", "list"]`;
+   - it carries a `z` whose value is the address of a kind-`39998` event with `d` = `concept-header`, by any author.
+     That is a value of the form `39998:<64 hex>:concept-header`, judged from the event alone.
+
+   The five conditions are then both necessary and sufficient. A version that fails the fifth is "not a menu", so
+   § 8.1's rule applies: if it is the newest version, the Assistant has none. This instance's own menus never carry
+   either `z`. When the spec edit lands, the book's shared-lines recheck confirms that this wording matches it.
+2. **At most 50 event-named relays per check** (`MAX_RELAYS` from `src/lib/relay-list`).
+   - **Which relays count.** The relays named inside events, in § 8.1's order: the Map's hints, then the
+     Assistant's write relays, then Nous' write relays. They are normalized, put through `outsideOnly` and
+     de-duplicated before the cap, and only the first 50 go on to the SSRF guard and round 2.
+   - **What is not capped.** The offer's configured relays, and the local scan.
+   - **Why.** A person's own Map is theirs to write, so without a cap one crafted Map could make each of their hub
+     loads resolve and connect to an unbounded number of hosts.
+3. **The published panel's "none" line** becomes "No Duty Menu was found for your Assistant." Story § Copy is
+   amended. The status line keeps "Your Assistant has not published a Duty Menu yet.", so the page no longer says
+   the same sentence twice.

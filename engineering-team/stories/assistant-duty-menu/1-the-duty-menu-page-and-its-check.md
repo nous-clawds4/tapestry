@@ -143,7 +143,8 @@ told about my Assistant is up to date.
   - Exception: "not offered".
 - Published panel heading: **Your Assistant's published Duty Menu**
   - Checking: **Checking…**
-  - None: "Your Assistant has not published a Duty Menu yet."
+  - None: "No Duty Menu was found for your Assistant." *(Amended 2026-10-11, ADR 0001 Amendment 2 item 3; it was the
+    status line's sentence, so the page said it twice.)*
   - Could not check: "No relay answered, so your Assistant's Duty Menu could not be checked." / "Could not
     check: this instance did not answer."
 - Status lines:
@@ -208,6 +209,12 @@ pubkey (epic § Key facts).
    is current.
 
 ## Deviations
+
+- **§ Copy, the published panel's "none" line (the owner, 2026-10-11, before Review).** It now reads "No Duty Menu was
+  found for your Assistant.", so it no longer repeats the status line. See ADR 0001 Amendment 2 item 3.
+- **AC-3, what counts as a menu (the owner, 2026-10-11, before Review).** The fifth § 6.1 condition from the
+  accepted ADR `duty-menus-and-self-maps/0003` applies, and at most 50 event-named relays are read per check. See ADR
+  0001 Amendment 2 items 1 and 2.
 
 - **AC-2, "no code change needed" (Architecture, 2026-10-11; the owner chose relay rule R1 at ADR 0001's gate).**
   Each row names this instance's own relay at its public address, which holds every offered insight. Without a
