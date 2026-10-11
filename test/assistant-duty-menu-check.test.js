@@ -33,6 +33,12 @@
  *
  * ADR 0001 Amendment 2 (2026-10-11, before Review): the fifth § 6.1 condition (L12, U31) and at most 50 relays named
  * inside events per check (U32). The page's new none line is pinned in test/assistant-duty-menu-page.test.js (P6).
+ *
+ * Story 2 (assistant-duty-menu #2, ADR 0002): buildMenuTags (L13); the read is local first (AC-5, sub-decision 7):
+ * U33–U35, and the lookup returns `latest` (U36) while the answer's shape stays U3's; the write-relay helpers the
+ * publisher shares, with one Nous cache (U37). Re-aimed to AC-5: U15, U16, U17, U19, U20 and U31 now keep the menu off
+ * this instance's relay wherever they test outside reads, so they test what they did. The route is
+ * test/assistant-duty-menu-publish.test.js.
  */
 
 const fs = require('fs');
@@ -545,6 +551,25 @@ test('L12: isDutyMenu refuses an otherwise conforming menu that carries ["z", "l
   assert(wrong.length === 0, wrong.join('; '));
 });
 
+test('L13: buildMenuTags gives d, Nous\' z and p (the Assistant), then one ["duty", key, relay] per duty row of the offer in its order, and nothing else; an empty offer gives the three; the result is a menu by § 6.1 whose rows read back as the offer (story 2 AC-3; ADR 0002 sub-decision 2)', () => {
+  const lib = libModule();
+  const buildMenuTags = need(lib, 'buildMenuTags', 'src/lib/duty-menu');
+  const offer = DM.expectedOffer({ ownRelay: OWN, scores: true });
+  const head = [['d', DM.DUTY_MENU_D], ['z', DM.DUTY_MENU_HEADER], ['p', ASSISTANT]];
+  const wrong = [];
+  const tags = buildMenuTags({ assistantPubkey: ASSISTANT, offer });
+  const want = [...head, ...offer.map((r) => ['duty', r.key, r.relay])];
+  if (!sameJson(tags, want)) wrong.push(`tags: want ${show(want)}, got ${show(tags)}`);
+  const empty = buildMenuTags({ assistantPubkey: ASSISTANT, offer: [] });
+  if (!sameJson(empty, head)) wrong.push(`empty offer: want ${show(head)}, got ${show(empty)}`);
+  const withException = buildMenuTags({ assistantPubkey: ASSISTANT, offer: [offer[0], { tag: 'not-offered', key: '30385', relay: null }] });
+  if (!sameJson(withException, [...head, ['duty', offer[0].key, offer[0].relay]])) wrong.push(`one duty tag per duty row only: ${show(withException)}`);
+  const ev = { kind: DM.DUTY_MENU_KIND, pubkey: ASSISTANT, tags, content: '' };
+  if (lib.isDutyMenu(ev, ASSISTANT) !== true) wrong.push('the tags make a menu by § 6.1');
+  if (!lib.sameRows(lib.readMenuRows(ev), offer)) wrong.push(`rows read back: ${show(lib.readMenuRows(ev))}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
 /* ───────────────────────── U — the answer: whose, and its shape (AC-1) ───────────────────────── */
 
 test('U1: without an authenticated session the answer is { success: true, signedIn: false }, and no menu, Map or customer is looked up (AC-1)', async () => {
@@ -702,24 +727,28 @@ test('U14: a relay named inside an event is read only when isPublicRelayHostWith
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U15: the latest version counts across every answer — a newer menu on an outside relay beats an older one here (source relay), a newer one here beats an older outside one (source local), and on a created_at tie the lowest id wins (AC-3; § 8.1; NIP-01)', async () => {
+// Re-aimed by assistant-duty-menu #2 (AC-5): with a version here the outside relays are not asked, so "the latest across
+// every answer" is tested where it still applies — this instance's relay holding none.
+test('U15: with no version on this instance\'s relay, the latest version across the outside answers counts (source relay); a newer one here counts and is from local; on a created_at tie the lowest id wins (AC-3; story 2 AC-5; § 8.1; NIP-01)', async () => {
   const fresh = offerAt(OWN);
   const stale = DM.STALE_ROWS.filter((r) => r.key !== '30382');
   const older = menuEv({ createdAt: 1000, rows: fresh });
   const newer = menuEv({ createdAt: 2000, rows: stale });
   const wrong = [];
-  const a = await answer({ local: [...baseLocal(), older], relays: { ...quietRelays(), [HINT]: [newer] } });
-  if (!(a.action && a.action.published && a.action.published.eventId === newer.id && a.action.published.source === 'relay')) wrong.push(`outside newer: want ${newer.id} from a relay, got ${show(a.action && a.action.published)}`);
-  if (a.menuScans.length !== 1) wrong.push('outside newer: the local scan still runs');
+  const a = await answer({ local: baseLocal(), relays: { ...quietRelays(), [HINT]: [older], [HINT2]: [newer] } });
+  if (!(a.action && a.action.published && a.action.published.eventId === newer.id && a.action.published.source === 'relay')) wrong.push(`two outside versions: want the newer ${newer.id} from a relay, got ${show(a.action && a.action.published)}`);
+  if (a.menuScans.length !== 1) wrong.push('the local scan still runs');
   const b = await answer({ local: [...baseLocal(), newer], relays: { ...quietRelays(), [HINT]: [older] } });
   if (!(b.action && b.action.published && b.action.published.eventId === newer.id && b.action.published.source === 'local')) wrong.push(`local newer: want ${newer.id} from local, got ${show(b.action && b.action.published)}`);
   const low = menuEv({ createdAt: 3000, rows: fresh, id: '0'.repeat(63) + '1' });
   const high = menuEv({ createdAt: 3000, rows: stale, id: 'f'.repeat(64) });
-  const c = await answer({ local: [...baseLocal(), high], relays: { ...quietRelays(), [A_WRITE]: [low] } });
+  const c = await answer({ local: baseLocal(), relays: { ...quietRelays(), [HINT]: [high], [A_WRITE]: [low] } });
   if (!(c.action && c.action.published && c.action.published.eventId === low.id)) wrong.push(`tie: want the lowest id ${low.id}, got ${show(c.action && c.action.published)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
+// Re-aimed by assistant-duty-menu #2 (AC-5): the older valid version sits on an outside relay, not here, so the newer
+// invalid one is still read beside it. U34 pins the same rule on this instance's relay.
 test('U16: if the latest version is not a menu by § 6.1, the Assistant has none — even when an older version is one; the check is finished and needs attention (AC-3; § 8.1)', async () => {
   const valid = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
   const wrong = [];
@@ -727,7 +756,7 @@ test('U16: if the latest version is not a menu by § 6.1, the Assistant has none
     ['no Nous z', menuEv({ createdAt: 2000, rows: offerAt(OWN), z: [] })],
     ['two p', menuEv({ createdAt: 2000, rows: offerAt(OWN), p: [ASSISTANT, OTHER] })],
   ]) {
-    const got = await answer({ local: [...baseLocal(), valid], relays: { ...quietRelays(), [HINT2]: [bad] } });
+    const got = await answer({ local: baseLocal(), relays: { ...quietRelays(), [HINT]: [valid], [HINT2]: [bad] } });
     const a = got.action || {};
     if (!(a.finished === true && a.published === null && a.current === false && a.done === false && a.pending === true)) wrong.push(`${label}: want finished, published null, not current, pending; got ${show(a)}`);
   }
@@ -740,7 +769,8 @@ test('U17: only the Assistant\'s own menus count — a relay that hands back ano
   const mine = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
   const theirs = menuEv({ author: OTHER, createdAt: 9000, rows: [['duty', '30382', 'wss://theirs.example']] });
   const otherKind = { ...menuEv({ createdAt: 9500, rows: [] }), kind: 30000 };
-  const got = await answer({ local: [...baseLocal(), mine], relays: { ...quietRelays(), [HINT]: { raw: [theirs, otherKind] } } });
+  // Re-aimed by assistant-duty-menu #2 (AC-5): the Assistant's own menu is on an outside relay, so the sloppy relay is read.
+  const got = await answer({ local: baseLocal(), relays: { ...quietRelays(), [A_WRITE]: [mine], [HINT]: { raw: [theirs, otherKind] } } });
   const p = got.action && got.action.published;
   assert(p && p.eventId === mine.id && got.action.current === true, `want the Assistant's own menu ${mine.id}, current; got ${show(got.action)}`);
 });
@@ -760,22 +790,24 @@ test('U18: finished when the local scan succeeded or at least one relay answered
   assert(wrong.length === 0, wrong.join('; '));
 });
 
+// Re-aimed by assistant-duty-menu #2 (AC-5): no version here, so the outside relays are asked and one of them hangs.
 test('U19: a relay that never answers is skipped at the relay budget (8 s) — the answer arrives, finished, with the menu the others found (AC-3; ADR 0001 sub-decision 3)', async () => {
   const menu = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
   const started = Date.now();
-  const got = await within(answer({ local: [...baseLocal(), menu], relays: { ...quietRelays(), [HINT]: 'hang' } }), DM.RELAY_BUDGET_MS + 3000);
+  const got = await within(answer({ local: baseLocal(), relays: { ...quietRelays(), [HINT]: 'hang', [HINT2]: [menu] } }), DM.RELAY_BUDGET_MS + 3000);
   assert(got !== 'HUNG', `the answer must arrive within the relay budget, not hang (waited ${Date.now() - started} ms)`);
-  assert(got.action && got.action.finished === true && got.action.done === true, `finished and done with the local menu: ${show(got.action)}`);
+  assert(got.action && got.action.finished === true && got.action.done === true && got.action.published && got.action.published.source === 'relay', `finished and done with the menu another relay found: ${show(got.action)}`);
 });
 
-test('U20: a hint lookup that fails only shrinks the lookup — with the Map unreadable, the Assistant\'s and Nous\' write relays are still asked, and the local menu still counts (ADR 0001 sub-decision 3)', async () => {
+// Re-aimed by assistant-duty-menu #2 (AC-5): no version here, so the hint round runs; the menu is on the Assistant's relay.
+test('U20: a hint lookup that fails only shrinks the lookup — with the Map unreadable, the Assistant\'s and Nous\' write relays are still asked, and the menu found there counts (ADR 0001 sub-decision 3)', async () => {
   const menu = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
-  const got = await answer({ local: [...baseLocal(), menu], rejectScan: isMapFilter, relays: { ...quietRelays(), [MAPR]: 'unreachable' } });
+  const got = await answer({ local: baseLocal(), rejectScan: isMapFilter, relays: { ...quietRelays(), [MAPR]: 'unreachable', [A_WRITE]: [menu] } });
   const urls = readUrls(got);
   const wrong = [];
   for (const u of [A_WRITE, NOUS_WRITE]) if (!urls.includes(normUrl(u))) wrong.push(`${u} is still asked`);
   if (urls.includes(normUrl(HINT))) wrong.push('no Map, no hints');
-  if (!(got.action && got.action.done === true)) wrong.push(`the local menu counts: ${show(got.action)}`);
+  if (!(got.action && got.action.done === true)) wrong.push(`the menu found on the Assistant's relay counts: ${show(got.action)}`);
   assert(wrong.length === 0, `${wrong.join('; ')} (read ${show(urls)})`);
 });
 
@@ -916,7 +948,8 @@ test('U31: when the newest version carries ["z", "list"] or a concept-header z, 
   const wrong = [];
   for (const [label, z] of [['["z", "list"]', 'list'], ['a concept-header z', `39998:${OTHER}:concept-header`]]) {
     const newer = menuEv({ createdAt: 2000, rows: offerAt(OWN), z: [DM.DUTY_MENU_HEADER, z] });
-    const got = await answer({ local: [...baseLocal(), older], relays: { ...quietRelays(), [HINT]: [newer] } });
+    // Re-aimed by assistant-duty-menu #2 (AC-5): the older version sits outside too, so both are read.
+    const got = await answer({ local: baseLocal(), relays: { ...quietRelays(), [HINT2]: [older], [HINT]: [newer] } });
     const a = got.action || {};
     if (!(a.finished === true && a.published === null && a.current === false && a.done === false && a.pending === true)) wrong.push(`${label}: want finished, published null, pending; got ${show(a)}`);
   }
@@ -955,6 +988,90 @@ test('U32: at most 50 relays named inside events are guarded and read per check 
   if (beyond.length) wrong.push(`relays past the 50th were read: ${show(beyond.slice(0, 5))}${beyond.length > 5 ? ` and ${beyond.length - 5} more` : ''}`);
   if (!read.includes(normUrl(DLIST))) wrong.push('the offer\'s configured DList relay is read on top of the 50');
   if (read.some((u) => hostOf(u) === OWN_DOMAIN)) wrong.push('this instance\'s own relay is never read');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── U — story 2: this instance's relay first (AC-5; ADR 0002 sub-decision 7) ───────────────────────── */
+
+test('U33: when this instance\'s relay holds any version of the Assistant\'s menu, the newest there counts — even with a newer one outside — and nothing else runs: no Map or relay-list lookup, no DNS check, no outside read (story 2 AC-5; ADR 0002 R-A)', async () => {
+  const older = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
+  const newestHere = menuEv({ createdAt: 1500, rows: offerAt(OWN) });
+  const newerOutside = menuEv({ createdAt: 9000, rows: [['duty', '30392', 'wss://elsewhere.example']] });
+  const got = await answer({ local: [...baseLocal(), older, newestHere], relays: { ...quietRelays(), [HINT]: [newerOutside], [A_WRITE]: [newerOutside] } });
+  const a = got.action || {};
+  const wrong = [];
+  if (!(a.finished === true && a.published && a.published.eventId === newestHere.id && a.published.source === 'local' && a.done === true)) wrong.push(`the newest here counts, done: ${show(a)}`);
+  if (got.menuScans.length < 1) wrong.push('the local scan ran');
+  const other = got.calls.scanLocal.filter((f) => !isMenuFilter(f) && Array.isArray(f.kinds) && (f.kinds.includes(DM.TREASURE_MAP_KIND) || f.kinds.includes(DM.RELAY_LIST_KIND)));
+  if (other.length) wrong.push(`no hint lookup: scanned ${show(other)}`);
+  const outside = got.calls.readRelay.map((c) => c.url);
+  if (outside.length) wrong.push(`no outside read at all: read ${show(outside)}`);
+  if (got.calls.guard.length) wrong.push(`no DNS check: ${show(got.calls.guard)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U34: a newest version here that is not a menu by § 6.1 means the Assistant has none — even when an older version here is one — still with no outside read (story 2 AC-5: "as before")', async () => {
+  const valid = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
+  const bad = menuEv({ createdAt: 2000, rows: offerAt(OWN), z: [] });
+  const got = await answer({ local: [...baseLocal(), valid, bad], relays: { ...quietRelays(), [HINT]: [valid] } });
+  const a = got.action || {};
+  const wrong = [];
+  if (!(a.finished === true && a.published === null && a.pending === true)) wrong.push(`want finished, no menu, pending: ${show(a)}`);
+  if (got.calls.readRelay.length) wrong.push(`no outside read: ${show(got.calls.readRelay.map((c) => c.url))}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U35: with no version here, or a failed local scan, story 1\'s two rounds run — the Map and both relay lists are read, the outside relays asked, and the newest found counts; "finished" keeps its meaning (story 2 AC-5)', async () => {
+  const outside = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
+  const wrong = [];
+  const none = await answer({ local: baseLocal(), relays: { ...quietRelays(), [HINT]: [outside] } });
+  if (!(none.action && none.action.published && none.action.published.eventId === outside.id && none.action.published.source === 'relay')) wrong.push(`none here: the outside menu counts: ${show(none.action)}`);
+  if (!none.calls.scanLocal.some(isMapFilter) || !readUrls(none).includes(normUrl(HINT))) wrong.push('none here: the hint round and the outside reads ran');
+  const failed = await answer({ local: baseLocal(), rejectScan: isMenuFilter, relays: { ...quietRelays(), [A_WRITE]: [outside] } });
+  if (!(failed.action && failed.action.finished === true && failed.action.published && failed.action.published.eventId === outside.id)) wrong.push(`a failed local scan: the rounds run and a relay's answer finishes the check: ${show(failed.action)}`);
+  const nothing = await answer({ local: baseLocal(), rejectScan: isMenuFilter, relays: {} });
+  if (!(nothing.action && nothing.action.finished === false && nothing.action.reason === 'no-relay-answered')) wrong.push(`a failed scan and no relay: unfinished, no-relay-answered: ${show(nothing.action)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U36: lookupPublishedMenu returns `latest`, the newest version found whatever its validity, beside `published` — the one here, an invalid one, one found outside, or none; the attention answer\'s shape is unchanged (U3) (ADR 0002 sub-decisions 4, 7)', async () => {
+  const { duty } = freshModules();
+  const look = need(duty, 'lookupPublishedMenu', rel(DUTY_MODULE));
+  const run = (opts) => look({ assistantPubkey: ASSISTANT, viewer: VIEWER, offer: [] }, fakes(opts).deps);
+  const valid = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
+  const bad = menuEv({ createdAt: 2000, rows: offerAt(OWN), z: [] });
+  const outside = menuEv({ createdAt: 3000, rows: offerAt(OWN) });
+  const wrong = [];
+  const here = await run({ local: [...baseLocal(), valid] });
+  if (!(here && here.latest && here.latest.id === valid.id && here.published && here.published.eventId === valid.id)) wrong.push(`here: ${show(here && { latest: here.latest && here.latest.id, published: here.published })}`);
+  const invalid = await run({ local: [...baseLocal(), valid, bad] });
+  if (!(invalid && invalid.latest && invalid.latest.id === bad.id && invalid.published === null)) wrong.push(`invalid newest: want latest ${bad.id} and published null, got ${show(invalid && { latest: invalid.latest && invalid.latest.id, published: invalid.published })}`);
+  const out = await run({ local: baseLocal(), relays: { ...quietRelays(), [HINT]: [outside] } });
+  if (!(out && out.latest && out.latest.id === outside.id)) wrong.push(`outside: want latest ${outside.id}, got ${show(out && out.latest && out.latest.id)}`);
+  const nothing = await run({ local: baseLocal() });
+  if (!(nothing && nothing.finished === true && !nothing.latest && nothing.published === null)) wrong.push(`none: want no latest, got ${show(nothing)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U37: dutyMenu.js exports the publisher\'s write-relay helpers — assistantWriteRelays gives the Assistant\'s write relays (no read-only ones), and nousWriteRelays shares the check\'s one Nous cache: after a check found Nous\' list, it answers within the hour with no lookup (ADR 0002 § Implementation notes)', async () => {
+  const session = freshModules();
+  const { duty } = session;
+  const assistantWriteRelays = need(duty, 'assistantWriteRelays', rel(DUTY_MODULE));
+  const nousWriteRelays = need(duty, 'nousWriteRelays', rel(DUTY_MODULE));
+  const clock = { t: T0 };
+  await answer({ clock }, signedInReq(), session);
+  clock.t = T0 + 1000;
+  const { deps, calls } = fakes({ clock });
+  const full = { ...deps, outsideOnly: (urls, d) => require('../src/api/setup/status').outsideOnly(urls, d || full), lookupNewestReplaceable: (input, d) => require('../src/api/assistant/attention').lookupNewestReplaceable(input, d || full) };
+  const wrong = [];
+  const aw = (await assistantWriteRelays({ assistantPubkey: ASSISTANT }, full)).map(normUrl);
+  for (const u of [A_WRITE, A_WRITE2]) if (!aw.includes(normUrl(u))) wrong.push(`assistantWriteRelays has ${u}`);
+  if (aw.includes(normUrl(A_READ))) wrong.push('assistantWriteRelays leaves out a read-only relay');
+  const before = calls.scanLocal.filter(isNousListFilter).length + calls.readRelay.filter((c) => isNousListFilter(c.filter)).length;
+  const nw = (await nousWriteRelays([PUB1], full)).map(normUrl);
+  const after = calls.scanLocal.filter(isNousListFilter).length + calls.readRelay.filter((c) => isNousListFilter(c.filter)).length;
+  if (!nw.includes(normUrl(NOUS_WRITE)) || nw.includes(normUrl(NOUS_READ))) wrong.push(`nousWriteRelays: want Nous' write relays, got ${show(nw)}`);
+  if (after !== before) wrong.push('within the hour of the check, nousWriteRelays looked Nous\' list up again: the cache is not shared');
   assert(wrong.length === 0, wrong.join('; '));
 });
 

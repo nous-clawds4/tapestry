@@ -30,6 +30,16 @@ const DM = require('../../test/helpers/dutyMenuFixtures');
  *   B10 — an empty offer: the panel says so.                                                             [AC-5]
  *   B11 — read-only, one request: one GET of the answer per load, nothing but GETs, no publish.         [AC-6]
  *
+ * Story 2 (assistant-duty-menu #2, ADR 0002 sub-decision 8; the POST is mocked):
+ *   B12 — the button: enabled when none, out of date, unfinished or the request failed; disabled when up to
+ *         date and while checking.                                                                 [#2 AC-1]
+ *   B13 — the press: Publishing… (disabled), one POST with no body, the report (summary and one line per
+ *         relay, in the Outbox Relays page's words), then the answer asked again and the panel Done.  [#2 AC-1]
+ *   B14 — a refusal, a failed request and a failed local write: one line, nothing asked again.     [#2 AC-1]
+ *   B15 — local-only (kept-local words, skipped lines) and an empty publish (the "now lists no duties" line).
+ *                                                                                                   [#2 AC-1, AC-3]
+ *   B16 — a found menu with no rows says "Your Assistant's Duty Menu lists no duties."             [#2 AC-6]
+ *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. /api/assistant/attention answers per scenario: an object, 'hang' or 'error' (a 500).
  *
@@ -75,9 +85,13 @@ function answerWith(dutyMenu) {
 /** The placeholders once the Duty Menu is checked (Your Assistant's Treasure Map among them). */
 const PLACEHOLDERS = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k)).length;
 
-/** Mock every route. `attention` is an answer object, 'hang' or 'error'. */
-async function mock(page, { who = CUSTOMER_USER, attention = answerWith(DM.ANSWERS.DONE) } = {}) {
-  const log = { api: [], nonGet: [], attentionCalls: [] };
+/**
+ * Mock every route. `attention` is an answer object, 'hang', 'error', or a queue of them (the last repeats); `publish`
+ * is the POST's answer: an object { status?, body }, 'error' (a 502 that is not JSON), or { delayMs, body }.
+ */
+async function mock(page, { who = CUSTOMER_USER, attention = answerWith(DM.ANSWERS.DONE), publish = null } = {}) {
+  const log = { api: [], nonGet: [], attentionCalls: [], publishCalls: [] };
+  const queue = Array.isArray(attention) ? attention.slice() : [attention];
   page.on('request', (req) => {
     const u = new URL(req.url());
     if (u.pathname.startsWith('/api/')) log.api.push(`${req.method()} ${u.pathname}${u.search}`);
@@ -99,12 +113,37 @@ async function mock(page, { who = CUSTOMER_USER, attention = answerWith(DM.ANSWE
   await page.route('**/api/assistant/status**', (r) => r.fulfill(json({ success: true, hasRelayKey: true, assistantPubkey: CUSTOMER_ASSISTANT, hasProfile: false })));
   await page.route('**/api/assistant/attention**', (r) => {
     log.attentionCalls.push(r.request().url());
-    if (attention === 'hang') return new Promise(() => {});
-    if (attention === 'error') return r.fulfill(json({ success: false, error: 'fixture failure' }, 500));
-    return r.fulfill(json(attention));
+    const next = queue.length > 1 ? queue.shift() : queue[0];
+    if (next === 'hang') return new Promise(() => {});
+    if (next === 'error') return r.fulfill(json({ success: false, error: 'fixture failure' }, 500));
+    return r.fulfill(json(next));
+  });
+  await page.route(`**${DM.PUBLISH.route}`, async (r) => {
+    log.publishCalls.push({ method: r.request().method(), body: r.request().postData() });
+    if (publish === 'error') return r.fulfill({ status: 502, contentType: 'text/html', body: '<html>bad gateway</html>' });
+    const answer = publish || publishedAnswer();
+    if (answer.delayMs) await wait(answer.delayMs);
+    try { return await r.fulfill(json(answer.body || answer, answer.status || 200)); } catch { return undefined; }
   });
   return log;
 }
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The route's answer (ADR 0002 sub-decision 5), every relay as given in `rows`. */
+function publishedAnswer({ rows = [{ relay: 'wss://a-one.example', status: 'accepted', reason: '' }], duties = 6, localOnly = false, outcome, message } = {}) {
+  const accepted = rows.filter((r) => r.status === 'accepted').length;
+  const tried = rows.filter((r) => r.status !== 'skipped' && r.status !== 'not-sent').length;
+  return {
+    success: true,
+    result: {
+      ok: true,
+      outcome: outcome || (localOnly ? 'kept-local' : accepted > 0 ? 'published' : 'not-delivered'),
+      message: message || (localOnly ? DM.PUBLISH.localOnly : accepted > 0 ? DM.PUBLISH.published(accepted, tried) : DM.PUBLISH.noneAccepted(tried)),
+      localOnly, duties, relays: { total: rows.length, success: accepted, results: rows },
+    },
+  };
+}
+const publishButton = (page) => page.getByRole('button', { name: DM.PUBLISH.button, exact: true });
 
 async function open(page, address = DM.PATH, settleMs = 1500) {
   await page.goto(address);
@@ -310,5 +349,90 @@ test.describe('The Duty Menu card and page (assistant-duty-menu #1)', () => {
     expect(new URL(log.attentionCalls[0]).search, 'the server answers for the session').toBe('');
     expect(log.nonGet, 'nothing is published, signed or stored').toEqual([]);
     expect(log.api.filter((a) => /publish|sign/i.test(a)), 'no publish or sign request').toEqual([]);
+  });
+  /* ───────── story 2: the button and its report ───────── */
+
+  test('B12: the button — enabled when no menu was found, when it is out of date, when the check did not finish and when the request failed; disabled when the menu is up to date and while the answer is on its way (#2 AC-1)', async ({ page }) => {
+    for (const [label, attention, enabled] of [
+      ['none', answerWith(DM.ANSWERS.NONE), true], ['out of date', answerWith(DM.ANSWERS.STALE), true],
+      ['unfinished', answerWith(DM.ANSWERS.UNFINISHED), true], ['request failed', 'error', true],
+      ['up to date', answerWith(DM.ANSWERS.DONE), false], ['checking', 'hang', false],
+    ]) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, { attention });
+      await open(page);
+      await expect(publishButton(page), `${label}: the button is there`).toHaveCount(1);
+      if (enabled) await expect(publishButton(page), `${label}: enabled`).toBeEnabled();
+      else await expect(publishButton(page), `${label}: disabled`).toBeDisabled();
+    }
+  });
+
+  test('B13: the press — Publishing… and disabled while it runs, one POST with no body, then the report (the summary and one line per relay in the Outbox Relays page\'s words) and the answer asked again, the panel now Done (#2 AC-1)', async ({ page }) => {
+    const rows = [
+      { relay: 'wss://a-one.example', status: 'accepted', reason: '' },
+      { relay: 'wss://a-two.example', status: 'refused', reason: 'blocked: fixture' },
+      { relay: 'wss://down.example', status: 'unreachable', reason: 'connection refused' },
+      { relay: 'wss://slow.example', status: 'timeout', reason: '5s' },
+      { relay: 'wss://private.example', status: 'not-sent', reason: 'not a public address' },
+    ];
+    const log = await mock(page, { attention: [answerWith(DM.ANSWERS.NONE), answerWith(DM.ANSWERS.DONE)], publish: { delayMs: 1500, body: publishedAnswer({ rows }) } });
+    const main = await open(page);
+    await publishButton(page).click();
+    const busy = page.getByRole('button', { name: DM.PUBLISH.publishing, exact: true });
+    await expect(busy, 'Publishing… while the press runs').toBeVisible();
+    await expect(busy).toBeDisabled();
+    await expect(main.getByText(DM.PUBLISH.published(1, 4), { exact: false }), 'the summary').toBeVisible({ timeout: 10000 });
+    const text = squash(await main.innerText());
+    for (const [relay, line] of [['wss://a-one.example', 'accepted'], ['wss://a-two.example', 'rejected: blocked: fixture'], ['wss://down.example', 'unreachable: connection refused'], ['wss://slow.example', 'timed out: 5s'], ['wss://private.example', DM.PUBLISH.notSent.line]]) {
+      expect(text, `the line for ${relay}`).toContain(relay);
+      expect(text, `the line for ${relay}`).toContain(line);
+    }
+    expect(log.publishCalls.length, 'one POST').toBe(1);
+    expect(log.publishCalls[0].method).toBe('POST');
+    expect(log.publishCalls[0].body || '', 'the request names nothing').toBe('');
+    await expect.poll(() => log.attentionCalls.length, { message: 'the answer is asked again after a written menu' }).toBe(2);
+    await expect(publishedPanel(page).getByText(TC.DONE_COPY.done, { exact: true }), 'the panel reflects the new menu').toBeVisible();
+    await expect(publishButton(page), 'up to date now: disabled').toBeDisabled();
+    expect(squash(await main.innerText()), 'the report stays').toContain(DM.PUBLISH.published(1, 4));
+  });
+
+  test('B14: a refusal, a request that fails, and a failed local write each give one line, and nothing is asked again (#2 AC-1)', async ({ page }) => {
+    const cases = [
+      ['no assistant', { status: 403, body: { success: false, code: DM.PUBLISH.codes.noAssistant, error: DM.PUBLISH.refusals['no-assistant'] } }, DM.PUBLISH.refusals['no-assistant']],
+      ['request failed', 'error', DM.PUBLISH.requestFailed],
+      ['local write failed', { body: { success: true, result: { ok: false, stage: 'local', outcome: 'not-delivered', message: DM.PUBLISH.localFailed('fixture'), localOnly: false, duties: 6, relays: { total: 0, success: 0, results: [] } } } }, DM.PUBLISH.localFailed('fixture')],
+    ];
+    for (const [label, publish, line] of cases) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      const log = await mock(page, { attention: answerWith(DM.ANSWERS.NONE), publish });
+      const main = await open(page);
+      await publishButton(page).click();
+      await expect(main.getByText(line, { exact: false }), `${label}: the line`).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(800);
+      expect(log.attentionCalls.length, `${label}: nothing is asked again`).toBe(1);
+    }
+  });
+
+  test('B15: local-only — the kept-local sentence and a skipped line per relay; an empty publish adds "Your Assistant\'s Duty Menu now lists no duties." (#2 AC-1, AC-3)', async ({ page }) => {
+    const skipped = [{ relay: 'wss://a-one.example', status: 'skipped', reason: 'local-only publish mode' }];
+    let log = await mock(page, { attention: answerWith(DM.ANSWERS.NONE), publish: publishedAnswer({ rows: skipped, localOnly: true }) });
+    let main = await open(page);
+    await publishButton(page).click();
+    await expect(main.getByText(DM.PUBLISH.localOnly, { exact: false })).toBeVisible({ timeout: 10000 });
+    expect(squash(await main.innerText())).toContain('skipped');
+    await expect.poll(() => log.attentionCalls.length, { message: 'a menu was written: asked again' }).toBe(2);
+
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    log = await mock(page, { attention: answerWith(DM.ANSWERS.EMPTY_NONE), publish: publishedAnswer({ duties: 0 }) });
+    main = await open(page);
+    await publishButton(page).click();
+    await expect(main.getByText(DM.PUBLISH.empty, { exact: true }), 'the empty line after the summary').toBeVisible({ timeout: 10000 });
+  });
+
+  test('B16: a found menu with no rows says "Your Assistant\'s Duty Menu lists no duties." under its heading and mark (#2 AC-6)', async ({ page }) => {
+    await mock(page, { attention: answerWith(DM.ANSWERS.EMPTY_DONE) });
+    await open(page);
+    await expect(publishedPanel(page).getByText(DM.PUBLISH.emptyMenu, { exact: true })).toBeVisible();
+    await expect(publishedPanel(page).getByText(TC.DONE_COPY.done, { exact: true })).toBeVisible();
   });
 });

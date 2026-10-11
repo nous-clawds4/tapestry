@@ -160,5 +160,5 @@ No concept changes and no firmware reinstall.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-duty-menu/0002-the-assistant-signs-its-duty-menu-through-one-narrow-route.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.test-plan.md`
 - Review: (filled in after Review phase)

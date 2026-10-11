@@ -19,6 +19,10 @@
  *
  * Everything FAILS against the current code: dutyMenuCopy.js and DutyMenu.jsx do not exist, and /assistant/duty-menu
  * routes to the placeholder page.
+ *
+ * Story 2 (assistant-duty-menu #2, ADR 0002 sub-decision 8): the publish words (P7), the client helper (P8), the button,
+ * its report and the empty lines by source (D6, D7). Re-aimed: D4 (the page now publishes, through its helper only, and
+ * asks the answer again after a written menu) and D5 (story 2's sentences have one home too).
  */
 
 const fs = require('fs');
@@ -31,6 +35,7 @@ const COPY_MOD = path.join(REPO, 'ui/src/pages/assistant/dutyMenuCopy.js');
 const PAGE = path.join(REPO, 'ui/src/pages/assistant/DutyMenu.jsx');
 const APP = path.join(REPO, 'ui/src/App.jsx');
 const RULE = path.join(REPO, 'src/lib/treasureMapCategories.mjs');
+const CLIENT_UTIL = path.join(REPO, 'ui/src/utils/publishAssistantDutyMenu.js');
 const NL = String.fromCharCode(10);
 const HEX = 'ab'.repeat(32);
 
@@ -146,6 +151,42 @@ test('P6: the published panel\'s none line and the not-published status line are
   assert(wrong.length === 0, wrong.join('; '));
 });
 
+test('P7: the publish words — DUTY_MENU_COPY.publish has the button, Publishing…, the subject, the empty line and the request-failed line, and DUTY_MENU_COPY.emptyMenu is AC-6\'s line (story 2 § Copy; ADR 0002 sub-decision 8)', async () => {
+  const copy = (await copyModule()).DUTY_MENU_COPY || {};
+  const pub = copy.publish || {};
+  const want = { button: DM.PUBLISH.button, publishing: DM.PUBLISH.publishing, subject: DM.PUBLISH.subject, empty: DM.PUBLISH.empty, requestFailed: DM.PUBLISH.requestFailed };
+  const got = { button: pub.button, publishing: pub.publishing, subject: pub.subject, empty: pub.empty, requestFailed: pub.requestFailed };
+  const wrong = [];
+  if (show(got) !== show(want)) wrong.push(`DUTY_MENU_COPY.publish: want ${show(want)}, got ${show(got)}`);
+  if (copy.emptyMenu !== DM.PUBLISH.emptyMenu) wrong.push(`DUTY_MENU_COPY.emptyMenu: want ${show(DM.PUBLISH.emptyMenu)}, got ${show(copy.emptyMenu)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('P8: the client helper publishAssistantDutyMenu() — one POST to /api/assistant/duty-menu/publish with no body, answering { status, ...json }; an answer that is not JSON throws "This instance did not answer" (ADR 0002 sub-decision 8)', async () => {
+  const mod = await esm(CLIENT_UTIL, 'ADR 0002 sub-decision 8 creates it, as ui/src/utils/publishAssistantRelayList.js.');
+  const publish = mod.publishAssistantDutyMenu;
+  assert(typeof publish === 'function', `${rel(CLIENT_UTIL)} exports publishAssistantDutyMenu()`);
+  const saved = globalThis.fetch;
+  const seen = [];
+  const wrong = [];
+  try {
+    globalThis.fetch = async (url, opts) => { seen.push({ url, opts }); return { status: 200, json: async () => ({ success: true, result: { ok: true } }) }; };
+    const got = await publish();
+    if (show(got) !== show({ status: 200, success: true, result: { ok: true } })) wrong.push(`answer: ${show(got)}`);
+    const call = seen[0] || {};
+    if (seen.length !== 1 || call.url !== DM.PUBLISH.route) wrong.push(`one request to ${DM.PUBLISH.route}, got ${show(seen.map((c) => c.url))}`);
+    if (!call.opts || String(call.opts.method).toUpperCase() !== 'POST') wrong.push(`method POST, got ${show(call.opts && call.opts.method)}`);
+    if (call.opts && call.opts.body !== undefined) wrong.push(`no body, got ${show(call.opts.body)}`);
+    globalThis.fetch = async () => ({ status: 502, json: async () => { throw new SyntaxError('Unexpected token <'); } });
+    let threw = null;
+    try { await publish(); } catch (err) { threw = err; }
+    if (!threw || threw.message !== 'This instance did not answer') wrong.push(`a non-JSON answer throws "This instance did not answer", got ${show(threw && threw.message)}`);
+  } finally {
+    globalThis.fetch = saved;
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
 /* ───────────────────────── D — the page and its route, by source ───────────────────────── */
 
 test('D1: App.jsx serves /assistant/duty-menu with the page — DutyMenuPage imported from ./pages/assistant/DutyMenu and given to ACTION_PAGES under duty-menu; the Treasure Map card still has none (AC-5; ADR 0001 sub-decision 6)', () => {
@@ -204,23 +245,64 @@ test('D3: the page has the hub\'s frame and states — TopBar, the back link, th
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('D4: read-only and one request — the page never fetches, never calls refresh(), never polls, stores nothing, and publishes or signs nothing (AC-6; ADR 0001 sub-decision 6: "story 2\'s publish will")', () => {
+// Re-aimed by assistant-duty-menu #2 (story 2 AC-1; ADR 0002 sub-decision 8): the page publishes now, through its one
+// helper, and asks the answer again once after a written menu. Everything else story 1 refused stays refused.
+test('D4: one request and no polling — the page never fetches itself, never polls, stores nothing and signs nothing; it publishes only through publishAssistantDutyMenu, and calls refresh() in one place (story 1 AC-6; story 2 AC-1; ADR 0002 sub-decision 8)', () => {
   const src = codeOnly(safeRead(PAGE));
   assert(src && /\buseAssistantAttention\s*\(/.test(src), `${rel(PAGE)} ${src ? 'does not read the shared answer' : 'does not exist'} — these refusals need a real page to mean anything`);
   const hits = [
-    [/\bfetch\s*\(/, 'fetch('], [/\.refresh\s*\(|\brefresh\s*\(/, 'refresh()'], [/setInterval\s*\(|setTimeout\s*\(/, 'a timer (polling)'],
+    [/\bfetch\s*\(/, 'fetch('], [/setInterval\s*\(|setTimeout\s*\(/, 'a timer (polling)'],
     [/localStorage|sessionStorage/, 'browser storage'], [/['"]\/api\//, 'an /api/ address'],
-    // answer.published is the published menu, read; what is refused is a call or an import that publishes or signs.
-    [/\bpublish(?!ed)\w*\s*\(|finalizeEvent|signEvent|window\.nostr|from\s*['"][^'"]*(?:publish|nostrPublish|signer)[^'"]*['"]/i, 'a publish or a signature'],
+    [/finalizeEvent|signEvent|window\.nostr|from\s*['"][^'"]*(?:nostrPublish|signer)[^'"]*['"]/i, 'a signature'],
   ].filter(([re]) => re.test(src)).map(([, what]) => what);
-  assert(hits.length === 0, `the page must only read the one answer: it uses ${hits.join(', ')}`);
+  const publishCalls = [...src.matchAll(/\b(publish(?!ed)\w*)\s*\(/g)].map((m) => m[1]).filter((name) => name !== 'publishAssistantDutyMenu');
+  if (publishCalls.length) hits.push(`publishing other than through publishAssistantDutyMenu: ${show(publishCalls)}`);
+  // The page's one publishing helper, and the shared report util that draws its answer (ADR 0002 sub-decision 8).
+  const publishImports = [...src.matchAll(/from\s*['"]([^'"]*publish[^'"]*)['"]/gi)].map((m) => m[1])
+    .filter((from) => !/^\.\.\/\.\.\/utils\/(?:publishAssistantDutyMenu|taggingPublishReport)(?:\.js)?$/.test(from));
+  if (publishImports.length) hits.push(`imports from ${show(publishImports)}`);
+  const refreshes = (src.match(/\.refresh\s*\(\s*\)/g) || []).length;
+  if (refreshes !== 1) hits.push(`refresh() in ${refreshes} places, want one (after a written menu)`);
+  if (!/\bpublishAssistantDutyMenu\s*\(/.test(src)) hits.push('no publishAssistantDutyMenu() call');
+  assert(hits.length === 0, `the page: ${hits.join('; ')}`);
 });
 
-test('D5: the page\'s own words have one home — none of § Copy\'s sentences is typed into DutyMenu.jsx; it shows them from ./dutyMenuCopy (AC-5; § Copy)', () => {
+// Re-aimed by assistant-duty-menu #2: story 2's sentences (the button, the empty lines, the request-failed line) too.
+test('D5: the page\'s own words have one home — none of § Copy\'s sentences, story 1\'s or story 2\'s, is typed into DutyMenu.jsx; it shows them from ./dutyMenuCopy (AC-5; story 2 § Copy)', () => {
   const raw = safeRead(PAGE);
   assert(raw && /from\s*['"]\.\/dutyMenuCopy(?:\.js)?['"]/.test(raw), `${rel(PAGE)} ${raw ? 'does not import ./dutyMenuCopy' : 'does not exist'} — the words must come from there`);
-  const retyped = [...DM.PAGE_SENTENCES, DM.PAGE.checking].filter((s) => raw.includes(s));
+  const retyped = [...DM.PAGE_SENTENCES, DM.PAGE.checking, ...DM.PUBLISH_SENTENCES].filter((s) => raw.includes(s));
   assert(retyped.length === 0, `retyped in the page: ${retyped.map(show).join('; ')}`);
+});
+
+test('D6: the button and its report — the words from DUTY_MENU_COPY.publish, disabled while publishing, while checking or when the menu is current; the report drawn with describeServerPublish and relayLine in an aria-live region; refresh() only after a written menu (result ok); the empty line after an empty publish (story 2 AC-1; ADR 0002 sub-decision 8)', () => {
+  const src = codeOnly(safeRead(PAGE));
+  assert(src, `${rel(PAGE)} does not exist`);
+  const wrong = [];
+  for (const [re, what] of [
+    [/import\s*\{[^}]*\bpublishAssistantDutyMenu\b[^}]*\}\s*from\s*['"]\.\.\/\.\.\/utils\/publishAssistantDutyMenu(?:\.js)?['"]/, "publishAssistantDutyMenu imported from '../../utils/publishAssistantDutyMenu'"],
+    [/DUTY_MENU_COPY\.publish\.button\b/, 'the button\'s words (DUTY_MENU_COPY.publish.button)'],
+    [/DUTY_MENU_COPY\.publish\.publishing\b/, 'Publishing… (DUTY_MENU_COPY.publish.publishing)'],
+    [/DUTY_MENU_COPY\.publish\.empty\b/, 'the empty line (DUTY_MENU_COPY.publish.empty)'],
+    [/DUTY_MENU_COPY\.publish\.requestFailed\b/, 'the request-failed line (DUTY_MENU_COPY.publish.requestFailed)'],
+    [/DUTY_MENU_COPY\.publish\.subject\b/, 'the report\'s subject (DUTY_MENU_COPY.publish.subject)'],
+    [/\bdescribeServerPublish\s*\(/, 'describeServerPublish(…)'],
+    [/\brelayLine\s*\(/, 'relayLine(row) for each relay line'],
+    [/aria-live=["']polite["']/, 'an aria-live="polite" report region'],
+    [/<button\b[^>]*\bdisabled=\{[^}]*\bpublishing\b[^}]*\}/, 'a button disabled={…publishing…}'],
+    [/['"]checking['"]/, "the 'checking' phase in the button's rule"],
+    [/\.current\s*===\s*true|\bcurrent\b/, "the answer's current in the button's rule"],
+    [/\.ok\s*===\s*true/, 'a written menu judged by result.ok === true'],
+    [/\.duties\s*===\s*0/, 'the empty line when result.duties === 0'],
+  ]) if (!re.test(src)) wrong.push(`missing: ${what}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D7: AC-6 — the published panel shows DUTY_MENU_COPY.emptyMenu when the menu found has no rows (story 2 AC-6; ADR 0002 sub-decision 8)', () => {
+  const src = codeOnly(safeRead(PAGE));
+  assert(src, `${rel(PAGE)} does not exist`);
+  assert(/DUTY_MENU_COPY\.emptyMenu\b/.test(src), 'the page does not show DUTY_MENU_COPY.emptyMenu');
+  assert(/rows\.length\s*===\s*0|!\s*\w+\.rows\.length|rows\.length\s*<\s*1/.test(src), 'no test for a found menu with no rows (rows.length === 0)');
 });
 
 async function run() {

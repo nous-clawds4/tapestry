@@ -5,6 +5,9 @@
  * browser suite (tests/brainstorm/assistant-duty-menu.spec.js), and the hub fixtures and specs this story re-aims
  * (test/helpers/dutyCardsFixtures.js, which the hub fixture reads), so they cannot disagree about what the owner approved.
  *
+ * Story 2 (engineering-team/stories/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.md § Copy, approved
+ * 2026-10-11; ADR 0002) adds PUBLISH and PUBLISH_SENTENCES.
+ *
  * Source of truth: engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md (approved
  * 2026-10-11; AC-2 amended at Architecture, § Copy's none line and AC-3 amended before Review, § Deviations) and
  * engineering-team/decisions/assistant-duty-menu/0001-a-duty-menu-check-beside-the-others.md (accepted 2026-10-11, R1
@@ -84,6 +87,35 @@ const PAGE = {
   publicLine: "Your Assistant's Duty Menu is public. Anyone can find it, and list it among every Assistant's Duty Menu.",
 };
 
+// ─── Story 2: the publish (story 2 § Copy; ADR 0002 sub-decisions 1, 5, 8) ──────────────────────────────────────────
+const PUBLISH_SUBJECT = "Your Assistant's Duty Menu";
+const PUBLISH = {
+  route: '/api/assistant/duty-menu/publish',
+  button: 'Have your Assistant publish its Duty Menu',
+  publishing: 'Publishing…',
+  subject: PUBLISH_SUBJECT,
+  // After the summary, when the menu written has no rows.
+  empty: "Your Assistant's Duty Menu now lists no duties.",
+  requestFailed: 'This instance did not answer; nothing was published.',
+  // AC-6: the published panel, when the menu found has no rows.
+  emptyMenu: "Your Assistant's Duty Menu lists no duties.",
+  codes: { notSignedIn: 'not-signed-in', noAssistant: 'no-assistant' },
+  refusals: {
+    'not-signed-in': 'Sign in to have your Assistant publish its Duty Menu.',
+    'no-assistant': "You don't have a Tapestry Assistant on this instance yet.",
+  },
+  failed: "Could not publish your Assistant's Duty Menu",
+  notSent: { status: 'not-sent', reason: 'not a public address', line: 'not sent: not a public address' },
+  skipped: { status: 'skipped', reason: 'local-only publish mode' },
+  // The profile publish's sentence shapes (src/api/assistant/profilePublish.js summarizePublish), with this subject.
+  published: (a, n) => `${PUBLISH_SUBJECT} was saved on this instance's relay and accepted by ${a} of ${n} relays.${a < n ? ` ${n - a} did not accept it; see below.` : ''}`,
+  noneAccepted: (n) => `${PUBLISH_SUBJECT} was saved on this instance's relay, but none of the ${n} relays accepted it; see below.`,
+  localOnly: `${PUBLISH_SUBJECT} was saved on this instance's relay only: local-only publish mode is on, so it was not sent to any other relay.`,
+  localFailed: (reason) => `${PUBLISH_SUBJECT} could not be saved on this instance's relay (${reason}), so it was not sent to any other relay.`,
+};
+/** Story 2's sentences the page shows from its copy module, never typed into the JSX. */
+const PUBLISH_SENTENCES = [PUBLISH.button, PUBLISH.empty, PUBLISH.requestFailed, PUBLISH.emptyMenu];
+
 /** Every sentence § Copy gives this page (not the hub's shared words), for "is it there" and "is it retyped" checks. */
 const PAGE_SENTENCES = [
   PAGE.signedOutLine, PAGE.offerHeading, PAGE.offerExplainer, PAGE.offerEmpty, PAGE.publishedHeading, PAGE.none,
@@ -133,6 +165,6 @@ module.exports = {
   RELAY_BUDGET_MS, MAX_EVENT_RELAYS, NOUS_CACHE_MS,
   KEY, PATH, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER, STILL_PLACEHOLDER,
   OFFER_KEYS, CATEGORY_NAMES, expectedOffer,
-  PAGE, PAGE_SENTENCES,
+  PAGE, PAGE_SENTENCES, PUBLISH, PUBLISH_SENTENCES,
   OWN, OFFER, STALE_ROWS, action, ANSWERS, withDutyMenu,
 };

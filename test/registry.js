@@ -298,6 +298,7 @@ const suites = [
   { file: 'assistant-duty-cards.test.js' },
   { file: 'assistant-duty-menu-check.test.js' },
   { file: 'assistant-duty-menu-page.test.js' },
+  { file: 'assistant-duty-menu-publish.test.js' },
   { file: 'my-assistants-page.test.js' },
   { file: 'my-assistants-actions.test.js' },
   { file: 'my-assistants-map.test.js' },
