@@ -23,6 +23,11 @@
  * suites stay about Identification Tags (and never read a relay U3 says is not read). C2 and C3 already derive the
  * placeholders from CHECKED_ACTIONS; test/assistant-trusted-content.test.js pins the three.
  *
+ * Re-aimed 2026-10-11 by assistant-duty-menu #1 (its story, ADR 0001 and plan): the handler runs a fifth check, the Duty
+ * Menu's, which reads the viewer's Map, two relay lists and outside relays; fakes() stubs it (checkDutyMenu) so U3's and
+ * the other tests' scan and read counts stay about Identification Tags. C2 and C3 derive the placeholders from
+ * CHECKED_ACTIONS, so they need no change; test/assistant-duty-menu-check.test.js pins the Duty Menu.
+ *
  * Classes:
  *   L — the shared library src/lib/identification-tags (pure CommonJS): the list (offered and parked), each
  *       definition's author and address, the d-tag composer, the polarity reader.                                            [AC-1, AC-3]
@@ -48,6 +53,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const X = require('./helpers/identificationTagsFixtures');
+const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
 
 const REPO = path.resolve(__dirname, '..');
 const LIB_DIR = path.join(REPO, 'src/lib/identification-tags');
@@ -236,6 +242,9 @@ function fakes(opts = {}) {
     checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
     // Scores, Lists and Concepts (assistant-trusted-content-status ADR 0001), stubbed for the same reason.
     checkTrustedContent: async () => ({}),
+    // The duty-menu check (assistant-duty-menu ADR 0001 sub-decision 7), stubbed whether or not it has landed: it reads
+    // the viewer's Map, two relay lists and outside relays, which this suite's scan and read counts must not see.
+    checkDutyMenu: async () => DUTY_MENU_ANSWER,
   };
   return { deps, calls };
 }

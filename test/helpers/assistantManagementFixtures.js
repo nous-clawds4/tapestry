@@ -18,6 +18,10 @@
  * Re-aimed 2026-10-11 by assistant-duty-cards #1 (its story § Copy, approved 2026-10-11): Duty Menu and Your
  * Assistant's Treasure Map close the persona section, after Outbox Relays, as placeholders. Their words come from
  * test/helpers/dutyCardsFixtures.js.
+ *
+ * Re-aimed 2026-10-11 by assistant-duty-menu #1 (its story AC-4, ADR 0001 sub-decision 6), through
+ * dutyCardsFixtures.js: the Duty Menu card's page is built, so its alert criteria are the ADR's sentence and it has no
+ * planning notes. Its title, address and description are unchanged.
  */
 
 const TC = require('./trustedContentFixtures');

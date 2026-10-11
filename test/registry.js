@@ -295,6 +295,8 @@ const suites = [
   { file: 'assistant-outbox-relays-page.test.js' },
   { file: 'assistant-relay-list-publish.test.js' },
   { file: 'assistant-duty-cards.test.js' },
+  { file: 'assistant-duty-menu-check.test.js' },
+  { file: 'assistant-duty-menu-page.test.js' },
   { file: 'my-assistants-page.test.js' },
   { file: 'my-assistants-actions.test.js' },
   { file: 'my-assistants-map.test.js' },

@@ -3,6 +3,7 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 const P = require('../../test/helpers/profileChecklistFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
+const DM = require('../../test/helpers/dutyMenuFixtures');
 
 /**
  * assistant-trusted-content-status #1 — Scores, Lists and Concepts on the hub: what a viewer SEES.
@@ -44,10 +45,13 @@ const TOTAL = X.ACTIONS.length;
 // and Outbox Relays pending, the rest placeholders), whichever of them a parallel book has made a real check.
 const OTHERS = TOTAL - 1 - TC.KEYS.length;
 
-/** An answer: Identification Tags done, the profile and Outbox Relays (assistant-outbox-relays #1) pending, and the three. */
+/**
+ * An answer: Identification Tags done, the profile and Outbox Relays (assistant-outbox-relays #1) pending, and the three.
+ * Re-aimed by assistant-duty-menu #1: the Duty Menu pending too (no menu found), so OTHERS still marks and counts it.
+ */
 const answerWith = (trio) => ({
   success: true, signedIn: true, hasAssistant: true,
-  actions: { 'identification-tags': ID_DONE, profile: P.PROFILE_PENDING, [O.KEY]: O.OUTBOX.PENDING, ...trio },
+  actions: { 'identification-tags': ID_DONE, profile: P.PROFILE_PENDING, [O.KEY]: O.OUTBOX.PENDING, [DM.KEY]: DM.ANSWERS.NONE, ...trio },
 });
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });

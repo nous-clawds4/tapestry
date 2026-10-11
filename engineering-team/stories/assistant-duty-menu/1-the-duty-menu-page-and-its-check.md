@@ -222,5 +222,5 @@ pubkey (epic § Key facts).
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-duty-menu/0001-a-duty-menu-check-beside-the-others.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.test-plan.md`
 - Review: (filled in after Review phase)

@@ -38,6 +38,7 @@ const API_INDEX = path.join(REPO, 'src/api/index.js');
 const OPENAPI = path.join(REPO, 'src/api/openapi.yaml');
 const BIBLE = path.join(REPO, 'BIBLE.md');
 const GENERIC_SIGNER = path.join(REPO, 'src/api/strfry/commands/publishEvent.js');
+const DUTY_MENU_CHECK = path.join(REPO, 'src/api/assistant/dutyMenu.js');
 const REPORT_MOD = path.join(REPO, 'ui/src/utils/taggingPublishReport.js');
 const CLIENT_UTIL = path.join(REPO, 'ui/src/utils/publishAssistantRelayList.js');
 const COPY_MOD = path.join(REPO, 'ui/src/pages/assistant/outboxRelaysCopy.js');
@@ -567,13 +568,16 @@ test('S2: one signing helper — identificationTaggings.js exports privkeyBytesO
   assert(!/['"][0-9a-f]{64}['"]/i.test(src), 'no 64-hex literal in the module');
 });
 
-test('S3: nothing publishes a relay list at Assistant creation, and the generic signer is untouched — only src/api/index.js requires the new module (AC-2)', () => {
+test('S3: nothing publishes a relay list at Assistant creation, and the generic signer is untouched — only src/api/index.js requires the new module (AC-2; re-aimed by assistant-duty-menu #1: its check may read the module\'s SSRF guard)', () => {
   const offenders = [];
   const walk = (dir) => {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, ent.name);
       if (ent.isDirectory()) { if (ent.name !== 'node_modules') walk(p); continue; }
       if (!/\.js$/.test(ent.name) || p === MODULE || p === API_INDEX) continue;
+      // Re-aimed by assistant-duty-menu #1: its read-only check takes the SSRF guard, isPublicRelayHostWithin, from this
+      // module (ADR assistant-duty-menu/0001 sub-decision 3). It may name the module for that, never for a publish.
+      if (p === DUTY_MENU_CHECK && !/createPublishRelayListHandler|handlePublishRelayList|publishAssistantRelayListFor/.test(safeRead(p))) continue;
       if (/relayListPublish/.test(safeRead(p))) offenders.push(rel(p));
     }
   };

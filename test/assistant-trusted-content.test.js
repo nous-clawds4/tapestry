@@ -33,6 +33,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const TC = require('./helpers/trustedContentFixtures');
 const AM = require('./helpers/assistantManagementFixtures');
+const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
 
 const REPO = path.resolve(__dirname, '..');
 const RULE = path.join(REPO, 'src/lib/treasureMapCategories.mjs');
@@ -409,6 +410,9 @@ function attentionFakes({ assistant = ASSISTANT, trustedContent, local = [], map
     mapDefaultRelays: () => mapRelays.slice(),
     // Another book's check (assistant-profile-checklist ADR 0001), stubbed whether or not it has landed.
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
+    // Re-aimed by assistant-duty-menu #1: the duty-menu check (its ADR 0001 sub-decision 7), stubbed whether or not it
+    // has landed: it reads the viewer's Map, two relay lists and outside relays, which this suite must not see.
+    checkDutyMenu: async () => DUTY_MENU_ANSWER,
   };
   if (trustedContent !== 'default') {
     deps.checkTrustedContent = async (input) => {
