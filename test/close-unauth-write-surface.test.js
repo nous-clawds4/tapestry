@@ -137,13 +137,13 @@ t('AC6/local: a genuinely-direct local request (loopback, no proxy header) is tr
   assert(out.localTrusted === true, 'the bypass must stamp req.localTrusted = true so the queryPost write-gate can honor it.');
 });
 
-t('AC5: a public read (deploy-safety status) stays reachable unauthenticated behind a proxy', async () => {
+t('AC5: a public read (auth status; this branch has no deploy-safety route) stays reachable unauthenticated behind a proxy', async () => {
   const { nextCalled, res } = await callAuth(mkReq({
     method: 'GET',
-    path: '/api/deploy-safety/status',
+    path: '/api/auth/status',
     headers: { 'x-forwarded-for': '203.0.113.7' },
   }));
-  assert(nextCalled && res.statusCode === null, `the deploy-safety curl endpoint must stay public; got next=${nextCalled} status=${res.statusCode}.`);
+  assert(nextCalled && res.statusCode === null, `a public read must stay public; got next=${nextCalled} status=${res.statusCode}.`);
 });
 
 t('design boundary: unauthenticated /api/neo4j/query passes the middleware (write-gating is the handler’s job)', async () => {
