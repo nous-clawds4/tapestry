@@ -268,3 +268,18 @@ to make AC-2 hold by construction. R-A removes every outside read from the stead
   beside a withdrawal.
 - `name`, `description`, per-duty details and `storefront` (rows only; story open question 1).
 - Changing what this instance offers, and Self-Maps.
+
+## Amendment 1: clarifications from Test Design (2026-10-11)
+
+These come from the test plan's flagged points. The Architect settles them here, and none changes a decision above.
+
+1. **One local scan per check.** The local-first step's scan (sub-decision 7) is the only local scan for the menu.
+   When it holds no version, rounds 1 and 2 run, and round 2 reuses that scan's result rather than scanning again.
+2. **The relay-list suite needs two re-aims, not one.** Besides S3, A10's "the lookup uses a `dns.promises`
+   Resolver" check now reads the guard where the code lives, `src/utils/relayHostGuard.js`, and checks that the
+   route requires it. The behavior is unchanged.
+3. **The send's time limit.** As in the relay-list route, each relay's send is bounded by `publishToRelays`' own
+   per-relay timeout. There is no extra budget around the whole fan-out. The DNS lookups keep their shared 3 s
+   budget, and the newest-version read keeps the check's budgets.
+4. **Exactly the four places of AC-4.** The menu is not sent to the profile publish relays (General Purpose, Profile,
+   WoT) unless one of the four places names them. Only the hint lookups read those relays.
