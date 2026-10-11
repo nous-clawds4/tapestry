@@ -42,7 +42,8 @@ function tagsOf(event) {
  * Is this event a Duty Menu by § 6.1? Kind 39999; its `d` is `duty-menu`; exactly one `p`, equal to the author; a
  * `z` naming Nous' header exactly; and no `["z", "list"]` and no `z` naming any author's
  * `39998:<64 hex>:concept-header` (ADR 0001 Amendment 2 item 1, following ADR duty-menus-and-self-maps/0003
- * sub-decision 11). Other `z` tags are allowed.
+ * sub-decision 11). Other `z` tags are allowed. It never compares `author` with `event.pubkey`: callers must have
+ * checked the event's `pubkey` themselves (ADR 0002 sub-decision 3).
  * @param {*} event
  * @param {string} author - the key whose menu it should be (compared lower-cased)
  * @returns {boolean}
@@ -139,6 +140,21 @@ function buildOffer({ ownRelay = null, dlistRelay = null, scores = false } = {})
   return rows;
 }
 
+/**
+ * A menu's tags, as this instance publishes it (ADR assistant-duty-menu/0002 sub-decision 2): `d`, Nous' `z` and the
+ * one `p` (the Assistant itself), then one `["duty", key, relay]` per duty row of the offer, in its order. Rows only:
+ * no name, description or per-duty details. An empty offer gives the three.
+ * @param {{ assistantPubkey: string, offer: Array<{ tag: string, key: string, relay: ?string }> }} input
+ * @returns {string[][]}
+ */
+function buildMenuTags({ assistantPubkey, offer } = {}) {
+  const tags = [['d', DUTY_MENU_D], ['z', DUTY_MENU_HEADER], ['p', assistantPubkey]];
+  for (const row of Array.isArray(offer) ? offer : []) {
+    if (row && row.tag === 'duty') tags.push(['duty', row.key, row.relay]);
+  }
+  return tags;
+}
+
 module.exports = {
   DUTY_MENU_KIND,
   DUTY_MENU_D,
@@ -148,4 +164,5 @@ module.exports = {
   normalizeMenuKey,
   sameRows,
   buildOffer,
+  buildMenuTags,
 };

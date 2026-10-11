@@ -8,8 +8,10 @@
  * attention", "Done", the sign-in button and the no-assistant line are the hub's and the action entry's
  * (ui/src/pages/assistant/actions.js); the page imports those itself.
  *
- * The words were approved with the story; change them there first:
- * engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md § Copy.
+ * The words were approved with the stories; change them there first:
+ * engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md § Copy, and
+ * engineering-team/stories/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.md § Copy (the button, the
+ * report and the empty-menu line).
  */
 
 export const DUTY_MENU_COPY = {
@@ -32,6 +34,16 @@ export const DUTY_MENU_COPY = {
     outOfDate: "Your Assistant's published Duty Menu is out of date: it differs from what your Assistant offers now.",
   },
   publicLine: "Your Assistant's Duty Menu is public. Anyone can find it, and list it among every Assistant's Duty Menu.",
+  // Story 2 AC-6: the published panel, when the menu found has no rows.
+  emptyMenu: "Your Assistant's Duty Menu lists no duties.",
+  // The button and its report (story 2 § Copy; the per-relay lines are taggingPublishReport.js's relayLine).
+  publish: {
+    button: 'Have your Assistant publish its Duty Menu',
+    publishing: 'Publishing…',
+    subject: "Your Assistant's Duty Menu",
+    empty: "Your Assistant's Duty Menu now lists no duties.",
+    requestFailed: 'This instance did not answer; nothing was published.',
+  },
   // The Treasure Map's category names, as /treasure-map names them.
   categories: { scores: 'Scores', lists: 'Lists', concepts: 'Concepts' },
 };

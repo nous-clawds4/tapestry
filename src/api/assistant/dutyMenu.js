@@ -13,14 +13,16 @@
  * Lists get no row. Scores are offered to the Owner and to active customers, as the Scores pipeline computes them;
  * Lists and Concepts to every Assistant. It never depends on the lookup, so an unfinished check still carries it.
  *
- * The lookup (sub-decision 3; duty-menus.md § 8.1) runs in two rounds. First, side by side, the hints: the viewer's
- * newest Treasure Map (its relays for entries naming this Assistant), the Assistant's newest kind 10002 and Nous'
- * (their write relays; a found Nous list is remembered for an hour). A failed hint lookup only shrinks the second
- * round. Then one strict local scan, and in parallel every hinted relay plus the offer's relays, outside this
- * instance's own. Relays named inside events are capped at the first 50, and each is read only when the SSRF guard
- * accepts its host (Amendment 2); a configured relay is read as every other check reads one. The latest version among
- * all answers counts, and if it is not a menu by § 6.1 the Assistant has none. "Finished" means the local scan
- * succeeded or at least one relay answered.
+ * The lookup (sub-decision 3; duty-menus.md § 8.1) reads this instance's relay first, in one strict local scan (ADR
+ * 0002 sub-decision 7): when it holds any version of the menu, the newest there counts and nothing else is read. Only
+ * otherwise do two rounds run. First, side by side, the hints: the viewer's newest Treasure Map (its relays for entries
+ * naming this Assistant), the Assistant's newest kind 10002 and Nous' (their write relays; a found Nous list is
+ * remembered for an hour). A failed hint lookup only shrinks the second round. Then every hinted relay plus the offer's
+ * relays, outside this instance's own. Relays named inside events are capped at the first 50, and each is read only
+ * when the SSRF guard accepts its host (ADR 0001 Amendment 2); a configured relay is read as every other check reads
+ * one. The newest version found counts, and if it is not a menu by § 6.1 the Assistant has none. "Finished" means the
+ * local scan succeeded or at least one relay answered. The two write-relay lookups are exported for the Duty Menu
+ * publish route, which shares the Nous cache.
  *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored but the in-process Nous list.
  */
@@ -65,7 +67,7 @@ function defaultDeps() {
     getConfiguredPublishRelays: () => require('./profilePublish').getConfiguredPublishRelays(),
     mapDefaultRelays: () => require('../export/nip85/currentMap').defaultRelays(),
     isPublicHost: (host) => require('./profileDefaults').isPublicHost(host),
-    isPublicRelayHostWithin: (host) => require('./relayListPublish').isPublicRelayHostWithin(host),
+    isPublicRelayHostWithin: (host) => require('../../utils/relayHostGuard').isPublicRelayHostWithin(host),
     isLocalOnly: () => require('../publish-policy').isPublishLocalOnly(),
     outsideOnly: (urls, d) => require('../setup/status').outsideOnly(urls, d),
     lookupNewest: (input, d) => require('../setup/status').lookupNewest(input, d),
@@ -127,8 +129,29 @@ function writeRelays(event) {
   return event ? parseRelayList(event).outbox : [];
 }
 
-/** Nous' write relays: remembered for an hour once its list is found; a miss is never remembered. */
-async function nousWriteRelays(relays, d) {
+/**
+ * The Assistant's write relays, from its newest kind 10002: this instance's relay first, then the relays this instance
+ * publishes Assistant profiles to. § 8.1's second place for a reader, and the first for the publisher (ADR 0002
+ * sub-decision 5).
+ * @param {{ assistantPubkey: string }} input
+ * @returns {Promise<string[]>}
+ */
+async function assistantWriteRelays({ assistantPubkey }, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
+  let relays = [];
+  try { relays = d.outsideOnly(d.getConfiguredPublishRelays(), d); } catch { relays = []; }
+  const lookup = await d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: assistantPubkey, relays }, d);
+  return lookup && lookup.finished === true ? writeRelays(lookup.event) : [];
+}
+
+/**
+ * Nous' write relays: remembered for an hour once its list is found; a miss is never remembered. One cache, shared by
+ * the check and the publisher.
+ * @param {string[]} relays - the outside relays to look Nous' list up on when it is not held here
+ * @returns {Promise<string[]>}
+ */
+async function nousWriteRelays(relays, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
   const now = d.now();
   if (nousCache && now - nousCache.at < NOUS_CACHE_MS) return nousCache.relays;
   const lookup = await d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: NOUS_PUBKEY, relays }, d);
@@ -144,9 +167,9 @@ const attempt = (fn, fallback) => Promise.resolve().then(fn).catch(() => fallbac
 async function hintRelays({ viewer, assistantPubkey }, d) {
   const who = String(assistantPubkey || '').toLowerCase();
   const publishRelays = await attempt(() => d.outsideOnly(d.getConfiguredPublishRelays(), d), []);
-  const [map, assistantList, nous] = await Promise.all([
+  const [map, assistantWrite, nous] = await Promise.all([
     attempt(() => d.lookupNewest({ kind: TREASURE_MAP_KIND, pubkey: viewer, relays: d.treasureMapRelays(d) }, d), null),
-    attempt(() => d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: assistantPubkey, relays: publishRelays }, d), null),
+    attempt(() => assistantWriteRelays({ assistantPubkey }, d), []),
     attempt(() => nousWriteRelays(publishRelays, d), []),
   ]);
   const mapHints = map && map.finished === true && map.event && Array.isArray(map.event.tags)
@@ -154,8 +177,7 @@ async function hintRelays({ viewer, assistantPubkey }, d) {
       .filter((t) => Array.isArray(t) && typeof t[1] === 'string' && t[1].toLowerCase() === who && typeof t[2] === 'string')
       .map((t) => t[2])
     : [];
-  const assistantWrite = assistantList && assistantList.finished === true ? writeRelays(assistantList.event) : [];
-  return [...mapHints, ...assistantWrite, ...(Array.isArray(nous) ? nous : [])];
+  return [...mapHints, ...(Array.isArray(assistantWrite) ? assistantWrite : []), ...(Array.isArray(nous) ? nous : [])];
 }
 
 function dTagOf(event) {
@@ -164,15 +186,33 @@ function dTagOf(event) {
 }
 
 /**
- * The menu found for one Assistant now (AC-3, § 8.1).
+ * The menu found for one Assistant now (AC-3, § 8.1; this instance's relay first since ADR 0002 sub-decision 7).
+ * `latest` is the newest version found, whatever its validity: the publisher dates its new version after it and sends
+ * the replacement to its rows' relays (ADR 0002 sub-decision 4). The check's answer ignores it.
  * @param {{ assistantPubkey: string, viewer: string, offer: Array }} input
- * @returns {Promise<{ finished: true, published: null | { rows, createdAt, source: 'local'|'relay', eventId } }
+ * @returns {Promise<{ finished: true, latest: ?Object, published: null | { rows, createdAt, source: 'local'|'relay', eventId } }
  *                  |{ finished: false, reason: 'no-relay-answered' }>}
  */
 async function lookupPublishedMenu({ assistantPubkey, viewer, offer }, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const { readWithinBudget, newest } = shared();
   const who = String(assistantPubkey || '').toLowerCase();
+  const mine = (e) => e && typeof e === 'object' && e.kind === DUTY_MENU_KIND && String(e.pubkey || '').toLowerCase() === who && dTagOf(e) === DUTY_MENU_D;
+  const found = (latest, source) => ({
+    finished: true,
+    latest,
+    published: latest && isDutyMenu(latest, who)
+      ? { rows: readMenuRows(latest), createdAt: latest.created_at, source, eventId: latest.id }
+      : null,
+  });
+
+  // This instance's relay first (ADR 0002 sub-decision 7): when it holds any version, the newest here counts and
+  // nothing else is read. This is the check's one local scan for the menu (ADR 0002 Amendment 1 item 1).
+  const filter = { kinds: [DUTY_MENU_KIND], authors: [assistantPubkey], '#d': [DUTY_MENU_D] };
+  const local = await Promise.resolve().then(() => d.scanLocal(filter))
+    .then((events) => ({ ok: true, events: Array.isArray(events) ? events : [] }), () => ({ ok: false, events: [] }));
+  const here = newest(local.events.filter(mine));
+  if (here) return found(here, 'local');
 
   // Round 1: the hints. Relays named inside events: at most MAX_RELAYS, the first in § 8.1's order once each is in its
   // one spelling, outside this instance and named once (ADR 0001 Amendment 2 item 2), and read only when the SSRF guard
@@ -183,24 +223,11 @@ async function lookupPublishedMenu({ assistantPubkey, viewer, offer }, deps = {}
   const configured = (Array.isArray(offer) ? offer : []).map((row) => row && row.relay).filter(Boolean);
   const relays = d.outsideOnly([...accepted.filter(Boolean), ...configured], d);
 
-  // Round 2: the menu, here and outside at once.
-  const filter = { kinds: [DUTY_MENU_KIND], authors: [assistantPubkey], '#d': [DUTY_MENU_D] };
-  const [local, answers] = await Promise.all([
-    Promise.resolve().then(() => d.scanLocal(filter)).then((events) => ({ ok: true, events }), () => ({ ok: false, events: [] })),
-    Promise.all(relays.map((url) => readWithinBudget(url, filter, d))),
-  ]);
+  // Round 2: the outside relays. The local scan above counts toward "finished".
+  const answers = await Promise.all(relays.map((url) => readWithinBudget(url, filter, d)));
   const answered = answers.filter((a) => a && a.status === 'ok');
   if (!local.ok && answered.length === 0) return { finished: false, reason: 'no-relay-answered' };
-
-  const mine = (e) => e && typeof e === 'object' && e.kind === DUTY_MENU_KIND && String(e.pubkey || '').toLowerCase() === who && dTagOf(e) === DUTY_MENU_D;
-  const localBest = newest((Array.isArray(local.events) ? local.events : []).filter(mine));
-  const relayBest = newest(answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine));
-  const latest = newest([localBest, relayBest].filter(Boolean));
-  if (!latest || !isDutyMenu(latest, who)) return { finished: true, published: null };
-  return {
-    finished: true,
-    published: { rows: readMenuRows(latest), createdAt: latest.created_at, source: latest === localBest ? 'local' : 'relay', eventId: latest.id },
-  };
+  return found(newest(answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine)), 'relay');
 }
 
 /**
@@ -236,6 +263,8 @@ module.exports = {
   resolveOfferInputs,
   lookupPublishedMenu,
   evaluateDutyMenu,
+  assistantWriteRelays,
+  nousWriteRelays,
   resetNousCache,
   DUTY_MENU_CHECK_FAILED,
   NOUS_CACHE_MS,

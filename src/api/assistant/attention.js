@@ -7,8 +7,9 @@
  * main→delegate mapping; for the Owner the instance TA), and no request parameter can change whose state is read or
  * which relays are asked.
  *
- * Three actions are checked, side by side; a check that throws becomes its action's `check-failed` answer and never
- * takes another action with it (except identification-tags, whose failure still fails the answer, as it always has).
+ * These actions are checked, side by side: `profile`, `identification-tags`, `outbox-relays`, Scores, Lists and
+ * Concepts, and `duty-menu`. A check that throws becomes its action's `check-failed` answer and never takes another
+ * action with it (except identification-tags, whose failure still fails the answer, as it always has).
  *
  * `profile` (assistant-profile-checklist #1, ADR 0001): seven items of the Assistant's published profile, computed by
  * ./profileChecklist.js.
@@ -41,10 +42,11 @@
  *
  * `duty-menu` (assistant-duty-menu ADR 0001): the Duty Menu this instance offers for the viewer's own Assistant (its
  * `offer`, built from where this instance publishes each duty), the menu found for that Assistant now (`published`,
- * looked up as duty-menus.md § 8.1 says, with this instance's relay asked too) and whether the two have the same rows
- * (`current`). Done when a menu was found and it is current; unfinished with `no-relay-answered` when neither this
- * instance's relay nor any outside relay answered. The check is src/api/assistant/dutyMenu.js; it runs beside the others
- * and is isolated the same way: if it throws, it answers `check-failed`.
+ * read from this instance's relay first, and only when it holds none as duty-menus.md § 8.1 says, assistant-duty-menu
+ * ADR 0002 sub-decision 7) and whether the two have the same rows (`current`). Done when a menu was found and it is
+ * current; unfinished with `no-relay-answered` when neither this instance's relay nor any outside relay answered. The
+ * check is src/api/assistant/dutyMenu.js; it runs beside the others and is isolated the same way: if it throws, it
+ * answers `check-failed`.
  *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored anywhere.
  *

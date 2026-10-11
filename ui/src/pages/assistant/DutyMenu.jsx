@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopBar from '../../components/TopBar';
 import { useAuth } from '../../context/AuthContext';
 import { useAssistantAttention } from '../../context/AssistantAttentionContext';
 import { ASSISTANT_MANAGEMENT_PATH } from '../../config/avatarMenuLinks';
+import { publishAssistantDutyMenu } from '../../utils/publishAssistantDutyMenu';
+// publishTone is the report's tone rule, not a publish: named apart so the page's only publish call is the helper's.
+import { describeServerPublish, publishTone as reportTone, relayLine } from '../../utils/taggingPublishReport';
 import ActionText from './ActionText';
 import { ASSISTANT_ACTIONS, ASSISTANT_COPY, assistantAttention } from './actions';
 import { DUTY_MENU_COPY, categoryOf, statusLine } from './dutyMenuCopy';
 
 /**
- * /assistant/duty-menu — the Duty Menu page (assistant-duty-menu #1, ADR 0001 sub-decision 6). Read-only.
+ * /assistant/duty-menu — the Duty Menu page (assistant-duty-menu #1 and #2, ADRs 0001 and 0002).
  *
  * Two panels, in the Identification Tags page's frame and cards. The first shows the offer: one line per row that
  * this instance offers for the viewer's own Assistant, with its Treasure Map category, its key and its relay. The
@@ -16,13 +20,35 @@ import { DUTY_MENU_COPY, categoryOf, statusLine } from './dutyMenuCopy';
  * answer is on its way, or when the check did not finish, it shows that instead. Under them, one status line (only
  * for a finished check) and the line saying the menu is public.
  *
- * Everything comes from the one answer the hub and the Assistant Alert read too (AssistantAttentionContext:
- * actions['duty-menu']); the page asks for nothing itself. Publishing the menu is story 2.
+ * Everything the page shows comes from the one answer the hub and the Assistant Alert read too
+ * (AssistantAttentionContext: actions['duty-menu']); the page fetches nothing itself. Its one button (story 2) has the
+ * Assistant sign and publish its menu through one request (publishAssistantDutyMenu), which names nothing: the server
+ * builds the menu from its own offer. The report is drawn as the Outbox Relays page draws its own, and once a menu was
+ * written the answer is asked for again.
  */
 
 const ACTION_KEY = 'duty-menu';
 const ACTION = ASSISTANT_ACTIONS.find((a) => a.key === ACTION_KEY);
+const TONE_ICON = { success: '✅ ', warning: '⚠️ ', info: 'ℹ️ ', error: '❌ ' };
 const NONE = [];
+
+/** The publish's report: the summary, the empty-menu line when it applies, then one line per relay. */
+function Report({ report, empty }) {
+  const tone = reportTone(report);
+  return (
+    <div className={`bs-idtags-result is-${tone}`}>
+      {TONE_ICON[tone] || ''}{report.message}
+      {empty && <div className="bs-outbox-note">{DUTY_MENU_COPY.publish.empty}</div>}
+      {report.rows.length > 0 && (
+        <div className="bs-idtags-result-relays">
+          {report.rows.map((row) => (
+            <div key={row.relay}><code>{row.relay}</code> — {relayLine(row)}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** A menu's rows, one line each: the category, the key, and the relay or the exception's words. */
 function Rows({ rows }) {
@@ -61,6 +87,36 @@ export default function DutyMenuPage() {
   const marked = hasAssistant && needsAttention.includes(ACTION_KEY);
   const isDone = hasAssistant && done.includes(ACTION_KEY);
   const status = statusLine(answer);
+  const current = !!answer && answer.current === true;
+
+  const [publishing, setPublishing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [notice, setNotice] = useState(null);
+
+  /** The publish: one request (ADR 0002 sub-decision 8), as the Outbox Relays page publishes. */
+  async function onPublish() {
+    setResult(null);
+    setNotice(null);
+    setPublishing(true);
+    let wrote = false;
+    try {
+      const data = await publishAssistantDutyMenu();
+      if (data.success !== true) {
+        setNotice(data.error || DUTY_MENU_COPY.publish.requestFailed);
+      } else {
+        const report = describeServerPublish({ name: DUTY_MENU_COPY.publish.subject, row: data.result });
+        const empty = !!data.result && data.result.ok === true && data.result.duties === 0;
+        setResult({ report, empty });
+        wrote = !!data.result && data.result.ok === true;
+      }
+    } catch {
+      setNotice(DUTY_MENU_COPY.publish.requestFailed);
+    }
+    setPublishing(false);
+    // Ask for the answer again once a menu was written, so this page, the hub card and the pill show it. A refusal or a
+    // failed local write changed nothing.
+    if (wrote) attention.refresh();
+  }
 
   // The published panel's line, when it shows no menu.
   const words = DUTY_MENU_COPY.couldNotCheck;
@@ -123,7 +179,19 @@ export default function DutyMenuPage() {
                   {isDone && <span className="bs-setup-step-badge is-done" aria-hidden="true">{ASSISTANT_COPY.done}</span>}
                 </div>
                 {line && <p className="bs-outbox-note">{line}</p>}
-                {published && Array.isArray(published.rows) && published.rows.length > 0 && <Rows rows={published.rows} />}
+                {published && Array.isArray(published.rows) && (published.rows.length === 0
+                  ? <p className="bs-outbox-note">{DUTY_MENU_COPY.emptyMenu}</p>
+                  : <Rows rows={published.rows} />)}
+
+                <div className="bs-idtags-actions">
+                  <button type="button" className="bs-idtags-publish" disabled={publishing || attention.phase === 'checking' || current} onClick={onPublish}>
+                    {publishing ? DUTY_MENU_COPY.publish.publishing : DUTY_MENU_COPY.publish.button}
+                  </button>
+                </div>
+                <div className="bs-idtags-results" aria-live="polite">
+                  {notice && <div className="bs-idtags-result is-error">{TONE_ICON.error}{notice}</div>}
+                  {result && <Report report={result.report} empty={result.empty} />}
+                </div>
               </div>
             </section>
 

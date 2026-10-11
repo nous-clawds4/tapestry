@@ -172,7 +172,7 @@ No concept changes and no firmware reinstall.
   - `src/middleware/routeAccess.js` gains `POST /api/assistant/duty-menu/publish` as `signed-in`, worded like the
     outbox publish's entry. The ADR doesn't name the table, but without the entry the route is owner-only (the table
     fails closed), so a customer could not publish (AC-2). `admin-action-sweep` AC6a requires it.
-  - **Not done, for the Tester (two stale sentinels, left unedited):**
+  - **Two stale sentinels, left unedited and since re-aimed by the Tester (ADR 0002 Amendment 2 items 1–2):**
     - `assistant-taggings-publish` S2 pins the files that name `identificationTaggings` to exactly the route
       registration and `relayListPublish.js`, "which shares its key reader". `dutyMenuPublish.js` takes
       `privkeyBytesOf` from there too, as ADR 0002's Implementation notes direct. S2 needs `src/api/assistant/dutyMenuPublish.js`

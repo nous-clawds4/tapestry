@@ -85,6 +85,8 @@ const ROUTE_ACCESS = Object.freeze({
   'GET /api/assistant/attention': PUBLIC_READ,
   'POST /api/assistant/avatar': allow('signed-in',
     "Your own Assistant's avatar; the route guard requires an Assistant of your own here."),
+  'POST /api/assistant/duty-menu/publish': allow('signed-in',
+    "Your Assistant signs its own Duty Menu, built from this instance's offer; bound to your session."),
   'POST /api/assistant/identification-tags/publish': allow('signed-in',
     "Your Assistant signs its two identification taggings of you; bound to your session."),
   'GET /api/assistant/my-assistants': PUBLIC_READ,

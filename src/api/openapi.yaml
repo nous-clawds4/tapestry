@@ -331,9 +331,10 @@ paths:
         0001): `offer` is the Duty Menu rows this instance offers for the viewer's own assistant (Scores `30382` for
         the Owner and active customers, Lists `30392`–`30394` and Concepts `39998`, `39999` for every assistant), each
         at this instance's relay at its public address, or Concepts at the first public DList relay when there is none;
-        `published` is the menu found for the assistant now (duty-menus.md § 8.1: the local relay, the viewer's
-        Treasure Map hints, the assistant's and Nous' kind 10002 write relays; the latest version counts, and it must
-        be a menu by § 6.1), or null; `current` says whether the two have the same rows (null when unfinished). The
+        `published` is the menu found for the assistant now, read from this instance's relay first: when it holds any
+        version, the newest there counts and no outside relay is asked (assistant-duty-menu ADR 0002); only otherwise
+        duty-menus.md § 8.1's places, the viewer's Treasure Map hints and the assistant's and Nous' kind 10002 write
+        relays (at most 50 of them), where the newest found counts. It must be a menu by § 6.1, or it is null; `current` says whether the two have the same rows (null when unfinished). The
         action is `done` when a menu was found and it is current, `pending` when a finished check found none or an out
         of date one, and unfinished with `reason: no-relay-answered` when no relay answered, the local relay included;
         a check that throws answers `reason: check-failed` without failing the others. Without a session it answers
@@ -672,6 +673,60 @@ paths:
                                 reason: { type: string }
         '400':
           description: The body is not a list of relay addresses (code not-a-relay-list), or names a relay that is not on the public internet (code not-a-public-relay)
+        '401':
+          description: No signed-in session (code not-signed-in)
+        '403':
+          description: No Assistant on this instance for the viewer (code no-assistant)
+        '500':
+          description: The publish could not run
+  /api/assistant/duty-menu/publish:
+    post:
+      tags: [Auth]
+      summary: Have the signed-in viewer's own Assistant sign and publish its Duty Menu
+      description: >-
+        A narrow, session-bound route in the shape of the Outbox Relays publish (assistant-duty-menu ADR 0002): the
+        signed-in person's own Assistant signs a Duty Menu (kind 39999, `d` = `duty-menu`, one `p` the Assistant
+        itself, Nous' `z`), with one `duty` row per row of the offer this instance computes for the viewer now, and no
+        other tags; an empty offer publishes an empty menu. The request names nothing and its body is never read; whose
+        Assistant comes from the session (the Owner's is the instance TA; anyone else's their own). Refused before any
+        key is read: no session (401 not-signed-in), no Assistant on this instance (403 no-assistant). The menu is dated
+        at least one second after the newest version found. It is written to this instance's relay first (a failed
+        write sends it nowhere and says so), then, each once, to the relays its rows name, and to at most 50 relays from
+        events: the Assistant's write relays, the relays the newest version's rows named, and Nous' write relays. Each
+        relay from an event is resolved first and never connected to unless every address is public (otherwise
+        not-sent); every relay is reported (accepted, refused, unreachable, timeout; skipped in local-only mode).
+        Nothing calls this when an Assistant is created or on a schedule.
+      responses:
+        '200':
+          description: The report, whatever the relays did
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  result:
+                    type: object
+                    properties:
+                      ok: { type: boolean }
+                      outcome: { type: string, enum: [published, kept-local, not-delivered] }
+                      message: { type: string }
+                      localOnly: { type: boolean }
+                      stage: { type: string, enum: [local] }
+                      duties: { type: integer, description: 'how many duty rows the menu signed lists' }
+                      relays:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          success: { type: integer }
+                          results:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                relay: { type: string }
+                                status: { type: string, enum: [accepted, refused, unreachable, timeout, skipped, not-sent] }
+                                reason: { type: string }
         '401':
           description: No signed-in session (code not-signed-in)
         '403':
