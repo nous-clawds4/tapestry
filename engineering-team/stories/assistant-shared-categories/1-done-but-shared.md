@@ -1,6 +1,6 @@
 # Story 1: Done, but shared — Scores, Lists and Concepts held by another Assistant
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-11
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-10-11 by the owner ("Approved, go ahead"); scoped gate (named at Gate A):
 `node -e "Promise.all(['./test/assistant-shared-categories.test.js','./test/assistant-trusted-content.test.js','./test/assistant-attention.test.js','./test/assistant-management-page.test.js','./test/assistant-alert.test.js','./test/treasure-map-needs-attention.test.js','./test/assistant-duty-cards.test.js','./test/assistant-duty-menu-check.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+r.fail,0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"`
@@ -94,8 +94,8 @@ Tapestry Assistant.
 - The line under the description:
   - partly shared: **Partly handled by another Assistant · Move it here →**
   - entirely shared: **Handled by another Assistant · Move it here →**
-  - **Move it here →** links to `/treasure-map`. The **◐** mark in the intake preview is optional decoration, hidden
-    from screen readers.
+  - **Move it here →** links to `/treasure-map`. The **◐** mark in the intake preview is not drawn: it was optional,
+    and the owner dropped it at Gate B. The "·" and the link stay together on one line at any width (Gate B).
 - Screen-reader prefix before a shared card's title: **Done, shared: **. Unshared done cards keep **Done: **.
 - *Alert criteria*, on each card's page:
   - Scores: "Needs attention until your Treasure Map gives Scores to an Assistant. Shared while any of it goes to an
@@ -359,9 +359,34 @@ with no code change; one result per test):
 - **On staging:** pushed as `397d236`, the same patch rebased onto another book's docs-only commit `05225a6`.
   staging.brainstorm.world serves a bundle with the new words.
 
+## Gate B *(the owner's verdict, 2026-10-11: "Pass, with the two fixes")*
+
+The owner passed the story and asked for two of the review's non-blocking findings to be applied:
+- **The ◐ mark is dropped.** It drew from a fallback font as a small half-dot that looks different on each platform,
+  and the Shared pill already marks the card.
+- **The "·" and "Move it here →" stay together.** They now sit in one `white-space: nowrap` span
+  (`.bs-assistant-hub-card-shared-move`), with the space before the "·" outside it, so a narrow screen breaks the line
+  before the "·" and never between the "·" and the link.
+
+Tests for these: D1 (no ◐) and the new D4 (the nowrap span and rule) in the Node suite; SC1 and SC4 (no ◐) and the
+new SC7 (at 390 px, the "·" and the link on one line) in the browser spec. Before the fix, D1, D4, SC1, SC4 and SC7
+fail; after it they pass.
+- **Re-run after the fixes:** the scoped gate is `EXIT=0`, `TOTAL_FAIL=0` (assistant-shared-categories 21/0). The
+  browser specs ran against a fresh build: 74 passed, 0 failed, and the same 4 B8 skips as before.
+- **Also applied:** review non-blocking 1. The superseded-in-part line on ADR `assistant-trusted-content-status/0001`
+  now names every part it replaces: sub-decision 2's headline, sub-decision 4's done and "only others" rows, and the
+  `shared` field on every answer, sub-decision 6's included.
+- **Logged:**
+  - Non-blocking 2 (a self-entry reads as another Assistant) is ledger row
+    `2026-10-11-self-entry-reads-as-another-assistant`.
+  - Harness friction 1 is ledger row `2026-10-11-light-note-supersedes-adr`.
+  - Harness frictions 2 and 3 are recurrences, noted in rows `2026-10-11-phase-docs-cite-rebased-hashes` and
+    `2026-10-09-judge-workspace-and-served-build`.
+- **Not applied:** non-blocking 5 (the Shared pill's brightness). The owner did not ask for it.
+
 ## Linked artifacts
 
 - ADR: — (Light: the Design note above; no irreversibility trigger)
 - Test plan: this file's *Edge cases & not-covered* and *AC→handle lines*; suites `test/assistant-shared-categories.test.js`,
   `tests/brainstorm/assistant-shared-categories.spec.js`, SV18 in `tests/brainstorm/treasure-map-save.spec.js`
-- Review: (filled in at Gate B)
+- Review: `engineering-team/reviews/assistant-shared-categories/1-done-but-shared.md`

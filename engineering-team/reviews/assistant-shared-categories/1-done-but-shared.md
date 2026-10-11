@@ -199,9 +199,20 @@ None.
 ## Verdict
 **PASS**
 
-**Owner's Gate B verdict:** _(to be filled in by the owner)_
+**Owner's Gate B verdict (2026-10-11):** PASS, with the two fixes. The owner chose "Pass, with the two fixes" from:
+pass with the two fixes, pass as it is, or changes needed.
+- **The fixes:** non-blocking 3 (drop the ◐ mark) and 4 (keep "·" and "Move it here →" on one line). They were
+  applied with tests, D1 and D4 in the Node suite and SC1, SC4 and SC7 in the browser spec, which fail before the fix
+  and pass after it.
+- **Also applied:** non-blocking 1, the wording of the ADR's superseded-in-part line.
+- **Re-run after the fixes:** the scoped gate gives exit 0 and `TOTAL_FAIL=0`. The browser specs, against a fresh
+  build, give 74 passed, 0 failed and 4 skipped (the B8 skips that were there before).
+- **Logged:** non-blocking 2 is ledger row `2026-10-11-self-entry-reads-as-another-assistant`. Harness friction 1 is
+  row `2026-10-11-light-note-supersedes-adr`. Frictions 2 and 3 are noted as recurrences in rows
+  `2026-10-11-phase-docs-cite-rebased-hashes` and `2026-10-09-judge-workspace-and-served-build`.
+- **Not applied:** non-blocking 5 (the Shared pill's brightness), which the owner did not ask for.
 
 ## On PASS (same commit — applied by the spawning session)
-- [ ] Story `**Status:**` flipped to `Done` in place.
-- [ ] Completion detection: this book has one story, so if the owner passes it, the acceptance frame's five bullets
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection: this book has one story, so if the owner passes it, the acceptance frame's five bullets
   are each covered by an AC above. Whether to offer `/close-book` goes in the chat.

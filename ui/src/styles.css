@@ -8920,6 +8920,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   line-height: 1.5;
   color: rgba(226,232,240,0.6);
 }
+.bs-assistant-hub-card-shared-move { white-space: nowrap; }
 
 /* The placeholder pages */
 .bs-assistant-hub-notes-heading {

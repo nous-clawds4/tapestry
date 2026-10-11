@@ -43,17 +43,17 @@ Assistant), not to their Tapestry Assistant on staging (`8e901369…`). That is 
 
 *Proposed from the intake decisions; confirmed by the owner at story 1's Gate A (2026-10-11).*
 
-- [ ] **Three states.** For a signed-in person with an Assistant here, each of Scores, Lists and Concepts is **Needs
+- [x] **Three states.** For a signed-in person with an Assistant here, each of Scores, Lists and Concepts is **Needs
       attention** when no Map is found or the Map gives the category to no Assistant; **Done** when the Map gives it
       only to their Tapestry Assistant on this instance; and **Done, shared** when the Map gives it to any other
       Assistant, alone or beside theirs. The Map is read the way `/treasure-map`'s cards read it.
-- [ ] **Shared looks done, plus a nudge.** A shared card shows the green ✓, the green **Done** pill, a muted **Shared**
+- [x] **Shared looks done, plus a nudge.** A shared card shows the green ✓, the green **Done** pill, a muted **Shared**
       pill, and one short muted line with a link to `/treasure-map` to move the duties to their Tapestry Assistant.
-- [ ] **Shared is not counted.** The hub's "N actions need attention" line and the top-bar "Manage your Tapestry
+- [x] **Shared is not counted.** The hub's "N actions need attention" line and the top-bar "Manage your Tapestry
       Assistant" pill count a shared category as done.
-- [ ] **The rule is written down where it's read.** The three cards' pages state the new rule in their *Alert
+- [x] **The rule is written down where it's read.** The three cards' pages state the new rule in their *Alert
       criteria*. The BIBLE and the API description say the same.
-- [ ] **Nothing else moves.** Other actions, `/treasure-map`, and the hub's behaviour while the check runs or fails
+- [x] **Nothing else moves.** Other actions, `/treasure-map`, and the hub's behaviour while the check runs or fails
       are as before.
 
 ## Epics in this book

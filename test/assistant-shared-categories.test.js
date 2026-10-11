@@ -436,7 +436,7 @@ function actionCardSource() {
   return { card: code.slice(at, end > at ? end : at + 4000), page: code };
 }
 
-test('D1: the card draws the shared state — ActionCard takes `shared`; the page reads `shared` from assistantAttention and hands it to each card; the neutral pill with ASSISTANT_COPY.shared (aria-hidden); the line (bs-assistant-hub-card-shared) with ASSISTANT_COPY.sharedLine; a router Link to MANAGE_TREASURE_MAP_PATH lifted by bs-assistant-hub-inline-link with ASSISTANT_COPY.sharedMoveLink; the ◐ and · marks hidden from screen readers; doneSharedSrPrefix (AC-2)', () => {
+test('D1: the card draws the shared state — ActionCard takes `shared`; the page reads `shared` from assistantAttention and hands it to each card; the neutral pill with ASSISTANT_COPY.shared (aria-hidden); the line (bs-assistant-hub-card-shared) with ASSISTANT_COPY.sharedLine; a router Link to MANAGE_TREASURE_MAP_PATH lifted by bs-assistant-hub-inline-link with ASSISTANT_COPY.sharedMoveLink; the · mark hidden from screen readers; no ◐ mark (dropped at Gate B); doneSharedSrPrefix (AC-2)', () => {
   const { card, page } = actionCardSource();
   const wrong = [];
   for (const [re, what] of [
@@ -449,12 +449,13 @@ test('D1: the card draws the shared state — ActionCard takes `shared`; the pag
     [/ASSISTANT_COPY\.sharedLine\s*\[/, 'the line words come from ASSISTANT_COPY.sharedLine[extent]'],
     [/<Link\s+to=\{MANAGE_TREASURE_MAP_PATH\}\s+className="bs-assistant-hub-inline-link"/, 'the move link is a router Link to MANAGE_TREASURE_MAP_PATH, lifted by bs-assistant-hub-inline-link'],
     [/ASSISTANT_COPY\.sharedMoveLink\b/, 'the link words are ASSISTANT_COPY.sharedMoveLink'],
-    [/aria-hidden="true">\s*◐/, 'the ◐ mark is aria-hidden'],
     [/aria-hidden="true">\s*\{?\s*['"`]?\s*·/, 'the · separator is aria-hidden'],
     [/ASSISTANT_COPY\.doneSharedSrPrefix\b/, 'the shared screen-reader prefix is ASSISTANT_COPY.doneSharedSrPrefix'],
     [/ASSISTANT_COPY\.doneSrPrefix\b/, 'an unshared done card keeps ASSISTANT_COPY.doneSrPrefix'],
   ]) if (!re.test(/assistantAttention|<ActionCard/.test(re.source) ? page : card)) wrong.push(what);
   if (!/import\s*\{[^}]*\bMANAGE_TREASURE_MAP_PATH\b[^}]*\}\s*from\s*['"]\.\.\/\.\.\/config\/avatarMenuLinks(\.js)?['"]/.test(page)) wrong.push('Index.jsx imports MANAGE_TREASURE_MAP_PATH from ../../config/avatarMenuLinks');
+  // The owner's Gate B verdict (2026-10-11): the ◐ mark is dropped.
+  if (/◐/.test(card)) wrong.push('the ◐ mark was dropped at Gate B; the card must not draw it');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -519,6 +520,24 @@ test('D3: the CSS — one rule .bs-assistant-hub-card-shared fades by colour, no
     const behind = pillBg ? over(pillBg, CARD_BG) : CARD_BG;
     if (contrast(pillColor, behind) < 4.5) wrong.push(`the neutral pill reads at ${contrast(pillColor, behind).toFixed(2)}:1; want at least 4.5:1`);
   }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D4: the separator and "Move it here →" stay together — both inside one span, .bs-assistant-hub-card-shared-move, whose CSS rule sets white-space: nowrap, so at phone width the link never wraps away from its "·" (the owner\'s Gate B verdict, 2026-10-11; AC-2)', () => {
+  const { card } = actionCardSource();
+  const css = safeRead(STYLES);
+  const wrong = [];
+  const at = card.indexOf('className="bs-assistant-hub-card-shared-move"');
+  if (at < 0) wrong.push('no span with className "bs-assistant-hub-card-shared-move" on the card');
+  else {
+    const close = card.indexOf('</span>', card.indexOf('</Link>', at));
+    const inner = close > at ? card.slice(at, close) : '';
+    if (!/aria-hidden="true">\s*\{?\s*['"`]?\s*·/.test(inner)) wrong.push('the aria-hidden · is inside the nowrap span');
+    if (!/<Link\s+to=\{MANAGE_TREASURE_MAP_PATH\}/.test(inner)) wrong.push('the move link is inside the nowrap span');
+  }
+  const rule = ruleBody(css, '.bs-assistant-hub-card-shared-move');
+  if (!rule) wrong.push('no .bs-assistant-hub-card-shared-move rule');
+  else if (prop(rule, 'white-space') !== 'nowrap') wrong.push(`.bs-assistant-hub-card-shared-move: want white-space: nowrap, got ${show(prop(rule, 'white-space'))}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

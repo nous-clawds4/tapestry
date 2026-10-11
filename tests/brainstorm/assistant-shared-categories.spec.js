@@ -18,10 +18,11 @@ const DM = require('../../test/helpers/dutyMenuFixtures');
  *   SC2 — the look: ✓, then Done, then Shared in the title row; the pill neither green nor amber; the line under the
  *         description, in the muted colour.                                                                     [AC-2]
  *   SC3 — "Move it here →" opens /treasure-map, not the card's page; the card still leads to its page.          [AC-2]
- *   SC4 — a screen reader hears "Done, shared: Lists", "Done, shared: Scores" and "Done: Concepts"; the ◐ and · marks
- *         are hidden from it.                                                                                   [AC-2]
+ *   SC4 — a screen reader hears "Done, shared: Lists", "Done, shared: Scores" and "Done: Concepts"; the · mark is
+ *         hidden from it, and there is no ◐ mark (dropped at the owner's Gate B verdict).                       [AC-2]
  *   SC5 — (sentinel) while the answer is on its way, and after it fails, the three are marked and nothing is shared. [AC-5]
  *   SC6 — (sentinel) a visitor sees no marks, no Shared pill and no line.                                       [AC-5]
+ *   SC7 — at 390 px, "·" and "Move it here →" sit on the same line (the owner's Gate B verdict, 2026-10-11).     [AC-2]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked; /api/setup/status always answers "all done", so the Assistant pill has its turn. The
@@ -124,7 +125,8 @@ async function pillCount(page) {
   return m ? Number(m[1]) : null;
 }
 
-const lineText = (extent) => `◐ ${TC.SHARED_COPY.line[extent]} · ${TC.SHARED_COPY.link}`;
+// No ◐ mark: dropped at the owner's Gate B verdict (2026-10-11).
+const lineText = (extent) => `${TC.SHARED_COPY.line[extent]} · ${TC.SHARED_COPY.link}`;
 
 test.describe('Done, but shared (assistant-shared-categories #1)', () => {
   test.beforeEach(async () => {
@@ -172,7 +174,7 @@ test.describe('Done, but shared (assistant-shared-categories #1)', () => {
     await expect(page).toHaveURL(new RegExp(`${TC.SHARED_COPY.to}$`));
   });
 
-  test('SC4: a screen reader hears "Done, shared: Scores", "Done, shared: Lists" and "Done: Concepts"; there are two "Move it here →" links; the ◐ and · marks are hidden from it (AC-2)', async ({ page }) => {
+  test('SC4: a screen reader hears "Done, shared: Scores", "Done, shared: Lists" and "Done: Concepts"; there are two "Move it here →" links; the · mark is hidden from it and there is no ◐ (AC-2)', async ({ page }) => {
     await mock(page, answerWith(OWNERS_TRIO));
     await open(page, X.HUB);
     await expect(page.getByRole('link', { name: `${TC.SHARED_COPY.srPrefix}Scores`, exact: true })).toHaveAttribute('href', TC.CARDS[0].path);
@@ -190,8 +192,9 @@ test.describe('Done, but shared (assistant-shared-categories #1)', () => {
       }
       return out;
     });
-    expect(exposed, 'the ◐ and · marks are aria-hidden').toEqual([]);
+    expect(exposed, 'the · mark is aria-hidden').toEqual([]);
     expect(await page.locator('.bs-assistant-hub-card-shared').count()).toBe(2);
+    await expect(page.locator('.bs-assistant-hub-card-shared', { hasText: '◐' }), 'no ◐ mark').toHaveCount(0);
   });
 
   test('SC5 (sentinel): while the answer is on its way, and after it fails, the three are marked Needs attention and nothing is shared (AC-5)', async ({ page }) => {
@@ -205,6 +208,28 @@ test.describe('Done, but shared (assistant-shared-categories #1)', () => {
     await open(page, X.HUB);
     for (const title of ['Scores', 'Lists', 'Concepts']) {
       expect(await cardState(page, title), `${title} after a failure`).toEqual({ marked: true, done: false, shared: false, line: '' });
+    }
+  });
+
+  test('SC7: at 390 px, the "·" and "Move it here →" sit on the same line in both shared cards (the owner\'s Gate B verdict; AC-2)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await mock(page, answerWith(OWNERS_TRIO));
+    await open(page, X.HUB);
+    for (const title of ['Scores', 'Lists']) {
+      const line = sharedLine(cardOf(page, title));
+      const tops = await line.evaluate((p) => {
+        const link = p.querySelector('a');
+        const dot = [...p.querySelectorAll('[aria-hidden="true"]')].find((el) => el.textContent.includes('·'));
+        if (!link || !dot) return null;
+        const range = document.createRange();
+        range.selectNodeContents(dot);
+        const dotRects = [...range.getClientRects()];
+        const linkRects = [...link.getClientRects()];
+        return { dot: Math.round(dotRects[dotRects.length - 1].top), link: Math.round(linkRects[0].top), linkLines: linkRects.length };
+      });
+      expect(tops, `${title}: the line has its · and its link`).not.toBeNull();
+      expect(tops.link, `${title}: the link starts on the line its · ends on`).toBe(tops.dot);
+      expect(tops.linkLines, `${title}: the link is on one line`).toBe(1);
     }
   });
 

@@ -16,5 +16,10 @@ pre-rebase hash they ran on.
 - Phase documents cite a commit only after it is on `origin/staging`, or cite the gate run id instead.
 - Alternatively, a lint check (L-series) that every 7+ hex hash in a phase document resolves to an ancestor of HEAD.
 
+**Recurred 2026-10-11 (`assistant-shared-categories` #1, Gate B review, harness friction 2).** The Implementer's
+full-suite record sat on `035c80ea`. That commit was rebased onto another session's push and landed as `397d236`, so
+`035c80ea` is not an ancestor of `staging`. The Reviewer re-ran the suite at HEAD for the review. The story's evidence
+section now names the landed commit.
+
 **Pointer:** `engineering-team/reviews/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md` (NB13, Harness
 friction).

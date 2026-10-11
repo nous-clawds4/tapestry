@@ -4,7 +4,7 @@
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md`
 
-> **Superseded in part (2026-10-11):** sub-decision 4's "only others" row (`other-assistants-only`) is retired. A category the Map gives to any Assistant is `done`, and each answer gains `shared` (`partly` / `entirely` when another Assistant holds it beside or instead of the viewer's own, else null), so the hub counts it as done and marks it Shared. See `engineering-team/stories/assistant-shared-categories/1-done-but-shared.md` (Design note; book `assistant-shared-categories`). The rest of this ADR stands.
+> **Superseded in part (2026-10-11):** "done" now means the Map gives the category to any Assistant, not that the viewer's Assistant is among them, which replaces sub-decision 2's headline. In sub-decision 4 the "only others" row (`other-assistants-only`) is retired, the done row covers any Assistant, and each answer, including sub-decision 6's `check-failed` answer, gains `shared`: `partly` or `entirely` when another Assistant holds the category beside or instead of the viewer's own, else null. The hub counts a shared category as done and marks it Shared. See `engineering-team/stories/assistant-shared-categories/1-done-but-shared.md` (Design note; book `assistant-shared-categories`). Sub-decision 2's reading of the Map (first delegate per key, hidden `*`, `*:…` ignored) and the rest of this ADR stand.
 
 ## Context
 

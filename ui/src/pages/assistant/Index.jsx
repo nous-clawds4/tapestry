@@ -54,10 +54,13 @@ function ActionCard({ action, marked, done, shared }) {
         <p className="bs-assistant-hub-card-text"><ActionText parts={action.description} /></p>
         {isShared && (
           <p className="bs-assistant-hub-card-shared">
-            <span aria-hidden="true">◐ </span>
-            {ASSISTANT_COPY.sharedLine[shared]}
-            <span aria-hidden="true"> · </span>
-            <Link to={MANAGE_TREASURE_MAP_PATH} className="bs-assistant-hub-inline-link">{ASSISTANT_COPY.sharedMoveLink}</Link>
+            {ASSISTANT_COPY.sharedLine[shared]}{' '}
+            {/* The "·" and the link stay together on a narrow screen; the line may break only before the "·" (the
+                owner's Gate B verdict, 2026-10-11). */}
+            <span className="bs-assistant-hub-card-shared-move">
+              <span aria-hidden="true">· </span>
+              <Link to={MANAGE_TREASURE_MAP_PATH} className="bs-assistant-hub-inline-link">{ASSISTANT_COPY.sharedMoveLink}</Link>
+            </span>
           </p>
         )}
       </div>
