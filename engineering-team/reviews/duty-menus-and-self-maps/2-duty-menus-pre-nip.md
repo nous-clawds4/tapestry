@@ -216,5 +216,5 @@ All five rows agree with the rules. Row 4's "instead" is the only place that set
 
 Blocking: B1 (`protocols/drafts/duty-menus.md:38` against `:134`) and B2 (`protocols/drafts/duty-menus.md:283`). Both are one-sentence fixes, and the rest of the spec is accurate and conforms to the ADR. On the next round, check each reworded sentence as a fresh claim against treasure-maps.md:48, :527 and trust-determination-methods.md:87, including any wording taken from this review.
 
-## On PASS (same commit)
+## Close-out on a pass (same commit)
 - n/a this round: the story stays `Approved`. There is no completion detection, because the book cannot be complete with story 2 open.
