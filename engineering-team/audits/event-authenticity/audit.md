@@ -50,7 +50,7 @@
 ## 6. Carry-forward register
 
 - [ ] **F3:** io-import path ingesting events with `--no-verify` (+ its Cypher injection). — its own future epic/book.
-- [ ] **F4:** `trusted-list/publish` missing an auth gate; **F5:** the POST-only owner-gate class. — authorization track (relates to the 2026-07-21 authenticated-non-owner intake), not this authenticity epic.
+- [x] **F4:** `trusted-list/publish` missing an auth gate; **F5:** the POST-only owner-gate class. — authorization track (relates to the 2026-07-21 authenticated-non-owner intake), not this authenticity epic. *(Closed 2026-10-11 by book `admin-action-owner-check`: one route table, default-deny; production PR #847 and the sandbox ports.)*
 - [ ] **Sandbox propagation:** merge `staging` → `feat/tags`, `feat/communities`, `feature-magic-carpet`, `feat/curate` (still expose the pre-fix publish path).
 - [ ] Update the private security advisory: **F1 can now be marked fixed** (shipped to prod 2026-09-11); F2 substantially closed; F3–F5 open.
 - [ ] (Deferred, ADR 0001 §Out of scope) the publish-reporting `success:true`-on-relay-rejection honesty issue.

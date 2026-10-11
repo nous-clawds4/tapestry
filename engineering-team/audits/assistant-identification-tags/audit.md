@@ -226,8 +226,9 @@ non-blocking findings, then reconciled against the diff.
       §4 #4)
 - [ ] **10. BIBLE §11 tidy:** the two new rows sit inside the strfry block, and `/api/setup/status` has no row at all.
       (review 1 non-blocking 4; docs-lane)
-- [ ] **11. OPEN.md row 269:** the generic publish endpoint lets admins mint as the instance TA though its docs said
-      owner-only. Pre-existing; this route's docs name the gate as it is. (§4 #10)
+- [x] **11. OPEN.md row 269:** the generic publish endpoint lets admins mint as the instance TA though its docs said
+      owner-only. Pre-existing; this route's docs name the gate as it is. (§4 #10) *(2026-10-11: settled owner-only
+      by book `admin-action-owner-check`; row 269 is DONE.)*
 - [ ] **12. The other nine actions' answers and pages, and the DMs** (intake 2026-09-21, still partly open); the
       kind-0 `p`-tag form of the handshake (intake 2026-08-09). (epic § Deferred)
 - [ ] **13. Nine `tag-detail-write` browser cases red on this host** (ledger `2026-09-22-staging-browser-class-83-red`;

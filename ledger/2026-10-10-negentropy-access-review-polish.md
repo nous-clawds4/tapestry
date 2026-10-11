@@ -34,6 +34,15 @@ fixes work as shipped, and the reviewers checked these gaps by hand or by readin
 Accepted, not to do: the owner and admin pass is not exercised against the real middleware (story 6 AC-3, story 7
 AC-3), because `isOwner` reads `/etc/brainstorm.conf`.
 
+**2026-10-11 (story `security-auth-exposure` #8):**
+- The OpenAPI entry for `/api/run-task` now states the owner rule and both answers, and five task-control entries were
+  added. The saved presets list still has no entry.
+- The `authenticatedEndpoints` early pass named under P5 no longer exists.
+- The "accepted, not to do" item is now done: `getConfigFromFile` honours `BRAINSTORM_CONF_PATH`, and
+  `test/admin-action-sweep-access.test.js` runs the real check for the owner and an admin.
+
+The other items stand.
+
 **Pointer:** `engineering-team/reviews/security-auth-exposure/4-negentropy-sync-owner-and-admins.md` (round 1,
 non-blocking 3, 5); `5-paths-judged-case-insensitively.md` (non-blocking 2); `7-head-judged-as-get.md` (round 1,
 non-blocking 1, 3); `engineering-team/audits/negentropy-sync-access/audit.md` §6 #4.

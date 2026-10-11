@@ -63,4 +63,4 @@
 - [ ] `[UNKNOWN]` Is unauthenticated **read** Cypher acceptable as a permanent posture, or must it be closed? (Currently open by design.)
 - [ ] `[UNKNOWN]` Should logged-out profile tagging (`ProfileTagsSection`) remain, or be gated behind login like its siblings?
 - [ ] `[UNKNOWN]` Are there external programmatic clients that legitimately need any backend port open, before the firewall locks them?
-- [ ] `[INFERRED→confirm]` Is authenticated-non-owner (logged-in guest) access to unlisted mutations acceptable, or should the authenticated branch also default-deny?
+- [x] `[INFERRED→confirm]` Is authenticated-non-owner (logged-in guest) access to unlisted mutations acceptable, or should the authenticated branch also default-deny? *(Answered 2026-10-10: default-deny for everyone outside the owner's side, with an approved allowlist; shipped 2026-10-11, book `admin-action-owner-check`.)*

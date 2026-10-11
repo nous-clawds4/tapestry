@@ -17,4 +17,12 @@ violation. `a04f95a` was the shallow clone's boundary; see OPEN.md row `2026-10-
 **Fix shape.** Make L1's fetch honour `HTTPS_PROXY` (an undici `EnvHttpProxyAgent`, or `NODE_USE_ENV_PROXY=1` in the
 gate's environment), or treat a 403 that carries no body from the site itself as "no network" (SKIP) rather than FAIL.
 
+**The same class in a sibling suite (book `admin-action-owner-check` close, 2026-10-11, audit §7 #7).**
+`test/information-for-agents.test.js` L1 checks every link in the agents' briefing with the same kind of fetch. It
+already SKIPs a 403 whose body is the egress gateway's (`isEgressRefusal`), but it reads a 502 or 504 that the proxy
+writes as the link's own answer. The book's coordinator saw its github.com links fail that way, intermittently, during
+full runs on changes that did not touch the suite. The fix shape above should cover both suites, and treat a
+gateway-written 5xx (no answer from the site itself) as "no network" too. Row 172's renewal ritual relies on both
+checks; it does not cover a flaky run.
+
 **Pointer:** `test/llms-txt.test.js` (`fetchForLinkCheck`, L1); OPEN.md row 172 (the renewal ritual that relies on L1).

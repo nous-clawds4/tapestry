@@ -16,5 +16,9 @@ second safeguard, but some registered paths contain capitals (e.g. `/api/get-str
 Related cleanup: the middleware's `authenticatedEndpoints` entries for the negentropy routes are redundant since story 4
 (the routes' own guard decides) and match by substring; removing them would not widen access.
 
+**2026-10-11:** the related cleanup is done. ADR `security-auth-exposure/0005` deleted `authenticatedEndpoints` with
+the other hand-kept lists (story 8, `151e39fb`). Case-sensitive routing as a second safeguard is still open. The route
+table matches with Express's own case-insensitive route options (`resolveRouteAccess`).
+
 **Pointer:** `engineering-team/stories/security-auth-exposure/5-paths-judged-case-insensitively.md` § Out of scope;
 review `security-auth-exposure/4` non-blocking 6.

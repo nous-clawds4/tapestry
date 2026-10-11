@@ -1813,7 +1813,7 @@ If this holds, the following are reachable unauthenticated from the internet on 
 
 ## 2026-07-21 — Security: gate authenticated-non-owner access to admin mutations (security-auth-exposure phase 2)
 
-**PICKED UP** 2026-10-10 → book `engineering-team/audits/admin-action-owner-check/book.md`, story `security-auth-exposure` #8 (`engineering-team/stories/security-auth-exposure/8-admin-action-sweep.md`, Draft). The whole entry moves there, addenda included; see the last addendum.
+**PICKED UP** 2026-10-10 → book `engineering-team/audits/admin-action-owner-check/book.md`, story `security-auth-exposure` #8 (`engineering-team/stories/security-auth-exposure/8-admin-action-sweep.md`, Done; shipped everywhere 2026-10-11; book Closed 2026-10-11). The whole entry moves there, addenda included; see the last addendum.
 
 **Origin:** the post-fix regression audit of 2026-07-21 (after the `run-query` client-caller regression). The audit confirmed **0 active regressions** from the security changes, but surfaced a concrete instance of a **pre-existing** gap: `POST /api/strfry/wipe` had no owner check and could be triggered by a **logged-in non-owner** to wipe the local relay (it execs `strfry delete --filter='{}'`). That one instance was **closed this session** (`7873f156` — `isOwner || localTrusted → 403` gate + `test/strfry-wipe-owner-gate.test.js` + hid the button; shipped staging/prod/tags). This entry scopes the **class** it was one instance of. Operator explicitly asked to scope it as a follow-up.
 

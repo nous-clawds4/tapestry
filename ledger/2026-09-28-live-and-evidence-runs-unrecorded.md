@@ -20,5 +20,13 @@ OPEN.md row 59 (live failures masked by environmental skips).
 environment-dependent test class's commit, Node version and counts, or an explicit "not run" and why. The story
 template gains an "Evidence" section, and evidence runs are taken on the committed tree, as the after-gate is.
 
+**Seen again, 2026-10-11 (book `admin-action-owner-check` close, audit §4 #5 and §7 #12).** Story
+`security-auth-exposure` #8's test plan prescribed two live checks at deploy (§ Live / manual):
+- the visitor probes (AC-9), which story 8 § Shipped records on all four sites;
+- the firmware-install bridge and a loopback scheduled job still working (AC-3), which it does not record.
+
+The review's "Before shipping" list asked for both. Nothing required the record, so the close cannot tell whether the
+second check ran. The follow-up is ledger `2026-10-11-instance-scripts-live-check-unrecorded`.
+
 **Pointer:** `engineering-team/reviews/tagging-edges/2-gap-filling-pass-and-backfill.md` § Harness friction 1–2;
 `test/tagging-edges-live.test.js`; `engineering-team/workflows/4-implementation.md`.

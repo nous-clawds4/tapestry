@@ -67,7 +67,7 @@ ADR: `decisions/sandbox-security/0001-port-production-security-fixes-to-sandboxe
 - [ ] **Operator: delete the `DEPLOY_*_COMMUNITIES` / `DEPLOY_*_CURATE` repo secrets** (decommission pass; noted in OPERATIONS §2).
 - [ ] **Operator: add `feat/tags` to the live `restrict-deletions` ruleset** (GitHub settings — OPEN.md row 14).
 - [ ] **`feat/tags` is far behind `staging`** (cherry-picks accumulating) — a real sync eventually conflicts (OPEN.md row 195; not this book's to fix).
-- [ ] **Out of scope (production has them too):** F3–F5 + the private advisory (OPEN.md row 276 — now records sandbox-propagation DONE); the authenticated-non-owner admin-mutation gap.
+- [ ] **Out of scope (production has them too):** F3–F5 + the private advisory (OPEN.md row 276 — now records sandbox-propagation DONE); the authenticated-non-owner admin-mutation gap. *(2026-10-11: the gap and F4/F5 are closed on production and both sandboxes by book `admin-action-owner-check`; F3 and the advisory stay open.)*
 
 ## 7. Process findings (harness)
 

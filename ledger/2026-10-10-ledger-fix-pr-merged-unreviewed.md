@@ -43,6 +43,15 @@ prerequisite PR meets the same gap.
   - a review before the book closes.
 - **Scope.** This half applies to the human-gated flow only: a Direction run cannot ship to production.
 
+**A third instance (book `admin-action-owner-check`, appended at its close, 2026-10-11; audit §7 #10).** Batch 0
+(`651a35f1`; PRs #844–#846) changed eight handler files and added a suite. It went to production and both sandboxes as
+an owner-approved hotfix, ahead of the book's Architecture gate. Unlike the second instance, nothing reviewed it
+afterwards: there was no story, test plan or review, and its record is ledger row
+`2026-10-10-request-values-reached-a-shell`. The coordinator's own reading of the diff was the only check. It caught a
+ReferenceError the change had introduced, which the new suite had passed (audit §7 #3). The book's Reviewer read the
+diff at the close and found no defect; that is a reading, not a review. The fix shape's list of what an above-bar
+hotfix owes afterwards should include a review file, even when the hotfix rides inside a larger book.
+
 **Pointer:** `engineering-team/audits/relay-stream-gaps/audit.md` §4 (Undocumented work) and §7;
 `engineering-team/reviews/done/relay-stream-gaps/1-stream-changes-without-router-restart.md` header and Quality gates;
 `ledger/2026-09-30-router-saved-state-revalidation.md`; `engineering-team/workflows/0-intake.md` step 3;

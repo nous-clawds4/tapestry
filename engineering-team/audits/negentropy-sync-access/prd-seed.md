@@ -86,16 +86,20 @@ Promoted from the build audit §6:
 See audit §6 for the linked register.
 
 ## 7. What product must validate
-- [ ] **The default for administrative actions.** Is it "owner and admins" everywhere, and which actions, if any, should
+- [x] **The default for administrative actions.** Is it "owner and admins" everywhere, and which actions, if any, should
       customers or ordinary signed-in people keep? The sweep's Architecture needs this before it classifies routes.
+      *(Answered 2026-10-10: the owner's side by default, with an allowlist the owner approved entry by entry; book
+      `admin-action-owner-check`.)*
 - [ ] **The POV sync's relays.** Any relay, or public relays only? And how much of the instance's one sync slot may one
       person hold (a per-person limit, or a separate slot)? (ledger `2026-10-10-pov-sync-relay-scope`)
 - [ ] **What people who can't act should see.** Hidden, disabled with an explanation, or the bare 403: for Relay
-      Settings' sync panel and the task explorer's Run buttons.
-- [ ] **Task reads.** Should task status, history and schedules stay public, like the other task dashboards?
-- [ ] **Is "admin" a role with its own powers, or the owner's equal?** In this book's surfaces admins equal the owner.
+      Settings' sync panel and the task explorer's Run buttons. *(2026-10-10: the bare 403 now, and a follow-up story
+      to hide or disable the controls; which of the two is open, `audits/admin-action-owner-check/prd-seed.md` §7.)*
+- [x] **Task reads.** Should task status, history and schedules stay public, like the other task dashboards? *(Answered 2026-10-10: yes, they stay public.)*
+- [x] **Is "admin" a role with its own powers, or the owner's equal?** In this book's surfaces admins equal the owner.
       Whether some actions should stay owner-only was never decided (OPEN.md row 269 is one place the two differ on
-      paper).
+      paper). *(Answered 2026-10-10: the owner's equal, except signing as the instance's
+      assistant and changing the admin list, which are the owner's alone; row 269 is DONE.)*
 - [ ] **Open sign-in.** Should any nostr key keep being able to sign in? It is the premise that makes "signed in" mean
       "not trusted". The question was carried from the `auth-signature-verification` seed and is still not a recorded
       product decision.

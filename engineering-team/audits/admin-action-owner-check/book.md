@@ -1,9 +1,9 @@
 # Book of Work: Every admin action checks who is asking — the sweep
 
 **Slug:** admin-action-owner-check
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-10
-**Closed:** —
+**Closed:** 2026-10-11
 **Gating:** **Human-gated.** A live access-control change on every deployed instance; the owner answers every gate.
 No Direction mode.
 
@@ -47,7 +47,7 @@ for more members.
 
 ## Epics in this book
 
-- `security-auth-exposure` — story 8. The epic **stays Done**. This open book carries the active-work signal, as
+- `security-auth-exposure` — story 8. The epic **stays Done**. This book carried the active-work signal, as
   `audits/auth-signature-verification/` did for story 3 and `audits/negentropy-sync-access/` did for stories 4–7
   (OPEN.md row 268).
 
@@ -124,9 +124,18 @@ proposed; two sensitive public reads closed to the owner's side.
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. Every frame bullet is backed by a PASS review that re-derived it, a green gate, merges
+  and successful deploys on all four sites (production run 147, `staging` run 590, `feat/tags` run 93,
+  `feature-magic-carpet` run 36; checked through the GitHub API at the close) and live visitor probes recorded in story 8
+  § Shipped. Two claims are narrower than the frame's words, and the audit records both: the instance's own scripts
+  are shown by code and a simulated behaviour diff, not by a recorded live run (audit §4 #5); and the gate names a new
+  unsorted route only when `register(app)` adds it, not the entrypoint file (audit §4 #6). Neither has a member today.
+  Three findings from the sweep stay open and are cited by ledger id only (audit §5).
+- **Epic housekeeping at close:** `security-auth-exposure` stays Done; its folders stay outside `done/`, as after the
+  2026-09-11 and 2026-10-10 closes (audit §2).
 
 ## Close artifacts *(filled by `/close-book`)*
 
 - Build audit: `engineering-team/audits/admin-action-owner-check/audit.md`
 - Product feedback: `engineering-team/audits/admin-action-owner-check/prd-seed.md`
+- Inventory (committed with the fix): `engineering-team/audits/admin-action-owner-check/inventory.md`

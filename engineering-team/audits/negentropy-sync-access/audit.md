@@ -138,25 +138,31 @@ it is story 4's AC-7. `6c972fc8`, inside the commit range, records two other boo
 
 ## 6. Carry-forward register
 
-- [ ] **1. The admin-action sweep: the owner's chosen next story.** Inventory every route, POST/PUT/PATCH/DELETE *and*
+- [x] **1. The admin-action sweep: the owner's chosen next story.** Inventory every route, POST/PUT/PATCH/DELETE *and*
       GET, classify each, and put an owner (or owner-or-admin) guard that admits direct-local callers on every
       administrative one. Pair it with a test or lint that flags an unguarded route. Its scope also covers the
       POST-only owner list (story 7 Out of scope) and a prefix overlap between two middleware list entries (review 5,
       non-blocking 3; harmless today because the handler checks the caller itself). The same class is pointed at by
       OPEN.md row 276 (F4/F5), `audits/security-auth-exposure/audit.md` §6 and `audits/event-authenticity/audit.md` §6.
       (§4 #7; `stories/_intake.md` 2026-07-21 and its addenda — the entry is the plan; this line does not restate it)
+      *(Closed 2026-10-11 by book `admin-action-owner-check`: one route table, default-deny; production PR #847 and the sandbox ports.)*
 - [ ] **2. The POV sync may name any relay,** holds the one sync slot for up to 10 minutes, and returns strfry's output.
       Decide public relays only, and a per-person limit or a separate slot. (§4 #5; ledger `2026-10-10-pov-sync-relay-scope`)
 - [ ] **3. Case-sensitive routing as a second safeguard,** and removing the redundant `authenticatedEndpoints` entries.
-      (§4 #6; ledger `2026-10-10-case-sensitive-routing`)
+      (§4 #6; ledger `2026-10-10-case-sensitive-routing`) *(2026-10-11: the entries are gone with the other lists, book
+      `admin-action-owner-check`; case-sensitive routing is still open.)*
 - [ ] **4. The reviews' open non-blocking notes:** test gaps (A2, A8, P5, H5, the direct-local and customer branches
       under capitals), the `relay` type check in the strfry sync handler, the OpenAPI gap for task control, and two
-      test-plan wording slips. (§4 #8; ledger `2026-10-10-negentropy-access-review-polish`)
-- [ ] **5. A new sync route must mount a guard;** nothing catches one that doesn't. The sweep's "flag an unguarded
-      route" test would. (ADR 0004 Consequences; folds into #1 if the sweep takes it)
+      test-plan wording slips. (§4 #8; ledger `2026-10-10-negentropy-access-review-polish`) *(2026-10-11: the task-control OpenAPI
+      gap is closed by book `admin-action-owner-check`; the rest stands, see the row.)*
+- [x] **5. A new sync route must mount a guard;** nothing catches one that doesn't. The sweep's "flag an unguarded
+      route" test would. (ADR 0004 Consequences; folds into #1 if the sweep takes it) *(2026-10-11: an unsorted route
+      is the owner's side's, and the gate names it; book `admin-action-owner-check`.)*
 - [ ] **6. What people who can't act should see:** Relay Settings' sync panel and the task explorer's Run buttons
-      refuse non-admins with 403 but stay visible. (story 4 Out of scope; review 6 round 1, non-blocking 3; `prd-seed.md` §7)
-- [ ] **7. Whether task status, history and schedules stay public reads.** (story 6 Out of scope; `prd-seed.md` §7)
+      refuse non-admins with 403 but stay visible. (story 4 Out of scope; review 6 round 1, non-blocking 3; `prd-seed.md` §7) *(2026-10-11: the owner chose the
+      bare 403 now and a follow-up story; carried as `audits/admin-action-owner-check/audit.md` §6 #1.)*
+- [x] **7. Whether task status, history and schedules stay public reads.** (story 6 Out of scope; `prd-seed.md` §7)
+      *(2026-10-11: they stay public, the owner's answer c in book `admin-action-owner-check`.)*
 
 *Earlier registers ticked at this close:* `audits/assistant-outbox-relays/audit.md` §6 #2 ("who may start a negentropy
 sync, and with which relays"). Its "who" half is this book. Its "which relays" half is carried here as #2.
