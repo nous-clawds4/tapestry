@@ -20,7 +20,17 @@ valid, current menu is found.
 1. `1-the-duty-menu-page-and-its-check.md`: what this instance offers for the viewer's Assistant, the menu found
    for it now, whether they match, the hub's real mark, and the page that shows all three. Read-only.
 2. *(planned)* Your Assistant publishes its Duty Menu: the button, the event (`duty-menus.md` §§ 4–5), where it
-   goes (§ 8.1's publisher rule), and the report. Depends on 1.
+   goes (§ 8.1's publisher rule), and the report. Depends on 1. Carried from story 1's review (non-blocking):
+   - **Hub latency.** Every hub load waits for the slowest outside relay, up to 8 s, even when this instance's relay
+     holds the menu. The measured worst case is about 24 s, against the ADR's about 19 s (NB1, NB2). Once story 2
+     writes each menu here first, consider a local-first lookup: § 8.1 lets a reader ask fewer relays. That needs an
+     AC-3 amendment and an ADR.
+   - **`isDutyMenu` never checks `event.pubkey`.** Its callers must filter by author first (NB5). The publisher must not
+     rely on it alone.
+   - **Doc touch-ups:** `attention.js`'s header lines 10 and 48 (NB9); BIBLE §11's row for the DList fallback and the
+     50-relay cap (NB12); an empty found menu shows only the heading and the mark (NB7).
+   - **The relay-list-publish S3 sentinel.** Consider an allow-list, or moving `isPublicRelayHostWithin` into
+     `src/utils/ssrfGuard.js` (ADR 0001 Amendment 1 item 8; NB10).
 
 ## Key facts / guardrails
 

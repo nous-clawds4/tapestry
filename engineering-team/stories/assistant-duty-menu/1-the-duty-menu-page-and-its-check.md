@@ -1,6 +1,6 @@
 # Story 1: The Duty Menu page and its check
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-11
 **Type:** Feature
 **Epic:** `assistant-duty-menu`
@@ -243,4 +243,4 @@ pubkey (epic § Key facts).
 
 - ADR: `engineering-team/decisions/assistant-duty-menu/0001-a-duty-menu-check-beside-the-others.md`
 - Test plan: `engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md`

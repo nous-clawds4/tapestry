@@ -312,8 +312,9 @@ attention and relay-list-publish suites showed only their baseline environment f
 
 ### Amendment 2 (2026-10-11, after Implementation, before Review)
 
-The implementation landed at `7f9fdf92` (gate `20261011T202823Z-11237-12cc`: PASS, 5661 passed, 0 failed). ADR 0001
-Amendment 2 followed at `6f9bd983`. This round added L12, U31, U32 and P6, changed the fixture's none line (which P1 and
+The implementation landed at `b2477a93` on `staging` (`7f9fdf92` before a rebase; gate `20261011T202823Z-11237-12cc`: PASS, 5661 passed, 0 failed). ADR 0001
+Amendment 2 followed at `2a4e63ab` (`6f9bd983` before a rebase). Gate records quoted below keep the hashes they ran
+on, which are pre-rebase. This round added L12, U31, U32 and P6, changed the fixture's none line (which P1 and
 D5 read) and browser B6, and added `MAX_EVENT_RELAYS` to the fixture.
 
 Against the implementation, only the new or changed tests fail, each because the implementation predates the amendment:

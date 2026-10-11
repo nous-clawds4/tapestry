@@ -79,6 +79,12 @@ re-read `duty-menus.md` for changes to §§ 3–8 and § 11.
   `isDutyMenu` implements the four conditions the spec states today, and this instance's own menus never carry such a
   `z`. If that sub-decision lands in `duty-menus.md`, `isDutyMenu` gains the fifth condition, and its tests gain a
   case for it. Recheck this before Review.
+- **Recheck at Review (2026-10-11).**
+  - **ADR `duty-menus-and-self-maps/0003`'s fifth § 6.1 condition** was folded in early, by ADR
+    `assistant-duty-menu/0001` Amendment 2.
+  - **The parallel book `assistant-shared-categories`** (Light trial) edits the same hub lines next: `attention.js`,
+    `actions.js`, `openapi.yaml` and BIBLE §11. It builds on this story. `git merge-tree --write-tree HEAD
+    origin/staging` was clean at `57fbb432`.
 
 ## Provenance
 

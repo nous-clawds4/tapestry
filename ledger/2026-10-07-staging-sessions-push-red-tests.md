@@ -46,3 +46,8 @@ Review, because the hook kept asking and the owner had not answered which to pre
 would have avoided both.
 
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.
+
+**Recurrence, 2026-10-11 (assistant-duty-menu #1).** The same pattern recurred, in both directions:
+- This book's Phase-3 failing tests sat on `origin/staging` from `2d67d055` until `b2477a93`, about 40 minutes.
+- Its reviewer found the tip red again from the parallel book `assistant-shared-categories`'s failing tests at
+  `57fbb432`, unrelated to this story (review, harness friction 2).
