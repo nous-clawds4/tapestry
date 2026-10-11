@@ -1969,7 +1969,8 @@ for that approval by name:
 
 **Named after approval (revision 3).** ADR 0003 A1-4 also departs from story 3 as approved: AC3's "plus a matching
 self-entry" gives way, for a self-entry whose element 3 is the empty string, to § 9.2's "confirms no duty". The rule
-was in the text the owner approved; the departure was not named there.
+was in the text the owner approved; the departure was not named there. The owner confirmed it by name on 2026-10-11,
+before story 3's review.
 
 ### Consequences of A1
 

@@ -505,9 +505,8 @@ not edited: read them as below.
   it still wins insights among A's self-entries (§ 6), but confirms no duty" (ADR 0003 A1-4's sentence for Treasure
   Maps § 9.2, Its relay). Nothing changes for a self-Map that follows § 9.2, since no self-entry there has an empty
   relay.
-  - *Not yet confirmed by name.* The rule was in the text of A1 that the owner approved, but ADR 0003 named this
-    departure only at A1's revision 3, after the approval. Until the owner confirms it by name, this line records the
-    approved rule.
+  - *Confirmed by name.* The rule was in the text of A1 that the owner approved, but ADR 0003 named this departure
+    only at A1's revision 3, after the approval. The owner confirmed it by name on 2026-10-11, before review.
 - **AC7's "the rest of the user-signed designation is unchanged"** gives way, at one sentence of Assistant Designation
   § Relationship to NIP-85, to AC7's "no longer contradicts it" (ADR 0003 A1-9). The sentence follows the quoted "Each
   triple delegates" sentence: "A triple whose provider is the event's own author is the exception: it designates no
