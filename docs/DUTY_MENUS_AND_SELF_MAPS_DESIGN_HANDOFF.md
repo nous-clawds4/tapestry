@@ -1,6 +1,25 @@
 # Duty Menus and Self-Maps — Design Handoff
 
-**Status:** 🔴 OPEN — design captured 2026-10-10; name and header model decided (D8–D10). Ratification started 2026-10-10 as book `duty-menus-and-self-maps` (`engineering-team/audits/duty-menus-and-self-maps/book.md`); nothing landed in `protocols/` yet.
+**Status:** ✅ SUPERSEDED (2026-10-11): spec ratified in `protocols/`; code NOT built (tracked in `engineering-team/stories/_intake.md` § "2026-10-11 — Duty Menus and Self-Maps in code" and ledger row `2026-10-10-external-assistant-relay-left-empty`).
+
+**Where each part landed** (book `duty-menus-and-self-maps`):
+- D1: *offered* → `protocols/drafts/duty-menus.md` (§§ 1, 10); *active* → `protocols/drafts/treasure-maps.md` § 9.2.
+- D4, D5, D7, D8, D9 and the § 4 shapes → `duty-menus.md` (§§ 3–5, 7, 8). D2 (not kind 0) is a reason recorded only in
+  this handoff's § 2; D3's reason is in ADR `duty-menus-and-self-maps/0002`, and its fallback-locator role →
+  `treasure-maps.md` § 3.
+- D6 (no expiration on self-Maps) → `treasure-maps.md` § 9.2.
+- D10, the self-pointing `b` → `protocols/drafts/inherit-from.md` § "The `b` tag", with a pointer in
+  `shared-concepts.md`; the header itself → `duty-menus.md` § 3.
+- § 4.2's reservation of `duty-menu` → `duty-menus.md` § 4, and the Map-key rule → `treasure-maps.md` § 4.6.
+- § 5, Self-Maps → `treasure-maps.md` §§ 1, 2, 3, 7, 9, 9.2 and 13, and `protocols/drafts/assistant-designation.md`
+  § Authorship.
+- The spec half of § 6 (filling the relay) → `treasure-maps.md` § 3 and `duty-menus.md` § 6.2 step 5.
+- The W1 note → `protocols/worksheet.md`.
+
+**Open questions:** Q4 (private duties) is tracked in `treasure-maps.md` § 13 question 8, `duty-menus.md` § 14
+question 1 and worksheet W22; Q6 (NosFabrica adoption) in the intake entry above; Q5 and Q7 were settled by the owner
+on 2026-10-10 (`engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Out of scope).
+
 **Created:** 2026-10-10
 **Provenance:** Scoped in one advisory session on 2026-10-10, started by the owner's question about the new external-Assistant support on `/treasure-map`. This is the Capture step of the Protocol-Spec workflow (`engineering-team/workflows/protocol-spec-workflow.md`): what is decided, what is proposed but not yet confirmed, and what is still open. Flip to ✅ SUPERSEDED once the pieces land in `protocols/`.
 

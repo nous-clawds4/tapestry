@@ -2840,3 +2840,47 @@ book Decision 1.
 
 **Classification:** feature, page and one read-only check (no event shape, auth default, schema, dependency or
 routing change), so the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B.
+
+## 2026-10-11 — Duty Menus and Self-Maps in code: publish and read them, and the /treasure-map changes (feature; waits on the specs)
+
+- **Origin:** `docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md` §§ 6–8 (✅ SUPERSEDED: its design is in `protocols/`;
+  its code is not built). The book `duty-menus-and-self-maps` ratified the specs and left code to "a separate book,
+  opened after this one".
+- **What a build would do** (handoff § 8's engineering steps, as the specs now read):
+  1. Nous' header coordinate as one shared constant; reader helpers for menu lookup (Duty Menus § 8.1), self-Map
+     lookup (Treasure Maps § 9.2), resolution (Duty Menus § 6.2), and the read-time fallback (Treasure Maps § 3).
+  2. A Duty Menu and a self-Map for each of this instance's Assistant keys, the TA and customer keys, naming the
+     relays the insights really go to, and kept true as Treasure Maps § 9.2 says (each self-entry naming the relay its
+     menu gives its key; narrower keys where a key is only partly published; narrowing before a new duty lands
+     elsewhere; a move published before the old relay stops; Lists retracted when stopped, not when moved). Reconcile
+     `BRAINSTORM_NIP85_HOME_RELAY`, `aTrustedAssertionRelays` and the router presets first.
+  3. `/treasure-map` (handoff § 6):
+     - element 3 filled per Treasure Maps § 3 and Duty Menus § 6.2 step 5;
+     - relays read only from the Assistant being assigned (OPEN.md row 188);
+     - per-card Not offered / Offered / Active, and "Standby ready" for a confirmed Alternate;
+     - the "Make preferred" swap.
+  4. Readers:
+     - the read-time fallback in `useTrustWeights.js`, `BrainstormSearch.jsx`, `BrainstormSettings.jsx`,
+       `nip50-proxy/src/wot-pipeline.js` and the house-POV setup;
+     - the counting rule (Treasure Maps § 9.2) in `get-nip85-participation-data.js`,
+       `get-all-10040-authors-locally.js` and `public/pages/about-trusted-assertions.html`.
+  5. **Handoff Q6, NosFabrica adoption:** who asks NosFabrica to publish menus and self-Maps for Brainstorm's keys,
+     and when. Open.
+- **Replaces, does not add:** the two placeholder cards the `assistant-duty-cards` book put on the Assistant
+  Management hub, Duty Menu (`/assistant/duty-menu`) and Your Assistant's Treasure Map (`/assistant/treasure-map`).
+  Their open product questions are `engineering-team/audits/assistant-duty-cards/prd-seed.md` § 7, all five: is
+  "always marked" right until they are built; when is each card done; read-only or act; who sees a person's Duty Menu;
+  "Your" or "My". These lean Product Team first.
+  - One constraint from the specs: a self-Map never lists a duty its Assistant does not publish at the relay it names
+    (Treasure Maps § 9.2). So prd-seed § 7's suggested "done" for the Treasure Map card ("once the self-Map lists every
+    duty the person's own Map gives this Assistant") cannot be met wherever the menu leaves part of a key unoffered.
+- **Related:** ledger row `2026-10-10-external-assistant-relay-left-empty`. Its stopgap (reuse a relay the Map gives
+  an external Assistant in the same category) is a guess that Duty Menus § 6.2 step 5 forbids. Filling this instance's
+  own Assistant from Relay Settings conforms where Relay Settings names the relay it really publishes those insights
+  to (step 2's reconciliation): Treasure Maps § 3 lets a client of the service that runs an Assistant read the
+  Assistant's menu from that service's own record. The readers' fix is Treasure Maps § 3's fallback, whose last step,
+  the Assistant's kind 10002 write relays, works before anyone publishes menus.
+- **Before or with it:** Nous publishes the header (outside the repo); story 4's key-grammar answers, which readers'
+  key matching follows; a BIBLE pointer section when code ships (handoff § 8).
+- **Classification:** feature, Standard. The two hub pages lean Product Team first (prd-seed § 7); the readers and
+  publishers go straight to engineering.

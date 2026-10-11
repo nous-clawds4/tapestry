@@ -25,3 +25,9 @@ confirmed A1-8 as the Duty Menus spec's reading until story 3 of that epic settl
 Concept key, `39999` headers included; a bare `39999` covers the `39999:<d>` keys; a `39999` kind slot beats a bare
 `39998`; and menu rows keyed `39998:` / `39999:` (nothing after the colon) are ignored. The row stays OPEN until Treasure
 Maps § 4.5, § 6 and § 10 say so (story 3, `engineering-team/epics/duty-menus-and-self-maps.md`).
+
+**Note, 2026-10-11 (story 3's approval).** The owner moved the key-grammar questions to story 4 of the epic (story 3,
+open question 2(a)). Read "story 3" above, and every "story 3" in ADR `duty-menus-and-self-maps/0002`'s A1-8, A1-9 and
+A1-10 and the lines that speak of them, as story 4 (recorded in ADR 0003). The row stays OPEN until Treasure Maps
+§ 4.5, § 6 and § 10 say so, and until two sentences story 3 wrote to wait on A1-8 are updated to match: § 3's on a K
+that is a Concept kind and a colon alone, and § 9.2's Ties (story 3's Deviations).

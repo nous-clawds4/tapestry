@@ -47,3 +47,7 @@ Status line is misinformed.
 
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Findings
 (round 3), non-blocking 12–24, 26 and 27; `engineering-team/epics/duty-menus-and-self-maps.md` (story 3's list).
+
+**Note, 2026-10-11 (story 3, ADR `duty-menus-and-self-maps/0003`).** Story 3 handled findings 14, 16, 20, 21 and 26,
+and 27 (the handoff's Status line). Findings 12, 13, 15, 17, 18 (with A1-9), 19 (with A1-8), 22, 23 and 24 went to
+story 4 of the epic (owner, 2026-10-11, story 3's open question 2(a)). The row stays OPEN until story 4 lands.

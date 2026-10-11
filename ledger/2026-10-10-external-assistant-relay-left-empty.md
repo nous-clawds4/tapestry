@@ -28,3 +28,14 @@ Fix shape:
   otherwise warn in the save note before writing a Scores entry with no relay.
 
 **Pointer:** `docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md` § 6 and § 7.
+
+**Note, 2026-10-11 (ADR `duty-menus-and-self-maps/0003`).** The stopgap above (reuse a relay the Map already gives that
+Assistant in the same category) is now a guess that Duty Menus § 6.2 step 5 forbids to any client that fills element 3
+automatically (MUST NOT). Filling this instance's own Assistant from Relay Settings conforms where Relay Settings
+names the relay the Assistant really publishes those insights to: a client of the service that runs an Assistant may
+read the Assistant's menu from that service's own record (Treasure Maps § 3, MAY). Today the code names two relays
+for Scores (`BRAINSTORM_NIP85_HOME_RELAY` in kind 10040 creation, `aTrustedAssertionRelays[0]` in `/treasure-map`),
+which the handoff's § 8 step 2 reconciles first. The lasting fix is Treasure Maps § 3 (the fill order, and the
+read-time fallback for readers, whose last step is the Assistant's kind 10002 write relays) with Duty Menus § 6.2
+step 5. The handoff's § 6, named above, is SUPERSEDED by them. The code is the later book's
+(`engineering-team/stories/_intake.md` § "2026-10-11 — Duty Menus and Self-Maps in code").

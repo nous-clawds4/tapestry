@@ -327,6 +327,93 @@ Docs-mode note: Test Design is skipped. There is no executable behavior, and the
 
 ## Deviations
 
+Implementer, 2026-10-11 (ADR 0003, under the owner's answers 1(a)–4(a)). Judgment calls the ADR does not dictate:
+
+- **The PO's record is not here yet.** ADR 0003 has the PO record, in this section at its gate, what AC2's "copied
+  verbatim" and AC3's "only that key's slice" now read as (question 1), and how AC5's "one answer" reads (question 2).
+  It was absent when implementation began. The Implementer does not write it. The specs follow ADR 0003 under 1(a)
+  and 2(a).
+- **`treasure-maps.md` § 9.2, prose around the quoted rules.** A one-line lead, and a notation sentence (`<key>` → R and
+  `not-offered <key>`, as in Duty Menus § 6.2). Four examples taken from the ADR's sub-decision 3 and its AC2 checks:
+  `*` → R0 with `3038x` → R1, the nested row, meets that order the other way, and § 13.2's `not-offered 30385`. A
+  "Ties" paragraph from sub-decision 2's rationale ("as for a bare `39998` and a `39999` key until this NIP orders
+  them"; reworded at fix 1, below). "(TA)" defined at first use, since Treasure Maps did not define it. The confirmed
+  Alternate stays normative in § 7, and § 9.2 points there. "This refines § 7's 'older than they'll accept'" is left
+  out, because § 7's new text already links the allowance to § 9.2.
+- **`treasure-maps.md` § 3, the storefront bullet.** Written from sub-decision 6's guidance: storefront rows never count
+  in step 2 for any reader, and Duty Menus § 7's own-Assistant exception is for filling entries, not reading them.
+- **`treasure-maps.md` small placements.** § 2's new "Self-entry, self-Map — § 9.2" line sits after "Supported sets".
+  Trusted Lists' retraction convention is linked to its `#common-wire-shape` anchor (the ADR links the file only). The
+  enumeration sentence's punctuation changed for grammar only.
+- **`duty-menus.md` § 6.2 step 5.**
+  - The no-guess rule became its own bullet, "No guess", right after the insisted key. Its scope is now every automatic
+    fill, not only insisted keys, and the insisted-key bullet points at it. It stays in step 5, as the ADR says.
+  - The ADR's guidance sentence on which clients the MUSTs bind sits after "One entry per chosen key"'s two cases.
+    Fix 1 scopes it, and "No menu found", to a client that fills element 3 automatically (below).
+  - "No menu found" carries the levels table's condition, "if the observer keeps K for A". Sub-decision 8's sentence
+    gives the entry without it.
+  - In "A new key within K", the no-key case's two sentences are merged under one SHOULD.
+- **`duty-menus.md` § 6.2's in-principle sentence** is its own paragraph before "For a Treasure Map key K, exact or scope,
+  and a menu:", since that line's colon opens the steps.
+- **Metadata Sources lines.** Wording is the Implementer's: each names ADR 0003 for the sections that now rest on it.
+- **The handoff.** A blank line follows the ADR's body block, so it does not run into the existing Created line.
+
+Implementer, fix 1 (2026-10-11), after the first review's findings:
+
+- **Step 5's MUSTs are scoped to automatic fills.** The binding sentence and "No menu found" now name "a client that
+  fills element 3 automatically". ADR 0003's notes scope "No menu found" "by the same words" as the no-guess sentence,
+  which is "scoped to every automatic fill". Read for every client, the MUST would make a client write `""` over a
+  relay the observer typed, against Treasure Maps § 3's quoted "The observer may write any relay by hand". Automatic
+  fills are bound exactly as before.
+- **"The menu gives K no relay" now reads "no answering row gives K a relay"** (the second case under step 5's "One
+  entry per chosen key"). The old words clashed with Treasure Maps § 9.2's "the relay A's menu gives the self-entry's
+  key (Duty Menus § 6.2 step 5)". Read literally, they gave an insisted key no relay, so no self-entry could be keyed
+  it. ADR 0003 has step 5 give an insisted K the relay its offering rows share (sub-decision 8; Verification, AC5). ADR
+  0002 (:417–418) took the proposal's "none when the answering row is not a duty row" to mean "the menu gives K no
+  relay". The new words restate the proposal's, so the meaning, and the entry a client writes, are unchanged.
+- **The bold lead "Every row within K is listed" is restored.** The rename was not asked for, and story 2 and ADR 0002
+  cite the bullet by that name. The SHOULD in the sentence sets the level.
+- **Treasure Maps § 9.2's Ties** now says that § 6 does not yet order a bare `39998` and a `39999` key, and points at
+  Duty Menus § 14 question 5, where the order is open. § 6's "this always picks one winning key" is left as it stands,
+  knowingly, for story 4 (ADR 0003, Out of scope).
+- **Treasure Maps § 7's "Every listed provider … is asked to publish and maintain the insight"** gains "except as § 9
+  says", as principle 2 did. A self-entry is a provider under § 6 but creates no duty. ADR 0003 gave principle 2 the
+  same words for the same reason (sub-decision 1).
+- **For story 4's PO.** Two sentences here wait on A1-8: Treasure Maps § 3's "a K that is a Concept kind and a colon
+  alone … takes no relay from a self-entry until this NIP settles what such a key means", and § 9.2's Ties. § 9.2's
+  "A Concept kind and a colon" holds under any answer, but story 4 should check it. Story 4's scope (the epic's
+  bullet) names none of them, nor § 6's "always picks one winning key".
+- **Left for the PO:** the record named in the first bullet above, still absent at fix 1.
+- **Left for the Architect (kicked back; text as ADR 0003 has it):** the fill rules applied to a key writing its own
+  self-entry (a storefront that is its own observer's own Assistant; a person with no menu); § 9's Revocation
+  sentence after a carve-out under answer 1(a); Assistant Designation's "Each triple delegates"; Duty Menus § 4's
+  "Other `z` tags are … ignored" against § 6.1's fifth condition; § 9.2's "Its key" ("wins only duties"); the relay
+  rule during a partial move; the guarantee bullet for a client that takes the self-entry; readers of a self-entry
+  whose relay is `""`; and what "private duties" means.
+
+Implementer, fix 2 (2026-10-11), after the second review's findings:
+
+- **Ledger row `2026-10-09-draft-grammar-bare-39999`.** Its story-3 note now also waits on the two Treasure Maps
+  sentences that wait on A1-8 (§ 3's on a Concept kind and a colon alone, and § 9.2's Ties), so story 4 cannot close
+  the row on § 4.5, § 6 and § 10 alone. ADR 0003's words stay; its last sentence gains a clause. Sub-decision 15's
+  "gains a note naming story 4" covers it. The epic's story-4 bullet is not edited (the notes name only :34).
+- **This section.** The first block's Ties quote is marked as reworded at fix 1, and fix 1's ADR 0002 citation now runs
+  the right way.
+- **Still left for the PO:** the record named in the first block's first bullet, still absent at fix 2.
+- **Still left for the Architect:** the nine items listed at fix 1, unchanged. One narrowing, found in checking: § 9's
+  Revocation sentence and § 9.2 disagree only where A's self-Map has no self-entry keyed as the entry the observer
+  removed, which § 9.2's "Its key" ("where it can", with no keyword) does not rule out. Where A copied that key,
+  removing it as a self-entry that speaks for none meets both.
+
+Implementer, fix 3 (2026-10-11), after the third review's findings:
+
+- **This section.** Fix 1's bullet on "no answering row gives K a relay" now names the case its words are in: the
+  second under step 5's "One entry per chosen key", not the first.
+- **Still left for the PO:** the record named in the first block's first bullet, still absent at fix 3.
+- **Still left for the Architect:** the nine items listed at fix 1, unchanged. One widening, found in checking: the
+  relay rule's last sentence ("A key to which A's menu gives another relay, or none, is not one of its self-entries'
+  keys") has no move exception of its own, so read alone it is broken by a full move too, not only a partial one.
+
 ## Linked artifacts
 
 - ADR: [`decisions/duty-menus-and-self-maps/0003-self-maps.md`](../../decisions/duty-menus-and-self-maps/0003-self-maps.md)
