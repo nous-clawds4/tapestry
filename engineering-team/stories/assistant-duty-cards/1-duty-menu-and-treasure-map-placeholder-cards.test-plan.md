@@ -63,7 +63,11 @@ passes merely because the cards are missing (workflow 3, "Common pitfalls").
     Identification Tags and Outbox Relays;
   - `test/assistant-identification-tags-page.test.js` R2: title only;
   - `tests/brainstorm/assistant-management-page.spec.js`: the B1, B8 header and B11 titles;
-  - `tests/brainstorm/assistant-alert.spec.js`: the B1 title.
+  - `tests/brainstorm/assistant-alert.spec.js`: the B1 title;
+  - `tests/brainstorm/assistant-outbox-relays.spec.js` B1: the persona section held exactly 3 cards. It now holds
+    as many as the fixture's persona entries, and Outbox Relays is still the third. Added at Implementation, as a
+    kick-back to Test Design: the browser half of the Node C1 re-aim above, missed in the first pass and caught by
+    the green browser run (see § Verification).
 - Not covered by a test: ADR sub-decision 5, the count-free code comments. A comment carries no behaviour, so the
   Reviewer checks it by reading.
 - Browser run without the Docker stack:
@@ -132,3 +136,14 @@ alert B1        Expected substring "· 13 actions need attention", Received "…
 alert B5        every action needs attention in this mock — Expected: 13, Received: 11
 alert B6        1280px: the count shows ("13 actions need attention") — not found
 ```
+
+**Amendment at Implementation (2026-10-11).** The first browser run against the implemented build (six hub specs on
+chromium) failed one test that this plan had missed:
+
+```
+assistant-outbox-relays B1   persona listitems — Expected: 3, Received: 5
+```
+
+It is the browser twin of the Node C1 re-aim. It was re-aimed the same way, in its own `test:` commit ahead of the
+implementation commit.
+
