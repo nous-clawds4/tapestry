@@ -218,6 +218,17 @@ pubkey (epic § Key facts).
     applies; "no code change" still does.
 - **AC-2, which List kinds (Architecture, 2026-10-11; the owner chose key rule K1).** Lists are offered as the kinds
   built today, `30392`, `30393` and `30394`, not the whole `3039x` family.
+- **Implementation, 2026-10-11 (small judgment calls):**
+  - `attention.js` now exports `readWithinBudget` and `newest`, so `dutyMenu.js` reuses them as ADR 0001 sub-decision 3
+    says ("attention.js's readWithinBudget"); they were module-private.
+  - AC-5, the offer panel: while the answer is on its way, or when the request or the check failed, it shows only its
+    explainer, with no rows and no empty line. A `check-failed` answer's `offer: []` means "unknown", not "empty", and
+    § Copy gives **Checking…** to the published panel only.
+  - AC-5, a `check-failed` answer: the published panel shows "Could not check: this instance did not answer.", as the
+    Outbox Relays page does for the same reason; § Copy gives no words of its own for it.
+  - `categoryOf('*')` joins the three names as "Scores, Lists and Concepts" (ADR 0001 sub-decision 6 says "joined").
+  - § 8.1 Map hints: element 3 of every tag of the viewer's newest Map whose element 2 is the Assistant, the key not
+    parsed (the ADR's wording); every such relay still goes through `outsideOnly` and the SSRF guard.
 
 ## Linked artifacts
 

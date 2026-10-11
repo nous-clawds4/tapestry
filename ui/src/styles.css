@@ -9074,6 +9074,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 @media (max-width: 480px) {
   .bs-outbox-relay { align-items: flex-start; }
 }
+/* The Duty Menu page (assistant-duty-menu #1, ADR 0001 sub-decision 6): the cards and notes above, plus its row lines,
+   each one line of inline text — category, key, relay — so it wraps but never splits into columns. */
+.bs-dutymenu-row { font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.bs-dutymenu-row-category { font-weight: 600; }
+.bs-dutymenu-row-exception { font-style: italic; opacity: 0.8; }
 .bs-topbar-pill:focus-visible {
   outline: 2px solid #a5b4fc;
   outline-offset: 2px;

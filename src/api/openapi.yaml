@@ -325,7 +325,16 @@ paths:
         published to) gives that `category` (`scores`, `lists`, `concepts`) to the viewer's own assistant here, alone
         or beside others, read through the Treasure Map page's category rule; otherwise `pending` with `reason`
         `no-map`, `not-assigned` or `other-assistants-only`, or unfinished with the lookup's `reason` (`check-failed`
-        when the check itself failed). `source` says where the Map was found. Without a session it answers
+        when the check itself failed). `source` says where the Map was found. `duty-menu` (assistant-duty-menu ADR
+        0001): `offer` is the Duty Menu rows this instance offers for the viewer's own assistant (Scores `30382` for
+        the Owner and active customers, Lists `30392`–`30394` and Concepts `39998`, `39999` for every assistant), each
+        at this instance's relay at its public address, or Concepts at the first public DList relay when there is none;
+        `published` is the menu found for the assistant now (duty-menus.md § 8.1: the local relay, the viewer's
+        Treasure Map hints, the assistant's and Nous' kind 10002 write relays; the latest version counts, and it must
+        be a menu by § 6.1), or null; `current` says whether the two have the same rows (null when unfinished). The
+        action is `done` when a menu was found and it is current, `pending` when a finished check found none or an out
+        of date one, and unfinished with `reason: no-relay-answered` when no relay answered, the local relay included;
+        a check that throws answers `reason: check-failed` without failing the others. Without a session it answers
         `{ success: true, signedIn: false }`; with a session but no assistant here, `hasAssistant: false`.
       responses:
         '200':
@@ -350,12 +359,31 @@ paths:
                         done: { type: boolean }
                         pending: { type: boolean }
                         category: { type: string, enum: [scores, lists, concepts], description: 'trusted-assertions, trusted-lists, dlists: the Treasure Map category' }
-                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
+                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays; duty-menu: no-relay-answered), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
                         source: { type: string, nullable: true, description: 'outbox-relays: local or relay; trusted-assertions, trusted-lists, dlists: where the Map was found (local, relay, or null)' }
                         createdAt: { type: integer, nullable: true, description: 'outbox-relays: the relay list created_at' }
                         outbox: { type: array, items: { type: string }, description: 'outbox-relays: the outbox relays, in the list order' }
                         inboxOnlyCount: { type: integer, description: 'outbox-relays: how many read-only entries the list names' }
                         suggestions: { type: array, items: { type: string }, description: 'outbox-relays: the relays the page suggests' }
+                        offer:
+                          type: array
+                          description: The duty-menu action only — the rows this instance offers for the assistant, Scores, Lists, Concepts
+                          items:
+                            type: object
+                            properties:
+                              tag: { type: string, enum: [duty, not-offered] }
+                              key: { type: string, description: 'a Treasure Map key, normalized' }
+                              relay: { type: string, nullable: true, description: 'null on a not-offered row' }
+                        published:
+                          type: object
+                          nullable: true
+                          description: The duty-menu action only — the menu found for the assistant now, or null
+                          properties:
+                            rows: { type: array, items: { type: object }, description: 'its rows as a reader keeps them, shaped as offer' }
+                            createdAt: { type: integer }
+                            source: { type: string, enum: [local, relay] }
+                            eventId: { type: string }
+                        current: { type: boolean, nullable: true, description: 'duty-menu: the published menu has the offer''s rows; null when the check did not finish' }
                         hasProfile:
                           type: boolean
                           nullable: true

@@ -20,7 +20,9 @@
  * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md § Copy (since
  * then the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
  * categories), and
- * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy.
+ * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy (the Duty Menu's
+ * alert criteria since engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md, ADR
+ * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page).
  */
 
 import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks.js';
@@ -84,16 +86,17 @@ export const ASSISTANT_ACTIONS = [
     alertCriteria: "If your Assistant's relay list (kind 10002) names no outbox relay.",
     planningNotes: null,
   },
-  // Duty Menu and Your Assistant's Treasure Map: placeholders while book duty-menus-and-self-maps ratifies the
-  // protocol behind them (assistant-duty-cards #1, ADR 0001).
+  // Duty Menu (assistant-duty-cards #1; checked, with its own page, since assistant-duty-menu #1, ADR 0001
+  // sub-decision 6) and Your Assistant's Treasure Map, a placeholder while book duty-menus-and-self-maps ratifies the
+  // protocol behind it (assistant-duty-cards #1, ADR 0001).
   {
     key: 'duty-menu',
     section: 'persona',
     path: `${ASSISTANT_MANAGEMENT_PATH}/duty-menu`,
     title: 'Duty Menu',
     description: ["Let other clients, apps and Assistants know which duties your Assistant can take on, and which relay each one is published to. Your Assistant's Duty Menu is one item on the shared list of Duty Menus."],
-    alertCriteria: null,
-    planningNotes: 'Your Assistant will tell the world which duties it is capable of supporting by publishing a Duty Menu, which is an item on the DList of Duty Menus. The protocol is still being written; this page will be built once it is settled.',
+    alertCriteria: 'If your Assistant has not published a Duty Menu, or the one it published differs from what this instance offers for it now.',
+    planningNotes: null,
   },
   {
     key: 'treasure-map',
@@ -264,10 +267,10 @@ export function plainText(parts) {
  * The actions whose "needs attention" answer is real — computed by GET /api/assistant/attention for the viewer's own
  * assistant (ADR assistant-identification-tags/0001 sub-decision 6; the profile since ADR assistant-profile-checklist/0001,
  * the outbox relays since assistant-outbox-relays #1, Scores, Lists and Concepts since assistant-trusted-content-status
- * #1) — as opposed to the placeholders, which count everywhere until their check is built. An action joins this list
- * when its check ships, in ASSISTANT_ACTIONS order.
+ * #1, the Duty Menu since assistant-duty-menu #1) — as opposed to the placeholders, which count everywhere until their
+ * check is built. An action joins this list when its check ships, in ASSISTANT_ACTIONS order.
  */
-export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'trusted-assertions', 'trusted-lists', 'dlists'];
+export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'duty-menu', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
 /**
  * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2 AC-5), in the
