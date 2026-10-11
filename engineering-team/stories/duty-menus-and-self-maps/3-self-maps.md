@@ -329,6 +329,6 @@ Docs-mode note: Test Design is skipped. There is no executable behavior, and the
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`decisions/duty-menus-and-self-maps/0003-self-maps.md`](../../decisions/duty-menus-and-self-maps/0003-self-maps.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
