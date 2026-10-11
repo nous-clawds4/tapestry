@@ -1,6 +1,7 @@
 /**
  * The Assistant Management page, as data (assistant-management #1, ADR 0001 sub-decision 1): its three
- * sections, its eleven actions (Outbox Relays since assistant-outbox-relays #1), its FAQ and its words — and the one answer to "which of the viewer's actions
+ * sections, its thirteen actions (Outbox Relays since assistant-outbox-relays #1; Duty Menu and Your Assistant's
+ * Treasure Map since assistant-duty-cards #1), its FAQ and its words — and the one answer to "which of the viewer's actions
  * need attention", which the page's marks, its count line and the Assistant Alert (story 2) all read. Since
  * assistant-identification-tags #1 that answer merges the server's real checks (GET /api/assistant/attention,
  * the actions in CHECKED_ACTIONS) with the placeholders, in two readings: the page's and the pill's.
@@ -15,10 +16,11 @@
  * The words were approved with the stories; change them there first:
  * engineering-team/stories/done/assistant-management/1-the-assistant-management-page.md § Copy,
  * engineering-team/stories/done/assistant-management/2-the-assistant-alert.md § Copy,
- * engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md § Copy, and
+ * engineering-team/stories/assistant-outbox-relays/1-the-outbox-check-and-the-hubs-outbox-relays-card.md § Copy,
  * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md § Copy (since
  * then the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
- * categories).
+ * categories), and
+ * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy.
  */
 
 import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks.js';
@@ -81,6 +83,26 @@ export const ASSISTANT_ACTIONS = [
     ],
     alertCriteria: "If your Assistant's relay list (kind 10002) names no outbox relay.",
     planningNotes: null,
+  },
+  // Duty Menu and Your Assistant's Treasure Map: placeholders while book duty-menus-and-self-maps ratifies the
+  // protocol behind them (assistant-duty-cards #1, ADR 0001).
+  {
+    key: 'duty-menu',
+    section: 'persona',
+    path: `${ASSISTANT_MANAGEMENT_PATH}/duty-menu`,
+    title: 'Duty Menu',
+    description: ["Let other clients, apps and Assistants know which duties your Assistant can take on, and which relay each one is published to. Your Assistant's Duty Menu is one item on the shared list of Duty Menus."],
+    alertCriteria: null,
+    planningNotes: 'Your Assistant will tell the world which duties it is capable of supporting by publishing a Duty Menu, which is an item on the DList of Duty Menus. The protocol is still being written; this page will be built once it is settled.',
+  },
+  {
+    key: 'treasure-map',
+    section: 'persona',
+    path: `${ASSISTANT_MANAGEMENT_PATH}/treasure-map`,
+    title: "Your Assistant's Treasure Map",
+    description: ['Your Assistant keeps its own Treasure Map (kind 10040), naming itself as its own Assistant, to show which duties it is publishing right now. If you move a duty to this Assistant and it is already publishing it, the switch takes effect right away instead of waiting for a first computation.'],
+    alertCriteria: null,
+    planningNotes: 'Your Assistant will tell the world which duties it is actively managing by publishing its own Treasure Map, in which it acts as its own Assistant. The protocol is still being written; this page will be built once it is settled.',
   },
   {
     key: 'trusted-assertions',
