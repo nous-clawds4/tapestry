@@ -37,4 +37,12 @@ the hold, made for a good reason, lengthened the red window, because the failing
 line. PR #829 went green on the implementation's push and merged at 20:13 (`cfcd83c4`). Fix shape (a) above would have
 avoided both: the failing tests and the held implementation would have lived on one feature branch.
 
+
+**Another session, 2026-10-11 (`assistant-duty-cards` #1).** Told to develop on `staging`, this session held its
+Phase-3 failing-tests commit locally rather than push red to the shared line. The stop hook then asked for a push at
+each of three turn ends. The tests and the implementation went up together once the gate was green, which kept the
+red off `staging`. The cost was the agreed order: the implementation reached `staging` (and the staging deploy) before
+Review, because the hook kept asking and the owner had not answered which to prefer. Fix shape (a), a feature branch,
+would have avoided both.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.

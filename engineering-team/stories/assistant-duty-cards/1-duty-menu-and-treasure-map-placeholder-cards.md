@@ -1,6 +1,6 @@
 # Story 1: The hub's Duty Menu and Your Assistant's Treasure Map cards, as placeholders
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-11
 **Type:** Feature
 **Epic:** `assistant-duty-cards`
@@ -109,4 +109,4 @@ None.
 
 - ADR: `engineering-team/decisions/assistant-duty-cards/0001-two-placeholder-entries-in-the-one-action-list.md`
 - Test plan: `engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md`
