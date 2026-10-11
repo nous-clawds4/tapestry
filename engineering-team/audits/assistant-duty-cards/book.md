@@ -1,9 +1,9 @@
 # Book of Work: Duty Menu and Your Assistant's Treasure Map — two placeholder cards on the hub
 
 **Slug:** assistant-duty-cards
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-11
-**Closed:** —
+**Closed:** 2026-10-11 (on `staging`, deployed to staging.brainstorm.world: deploy run 607, commit `e3e436e6`; production pending the owner's next promotion)
 
 ## Intent anchor
 
@@ -29,12 +29,12 @@ The card descriptions were proposed at intake and approved with these decisions.
 
 *Confirmed 2026-10-11, when the owner approved the intake decisions.*
 
-- [ ] **Two persona cards.** The "Your Assistant's Public Persona" section on `/assistant` ends with
+- [x] **Two persona cards.** The "Your Assistant's Public Persona" section on `/assistant` ends with
       **Duty Menu** and then **Your Assistant's Treasure Map**, after Outbox Relays.
-- [ ] **Placeholder pages.** Each card leads to a placeholder page that says what the action is for.
-- [ ] **Marked like the other placeholders.** On the hub, in its count line and in the Assistant Alert.
-- [ ] **On staging**, at staging.brainstorm.world/assistant.
-- [ ] **Nothing else changes.** No publishing, no check, no protocol change; the other actions are as they
+- [x] **Placeholder pages.** Each card leads to a placeholder page that says what the action is for.
+- [x] **Marked like the other placeholders.** On the hub, in its count line and in the Assistant Alert.
+- [x] **On staging**, at staging.brainstorm.world/assistant.
+- [x] **Nothing else changes.** No publishing, no check, no protocol change; the other actions are as they
       were.
 
 ## Epics in this book
@@ -57,3 +57,11 @@ origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 ## Provenance
 
 - **Mode:** Acceptance-frame
+- **Confidence at close:** high. Every frame bullet traces to story 1, which passed review in round 1. It was checked on
+  live staging by the hub's browser specs (5 of 5) and by hand. The one gap is that a signed-in person's marks were not
+  seen on staging, because the specs mock sign-in.
+
+## Close artifacts *(filled by `/close-book`)*
+
+- Build audit: `engineering-team/audits/assistant-duty-cards/audit.md`
+- Product feedback: `engineering-team/audits/assistant-duty-cards/prd-seed.md`

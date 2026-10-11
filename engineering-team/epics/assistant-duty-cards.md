@@ -1,6 +1,6 @@
 # Epic: assistant-duty-cards — the hub's Duty Menu and Your Assistant's Treasure Map cards
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-11; the folders sit under `done/`; on `staging`, production pending)
 **Created:** 2026-10-11
 **Book:** `engineering-team/audits/assistant-duty-cards/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-11, quoted verbatim in the book and settled through three
@@ -17,7 +17,7 @@ fourth and fifth cards in "Your Assistant's Public Persona".** Both are placehol
 
 ## Stories
 
-`stories/assistant-duty-cards/`.
+`stories/done/assistant-duty-cards/`.
 
 1. `1-duty-menu-and-treasure-map-placeholder-cards.md`: the two cards, their placeholder pages, and their
    marks.
@@ -38,4 +38,4 @@ fourth and fifth cards in "Your Assistant's Public Persona".** Both are placehol
 
 ## ADRs
 
-`decisions/assistant-duty-cards/`, created per story at Architecture.
+`decisions/done/assistant-duty-cards/`, created per story at Architecture.
