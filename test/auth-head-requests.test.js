@@ -38,7 +38,7 @@ async function startApp() {
   app.use(authMiddleware);
   let ran = 0;
   const handler = (req, res) => { ran++; res.set('X-Reached', 'yes'); res.status(200).json({ ok: true }); };
-  for (const p of ['/api/personalized-pagerank', '/api/backups', '/api/restore/sets', '/api/relays']) app.get(p, handler);
+  for (const p of ['/api/personalized-pagerank', '/api/backups', '/api/restore/sets', '/api/relay-config']) app.get(p, handler);
   const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const port = server.address().port;
   function request(method, p, session) {
@@ -85,8 +85,8 @@ test('H3: GET answers as before', () => withApp(async (app) => {
 }));
 
 test('H4: HEAD on a public read still reaches its handler', () => withApp(async (app) => {
-  const r = await app.request('HEAD', '/api/relays', null);
-  assert(r.reached && r.status === 200, `HEAD /api/relays → ${r.status}`);
+  const r = await app.request('HEAD', '/api/relay-config', null);
+  assert(r.reached && r.status === 200, `HEAD /api/relay-config → ${r.status}`);
 }));
 
 test('H5: no GET-only method test is left in the middleware', () => {

@@ -43,7 +43,7 @@ async function startApp() {
   app.use(authMiddleware);
   const reached = (req, res) => res.status(200).json({ marker: REACHED });
   for (const p of ['/api/run-task', '/api/batch-transfer', '/api/toggle-strfry-filteredContent', '/api/strfry/publish', '/api/neo4j/query']) app.post(p, reached);
-  for (const p of ['/api/backups', '/api/personalized-pagerank', '/api/relays', '/api/auth/status', '/some-page']) app.get(p, reached);
+  for (const p of ['/api/backups', '/api/personalized-pagerank', '/api/relay-config', '/api/auth/status', '/some-page']) app.get(p, reached);
   const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const port = server.address().port;
   function request(method, p, session) {
@@ -101,7 +101,7 @@ test('P4: public stays public under any capitalization', async () => {
   try {
     const wrong = [];
     for (const [method, p] of [
-      ['GET', '/api/relays'], ['GET', '/API/relays'], ['GET', '/api/auth/status'], ['GET', '/API/Auth/status'],
+      ['GET', '/api/relay-config'], ['GET', '/API/Relay-Config'], ['GET', '/api/auth/status'], ['GET', '/API/Auth/status'],
       ['POST', '/api/strfry/publish'], ['POST', '/API/strfry/publish'], ['POST', '/api/neo4j/query'], ['POST', '/Api/Neo4j/Query'],
       ['GET', '/some-page'], ['GET', '/Some-Page'],
     ]) {

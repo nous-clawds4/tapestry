@@ -7,7 +7,7 @@
  */
 const { exec } = require('child_process');
 const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
-const { isOwner } = require('../../../middleware/auth');
+const { getOwnerPubkey } = require('../../../utils/config');
 const { publishToRelays, getProfileRelays } = require('../../../lib/receiving/publish');
 const { invalidateProfileCache } = require('../../profiles/fetchProfiles');
 
@@ -23,6 +23,14 @@ function getNostrTools() {
   return _nt;
 }
 
+// Owner-only: the owner's own session, never an admin. Deliberately not the owner-or-admin alias middleware/auth
+// exports under the same name: signing as the instance's assistant is the owner's alone (ADR security-auth-exposure/0005,
+// owner's decision 3; settles OPEN.md row 269).
+function isOwner(req) {
+  const ownerPubkey = getOwnerPubkey();
+  return !!(ownerPubkey && req.session && req.session.authenticated && req.session.pubkey === ownerPubkey);
+}
+
 async function handlePublishEvent(req, res) {
   try {
     const { event, signAs } = req.body;
@@ -36,10 +44,10 @@ async function handlePublishEvent(req, res) {
     if (signAs === 'assistant') {
       // Signing as the Tapestry Assistant is privileged: only the owner (session)
       // or a genuinely-direct-local caller (req.localTrusted, stamped by the auth
-      // middleware) may mint TA-signed events. Client-signed publishing below is
-      // permissionless. (ADR security-auth-exposure/0002.)
+      // middleware) may mint TA-signed events; an admin is refused (ADR 0005). Client-
+      // signed publishing below is permissionless. (ADR security-auth-exposure/0002.)
       if (!isOwner(req) && !req.localTrusted) {
-        return res.status(403).json({ success: false, error: 'Signing as the assistant requires owner authentication' });
+        return res.status(403).json({ success: false, error: 'Only the owner can sign as the assistant.' });
       }
       // Sign with Tapestry Assistant private key
       const taKeys = await getOwnerAssistantKeys();

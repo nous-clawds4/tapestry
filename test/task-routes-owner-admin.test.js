@@ -33,7 +33,7 @@ const TASK_ROUTES = [
   '/api/customer-schedule/update', '/api/customer-schedule/trigger',
 ];
 const PUBLIC_READS = [
-  '/api/scheduled-tasks/status', '/api/scheduled-tasks/list', '/api/scheduled-tasks/history', '/api/scheduled-tasks/registry-tasks',
+  '/api/scheduled-tasks/status', '/api/scheduled-tasks/history', // this branch serves no list / registry-tasks reads
   '/api/customer-schedule/status', '/api/customer-schedule/history',
 ];
 const SIGNED_IN = { authenticated: true, pubkey: 'b'.repeat(64) };
@@ -114,12 +114,15 @@ test('T4: the reads beside them stay public', () => withApp(async (app) => {
   assert(wrong.length === 0, wrong.join('; '));
 }));
 
-test('T5: the six paths are on the middleware\'s owner-only list', () => {
-  const src = fs.readFileSync(AUTH, 'utf8');
-  const m = src.match(/const ownerOnlyEndpoints = \[([\s\S]*?)\];/);
-  assert(m, 'ownerOnlyEndpoints not found');
-  const missing = TASK_ROUTES.map((p) => p.replace('/api', '')).filter((p) => !m[1].includes(`'${p}'`));
-  assert(missing.length === 0, `not on the owner-only list: ${missing.join(', ')}`);
+// Re-aimed for security-auth-exposure #8 (ADR 0005): the hand-kept ownerOnlyEndpoints list is gone; the route table
+// decides access now. The six task-control paths must resolve to 'owner' (owner, admins, direct-local).
+test('T5: the six task-control paths resolve to owner in the route table', () => {
+  const TABLE = path.join(ROOT, 'src/middleware/routeAccess.js');
+  assert(fs.existsSync(TABLE), 'src/middleware/routeAccess.js does not exist yet (ADR 0005 Decision 1)');
+  delete require.cache[require.resolve(TABLE)];
+  const { resolveRouteAccess } = require(TABLE);
+  const wrong = TASK_ROUTES.map((p) => [p, resolveRouteAccess('POST', p)]).filter(([, a]) => a !== 'owner');
+  assert(wrong.length === 0, `not owner in the table: ${wrong.map(([p, a]) => `${p}→${a}`).join(', ')}`);
 });
 
 async function run() {
