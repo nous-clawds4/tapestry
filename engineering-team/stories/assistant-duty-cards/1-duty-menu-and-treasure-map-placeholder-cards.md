@@ -107,6 +107,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-duty-cards/0001-two-placeholder-entries-in-the-one-action-list.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
