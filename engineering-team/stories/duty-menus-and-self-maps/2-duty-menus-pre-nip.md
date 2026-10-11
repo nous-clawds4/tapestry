@@ -101,4 +101,4 @@ Small judgment calls by the Implementer (2026-10-10), none outside ADR 0002:
 
 - ADR: [`engineering-team/decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md`](../../decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md`](../../reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md)
