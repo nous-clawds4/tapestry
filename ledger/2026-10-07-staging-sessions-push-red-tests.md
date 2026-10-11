@@ -60,4 +60,8 @@ would have avoided both.
   (`14455d4`).
 - Nothing broke, and the owner could see the change live. But a book that wants "no unreviewed code on staging"
   cannot have it on this setup.
-- Fix shape (a) above, a feature branch shipped through `/cycle-staging` after Gate B, covers both.
+- The same book's close-time gate (step 10) then ran red for another book. Its run `20261011T221005Z-24508-3380` had
+  43 failures, all in assistant-duty-menu #2's Phase-3 tests (`f6f976c`), pushed to `origin/staging` an hour
+  earlier. So a close on shared `staging` cannot certify a green tree while any other book sits between Test Design
+  and Implementation.
+- Fix shape (a) above, a feature branch shipped through `/cycle-staging` after Gate B, covers all three.

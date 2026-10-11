@@ -141,7 +141,19 @@ its Gate B record. SV18, a test added beyond the Design note's list, is named an
 
 ## 5. Quality state at close
 
-- **Test gate at close** (after the book flip and the epic close-out, step 10): `GATE_LINE_PLACEHOLDER`
+- **Test gate at close** (after the book flip and the epic close-out, step 10):
+  `20261011T221005Z-24508-3380 started 2026-10-11T22:10:05.635Z on f6f976c7+dirty — FAIL, exit 1, 5684 passed, 43 failed, 582 skipped, 303/303 suites; failed: assistant-relay-list-publish, assistant-duty-menu-check, assistant-duty-menu-page, assistant-duty-menu-publish`
+  - **The 43 failures are not this book's.** They are exactly the four suites that `f6f976c` touched: "test: failing
+    tests for your-assistant-publishes-its-duty-menu (assistant-duty-menu #2)". That is another book's Phase-3 tests
+    on shared `staging`, waiting for its implementation: assistant-duty-menu-publish 31, -check 5, -page 5,
+    assistant-relay-list-publish 2. The failing tests (for example L13 `buildMenuTags`, E1/E2 the Duty Menu event,
+    D6 the publish button) are that story's.
+  - **Every suite this book touched passes in the same run:** assistant-shared-categories 21/0,
+    assistant-trusted-content 30/0, assistant-attention 38/0, assistant-management-page 23/0, assistant-alert 15/0.
+  - `+dirty` is this close's own uncommitted edits (docs, path repoints, the story/review moves). They were committed
+    unchanged as `8f49e16`.
+  - This is ledger `2026-10-07-staging-sessions-push-red-tests` again (§7). The close-time gate is red for another
+    book's intended reds, not green.
 - **Earlier full runs:**
   - `20261011T212108Z-27012-6181`, PASS, 5685 passed, on the pre-rebase twin of `397d236`;
   - `20261011T214241Z-958-6ee8` on `a82b26a`, PASS, 5685 passed, 0 failed, 582 skipped, 302/302 suites (the Gate B
@@ -197,7 +209,7 @@ trial's teeth check.
 | A Light Design note superseded a ratified ADR's sub-decisions; `light-profile.md` doesn't say whether that is an irreversibility trigger | Gate B review, harness friction 1 | OPEN.md row `2026-10-11-light-note-supersedes-adr` |
 | Phase documents cited a commit (`035c80ea`) that a rebase onto shared `staging` orphaned | Gate B review, harness friction 2 | OPEN.md row `2026-10-11-phase-docs-cite-rebased-hashes` (recurrence noted) |
 | The story's "How to run" hard-codes :7799; a judge found the port held, and judges write into the session's shared scratchpad | Gate B review, harness friction 3; J3 report | OPEN.md row `2026-10-09-judge-workspace-and-served-build` (recurrence noted) |
-| Developing on `staging` itself put failing tests on the shared line (about 12 minutes, `57fbb43` → `397d236`) and deployed the implementation to staging.brainstorm.world before the owner's Gate B verdict. The environment's stop hook demands every commit be pushed | This session; book § Path | OPEN.md row `2026-10-07-staging-sessions-push-red-tests` (recurrence noted at this close, including the Gate-B-after-deploy consequence) |
+| Developing on `staging` itself put failing tests on the shared line (about 12 minutes, `57fbb43` → `397d236`) and deployed the implementation to staging.brainstorm.world before the owner's Gate B verdict. The environment's stop hook demands every commit be pushed. And the close-time gate ran red on another book's Phase-3 tests on the same shared line (§5) | This session; book § Path | OPEN.md row `2026-10-07-staging-sessions-push-red-tests` (recurrence noted at this close, including the Gate-B-after-deploy consequence) |
 | The fails-before record went stale mid-book: another book landed the fix for three base reds the gate had allowed | Story § Gate A base note; J2 note | declined: the base note's own clause ("if that book has landed, there must be none") handled it, and J3 applied it. Working as written |
 | At session start, local `staging` held history from before a force-update of `origin/staging`. The environment's stop hook then asked for other authors' commits to be amended and pushed | This session | declined: outside this repo's harness (the hook belongs to the cloud environment). Handled in-session by keeping the old tip on a local backup branch and never amending or pushing other people's commits |
 | A `pkill -f` pattern in a shell command matched the command itself and ended it | This session (stopping a preview server) | declined: a one-off tooling slip with no harness surface; stop servers by port or PID |
