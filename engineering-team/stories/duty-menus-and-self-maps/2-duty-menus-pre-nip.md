@@ -88,14 +88,36 @@ Small judgment calls by the Implementer (2026-10-10), none outside ADR 0002:
 
 - **§ 9, the provider directory, does not cite the repo's Show and Tell document.** ADR 0002 sub-decision 9 leans on its
   H3. The spec states the same signals in plain words (what trusted people say, what they do, the reuse questions) instead
-  of linking `design-philosophies/`, because a protocol spec does not cite repo-internal advisory docs
-  (`protocols/README.md`, the boundary rule).
+  of linking `design-philosophies/`. *Corrected in round 2:* the reason first given here ("a protocol spec does not cite
+  repo-internal advisory docs") was wrong, because other drafts do cite Show and Tell (e.g. `dlist-auxiliary-events.md`).
+  Plain words were simply judged clearer for implementers outside the repo; a citation would also have been acceptable.
 - **The examples use neutral names and relays** (`Example WoT Service`, `wss://*.example`) rather than a real deployment's
   relays, following the same boundary rule: deployment details stay out of specs.
 - **§ 6.2 step 4 adds one sentence for a narrower `not-offered` row:** the client says those insights won't come from this
   key. This follows from ADR 0002 sub-decision 5 ("partly offered") and the worked example.
 - **The vocabulary gate.** Treasure Maps § 4.1's naddr rule is described as "decoded and re-encoded" rather than
   "canonicalized", so the AC5 grep finds only the metadata label.
+
+Round 2 (2026-10-11), answering review round 1:
+
+- **B1:** principle 5 now says a menu may *name* an algorithm (§ 5.4), as NIP-85 asks a service key's kind 0 to, while
+  a method's parameters, point of view and cutoffs stay off. It no longer claims parity with Treasure Maps principle 3.
+- **B2:** open question 1 now cites accurately. NIP-85 allows encrypted 10040 entries in `.content`, but Treasure Maps
+  § 13 Q8 keeps delegation entries public for now.
+- **§ 6.2 resolution, generalized beyond ADR 0002 sub-decision 5's wording** (review non-blocking 1):
+  - "covers" now cites Treasure Maps §§ 4.2, 4.4 and 4.5;
+  - "partly offered" counts any row that wins part of K by § 6, overlapping rows included, not only narrower ones;
+  - for an overlapping row, the client writes the segment-by-segment intersection key (`3039x` with `*:tag` gives
+    `3039x:tag`), because writing the row's own key would lose to K in the Map's § 6;
+  - the no-answering-row case is stated.
+- **Smaller fixes from round 1:**
+  - Concept keys are exempt from trailing-segment trimming;
+  - withdrawal is a SHOULD again and says "travels by the same sync";
+  - the deletion's `e` names earlier versions, never the empty menu;
+  - Nous' relays are found through Nous' kind 10002;
+  - § 5.4 names the camelCase namespace explicitly;
+  - the W1 note says "tags-branch ADR 0015" and "a person adds".
+- **Open question 3** (non-personalized providers) added, per the owner's answer (a), 2026-10-11.
 
 ## Linked artifacts
 

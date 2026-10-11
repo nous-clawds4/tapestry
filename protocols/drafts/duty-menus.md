@@ -35,7 +35,7 @@ link     ["storefront", "39999:<S>:duty-menu", "<relay>"] a per-customer menu's 
 2. **Only the key speaks for itself.** Anyone may publish under the header, but a key's offers come only from its own menu (§ 6.1).
 3. **A hint, never a gate.** A client MAY warn that a key doesn't offer a duty. It MUST NOT refuse to write a Treasure Map entry naming that key for that duty.
 4. **One shared header.** Every menu files under one header, so one query finds them all (§ 8.2).
-5. **What and where; never how, never how much.** A menu carries no price and no tier. How an Assistant computes its insights stays off the menu, as it stays off the Map (Treasure Maps § 1, principle 3).
+5. **What and where, with no price and no settings.** A menu carries no price and no tier. Unlike a Treasure Map, which names no algorithm (Treasure Maps § 1, principle 3), a menu may name the algorithm behind a duty (§ 5.4), the way NIP-85 asks a service key's kind 0 to describe its algorithm. A method's parameters, point of view and cutoffs stay off the menu.
 
 ## 2. Terms
 
@@ -115,7 +115,7 @@ Each Assistant key publishes one replaceable kind-`39999` event with `d` = `duty
 
 - Keys are normalized before any comparison, duplicate check or details lookup:
   - every naddr and nevent decoded and re-encoded (Treasure Maps § 4.1);
-  - omitted or empty trailing segments dropped (§ 4.4);
+  - omitted or empty trailing segments dropped (§ 4.4), except in Concept keys, whose `d` is taken verbatim and may end in `:` (§ 4.5);
   - `39998:dlist-header` read as `39998` (§ 4.5).
 - A row whose key does not parse is ignored.
 - At most one row per normalized key, whatever its tag. On duplicates the first row wins.
@@ -123,7 +123,7 @@ Each Assistant key publishes one replaceable kind-`39999` event with `d` = `duty
 
 ### 5.4 Details
 
-At most one `json` tag, namespaced `dutyMenu` ([Tapestry Concepts](./tapestry-concepts.md) § "Data storage (json tag)") and keyed by normalized Treasure Map key:
+At most one `json` tag. As with any concept's data in a `json` tag ([Tapestry Concepts](./tapestry-concepts.md) § "Data storage (json tag)"), the JSON is namespaced by the concept, here under its camelCase key `dutyMenu`, and keyed by normalized Treasure Map key:
 
 ```json
 ["json", "{\"dutyMenu\":{\"30382:rank\":{\"description\":\"GrapeRank influence\",\"interval\":\"PT6H\",\"algorithm\":\"graperank\"}}}"]
@@ -154,15 +154,15 @@ An item under the header whose `p` names a different key is not a menu. Under th
 
 For a Treasure Map key K, exact or scope, and a menu:
 
-1. A row **covers** K when its key is K or broader than K (Treasure Maps § 4.4).
+1. A row **covers** K when its key is K or broader than K: a family wildcard covers its kinds (Treasure Maps § 4.2), an omitted or empty trailing segment covers any value (§ 4.4), and a bare Concept kind covers that kind's Concept keys (§ 4.5).
 2. The **answering row** is the most specific covering row, by Treasure Maps § 6, among `duty` and `not-offered` rows together.
 3. If the answering row is a `duty` row, K is **offered** at its relay. If it is a `not-offered` row, or no row covers K, K is **not offered as a whole**.
-4. If rows **narrower** than K give a different relay or say `not-offered`, K is **partly offered**. A client then either:
-   - writes the narrower Treasure Map entries as well, so that the Map's own § 6 gives each insight its relay; or
-   - writes K with the answering row's relay, and leaves per-insight relays to read-time resolution.
+4. K is **partly offered** when another row wins, by Treasure Maps § 6, for some of the insights under K and answers them differently: with another relay, with `not-offered`, or with an offer where K has none. Such a row may be narrower than K, or merely overlap it, as `*:tag` overlaps `3039x` when `*` answers K. A client then either:
+   - writes, for each such row, an entry for the part of K that the row wins, so that the Map's own § 6 gives each insight its relay. That part's key is the row's own key when the row is narrower than K; otherwise it names, segment by segment, whichever value either key names (`3039x` with `*:tag` gives `3039x:tag`); or
+   - writes K with the answering row's relay, if there is one, and leaves per-insight relays to read-time resolution.
 
-   For a narrower `not-offered` row, the client says that those insights won't come from this key, so the observer can give them to another Assistant.
-5. A Treasure Map entry built from a menu is `[K, <menu author>, <answering row's relay>]`.
+   Where no row covers K, the client writes only the entries for the parts that are offered (§ 13.3, `3039x`). For a part that is `not-offered`, the client says that those insights won't come from this key, so the observer can give them to another Assistant.
+5. A Treasure Map entry built from a menu names the menu's author and takes the relay of the row that answers its key: `[K, <menu author>, <answering row's relay>]`.
 
 § 13.3 works an example.
 
@@ -183,7 +183,7 @@ The filter is `{"kinds":[39999], "authors":["<key>"], "#d":["duty-menu"]}`. Look
 
 1. on any relay hint already in hand: a Treasure Map entry's element 3, or a `storefront` link's relay;
 2. on the key's NIP-65 (kind 10002) write relays;
-3. on the relays where Nous' header is published.
+3. on the relays where Nous' header is published, found through Nous' own kind 10002 write relays.
 
 Publishers SHOULD publish their menu to their write relays and to the relays where Nous' header is published.
 
@@ -212,8 +212,8 @@ A menu says what a key offers. Whether the key is publishing those insights now 
 
 - Publish the menu where § 8.1 says.
 - Change the offers by republishing the one replaceable item.
-- Withdraw every offer by republishing the menu with no `duty` rows. The empty menu still carries Nous' `z`, so it reaches the relays the old one reached, and replaces it there.
-- A NIP-09 deletion MAY follow that republish. It MUST name `["a", "39999:<key>:duty-menu"]`, `["e", "<id>"]` and `["k", "39999"]`: some relays apply only the `e`, and deletions don't travel with `#z`-filtered relay sync, so a deletion alone can let an older copy return.
+- Withdrawing every offer SHOULD be done by republishing the menu with no `duty` rows. The empty menu still carries Nous' `z`, so it travels by the same `#z`-filtered relay sync as the old one, and replaces it wherever it arrives.
+- A NIP-09 deletion MAY follow that republish. It MUST name `["a", "39999:<key>:duty-menu"]`, `["k", "39999"]`, and an `["e", "<id>"]` for each earlier version being removed, never for the empty menu that replaced them. Some relays apply only the `e`, and a deletion naming the empty menu would remove the very version that keeps a stale copy from coming back. Deletions also don't travel with `#z`-filtered relay sync, so a deletion on its own can let an older copy return.
 
 ## 12. Security and privacy
 
@@ -280,5 +280,6 @@ A menu says what a key offers. Whether the key is publishing those insights now 
 
 ## 14. Open questions
 
-1. **Private duties.** May a per-customer menu list duties meant only for its observer, NIP-44-encrypted, the way Treasure Maps carry private entries (Treasure Maps § 13, question 8)? Until this is settled, menus list only public duties.
+1. **Private duties.** May a per-customer menu list duties meant only for its observer, NIP-44-encrypted? NIP-85 lets a kind 10040 carry entries encrypted in its `.content`, but Treasure Maps keeps its delegation entries public for now (Treasure Maps § 13, question 8). Until this is settled, menus list only public duties.
 2. **Identical menus.** May a per-customer key whose offers match its storefront exactly skip publishing its own menu, with readers falling back to the storefront? The link is optional (§ 7), so a reader would not always know which storefront applies.
+3. **Non-personalized providers.** NIP-85 lets a provider of a non-personalized algorithm serve every observer from one key. If that key marks itself a storefront, § 7 forbids filling Treasure Map entries from its rows, though the key itself is the one that publishes. Should a storefront row be able to say that this key itself publishes the duty for every observer?

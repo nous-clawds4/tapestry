@@ -17,7 +17,10 @@ This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` �
 
 1. `stories/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` — the self-pointing `b` (self-declared Shared Concepts) in `inherit-from.md`, with a pointer in `shared-concepts.md`.
 2. `stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` — the Duty Menus pre-NIP: `protocols/drafts/duty-menus.md`, its README row, and the worksheet W1 note. Depends on 1.
-3. *(planned)* Self-Maps in `treasure-maps.md`, and the narrowed sentence in `assistant-designation.md`. Depends on 2, because its relay fallback cites the Duty Menu spec.
+3. *(planned)* Self-Maps in `treasure-maps.md`, and the narrowed sentence in `assistant-designation.md`. Depends on 2, because its relay fallback cites the Duty Menu spec. Carried forward from story 2's review round 1:
+   - the read-time relay fallback (§ 3) must cover `duty-menus.md` § 6.2's "partly offered" case, where a client writes a scope entry and leaves per-insight relays to read-time resolution;
+   - the new § 9.2 (Self-Maps) is what `duty-menus.md` § 10's pointer to Treasure Maps § 9 means;
+   - `39999:duty-menu` as a Concept key (§ 4.5, § 5.3) must never read as a menu. Do not reserve `duty-menu` as a general Concept `d` (ADR 0002, Consequences).
 
 ## Not on this epic's path
 
