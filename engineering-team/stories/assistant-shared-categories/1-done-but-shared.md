@@ -1,8 +1,8 @@
 # Story 1: Done, but shared — Scores, Lists and Concepts held by another Assistant
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-11
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A pending; scoped gate (proposed for Gate A):
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-10-11 by the owner ("Approved, go ahead"); scoped gate (named at Gate A):
 `node -e "Promise.all(['./test/assistant-shared-categories.test.js','./test/assistant-trusted-content.test.js','./test/assistant-attention.test.js','./test/assistant-management-page.test.js','./test/assistant-alert.test.js','./test/treasure-map-needs-attention.test.js','./test/assistant-duty-cards.test.js','./test/assistant-duty-menu-check.test.js'].map(p=>require(p).run())).then(rs=>{const f=rs.reduce((s,r)=>s+r.fail,0);console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})"`
 — the new suite, the five suites that pin the hub's answer, marks, counts and pill, and the Duty Menu check, which
 shares `attention.js`. No guard suite: nothing here signs, publishes or touches strfry.)*
@@ -126,7 +126,7 @@ The Treasure Map is a kind 10040 event, not a concept-graph node. No concept cha
 
 None open. Settled at intake: split counts as shared (Decision 1); a pill and a line (Decision 2).
 
-## Gate A *(Light profile — the owner approves scope, approach, classification and the scoped gate in one exchange)*
+## Gate A *(Light profile — approved by the owner 2026-10-11: "Approved, go ahead")*
 
 - **Scope:** one subsystem, the hub's Scores/Lists/Concepts check and its display. The five ACs above.
 - **Approach (a sentence or two):** the server's Scores/Lists/Concepts check (`src/api/assistant/trustedContent.js`)

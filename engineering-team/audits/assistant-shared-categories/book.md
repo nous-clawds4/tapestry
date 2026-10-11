@@ -41,7 +41,7 @@ Assistant), not to their Tapestry Assistant on staging (`8e901369…`). That is 
 
 ### Acceptance frame
 
-*Proposed from the intake decisions; confirmed at story 1's Gate A.*
+*Proposed from the intake decisions; confirmed by the owner at story 1's Gate A (2026-10-11).*
 
 - [ ] **Three states.** For a signed-in person with an Assistant here, each of Scores, Lists and Concepts is **Needs
       attention** when no Map is found or the Map gives the category to no Assistant; **Done** when the Map gives it
