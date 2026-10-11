@@ -330,7 +330,7 @@ with no code change; one result per test):
   `BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/assistant-shared-categories.spec.js tests/brainstorm/assistant-trusted-content.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/assistant-management-page.spec.js tests/brainstorm/assistant-alert.spec.js tests/brainstorm/assistant-attention.spec.js --project=chromium`
   That is this story's spec and SV18, the two re-aimed specs, and three hub specs as regression.
 
-## Implementation *(J3 evidence, 2026-10-11)*
+## Implementation *(J3 evidence, 2026-10-11; approved at J3 the same day)*
 
 - **Files:**
   - Code: `src/api/assistant/trustedContent.js`, `src/api/assistant/attention.js`,
@@ -354,6 +354,10 @@ with no code change; one result per test):
 - **Seen on screen:** at 1100 px and 390 px, Scores and Lists show ✓, **Done** and **Shared** with their lines;
   Concepts shows ✓ and **Done**. The **◐** mark draws small in the page's font, close to a dot. It is decorative and
   hidden from screen readers; whether to keep it is for Gate B.
+- **Full suite** (`npm test`, the book-close gate, run for the record): `Overall: PASS — 5685 passed, 0 failed, 582
+  skipped across 302 suites`, exit 0. The skips need a live stack.
+- **On staging:** pushed as `397d236`, the same patch rebased onto another book's docs-only commit `05225a6`.
+  staging.brainstorm.world serves a bundle with the new words.
 
 ## Linked artifacts
 
