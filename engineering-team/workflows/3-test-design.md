@@ -31,6 +31,7 @@ Tester. See `engineering-team/roles/tester.md`.
 - Single happy-path test. Edge cases need explicit tests too.
 - Skipping the "confirm the test fails" step. A test that doesn't actually fail tells you nothing.
 - Tests that depend on graph state without saying so. Document prerequisites (`POST /api/firmware/install`, etc.) in the test plan.
+- A test that asserts something did *not* happen ("nothing runs", "no shell", "never shows X") also passes when the code under test returns early. Pair it with an assertion that the path under test ran (the handler answered, the call was reached), and set up whatever that path needs: config, an owner, a fixture (audit `admin-action-owner-check` §7 #3).
 
 ## Per-phase commits
 Yes. Commit the failing tests before moving on. The commit message should make clear these are intentionally failing (e.g., `test: failing tests for <slug> (<epic> #<n>)` — the slug/epic reference feeds `harness-stats.sh`, per workflow 1).
