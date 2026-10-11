@@ -1,9 +1,9 @@
 # Book of Work: Scores, Lists and Concepts — Done, but shared
 
 **Slug:** assistant-shared-categories
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-11
-**Closed:** —
+**Closed:** 2026-10-11 (on staging since `397d236`, with the owner's Gate B fixes in `14455d4`; production pending, audit §6 #1)
 **Strictness:** Light (trial) — workflows/light-profile.md *(chosen by the owner at intake, 2026-10-11; one
 Feature-lane story)*
 
@@ -79,7 +79,7 @@ Implementation and again before Gate B: `git fetch` and `git merge-tree --write-
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high for the code and its tests; medium-high for the experience. The rule was run on the owner's live Treasure Map, but nobody has looked at the hub signed in on a live instance (audit header)
 
 ## Close artifacts *(filled by `/close-book`)*
 

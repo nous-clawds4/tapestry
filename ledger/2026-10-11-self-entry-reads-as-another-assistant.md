@@ -24,5 +24,5 @@ once. Then `/treasure-map`'s cards and the hub's Scores/Lists/Concepts check cha
 reading of the Map. Re-aim `test/assistant-shared-categories.test.js` and `test/assistant-trusted-content.test.js` with
 it.
 
-**Pointer:** `engineering-team/reviews/assistant-shared-categories/1-done-but-shared.md` § Findings, non-blocking 2;
+**Pointer:** `engineering-team/reviews/done/assistant-shared-categories/1-done-but-shared.md` § Findings, non-blocking 2;
 book `duty-menus-and-self-maps` (its `_intake.md` entry from `05225a6`).

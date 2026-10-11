@@ -1,6 +1,6 @@
 # Epic: assistant-shared-categories — Done, but shared: Scores, Lists and Concepts held by another Assistant
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-11; the folders sit under `done/`; on staging since `397d236`, with the Gate B fixes in `14455d4`; not yet in production)
 **Created:** 2026-10-11
 **Book:** `engineering-team/audits/assistant-shared-categories/book.md` (no PRD — acceptance frame; Light trial)
 **Provenance:** the owner's ask of 2026-10-11, quoted verbatim in the book, settled through three questions at
@@ -16,7 +16,7 @@ count it.
 
 ## Stories
 
-`stories/assistant-shared-categories/`.
+`stories/done/assistant-shared-categories/`.
 
 1. `1-done-but-shared.md` (feature): the rule's third state in the server's answer, the hub card's Shared pill and
    line, the counts, and the rule's words on the three pages, in the BIBLE and in the API description.

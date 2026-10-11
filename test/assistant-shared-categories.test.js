@@ -3,7 +3,7 @@
  * assistant-shared-categories #1: Done, but shared — Scores, Lists and Concepts held by another Assistant.
  *
  * Story (with its Design note, Edge cases and AC→handle lines; Light profile, no ADR):
- *   engineering-team/stories/assistant-shared-categories/1-done-but-shared.md
+ *   engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md
  * Browser half: tests/brainstorm/assistant-shared-categories.spec.js, and SV18 in tests/brainstorm/treasure-map-save.spec.js.
  * Expected words and answer shapes: test/helpers/trustedContentFixtures.js (TC.shared, TC.SHARED_COPY).
  * The suite this story re-aims: test/assistant-trusted-content.test.js (U1–U4, U11, U12).

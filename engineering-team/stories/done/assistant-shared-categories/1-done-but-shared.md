@@ -389,4 +389,4 @@ fail; after it they pass.
 - ADR: — (Light: the Design note above; no irreversibility trigger)
 - Test plan: this file's *Edge cases & not-covered* and *AC→handle lines*; suites `test/assistant-shared-categories.test.js`,
   `tests/brainstorm/assistant-shared-categories.spec.js`, SV18 in `tests/brainstorm/treasure-map-save.spec.js`
-- Review: `engineering-team/reviews/assistant-shared-categories/1-done-but-shared.md`
+- Review: `engineering-team/reviews/done/assistant-shared-categories/1-done-but-shared.md`

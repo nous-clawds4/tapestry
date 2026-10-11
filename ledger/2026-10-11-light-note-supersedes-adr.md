@@ -22,6 +22,6 @@ Reviewer both ratified the Design-note classification, because no listed trigger
 
 It is a harness-definition path, so the change owes a CHANGELOG row.
 
-**Pointer:** `engineering-team/reviews/assistant-shared-categories/1-done-but-shared.md` § Harness friction 1;
+**Pointer:** `engineering-team/reviews/done/assistant-shared-categories/1-done-but-shared.md` § Harness friction 1;
 `engineering-team/decisions/done/assistant-trusted-content-status/0001-scores-lists-and-concepts-join-the-one-attention-answer.md`
 (its superseded-in-part line).

@@ -8,7 +8,7 @@ const DM = require('../../test/helpers/dutyMenuFixtures');
 /**
  * assistant-shared-categories #1 — Done, but shared: what a viewer SEES on the hub.
  *
- * Story (Design note, Edge cases, AC→handle lines): engineering-team/stories/assistant-shared-categories/1-done-but-shared.md
+ * Story (Design note, Edge cases, AC→handle lines): engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md
  * Node half: test/assistant-shared-categories.test.js. The catch-up after a Map save, and the line's link followed in the
  * app, is SV18 in tests/brainstorm/treasure-map-save.spec.js, which owns the save flow's mocks. The three pages' new
  * alert criteria are TC5 in tests/brainstorm/assistant-trusted-content.spec.js (through the shared fixture).

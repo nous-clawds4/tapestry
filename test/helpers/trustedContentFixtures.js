@@ -13,7 +13,7 @@
  *
  * Source of truth: engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md
  * § Copy (approved 2026-10-08), and ADR assistant-trusted-content-status/0001 sub-decision 4 (the answer's shape), as
- * superseded in part by engineering-team/stories/assistant-shared-categories/1-done-but-shared.md (§ Copy and its Design
+ * superseded in part by engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md (§ Copy and its Design
  * note, approved 2026-10-11). Change a word there first, then here.
  */
 

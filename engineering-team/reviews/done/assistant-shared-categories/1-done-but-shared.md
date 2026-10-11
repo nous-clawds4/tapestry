@@ -5,7 +5,7 @@
 **Diff:** the story's code is `397d236` (`git show 397d236`) and its tests are `57fbb43` (`git show 57fbb43`). No test
 file changed after `57fbb43`. Reviewed at HEAD `a82b26a`, which equals `origin/staging`. Other books' commits are
 interleaved (`05225a6`, `1b9fcd5`, and earlier ones). They are not under review here.
-**Story:** `engineering-team/stories/assistant-shared-categories/1-done-but-shared.md` (no ADR: Design note)
+**Story:** `engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md` (no ADR: Design note)
 
 ## Quality gates (run by reviewer, not trusted)
 

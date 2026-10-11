@@ -20,7 +20,7 @@
  * engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md § Copy (since
  * then the first three Publication of Trusted Content actions are Scores, Lists and Concepts, the Treasure Map's
  * categories; their alert criteria and the hub's Shared words since
- * engineering-team/stories/assistant-shared-categories/1-done-but-shared.md § Copy), and
+ * engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md § Copy), and
  * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy (the Duty Menu's
  * alert criteria since engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md, ADR
  * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page).
