@@ -67,7 +67,9 @@ passes merely because the cards are missing (workflow 3, "Common pitfalls").
   - `tests/brainstorm/assistant-outbox-relays.spec.js` B1: the persona section held exactly 3 cards. It now holds
     as many as the fixture's persona entries, and Outbox Relays is still the third. Added at Implementation, as a
     kick-back to Test Design: the browser half of the Node C1 re-aim above, missed in the first pass and caught by
-    the green browser run (see § Verification).
+    the green browser run (see § Verification);
+  - `tests/brainstorm/assistant-attention.spec.js` B1–B5: the literal hub and pill counts, +2 each. Added at
+    Implementation the same way (see § Verification).
 - Not covered by a test: ADR sub-decision 5, the count-free code comments. A comment carries no behaviour, so the
   Reviewer checks it by reading.
 - Browser run without the Docker stack:
@@ -146,4 +148,15 @@ assistant-outbox-relays B1   persona listitems — Expected: 3, Received: 5
 
 It is the browser twin of the Node C1 re-aim. It was re-aimed the same way, in its own `test:` commit ahead of the
 implementation commit.
+
+The second run, widened to every spec that reads the hub fixture (nine specs), failed five more tests that the plan
+had missed. `tests/brainstorm/assistant-attention.spec.js` B1–B5 pinned the hub's counts as literals (10, 11 and the
+pill's 9, 10 and 5), each now two higher:
+
+```
+assistant-attention B1   { count: 10, … } — Received { count: 12, … }   (and B2–B5 likewise, +2)
+```
+
+They were re-aimed by +2 each (B1 12/12/11, B2 13/13/12, B3 13/13/11, B4 13/13/7, B5 [11]) in a second `test:` commit
+ahead of the implementation commit. A last grep of every spec that visits `/assistant` found no other literal count.
 
