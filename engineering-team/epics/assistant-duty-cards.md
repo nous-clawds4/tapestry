@@ -1,6 +1,6 @@
 # Epic: assistant-duty-cards — the hub's Duty Menu and Your Assistant's Treasure Map cards
 
-**Status:** Done (book closed 2026-10-11; the folders sit under `done/`; on `staging`, production pending)
+**Status:** Done (book closed 2026-10-11; the folders sit under `done/`; in production 2026-10-11 via PR #850)
 **Created:** 2026-10-11
 **Book:** `engineering-team/audits/assistant-duty-cards/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-11, quoted verbatim in the book and settled through three

@@ -12,7 +12,14 @@
 - **Interleaved.** Three commits of the parallel docs-only book `duty-menus-and-self-maps` sit between them
   (`a26fc4e7`, `ab8f2f2b`, `5d362f8f`). They touch only that book's files.
 - **Staging: deployed.** staging.brainstorm.world runs it (deploy run 607, commit `e3e436e6`, success).
-- **Production: not shipped.** `main` does not have it (§6 #1).
+- **Production: shipped 2026-10-11.** PR #850 (`staging` → `main`) merged as `36212acc` after a safe pre-merge check;
+  deploy run 148 succeeded in about 1m50s. The production smoke test was clean:
+  - tiers 1–2 passed, apart from the documented `/api/get-user-data` 504 on a large graph;
+  - the served bundle changed to `index-_gp3fstm.js` and carries the new words;
+  - 7 of 7 hub browser specs passed against `tapestry.brainstorm.world`.
+
+  To clear the promotion's one conflict, `main` was merged into `staging` (`8af8e1e8`), with a tree identical to
+  `staging`'s (§6 #1).
 
 **Provenance:** Acceptance-frame. There is no PRD and no Discovery conversation (book Decision 3). The owner's ask is
 quoted verbatim in `book.md`. Three decisions were settled at intake, and the owner confirmed the frame with them on
@@ -123,8 +130,7 @@ plan's § Verification amendment (the two Implementation-time re-aims).
 
 ## 6. Carry-forward register
 
-- [ ] **Promote to production.** The book is on `staging` only (`e3e436e6`). It goes to `main` with the owner's next
-      `staging` → `main` promotion (`/cycle-prod`).
+- [x] **Promote to production.** Done 2026-10-11: PR #850, merge `36212acc`, deploy run 148, smoke clean.
 - [ ] **Build the real pages, and a real check, for both cards.**
   - The later code book named in book `duty-menus-and-self-maps` § "Not in this book" publishes menus and self-Maps.
   - It replaces each placeholder: a page in `ACTION_PAGES`, the key in `CHECKED_ACTIONS`, and an answer from
