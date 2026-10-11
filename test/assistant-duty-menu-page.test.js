@@ -12,7 +12,8 @@
  * Classes (all stack-free):
  *   P — the page's words and pure helpers, ui/src/pages/assistant/dutyMenuCopy.js, loaded in Node: the story's
  *       § Copy, categoryOf (agreeing with the Treasure Map rule's appliesTo) and statusLine (no line for an
- *       unfinished check: ADR 0001 Amendment 1 item 1, P5).                                           [AC-5]
+ *       unfinished check: ADR 0001 Amendment 1 item 1, P5; the none line apart from the status line:
+ *       Amendment 2 item 3, P6).                                                                        [AC-5]
  *   D — source sentinels on what this runner cannot execute: the route in App.jsx, and DutyMenu.jsx's states, its
  *       one shared answer, its words' one home, and that it never fetches, refreshes, polls or publishes. [AC-5, AC-6]
  *
@@ -130,6 +131,18 @@ test('P5: no status line when the check did not finish — statusLine gives none
   const wrong = cases.filter(([, a]) => { const got = statusLine(a); return got !== null && got !== undefined && got !== ''; })
     .map(([label, a]) => `${label}: want no line, got ${show(statusLine(a))}`);
   if (statusLine(DM.ANSWERS.DONE) !== DM.PAGE.status.upToDate) wrong.push('control: a finished, current answer still gives the up-to-date line');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('P6: the published panel\'s none line and the not-published status line are two sentences — "No Duty Menu was found for your Assistant." in the copy module, and statusLine for no menu gives the status sentence, never the none line (ADR 0001 Amendment 2 item 3; story § Copy as amended)', async () => {
+  const mod = await copyModule();
+  const statusLine = needFn(mod, 'statusLine');
+  const strings = stringsOf(Object.fromEntries(Object.entries(mod).filter(([, v]) => typeof v !== 'function')));
+  const wrong = [];
+  if (DM.PAGE.none === DM.PAGE.status.notPublished) wrong.push('fixture: the none line and the status line must differ');
+  if (!strings.has(DM.PAGE.none)) wrong.push(`the copy module holds the none line ${show(DM.PAGE.none)}`);
+  if (statusLine(DM.ANSWERS.NONE) !== DM.PAGE.status.notPublished) wrong.push(`statusLine(no menu): want ${show(DM.PAGE.status.notPublished)}, got ${show(statusLine(DM.ANSWERS.NONE))}`);
+  if (statusLine(DM.ANSWERS.NONE) === DM.PAGE.none) wrong.push('the status line repeats the none line');
   assert(wrong.length === 0, wrong.join('; '));
 });
 

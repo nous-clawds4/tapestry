@@ -6,7 +6,7 @@
  * (test/helpers/dutyCardsFixtures.js, which the hub fixture reads), so they cannot disagree about what the owner approved.
  *
  * Source of truth: engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md (approved
- * 2026-10-11; AC-2 amended at Architecture, § Deviations) and
+ * 2026-10-11; AC-2 amended at Architecture, § Copy's none line and AC-3 amended before Review, § Deviations) and
  * engineering-team/decisions/assistant-duty-menu/0001-a-duty-menu-check-beside-the-others.md (accepted 2026-10-11, R1
  * and K1), following protocols/drafts/duty-menus.md §§ 4, 5, 6.1 and 8.1. Change a word there first, then here.
  *
@@ -25,8 +25,10 @@ const menuFilter = (author) => ({ kinds: [DUTY_MENU_KIND], authors: [author], '#
 const RELAY_LIST_KIND = 10002;
 const TREASURE_MAP_KIND = 10040;
 
-// ─── The check's timing (ADR 0001 sub-decision 3) ────────────────────────────────────────────────────────────────────
+// ─── The check's timing and bounds (ADR 0001 sub-decision 3; Amendment 2 item 2) ─────────────────────────────────────
 const RELAY_BUDGET_MS = 8000;
+/** At most this many relays named inside events are guarded and read per check (MAX_RELAYS, src/lib/relay-list). */
+const MAX_EVENT_RELAYS = 50;
 /** A found Nous relay list is remembered in-process for one hour; a miss never is. */
 const NOUS_CACHE_MS = 60 * 60 * 1000;
 
@@ -68,7 +70,8 @@ const PAGE = {
   notOffered: 'not offered',
   publishedHeading: "Your Assistant's published Duty Menu",
   checking: 'Checking…',
-  none: 'Your Assistant has not published a Duty Menu yet.',
+  // Amended 2026-10-11 (ADR 0001 Amendment 2 item 3): it was the status line's sentence, so the page said it twice.
+  none: 'No Duty Menu was found for your Assistant.',
   couldNotCheck: {
     'no-relay-answered': "No relay answered, so your Assistant's Duty Menu could not be checked.",
     'request-failed': 'Could not check: this instance did not answer.',
@@ -127,7 +130,7 @@ function withDutyMenu(answer, dutyMenu = ANSWERS.NONE) {
 
 module.exports = {
   NOUS_PUBKEY, DUTY_MENU_KIND, DUTY_MENU_D, DUTY_MENU_HEADER, menuFilter, RELAY_LIST_KIND, TREASURE_MAP_KIND,
-  RELAY_BUDGET_MS, NOUS_CACHE_MS,
+  RELAY_BUDGET_MS, MAX_EVENT_RELAYS, NOUS_CACHE_MS,
   KEY, PATH, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER, STILL_PLACEHOLDER,
   OFFER_KEYS, CATEGORY_NAMES, expectedOffer,
   PAGE, PAGE_SENTENCES,

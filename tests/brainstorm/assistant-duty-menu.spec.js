@@ -252,10 +252,12 @@ test.describe('The Duty Menu card and page (assistant-duty-menu #1)', () => {
     await expect.poll(() => new URL(page.url()).pathname).toBe(X.HUB);
   });
 
-  test('B6: none published — the published panel says so with Needs attention, and the status line is "not published yet" (AC-5)', async ({ page }) => {
+  // Re-aimed by ADR 0001 Amendment 2 item 3: the panel's none line is its own sentence, no longer the status line's.
+  test('B6: none published — the published panel says "No Duty Menu was found for your Assistant." with Needs attention, and the status line is "not published yet", each once (AC-5)', async ({ page }) => {
     await mock(page, { attention: answerWith(DM.ANSWERS.NONE) });
     const main = await open(page);
-    await expect(publishedPanel(page).getByText(DM.PAGE.none, { exact: true }).first()).toBeVisible();
+    await expect(publishedPanel(page).getByText(DM.PAGE.none, { exact: true })).toBeVisible();
+    await expect(main.getByText(DM.PAGE.status.notPublished, { exact: true }), 'the status line, once').toHaveCount(1);
     await expect(publishedPanel(page).getByText(X.COPY.needsAttention, { exact: true })).toBeVisible();
     await expect(main.getByText(DM.PAGE.status.upToDate, { exact: true })).toHaveCount(0);
     await expect(main.getByText(DM.PAGE.status.outOfDate, { exact: true })).toHaveCount(0);

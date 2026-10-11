@@ -30,6 +30,9 @@
  * ADR 0001 Amendment 1 (2026-10-11) settled the plan's open points; pinned here by L5/L6 (relays that don't normalize,
  * a not-offered row's null relay, naddr in a segment), L11 and U29 (every offer relay in its one spelling), U28 and S5
  * (local-only through the isLocalOnly seam), U30 (null relay in the answer) and S4 (openapi.yaml and BIBLE §11).
+ *
+ * ADR 0001 Amendment 2 (2026-10-11, before Review): the fifth § 6.1 condition (L12, U31) and at most 50 relays named
+ * inside events per check (U32). The page's new none line is pinned in test/assistant-duty-menu-page.test.js (P6).
  */
 
 const fs = require('fs');
@@ -519,6 +522,29 @@ test('L11: buildOffer gives every relay in its one spelling — ownRelay and dli
   assert(wrong.length === 0, wrong.join('; '));
 });
 
+test('L12: isDutyMenu refuses an otherwise conforming menu that carries ["z", "list"], or a z naming a concept-header (39998:<64 hex>:concept-header, Nous\' or anyone\'s); other z tags still pass (ADR 0001 Amendment 2 item 1; ADR duty-menus-and-self-maps/0003 sub-decision 11)', () => {
+  const isDutyMenu = need(libModule(), 'isDutyMenu', 'src/lib/duty-menu');
+  const rows = [['duty', '30382', OWN]];
+  const withZ = (extraZ) => menuEv({ rows, z: [DM.DUTY_MENU_HEADER, extraZ] });
+  const refused = [
+    ['["z", "list"]', withZ('list')],
+    ['a z naming Nous\' concept-header', withZ(`39998:${NOUS}:concept-header`)],
+    ['a z naming another author\'s concept-header', withZ(`39998:${OTHER}:concept-header`)],
+    ['the concept-header z before Nous\' z', menuEv({ rows, z: [`39998:${OTHER}:concept-header`, DM.DUTY_MENU_HEADER] })],
+  ];
+  const accepted = [
+    ['39998:<hex>:something-else', withZ(`39998:${OTHER}:something-else`)],
+    ['a 30382 address', withZ(`30382:${OTHER}:rank`)],
+    ['a kind-39999 concept-header address', withZ(`39999:${OTHER}:concept-header`)],
+    ['a concept-header address without a 64-hex author', withZ('39998:not-a-pubkey:concept-header')],
+    ['"lists"', withZ('lists')],
+  ];
+  const wrong = [];
+  for (const [label, e] of refused) if (isDutyMenu(e, ASSISTANT) !== false) wrong.push(`${label}: want false (not a menu)`);
+  for (const [label, e] of accepted) if (isDutyMenu(e, ASSISTANT) !== true) wrong.push(`${label}: want true (another z is allowed and ignored, § 4)`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
 /* ───────────────────────── U — the answer: whose, and its shape (AC-1) ───────────────────────── */
 
 test('U1: without an authenticated session the answer is { success: true, signedIn: false }, and no menu, Map or customer is looked up (AC-1)', async () => {
@@ -880,6 +906,55 @@ test('U30: in the answer, a published not-offered row carries relay null, and ev
     if (rows.some((r) => r.tag === 'duty' && (typeof r.relay !== 'string' || !/^wss?:\/\//.test(r.relay)))) wrong.push(`a duty row without a ws:// or wss:// relay: ${show(rows)}`);
     if (rows.some((r) => r.key === '30383')) wrong.push('the https:// row is dropped');
   }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── U — ADR 0001 Amendment 2 ───────────────────────── */
+
+test('U31: when the newest version carries ["z", "list"] or a concept-header z, the Assistant has no menu — published null, pending — though an older conforming version exists (ADR 0001 Amendment 2 item 1; § 8.1)', async () => {
+  const older = menuEv({ createdAt: 1000, rows: offerAt(OWN) });
+  const wrong = [];
+  for (const [label, z] of [['["z", "list"]', 'list'], ['a concept-header z', `39998:${OTHER}:concept-header`]]) {
+    const newer = menuEv({ createdAt: 2000, rows: offerAt(OWN), z: [DM.DUTY_MENU_HEADER, z] });
+    const got = await answer({ local: [...baseLocal(), older], relays: { ...quietRelays(), [HINT]: [newer] } });
+    const a = got.action || {};
+    if (!(a.finished === true && a.published === null && a.current === false && a.done === false && a.pending === true)) wrong.push(`${label}: want finished, published null, pending; got ${show(a)}`);
+  }
+  const control = await answer({ local: [...baseLocal(), older] });
+  if (!(control.action && control.action.published && control.action.published.eventId === older.id && control.action.done === true)) wrong.push(`control: the older menu alone is found and done, got ${show(control.action)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U32: at most 50 relays named inside events are guarded and read per check — the first 50 after normalizing, outsideOnly and de-duplication, in § 8.1\'s order (Map hints, the Assistant\'s write relays, Nous\'); the offer\'s configured relay is read on top (ADR 0001 Amendment 2 item 2)', async () => {
+  const H = Array.from({ length: 40 }, (_, i) => `wss://hint-${i}.example`);
+  const A = Array.from({ length: 20 }, (_, i) => `wss://write-${i}.example`);
+  const N = Array.from({ length: 15 }, (_, i) => `wss://nous-${i}.example`);
+  // Duplicates and this instance's own relay, none of which may take a place among the 50.
+  const mapTags = [['30382:rank', ASSISTANT, OWN_CONFIGURED], ...H.map((u) => ['30382:rank', ASSISTANT, u]), ['39998', ASSISTANT, 'wss://Hint-5.example/']];
+  const aTags = [['r', H[3]], ...A.map((u) => ['r', u])];
+  const nTags = [...N.slice(0, 10).map((u) => ['r', u, 'write']), ...A.slice(0, 5).map((u) => ['r', u, 'write'])];
+  const local = [mapEv(mapTags), relayListEv(ASSISTANT, aTags), relayListEv(NOUS, nTags)];
+  const distinct = [...H, ...A, ...N.slice(0, 10)];
+  assert(distinct.length === 70, `fixture: 70 distinct relays named in events, got ${distinct.length}`);
+  const first50 = distinct.slice(0, DM.MAX_EVENT_RELAYS);
+  const relays = Object.fromEntries([...distinct, DLIST].map((u) => [u, []]));
+  const got = await answer({ local, relays, config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' } });
+  const guarded = [...new Set(got.calls.guard)];
+  const read = readUrls(got);
+  const wrong = [];
+  if (got.calls.guard.length > DM.MAX_EVENT_RELAYS) wrong.push(`isPublicRelayHostWithin was asked ${got.calls.guard.length} times, want at most ${DM.MAX_EVENT_RELAYS}`);
+  const want50 = first50.map(hostOf);
+  const extra = guarded.filter((h) => !want50.includes(h));
+  const unasked = want50.filter((h) => !guarded.includes(h));
+  if (extra.length || unasked.length) wrong.push(`the guard is asked about exactly the first 50: ${extra.length} beyond them (e.g. ${show(extra.slice(0, 3))}), ${unasked.length} of them not asked (e.g. ${show(unasked.slice(0, 3))})`);
+  const eventRead = read.filter((u) => u !== normUrl(DLIST));
+  if (eventRead.length > DM.MAX_EVENT_RELAYS) wrong.push(`${eventRead.length} event-named relays read, want at most ${DM.MAX_EVENT_RELAYS}`);
+  const missing = first50.filter((u) => !read.includes(normUrl(u)));
+  if (missing.length) wrong.push(`the first 50 are really read: missing ${show(missing.slice(0, 5))}${missing.length > 5 ? ` and ${missing.length - 5} more` : ''}`);
+  const beyond = distinct.slice(DM.MAX_EVENT_RELAYS).filter((u) => read.includes(normUrl(u)));
+  if (beyond.length) wrong.push(`relays past the 50th were read: ${show(beyond.slice(0, 5))}${beyond.length > 5 ? ` and ${beyond.length - 5} more` : ''}`);
+  if (!read.includes(normUrl(DLIST))) wrong.push('the offer\'s configured DList relay is read on top of the 50');
+  if (read.some((u) => hostOf(u) === OWN_DOMAIN)) wrong.push('this instance\'s own relay is never read');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
