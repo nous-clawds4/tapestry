@@ -1,6 +1,6 @@
 # Story 3: Self-Maps
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-11
 **Type:** Doc
 
@@ -186,7 +186,10 @@ recommended answer to open question 2. If the owner picks another, the PO revise
 - [ ] **AC8, bookkeeping and gates.**
   - **Tracking what stays open.** Before the handoff flips, an OPEN ledger row or `_intake.md` entry carries handoff
     Q6 (NosFabrica adoption) and the handoff's later code plan (§ 6 and § 8's engineering steps), beyond what ledger row
-    `2026-10-10-external-assistant-relay-left-empty` already covers.
+    `2026-10-10-external-assistant-relay-left-empty` already covers. It also points at the two placeholder cards the
+    `assistant-duty-cards` book added to the Assistant Management hub (Duty Menu, `/assistant/duty-menu`; Your
+    Assistant's Treasure Map, `/assistant/treasure-map`), which the later code book replaces rather than duplicates,
+    and at that book's open product questions (`engineering-team/audits/assistant-duty-cards/prd-seed.md` § 7).
   - **The handoff.** Its Status line flips as the owner answers open question 3 (finding 27; frame bullet 4). The
     flipped line says:
     - where each part landed in `protocols/`;
@@ -252,6 +255,9 @@ The counting rule (AC1) decides whose activity is counted for others, which is w
 ## Open questions
 
 Owner decisions this story needs before approval. Each has a recommended default.
+
+**Answered by the owner, 2026-10-11, at story approval:** the recommended default for all five: 1 (a), 2 (a), 3 (a),
+4 (a), 5 (a). The book's acceptance frame gains the story-4 bullet that 2 (a) calls for.
 
 1. **What does "`duty-menu` is reserved" mean in Treasure Maps?** The book's frame bullet 3 says "§ 4.6: `duty-menu` is
    reserved". Today:

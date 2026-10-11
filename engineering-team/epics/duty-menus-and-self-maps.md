@@ -9,7 +9,8 @@
 Ratify the design in [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md) into `protocols/`:
 - a **Duty Menu**, one DList item per Assistant key under a shared header published by Nous, says what that key offers and the relay for each duty;
 - an Assistant's **own Treasure Map** (a self-Map) says which duties it is actively publishing;
-- the **self-pointing `b`** that the Duty Menu header relies on becomes normative.
+- the **self-pointing `b`** that the Duty Menu header relies on becomes normative;
+- Treasure Maps settles the key-grammar questions the Duty Menu spec reads provisionally (story 4; owner, 2026-10-11).
 
 This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` § 3). The deliverables are `protocols/` prose and pointer edits, with no code, and Test Design is skipped for each story. The D2 vocabulary policy applies throughout (`docs/NIP_REORG_DESIGN_HANDOFF.md`).
 
