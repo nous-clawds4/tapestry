@@ -110,6 +110,17 @@ Until the owner answers, this ADR is written under each question's recommended a
   agree are limited to a menu that is not a storefront (D4); what a self-entry of a key that serves several observers
   speaks for is left open (D5); questions 2 and 3 have their premises corrected to match.
 
+**Revision 4 (2026-10-11)** answers a fresh check (findings N1–N3) with one more model run in `s3/r4/`:
+- where A's self-entry keyed K and A's menu are said to agree, the text now says "except during a move", and question
+  2 lists the move as a further conforming difference, which (c) removes and (a) and (b) do not; the no-menu MUST also
+  covers a client whose only menu of A's is a storefront whose rows Duty Menus § 7 bars, so that case has one reading,
+  and question 2 lists it (N1);
+- a key MUST NOT add a self-entry that speaks for nothing, and MUST remove one as soon as it learns that it speaks for
+  nothing; revision 3's "MUST NOT add or keep" could not be met (N2);
+- until it is settled what the self-entries of a key that serves several observers speak for, readers read them as
+  any others, and § 9.2's rules on what a self-entry speaks for do not bind them; the allowance paragraph and Known
+  limits say so (N3).
+
 ## Options considered
 
 ### Option A — Self-Maps and the read-time rules normative in Treasure Maps; per-insight meaning; Duty Menus points
@@ -205,9 +216,14 @@ Where a sub-decision depends on an open owner question, it says so.
      with their own key, speaks for every insight its self-entries win, read over its own supported sets. A key that
      serves several observers, as NIP-85 allows for an algorithm that is not personalized, has no one observer to read
      its self-entries over; what they speak for is open, with the other questions about such keys ([Duty
-     Menus](./duty-menus.md) § 14, question 3)." Under answer (b) the second sentence goes, and so does "those the
-     observer gave to another key". The last sentence is D5's: revision 2 read "speaks for" over "the observer its key
-     serves", which has no referent for such a key.
+     Menus](./duty-menus.md) § 14, question 3). Until it is settled, readers read such a key's self-entries as any
+     others (What a reader can tell), and this section's rules on what a self-entry speaks for do not bind them."
+     Under answer (b) the second sentence goes, and so does "those the observer gave to another key".
+     - The last two sentences are D5's and N3's. Revision 2 read "speaks for" over "the observer its key serves", which
+       has no referent for such a key. And every key-side rule below turns on "speaks for": the MUST NOT on a false
+       claim, the add rule, the removal before a stop, and the rule on a self-entry that speaks for nothing. Readers
+       cannot tell such a key from one that serves one observer, so they grant its self-entries confirmation and the
+       age allowance as any others, on nothing the spec asks of the key. The spec says so (sub-decision 5).
    - **What a reader can tell** (C1r). "Whether a self-entry speaks for an insight it wins turns on the observer's
      supported sets and, for an Assistant, on the observer's Map. A reader may hold neither: clients don't need
      supported sets (§ 8). A reader takes a self-entry to speak for each insight it wins, unless it knows that the
@@ -266,11 +282,11 @@ Where a sub-decision depends on an open owner question, it says so.
      ([Duty Menus](./duty-menus.md) § 7), it is also the relay A's menu gives the self-entry's key (Duty Menus § 6.2
      step 5), save while A moves those insights to that relay (below). A key to which A's menu gives another relay, or
      none, is not one of its self-entries' keys."
-     - Why: A's self-entry keyed K and A's menu then agree on K, so the fill can take the self-entry first, as AC5
-       words it, with no condition (sub-decision 8). Without the rule, a self-entry can be true and still differ from
-       the menu: with the menu `*` → R0, `3038x` → R1 and an observer who gave A's Lists and Concepts to B, A's duties
-       under `*` are Scores at R1, and `*` → R1 is true (`s3sk/resolution/k3_exact_fill.out`). Under the rule A writes
-       `3038x` → R1 instead.
+     - Why: A's self-entry keyed K and A's menu then agree on K, except during a move, so the fill can take the
+       self-entry first, as AC5 words it, with no condition (sub-decision 8). Without the rule, a self-entry can be
+       true and still differ from the menu: with the menu `*` → R0, `3038x` → R1 and an observer who gave A's Lists
+       and Concepts to B, A's duties under `*` are Scores at R1, and `*` → R1 is true
+       (`s3sk/resolution/k3_exact_fill.out`). Under the rule A writes `3038x` → R1 instead.
      - It costs little, because the construction below meets it already: the meet of the observer's key with every row
        that matches a duty gets from step 5 the relay where A publishes that duty (3,818 of 3,818 such meets,
        `s3/r2/chk_meet.py`). Over 6,000 Maps it lowers the published duties claimed from 96.6% to 96.5%, and keeps
@@ -279,7 +295,9 @@ Where a sub-decision depends on an open owner question, it says so.
        storefront's self-entries are bound by the MUST NOT alone. Where an observer runs a storefront key S as its own
        Assistant, Duty Menus § 7 lets S's rows fill the observer's entries naming S, while S's self-entry keyed K, where
        S has one, names where S itself publishes; the two can differ, and both are conforming fills (D4; question 2;
-       `s3/r3/m_r3.py`, named).
+       `s3/r3/m_r3.py`, named). Where S is not the observer's own Assistant, no client fills from S's rows: one that
+       takes S's self-entry keyed K writes where S publishes, and one that does not writes `""` (sub-decision 8, No
+       menu found; question 2).
    - **More than one relay.** "Where A publishes some of the duties under one key at another relay (a differing row's
      part, [Duty Menus](./duty-menus.md) § 6.2 step 4), A adds narrower self-entries naming that relay, so that each
      self-entry wins only duties A publishes at its relay. The meet of the observer's key with the row that sends them
@@ -310,10 +328,10 @@ Where a sub-decision depends on an open owner question, it says so.
      - Example: § 13.2's menu `3038x` → R, `not-offered 30385`, with the observer's `["3038x", A, R]`. A writes
        `30382`, `30383`, `30384`, `30386` and `30387` → R, not `3038x`. If the observer later gives `30385` to another
        Assistant, `30385` is no longer A's duty, and A may write `3038x` again.
-     - A also never adds or keeps a self-entry that speaks for none of the insights it wins (a MUST NOT, sub-decision
-       4). It says nothing to A's observer, and the stop rule, which covers only what a self-entry speaks for, never
-       fires for it, so a reader of the self-Map alone could not tell when A stops the insights it wins (sub-decision
-       5's limit).
+     - A also never adds a self-entry that speaks for none of the insights it wins, and removes one as soon as it
+       learns that it speaks for none (sub-decision 4). It says nothing to A's observer, and the stop rule, which
+       covers only what a self-entry speaks for, never fires for it, so a reader of the self-Map alone could not tell
+       when A stops the insights it wins (sub-decision 5's limit).
    - **Which of handoff § 5's phrases gives way, and AC2.** "Where the insights actually are" holds for every insight.
      "One entry per key" gives way: it now means that no key appears twice, and a self-Map may hold more self-entries
      than the observer's Map gives A keys. AC2's "its key is the customer's winning key, copied verbatim" gives way too,
@@ -385,8 +403,8 @@ Where a sub-decision depends on an open owner question, it says so.
      - "It MUST remove or narrow a self-entry before it stops keeping up to date any insight that the self-entry wins
        and speaks for, whatever the reason: the service ended, the key was retired, or it can no longer publish it. A
        brief gap never covers a stop."
-     - "A key MUST NOT add or keep a self-entry that speaks for none of the insights it wins, as when the observer
-       drops the key."
+     - "A key MUST NOT add a self-entry that speaks for none of the insights it wins, and MUST remove one as soon as
+       it learns that it speaks for none, as when the observer drops the key."
      - "A move to another relay ends the self-entry at the old relay, not the insights: the key first publishes a
        version whose self-entries name the new relay, and only then stops updating the copies at the old one. It does
        not retract what it moved; the copy left at the old relay is an older version."
@@ -411,13 +429,19 @@ Where a sub-decision depends on an open owner question, it says so.
      readings. Read for each insight, it forbade what answer (a) allows: keeping `*` → R0 after the observer gave
      `30382:rank` to B and A stopped ranks. Read for all of them together, it let a self-entry outlive part of what it
      speaks for. The new sentence is per insight, over what the self-entry speaks for. Under answer (a) that alone never
-     fires when the observer drops the key, since the key then speaks for nothing; the MUST NOT on a self-entry that
-     speaks for nothing covers it (`s3/r2/m6s.py`, Part D).
-   - **Why a MUST NOT, not a removal tied to the stop** (D3). Revision 2 bound such a self-entry only "before the key
-     stops keeping up to date the insights it last spoke for", while its stated reason, the construction and the
-     Verification removed it always, and the add rule, vacuous for it, let A add one. The MUST NOT states what they
-     check and covers adding. A self-entry that speaks for nothing claims nothing to A's observer, so removing it as
-     soon as A learns of the change costs that observer nothing (`s3/r3/m_r3.py`: the construction leaves none).
+     fires when the observer drops the key, since the key then speaks for nothing; the rule on a self-entry that speaks
+     for nothing covers it (`s3/r2/m6s.py`, Part D).
+   - **Why a rule of its own, not a removal tied to the stop** (D3, N2). Revision 2 bound such a self-entry only
+     "before the key stops keeping up to date the insights it last spoke for", while its stated reason, the
+     construction and the Verification removed it always, and the add rule, vacuous for it, let A add one. The rule
+     states what they check and covers adding. A self-entry that speaks for nothing claims nothing to A's observer, so
+     removing it as soon as A learns of the change costs that observer nothing (`s3/r3/m_r3.py`: the construction
+     leaves none).
+     - Why "as soon as it learns" (N2). Revision 3 wrote "MUST NOT add or keep", which no key can meet: a self-entry
+       speaks for nothing from the moment the observer publishes the drop, and the key learns of it only when it reads
+       the observer's Map. In the model, 195 self-entries across 600 self-Maps speak for nothing at that moment
+       (`s3/r3/m_r3.py`, D3). The removal is timed as the gap sentence times a narrowing: "as soon as the key learns of
+       it".
    - **Why a move ends the self-entry first.** Revision 0 let a self-Map lag a move "through a brief gap". A reader in
      the gap read the old self-Map and accepted the copy left at the old relay as maintained, however stale
      (`s3/r1/m6r.py`, Part 2). With the new order, a copy at the relay the self-Map names is always one the key still
@@ -500,13 +524,15 @@ Where a sub-decision depends on an open owner question, it says so.
        is the same kind of check as `duty-menus.md` § 12's NIP-05 SHOULD. It prescribes nothing about what the observer
        chooses.
    - **As a point of view** (C6). "Read as a point of view, like any Map, a self-Map's self-entries show the view of
-     the observer its key serves (§ 9, One key per observer): the slice the key publishes, for the insights they speak
-     for. They can also win insights the key no longer keeps up to date (below), so the view can carry stale copies.
-     Entries in it that name other keys are its author's own requests (§ 9). A self-Map that has both, such as an
-     instance's Tapestry Assistant's, read as a point of view mixes two observers' views." Readers that know nothing of
-     self-Maps read it that way already. Which observer the TA's own insights speak for stays out of scope.
-     - § 2's Observer line gains: "…are *for* the observer; those a self-entry names are for the observer its key serves
-       (§ 9.2)."
+     the observer its key serves, where it serves one (§ 9, One key per observer): the slice the key publishes, for the
+     insights they speak for. They can also win insights the key no longer keeps up to date (below), so the view can
+     carry stale copies. Entries in it that name other keys are its author's own requests (§ 9). A self-Map that has
+     both, such as an instance's Tapestry Assistant's, read as a point of view mixes two observers' views." Readers
+     that know nothing of self-Maps read it that way already. Which observer the TA's own insights speak for stays out
+     of scope.
+     - § 2's Observer line gains: "…are *for* the observer; those a self-entry names are for the observer its key
+       serves, where it serves one (§ 9.2)." "Where it serves one", here and above, is N3's: a key that serves several
+       observers has no such observer.
    - **What the allowance rests on** (normative text, C1, C5): "The allowance rests on the key's own word. It holds
      while the key removes or narrows a self-entry before it stops, and while readers see the change. It does not hold
      in four cases:
@@ -524,10 +550,15 @@ Where a sub-decision depends on an open owner question, it says so.
        the observer's Map, so it takes a stale copy of such an insight as maintained, unless it is a List the key
        retracted.
 
-     An observer's remedy is its own Map: drop the key, reorder its providers, or give the insight to another key."
+     For a key that serves several observers, the allowance rests on nothing this section asks of the key: what its
+     self-entries speak for is open (above), so no rule binds what they claim, though readers grant the allowance as
+     for any other key. An observer's remedy is its own Map: drop the key, reorder its providers, or give the insight
+     to another key."
      - The fourth case holds under question 1's answer (a). Under (b) it goes: a self-entry then speaks for every
        insight it wins in the supported sets, and A narrows before it stops any of them. The third case holds under
        both answers.
+     - The sentence after the cases is N3's. It is not a fifth case: the four are gaps in rules that bind the key,
+       and no rule on what a self-entry speaks for binds such a key yet.
      - The model (`s3/r2/m6s.py`, Part B). Over 1,500 shrinks of the supported sets, a self-entry still wins, at the
        copy's relay, 64 stale Lists, 192 stale Scores and 1 stale Concept for a reader of the observer's own Map, under
        either answer; the retraction SHOULD turns the Lists into retractions. Over 1,295 carve-outs, under (a), 23 Lists
@@ -636,20 +667,24 @@ Where a sub-decision depends on an open owner question, it says so.
      compared as §§ 4.1, 4.4 and 4.5 read them, so `39998:dlist-header` is `39998`; a K that is a Concept kind and a
      colon alone (`39998:`, `39999:`) takes no relay from a self-entry until this NIP settles what such a key means.
      Otherwise it fills element 3 from A's Duty Menu as Duty Menus § 6.2 step 5 says, which also says what to write for
-     a key the menu does not offer and for an Assistant with no menu found. A client of the Assistant service that runs
-     A (§ 9), such as an instance writing an entry for its own Tapestry Assistant, MAY read A's menu from that service's
-     own record, whether or not the service has published it; Duty Menus § 6.2 step 5 then applies to it as to a menu
-     found. Its rows say, as a published menu's do, where A's insights will be published (Duty Menus § 5.1). The
-     observer may write any relay by hand."
+     a key the menu does not offer and for an Assistant with no menu the client may fill from. A client of the
+     Assistant service that runs A (§ 9), such as an instance writing an entry for its own Tapestry Assistant, MAY read
+     A's menu from that service's own record, whether or not the service has published it; Duty Menus § 6.2 step 5
+     then applies to it as to a menu found. Its rows say, as a published menu's do, where A's insights will be
+     published (Duty Menus § 5.1). The observer may write any relay by hand."
    - **Why the self-entry whose key is K, with no condition** (C3, C5). AC5 asks that "A's own self-entry for K, if
      any, gives the relay ahead of the Duty Menu's answering row". Under sub-decision 3's relay rule that self-entry
      names the relay A's menu gives K, so the two agree while the client holds A's current menu and it is not a
-     storefront: 0 of 12,029 fills differ when A's self-Map was built for an earlier Map, however many saves ago, and 0
-     of 4,000 on a re-fill; in 4,000 carve-and-return trials neither is wrong (`s3/r2/m5s.py`). That holds by
-     construction, not only in the trials, while A follows the rule; during a move the self-entry names the old relay,
-     which A still updates. A storefront's self-entries are not bound to its rows (sub-decision 3), so where the
-     observer runs a storefront key as its own Assistant the two can differ (D4; question 2). The self-entry still
-     comes first because it answers when no menu is found or the client holds an older menu version.
+     storefront, except during a move: 0 of 12,029 fills differ when A's self-Map was built for an earlier Map, however
+     many saves ago, and 0 of 4,000 on a re-fill; in 4,000 carve-and-return trials neither is wrong (`s3/r2/m5s.py`).
+     That holds by construction, not only in the trials, while A follows the rule. During a move the self-entry names
+     the old relay, which A still updates, while step 5 on A's current menu gives K the new relay, or none; the two
+     then differ (N1; question 2; `s3sk/check-r3/r3_move.out`; `s3/r4/n1_partial_move.out`). A storefront's
+     self-entries are not bound to its rows (sub-decision 3), so where the observer runs a storefront key as its own
+     Assistant the two can differ (D4; question 2). Where the storefront key is not the observer's own Assistant, no
+     client fills from its rows (Duty Menus § 7), and one that does not take the self-entry writes `""` (No menu
+     found, below). The self-entry still comes first because it answers when there is no menu the client may fill
+     from, or the client holds an older menu version.
      - A broader self-entry's relay is a guess for a key A did not hold. With menu `*` → R0, `30382:rank` → R1, the Map
        `["*", A]`, `["30382:rank", B]` and A's self-Map `*` → R0, giving `30382:rank` to A: the covering rule writes R0;
        the rule above finds no self-entry keyed `30382:rank`, falls to the menu and writes R1 (`s3/m5_fill.py`, named;
@@ -710,26 +745,35 @@ Where a sub-decision depends on an open owner question, it says so.
      repairs a stale hint. The order is a quality rule for the hint, not something every reader needs to read alike
      (A1-11's lesson).
    - **Composition with an insisted key** (finding 26). Under sub-decision 3's relay rule, for a menu that is not a
-     storefront, A has a self-entry keyed an insisted K only where step 5 gives K a relay (the one K's offering rows
-     share), and it names that relay. With menu `not-offered 3039x`, `30396:tag` → R1, `30393:tag` → R2, step 5 gives
-     the empty string, no self-entry is keyed `3039x`, and every client that holds A's current menu writes `""`, a
-     client of the service that runs A included, since it resolves the same rows; with both rows at R1, a self-entry
-     keyed `3039x`, where A has one, names R1, and every such client writes R1 (`s3/r2/m5s.py`, named; `s3/r3/m_r3.py`:
-     3,313 insisted keys, every client agreeing, none with a self-entry keyed K; the next bullet counts those). The
-     client MAY still warn that the menu does not offer K as a whole.
+     storefront and except during a move, A has a self-entry keyed an insisted K only where step 5 gives K a relay (the
+     one K's offering rows share), and it names that relay. With menu `not-offered 3039x`, `30396:tag` → R1,
+     `30393:tag` → R2, step 5 gives the empty string, no self-entry is keyed `3039x`, and every client that holds A's
+     current menu writes `""`, a client of the service that runs A included, since it resolves the same rows; with both
+     rows at R1, a self-entry keyed `3039x`, where A has one, names R1, and every such client writes R1 (`s3/r2/m5s.py`,
+     named; `s3/r3/m_r3.py`: 3,313 insisted keys, every client agreeing, none with a self-entry keyed K; the next bullet
+     counts those). The client MAY still warn that the menu does not offer K as a whole.
+     - During a move (N1), a self-entry keyed `3039x` can still name R1 while A moves its rows to R2: a client that
+       takes it writes R1, and one that fills from A's current menu writes R2, or `""` when only `30396:tag` has moved
+       (`s3sk/check-r3/r3_move.out`, (2); `s3/r4/n1_partial_move.out`). Both conform; question 2 lists the case.
      - Revision 1's truthful `3039x` → R1 with rows at R1 and R2 (where the observer gave every other part of `3039x`
        away, `s3sk/resolution/k5_insisted_selfentry.out`) is not a self-entry under the relay rule; A writes
        `30396:tag` → R1.
      - Under § 9.2 an insisted key seldom keeps a self-entry keyed K: 2 of 11,155 insisted observer keys, each naming
        step 5's relay (`s3/r2/m3ins2.py`). Element 3 then comes from the menu, and the read-time fallback finds each
        part.
-   - **No menu found** (AC5). Where element 3 does not come from A's self-entry, and the client has no menu of A's (none
-     found, Duty Menus § 8.1, and, for a client of the service that runs A, none in that service's record), the entry
-     is `[K, <A>, ""]`, and the client MAY warn that A publishes no menu. This replaces the handoff's § 6 step 3, which
-     A1-4 already set aside for a key whose menu is found: "the same category" is undefined, and a relay A uses for
-     another key is a guess for this one. Where A publishes no menu, a client of the service that runs A can still
-     write what step 5 gives from that service's record where another client writes `""`; question 2 lists it. Whether
-     the live defect's stopgap may still ship for external Assistants is question 3.
+   - **No menu found** (AC5). Where element 3 does not come from A's self-entry, and the client has no menu of A's that
+     it may fill from (none found, Duty Menus § 8.1, or only a storefront whose rows Duty Menus § 7 bars because A is
+     not the observer's own Assistant; and, for a client of the service that runs A, none in that service's record),
+     the entry is `[K, <A>, ""]`, and the client MAY warn that it has no menu of A's to fill from. This replaces the
+     handoff's § 6 step 3, which A1-4 already set aside for a key whose menu is found: "the same category" is
+     undefined, and a relay A uses for another key is a guess for this one. Where A publishes no menu, a client of the
+     service that runs A can still write what step 5 gives from that service's record where another client writes
+     `""`; question 2 lists it. Whether the live defect's stopgap may still ship for external Assistants is question 3.
+     - *The storefront clause* (N1). Such a storefront is a menu found. Under "none found" alone, a client that does
+       not take the storefront key's self-entry keyed K may not fill from the rows (Duty Menus § 7), and the no-menu
+       MUST could be read to cover it or not. Read as no menu it may fill from, the case has one reading: `""`. A
+       client that takes that self-entry still writes where the key itself publishes (`s3sk/check-r3/r3_move.out`,
+       (3)); question 2 lists the case.
 
 9. **Duty Menus § 6.2: in principle, nothing to resolve, levels, and the guarantee** (AC4, AC5, AC6; findings 14, 20,
    26).
@@ -757,14 +801,14 @@ Where a sub-decision depends on an open owner question, it says so.
      |---|---|
      | When the answering row is a `duty` row, write `[K, <A>, <answering row's relay>]` | MUST |
      | When the observer keeps a key the menu does not offer as a whole, write the insisted-key entry | MUST (§ 1, principle 3) |
-     | When element 3 does not come from A's self-entry, the client has no menu of A's (none found, and, for a client of the service that runs A, none in its record, Treasure Maps § 3), and the observer keeps K for A, write `[K, <A>, ""]` | MUST (§ 1, principle 3) |
+     | When element 3 does not come from A's self-entry, the client has no menu of A's it may fill from (none found, or only a storefront whose rows § 7 bars; and, for a client of the service that runs A, none in its record, Treasure Maps § 3), and the observer keeps K for A, write `[K, <A>, ""]` | MUST (§ 1, principle 3) |
      | Write no entry the observer did not choose | MUST NOT (unchanged) |
      | List every row within K, with its meet (or a description of its part) and its answer | SHOULD (question 4) |
      | For a `not-offered` part, say that those insights won't come from A | SHOULD (question 4) |
      | Offer each differing row's meet, or the row's own key, or say that no key covers the part | SHOULD |
      | The Alternates bullet | SHOULD and MAY (unchanged) |
      | Write a relay that is not A's own word (a guess), for any client that fills element 3 automatically | MUST NOT (question 3) |
-     | Warn that A does not offer K as a whole, or publishes no menu | MAY |
+     | Warn that A does not offer K as a whole, or that the client has no menu of A's to fill from | MAY |
 
      Finding 20's example made the listing MUST and the offer SHOULD. This ADR makes the listing SHOULD:
      - it is a disclosure in a client's UI, and every reader reads the saved Map alike (A1-11's lesson);
@@ -986,25 +1030,32 @@ notes say what changes under another.
 2. **At what level does the self-entry come first, and what does AC5's "one answer" mean?**
    AC5: "Reading both specs gives one answer for element 3, and they agree on it." Under sub-decision 3's relay rule,
    A's self-entry keyed K and A's menu give K the same relay whenever the client holds A's current menu and it is not a
-   storefront (0 of 12,029 lagged fills differ, `s3/r2/m5s.py`), and a client of the service that runs A resolves the
-   same rows from that service's record (sub-decision 8). In AC5's insisted case every client that holds A's current
-   menu therefore writes the same: `""` when the offering rows name two relays, since no self-entry is then keyed K,
-   and their shared relay when they name one. Clients still differ, and conform, in two cases:
-   - **No menu of A's is found** (AC5's last bullet): one that looks for a self-Map writes the self-entry's relay, one
-     that does not writes `""`, and, where A publishes no menu, a client of the service that runs A may write what step
-     5 gives from that service's record (sub-decision 8).
+   storefront, except during a move (0 of 12,029 lagged fills differ, `s3/r2/m5s.py`), and a client of the service
+   that runs A resolves the same rows from that service's record (sub-decision 8). In AC5's insisted case every client
+   that holds A's current menu therefore writes the same, except during a move: `""` when the offering rows name two
+   relays, since no self-entry is then keyed K, and their shared relay when they name one. Clients still differ, and
+   conform, in three cases:
+   - **No menu of A's that the client may fill from** (AC5's last bullet: none found, or only a storefront whose rows
+     Duty Menus § 7 bars because A is not the observer's own Assistant): one that looks for a self-Map writes the
+     self-entry's relay, one that does not writes `""`, and, where A publishes no menu, a client of the service that
+     runs A may write what step 5 gives from that service's record (sub-decision 8).
    - **A storefront the observer runs as its own Assistant** (Duty Menus § 7): one that fills from the storefront's
      rows writes where its per-customer keys publish; one that takes the storefront key's self-entry keyed K writes
      where that key itself publishes (sub-decision 3).
+   - **A move** (sub-decision 3's relay rule, "save while A moves"): until A's self-Map names the new relay, one that
+     takes A's self-entry keyed K writes the old relay, which A still updates, and one that fills from A's current menu
+     writes the new one, or `""` where only part of an insisted key's rows has moved (`s3sk/check-r3/r3_move.out`;
+     `s3/r4/n1_partial_move.out`). Answer (c) removes this case, since every client then takes the self-entry; (a)
+     and (b) do not.
 
    The options:
    - **(a) SHOULD — recommended.** Both specs state one rule at one level; Duty Menus quotes Treasure Maps' level. AC5's
-     check reads as "the two specs agree", and they now agree on the relay too wherever a menu that is not a storefront
-     is found. Reason: element 3 is a hint, the fallback repairs it (its step 1 is that self-entry), and A1-11's lesson
-     keeps a client's choices out of MUSTs that readers do not need.
+     check reads as "the two specs agree", and they now agree on the relay too wherever the client holds A's current
+     menu and it is not a storefront, except during a move. Reason: element 3 is a hint, the fallback repairs it (its
+     step 1 is that self-entry), and A1-11's lesson keeps a client's choices out of MUSTs that readers do not need.
    - **(b) A conditional MUST:** a client that holds A's self-Map MUST take the self-entry. Clients that did and did not
-     look still differ in both cases above, and a client of the service that runs A can still differ where no menu is
-     found.
+     look still differ in the three cases above, and a client of the service that runs A can still differ where no
+     menu is found.
    - **(c) MUST look, and MUST take.** One answer for every client wherever A has a self-entry keyed K, at the cost of a
      self-Map lookup (A's kind 10002 and the hints) on every fill. Where it has none, the service's record and an
      own-Assistant storefront's rows can still give some clients a relay where others write `""`.
@@ -1063,9 +1114,10 @@ notes say what changes under another.
 - **Departures from the approved story:** AC2's "copied verbatim" and AC3's "shows only that key's slice" (question 1).
   The story's Deviations section records the owner's answer. AC5's first bullet is met as worded: the self-entry keyed
   K comes first, with no condition. Its "one answer" holds in the insisted case for every client that holds A's
-  current menu, where that menu is not a storefront. Where no menu of A's is found, or the observer runs a storefront
-  key as its own Assistant, clients can write different relays and still conform (question 2), and the Deviations
-  section records how the owner reads "one answer".
+  current menu, where that menu is not a storefront, except during a move. Where the client has no menu of A's it may
+  fill from (none found, or only a storefront Duty Menus § 7 bars), where the observer runs a storefront key as its
+  own Assistant, and during a move, clients can write different relays and still conform (question 2), and the
+  Deviations section records how the owner reads "one answer".
 - **Publishers carry more:** a self-Map that stays true may need narrower keys than the observer's (96.5% of published
   duties claimable in the model without a single false claim under answer (a); 93.1% under (b)); each self-entry names
   the relay A's menu gives its key; a new duty at another relay means narrowing first; every version needs a later
@@ -1079,7 +1131,8 @@ notes say what changes under another.
   stale Score or Concept (or a List it did not retract) outside the observer's supported sets count as maintained for
   any reader without those sets, the observer's own included; under answer (a), a self-entry can make a stale copy of an
   insight its observer gave elsewhere count as maintained for a reader of someone else's Assistant or of a self-Map as a
-  point of view.
+  point of view; and readers grant the self-entries of a key that serves several observers confirmation and the age
+  allowance as any others, though no rule binds what they claim until Duty Menus § 14 question 3 is settled.
 - **The live defect's stopgap** becomes non-conforming for external Assistants under question 3's recommended answer.
   The ledger row says so, and the intake entry points at it. This instance's own Assistant keeps its Relay Settings
   fill, and Assistant Designation's Relay hint stays as written: both are the MAY for the service that runs A wherever
@@ -1125,15 +1178,17 @@ questions (the recommended ones unless the owner chooses otherwise; each questio
   its self-Map (§ 9.2) before it stops updating them; § 9.2 also asks it to retract its Lists." (sub-decision 4).
 - **New § 9.2 Self-Maps**, after § 9.1, normative, in this order, with bold-lead paragraphs:
   1. terms, meaning, what a self-entry speaks for (read over the supported sets; a key that serves several observers
-     left open), what a reader can tell, ties (sub-decision 2);
+     left open, and not bound meanwhile by the rules on what a self-entry speaks for), what a reader can tell, ties
+     (sub-decision 2);
   2. what a self-Map holds: its key, its relay (the menu's relay for its key), more than one relay, the MUST NOT, no
      order or copies, private duties, no expiration, no `39998:`/`39999:` key (sub-decision 3);
   3. when it changes (the gap, for an insight new among those a self-entry speaks for, only where it will land at the
-     same relay; the removal MUST; the MUST NOT on a self-entry that speaks for nothing; the move), what follows a stop,
-     and finding it (sub-decision 4);
+     same relay; the removal MUST; a self-entry that speaks for nothing, never added and removed as soon as the key
+     learns of it; the move), what follows a stop, and finding it (sub-decision 4);
   4. reading a self-Map: confirmed duty ("wins it and that the reader takes to speak for it") and Alternate,
      maintained at its relay (under the same condition), spot-check, as a point of view (with its stale-copy
-     sentence), what the allowance rests on (its four cases) (sub-decision 5);
+     sentence and "where it serves one"), what the allowance rests on (its four cases, and the sentence on a key that
+     serves several observers) (sub-decision 5);
   5. keys the observer runs (sub-decision 12);
   6. counting Maps (sub-decision 13);
   7. "**Offered and active.** A key's Duty Menu ([Duty Menus](./duty-menus.md) § 10) says what it offers; its self-Map
@@ -1159,7 +1214,8 @@ questions (the recommended ones unless the owner chooses otherwise; each questio
   - the no-guess sentence, at MUST NOT, scoped to every automatic fill and naming A's own word (its self-entry keyed K,
     or what step 5 gives K from its menu, published or in the record of the service that runs it), with its new
     reason and examples;
-  - a new last bullet, "**No menu found.**" (sub-decision 8), at MUST, scoped by the same words.
+  - a new last bullet, "**No menu found.**" (sub-decision 8), at MUST, scoped by the same words, with a storefront
+    whose rows § 7 bars read as no menu.
   - *Under question 3 (b):* the MAY in that question, and the no-guess sentence naming it as the one exception. *Under
     question 4 (b) or (c):* the listing rows' levels.
 - **§ 7** (:233): link "the observer's own Assistant" to § 2.
@@ -1330,16 +1386,18 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
   - § 9.2's terms (*self-entry*, *self-Map*); the meaning sentence (published and maintained, per insight, among
     self-entries alone, a tie claims nothing); what a self-entry speaks for (a scope self-entry over the supported sets
     of the observer its key serves, an exact one for its insight; then question 1's answer; a key that serves several
-    observers left open, citing Duty Menus § 14 question 3); what a reader can tell (it takes a self-entry to speak for
-    each insight it wins unless it knows that the self-entry does not).
+    observers left open, citing Duty Menus § 14 question 3, with readers reading its self-entries as any others and
+    the rules on what a self-entry speaks for not binding them); what a reader can tell (it takes a self-entry to speak
+    for each insight it wins unless it knows that the self-entry does not).
   - Its key (verbatim where it can, not universal), its relay (never empty; the relay A's non-storefront menu gives its
     key, save during a move), more than one relay (with the nested-row and meet-order caveats), the MUST NOT, no order
     and no copies, private duties out of public tags, no `expiration` on a kind 10040 that carries a self-entry, no
     `39998:`/`39999:` key.
   - Timing with levels (MUST NOT add early; MAY keep through a gap, for an insight new among those the self-entry
     speaks for only one that will land at its relay, narrowing first otherwise; MUST remove or narrow before stopping
-    any insight the self-entry wins and speaks for; MUST NOT add or keep a self-entry that speaks for nothing; a move
-    ends the self-entry at the old relay first and retracts nothing; later `created_at`), and per family: Lists
+    any insight the self-entry wins and speaks for; MUST NOT add a self-entry that speaks for nothing, and MUST remove
+    one as soon as the key learns that it speaks for nothing; a move ends the self-entry at the old relay first and
+    retracts nothing; later `created_at`), and per family: Lists
     retracted whenever stopped (empty plus `["status","retracted"]`, later `created_at`), Scores left with the removal
     as the stopped signal, Concepts' header and `b` left in place. § 9's Revocation points at the List rule.
   - § 9.2's "Offered and active" names Duty Menus § 10, and Duty Menus § 10 names Treasure Maps § 9.2.
@@ -1355,9 +1413,10 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
   - § 9.2: the confirmed-duty sentence ("wins it and that the reader takes to speak for it"); "maintained, whatever its
     age" at the winning self-entry's relay only, under the same condition; the spot-check SHOULD; the point-of-view
     sentence (self-entries are the served observer's slice for the insights they speak for, and can carry stale
-    copies; other entries are the author's requests; a mixed self-Map mixes two views); the paragraph on what the
-    allowance rests on, with its four cases (the third under every answer, the fourth under (a)), the third and fourth
-    each saying that a reader that cannot tell takes such a copy as maintained.
+    copies; other entries are the author's requests; a mixed self-Map mixes two views; "where it serves one"); the
+    paragraph on what the allowance rests on, with its four cases (the third under every answer, the fourth under
+    (a)), the third and fourth each saying that a reader that cannot tell takes such a copy as maintained, and the
+    sentence after them: for a key that serves several observers, the allowance rests on nothing § 9.2 asks.
   - § 7: the confirmed Alternate sentence. § 3: "A Map entry names who is asked to publish an insight. It does not
     promise that the insight exists." § 2: the Observer line's clause.
   - *Checks:* the TA's Map `["3038x", TA, R1]`, `["30382:rank", X, R2]`: among self-entries alone, `3038x` → R1 confirms
@@ -1392,12 +1451,15 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
     "No menu found" bullet at MUST.
   - *Checks:* menu `*` → R0, `30382:rank` → R1, A's self-Map `*` → R0: giving `30382:rank` to A writes R1. Menu `*` →
     R0, `3038x` → R1: A's self-Map cannot hold `*` → R1, so giving B's Lists and Concepts back to A writes R0. Insisted
-    `3039x` with offering rows at R1 and R2, a menu that is not a storefront: no self-entry is keyed `3039x`, and every
-    client that holds the menu's current version writes `""`, a client of the service that runs A included; with both
-    at R1: a self-entry keyed `3039x`, where A has one, names R1, and every such client writes R1. Menu `3039x` → R0,
+    `3039x` with offering rows at R1 and R2, a menu that is not a storefront, outside a move: no self-entry is keyed
+    `3039x`, and every client that holds the menu's current version writes `""`, a client of the service that runs A
+    included; with both at R1: a self-entry keyed `3039x`, where A has one, names R1, and every such client writes R1.
+    While A moves both rows to R2, a self-entry keyed `3039x` can still name R1 and the current menu gives R2 (`""` if
+    only `30396:tag` has moved): the two kinds of client differ, as question 2 lists. Menu `3039x` → R0,
     `3039x:tag` → R1, K = `3039x`: a client of the service that runs A writes R0, as every client does. No self-entry
     and no menu found: `""`, except for a client of the service that runs A, which may write what step 5 gives from
-    that service's record. Menu `not-offered 3039x`, `30396:tag` → R1, `30393:tag` → R2, K = `3039x` kept: `""`
+    that service's record. No self-entry, and only a storefront whose key is not the observer's own Assistant: `""`.
+    Menu `not-offered 3039x`, `30396:tag` → R1, `30393:tag` → R2, K = `3039x` kept: `""`
     whatever Tags are supported. Assistant Designation's Relay hint reads as a case of the MAY wherever
     `aDListRelays[0]` is the relay the instance publishes those headers to.
 - **AC6.**
@@ -1473,11 +1535,17 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
     one-shared-relay rule differs from step 5 for 8 offered keys and no insisted one; 3,313 insisted keys, every client
     agreeing; the two named menus); D2 (`c3_gap_carve`'s case kept verbatim under "new among those it speaks for"; 3
     of 211 random saves where only "new under its key" forces narrowing and the final Map built from scratch keeps
-    the key); D3 (the construction leaves no self-entry that speaks for nothing); D4 (an own-Assistant storefront: the
-    rows give Rc, the self-entry Rs).
+    the key); D3 (the construction leaves no self-entry that speaks for nothing; once the observer drops A, 195 of
+    them do, which A removes as soon as it learns of the drop); D4 (an own-Assistant storefront: the rows give Rc, the
+    self-entry Rs).
+- Revision 4's script in `s3/r4/`, on revision 2's helpers:
+  - `n1_partial_move.py`: an insisted `3039x` with both rows at R1 and a self-entry keyed `3039x` → R1; once A moves
+    `30396:tag` to R2, step 5 gives `""`, the client that takes the self-entry writes R1, and the client that fills
+    from the current menu writes `""` (N1).
 - The skeptics' scripts in `s3sk/` are cited where they show a case (`resolution/k2_vn_wrong`, `k3_exact_fill`,
   `k4_case1_stale`, `k5_insisted_selfentry`; `sources/k_sources`; `check2/c1_lag`, `check2/c2_supported`;
-  `check3/c3_gap_carve`, `check3/c3_service_may`).
+  `check3/c3_gap_carve`, `check3/c3_service_may`; `check-r3/r3_move`, the move and a storefront that is not the
+  observer's own Assistant).
 - The scratchpad is not durable. If the scripts are gone, rebuild them from sub-decisions 2–9 and 13 on `r4/tm4.py`'s
   model, as ADR 0002's "How it was settled" describes it, with `s3/r1/sm2.py`'s two truth conditions and construction
   and `s3/r2/sm3.py`'s supported sets and relay rule.
@@ -1494,8 +1562,9 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
   `duty-menus.md`'s provisional readings stay until it lands.
 - **Private duties** in a self-Map's `.content` (handoff Q4; § 13 question 8), beyond keeping them out of public tags.
 - **Non-personalized keys** (Duty Menus § 14 question 3). What the self-entries of a key that serves several observers
-  speak for stays open: § 9.2 reads a self-entry over one observer's supported sets and Map, and says so (D5). Whether
-  a storefront row may speak for the key itself, and so count in Treasure Maps § 3's step 2, stays open too.
+  speak for stays open: § 9.2 reads a self-entry over one observer's supported sets and Map, and says so (D5), and
+  says that until then its rules on what a self-entry speaks for do not bind such a key (N3). Whether a storefront
+  row may speak for the key itself, and so count in Treasure Maps § 3's step 2, stays open too.
 - **Whose view the TA's own insights carry**, and what an instance's own requests to its TA would mean (BIBLE §31). The
   spec says only what AC7 asks, and that a mixed self-Map read as a point of view mixes two views.
 - **NIP-40 on a Map with no self-entry.** This story neither allows nor forbids it.
