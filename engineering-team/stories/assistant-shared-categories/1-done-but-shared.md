@@ -315,7 +315,9 @@ with no code change; one result per test):
     S2 pass.
   - assistant-management-page: D4 fails.
   - Unaffected, all pass: assistant-attention, assistant-alert, treasure-map-needs-attention, assistant-duty-cards.
-  - assistant-duty-menu-check: only its three known base reds (L12, U31, U32; § Gate A base note).
+  - assistant-duty-menu-check: only its three known base reds (L12, U31, U32; § Gate A base note). *(Since then
+    `b5c732e`, assistant-duty-menu #1's Amendment 2, has landed and that suite is 55/55 on the base, so J3 expects no
+    failures there.)*
 - **Browser, against the base build (`vite build` of the same tree):**
   - SC1–SC4 fail at the missing Shared pill, line, link and prefix. SC5 and SC6 pass (sentinels).
   - TC1–TC4 pass; TC3's re-aim keeps its meaning before and after. TC5 ×3 fail at the new alert criteria.
