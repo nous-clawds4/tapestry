@@ -86,7 +86,8 @@ told about my Assistant is up to date.
   - **When there are several relays.** Where a duty's insights can be found at more than one relay, the row names
     one, chosen by a single rule that the Architect states.
   - **No code change needed.** Changing the setting that decides where a duty's insights go (Relay Settings, or
-    turning an outside copy on or off) changes the offer at the next check.
+    turning an outside copy on or off) changes the offer at the next check. *(Amended at Architecture, 2026-10-11;
+    see § Deviations.)*
 - [ ] **AC-3: which menu is "published".** The menu found for the Assistant is looked up as `duty-menus.md` § 8.1's
       reader rule says, with this instance's own relay asked too. Among the answers, the latest version counts.
   - If that version is not a menu by § 6.1 (kind `39999`, `d` = `duty-menu`, exactly one `p` equal to its author,
@@ -208,8 +209,18 @@ pubkey (epic § Key facts).
 
 ## Deviations
 
+- **AC-2, "no code change needed" (Architecture, 2026-10-11; the owner chose relay rule R1 at ADR 0001's gate).**
+  Each row names this instance's own relay at its public address, which holds every offered insight. Without a
+  public address, Concepts take the first public DList relay, and Scores and Lists get no row.
+  - The settings that change the offer are therefore: the instance's relay address, the viewer's customer status,
+    and Relay Settings' DList relays (only when there is no public address).
+  - Turning a relay-router copy on or off does not change it. The bullet's example of an outside copy no longer
+    applies; "no code change" still does.
+- **AC-2, which List kinds (Architecture, 2026-10-11; the owner chose key rule K1).** Lists are offered as the kinds
+  built today, `30392`, `30393` and `30394`, not the whole `3039x` family.
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-duty-menu/0001-a-duty-menu-check-beside-the-others.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
