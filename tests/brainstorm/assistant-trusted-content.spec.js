@@ -133,9 +133,11 @@ test.describe('Scores, Lists and Concepts on the hub (assistant-trusted-content-
     expect(await pillCount(page), 'the pill leaves the three out').toBe(OTHERS);
   });
 
-  test('TC3: one of each — Scores pending (only other Assistants) is marked and counted; Lists unfinished is marked but the pill leaves it out; Concepts done says Done (AC-4, AC-5)', async ({ page }) => {
+  // Re-aimed by assistant-shared-categories #1: "only other Assistants" is done (shared) now, so Scores' pending stand-in
+  // is not-assigned, the finished pending reason that remains.
+  test('TC3: one of each — Scores pending (not assigned) is marked and counted; Lists unfinished is marked but the pill leaves it out; Concepts done says Done (AC-4, AC-5)', async ({ page }) => {
     await mock(page, answerWith({
-      'trusted-assertions': TC.pending('scores', 'other-assistants-only', 'local'),
+      'trusted-assertions': TC.pending('scores', 'not-assigned', 'local'),
       'trusted-lists': TC.unfinished('lists', 'outside-unreachable'),
       dlists: TC.done('concepts'),
     }));

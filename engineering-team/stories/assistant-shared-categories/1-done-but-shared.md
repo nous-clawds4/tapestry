@@ -247,8 +247,90 @@ None open. Settled at intake: split counts as shared (Decision 1); a pill and a 
     that remains.
 - **Wire fidelity:** none. Nothing is signed, published or stored, and the Map is read exactly as before.
 
+## Edge cases & not-covered *(J2)*
+
+- **E1 (not derivable from any AC):** the Map's `*` gives everything to the viewer's Assistant, and a bare `3039x` gives
+  Lists to another. The bare family entry hides the `*` for Lists only (the Treasure Map page's rule), so Lists is
+  shared **entirely**, though the `*` names the viewer's Assistant. Scores and Concepts, still reached by the `*`, are
+  plain Done. The extent follows the cards' reading, not the raw tags. → Node U3.
+- **E2 (not derivable):** case. A Map that names the viewer's Assistant in upper case is the viewer's (plain Done, not
+  shared), and an upper-case `assistantPubkey` handed to `evaluateTrustedContent` still matches. A `*:tag` entry that
+  names another Assistant never makes a category shared, because the page ignores `*:…`. → Node U4.
+- **E3:** several other Assistants, or the same other on several keys. The extent depends only on whether the viewer's
+  Assistant is among them, not on order or count. → Node U5.
+- **E4:** a malformed `shared` on the wire is ignored by the hub, which reads only `'partly'` and `'entirely'`. That
+  covers a placeholder whose answer claims shared, a pending or unfinished answer carrying `shared`, and an unknown
+  value. → Node C3.
+- **E5:** the owner's own Map from staging, the case this book came from. Scores is partly shared, Lists entirely, and
+  Concepts plain Done. Its `client` tag has no delegate and counts for nobody. → Node U2, A2; browser SC1, SC2, SC4.
+- **E6:** while the answer is on its way, after it fails, and for a visitor, nothing is shared and the cards are marked
+  (or, for the visitor, unmarked) as today. → browser SC5, SC6; Node C3.
+- **E7:** the retired reason. No answer carries `other-assistants-only`, over every way of giving the categories to
+  the viewer's Assistant, another, both or nobody, and `src/` no longer names it. → Node U7.
+- **Not covered:**
+  - *A Map changed in another app or tab.* It shows on the next full page load, as today. That provider behaviour is
+    unchanged and already pinned by assistant-trusted-content D1.
+  - *Live relays.* Every relay read is injected (Node) or mocked (browser), as in assistant-trusted-content. The
+    `lookupNewest` paths are unchanged and already covered there (U6–U10).
+  - *The Treasure Map page's own rendering after "Move it here →".* That page is unchanged. SV18 follows the link and
+    saves through it with the save spec's mocks.
+  - *Mobile width.* The line is one wrapped paragraph in the existing card body, a flex column with `min-width: 0`.
+    There is no new layout to test.
+
+## AC→handle lines *(J2)*
+
+- AC-1 → Node U1 (the AC table row by row), U2, U3, U4, U5, U6, U7, A2; re-aimed assistant-trusted-content U1, U2,
+  U3, U4, U11, U12
+- AC-2 → Node C1, C3, C4, D1, D2, D3; browser SC1, SC2, SC3, SC4, SV18 (the line's link followed in the app)
+- AC-3 → Node C1, C2 (sentinel), U1's "only another" row (pending before, done after: the count change); browser
+  SC1 (count line and pill)
+- AC-4 → Node C4, S1, S2; re-aimed assistant-trusted-content C4, assistant-management-page D4 and browser TC5 ×3
+  (all through the fixture's new `criteria()`)
+- AC-5 → Node A1, A2, C3, S4 (sentinel); browser SC5 (sentinel), SC6 (sentinel), SV18 (catch-up after a save); the
+  whole scoped gate and the existing hub specs as regression
+- Design note (the ADR's superseded-in-part line) → Node S3
+- E1 → U3 · E2 → U4 · E3 → U5 · E4 → C3 · E5 → U2, A2, SC1 · E6 → SC5, SC6, C3 · E7 → U7
+
+Suites: Node `test/assistant-shared-categories.test.js` (U, A, C, D, S classes); browser
+`tests/brainstorm/assistant-shared-categories.spec.js` (SC1–SC6) and SV18 in `tests/brainstorm/treasure-map-save.spec.js`.
+
+**One test beyond the Design note's list:** SV18 is a new test in an existing spec, `treasure-map-save.spec.js`, not
+only a re-aim. It lives there because that spec owns the Map-save mocks that AC-5's catch-up needs, as SV17 does for
+the story it came from. It changes no existing test.
+
+**Fixture-driven re-aims:** the test bodies are unchanged, but the fixture's new shapes and words reach these tests.
+- `test/assistant-trusted-content.test.js` U5–U10, A2 and A4 now expect `shared: null` on every answer, and C4 expects
+  the new alert criteria.
+- `test/assistant-management-page.test.js` D4 expects the new alert criteria.
+- The browser's `tests/brainstorm/assistant-trusted-content.spec.js` TC5 ×3 expects them too.
+
+Each of these failed before only on `shared` or on the criteria words; nothing else in them changed.
+
+**Fails before the work** (checked 2026-10-11 against `origin/staging` `d8cdb0f` plus this story's earlier commits,
+with no code change; one result per test):
+- **Node, new suite:** 18 of 20 fail, each at the missing `shared`, the old rule, the missing words, card markup or
+  CSS rule, or the old documents. C2 and S4 pass (sentinels).
+- **Node, re-aimed and fixture-driven:**
+  - assistant-trusted-content: U1–U12, A2, A4 and C4 fail (15). R1–R3, U13, U14, A1, A3, C1–C3, C5, D1, D2, S1 and
+    S2 pass.
+  - assistant-management-page: D4 fails.
+  - Unaffected, all pass: assistant-attention, assistant-alert, treasure-map-needs-attention, assistant-duty-cards.
+  - assistant-duty-menu-check: only its three known base reds (L12, U31, U32; § Gate A base note).
+- **Browser, against the base build (`vite build` of the same tree):**
+  - SC1–SC4 fail at the missing Shared pill, line, link and prefix. SC5 and SC6 pass (sentinels).
+  - TC1–TC4 pass; TC3's re-aim keeps its meaning before and after. TC5 ×3 fail at the new alert criteria.
+  - SV1–SV17 pass. SV18 fails at the missing Shared pill.
+
+**How to run**
+- Node (the scoped gate, J3): the command in this file's header.
+- Browser (Gate B evidence), against the branch's built UI on :7799 (`vite build`, then `vite preview --port 7799`
+  from `ui/`):
+  `BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/assistant-shared-categories.spec.js tests/brainstorm/assistant-trusted-content.spec.js tests/brainstorm/treasure-map-save.spec.js tests/brainstorm/assistant-management-page.spec.js tests/brainstorm/assistant-alert.spec.js tests/brainstorm/assistant-attention.spec.js --project=chromium`
+  That is this story's spec and SV18, the two re-aimed specs, and three hub specs as regression.
+
 ## Linked artifacts
 
 - ADR: — (Light: the Design note above; no irreversibility trigger)
-- Test plan: (this file's Edge cases and AC→handle lines, at J2)
+- Test plan: this file's *Edge cases & not-covered* and *AC→handle lines*; suites `test/assistant-shared-categories.test.js`,
+  `tests/brainstorm/assistant-shared-categories.spec.js`, SV18 in `tests/brainstorm/treasure-map-save.spec.js`
 - Review: (filled in at Gate B)

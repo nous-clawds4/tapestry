@@ -44,6 +44,10 @@ const { nip19 } = require('nostr-tools');
  *   SV17 — after a save, the Assistant Management page catches up without a reload: the attention answer is asked
  *          again and the Scores card turns Done. setup() takes `attention`, the answers /api/assistant/attention
  *          gives in turn (the last one repeats); without it the route answers as before.
+ *
+ * assistant-shared-categories #1 (its story AC-2 and AC-5; plan in the story file) adds:
+ *   SV18 — a shared Scores card's "Move it here →" opens /treasure-map in the app; after a save the hub catches up
+ *          without a reload: the Shared pill and its line go, Done stays.
  */
 const TC = require('../../test/helpers/trustedContentFixtures');
 
@@ -626,7 +630,8 @@ test.describe('/treasure-map — Edit mode: Save', () => {
 
   test('SV17: after a save, the Assistant Management page catches up without a reload — the attention answer is asked again and the Scores card turns Done (assistant-trusted-content-status #1 AC-6)', async ({ page }) => {
     const ID_DONE = { finished: true, done: true, pending: false, taggings: [] };
-    const before = { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': ID_DONE, ...TC.trio((c) => TC.pending(c, 'other-assistants-only', 'local')) } };
+    // Re-aimed by assistant-shared-categories #1: not-assigned, the finished pending reason that remains.
+    const before = { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': ID_DONE, ...TC.trio((c) => TC.pending(c, 'not-assigned', 'local')) } };
     const after = { ...before, actions: { ...before.actions, 'trusted-assertions': TC.done('scores') } };
     // Published everywhere, as SV2, so the save ends with the "Treasure Map updated" confirmation.
     const state = await setup(page, { policy: 'external', relay: 'accept', attention: [before, after] });
@@ -653,5 +658,35 @@ test.describe('/treasure-map — Edit mode: Save', () => {
     expect(await page.evaluate(() => window.__sameDocument), 'the same document: no reload').toBe(true);
     await expect(hubCard('Scores').getByText('Done', { exact: true }), 'Scores is Done after the save').toBeVisible();
     await expect(hubCard('Scores').getByText('Needs attention', { exact: true })).toHaveCount(0);
+  });
+
+  test('SV18: a shared card\'s "Move it here →" opens /treasure-map in the app, and after a save the hub catches up without a reload — Shared and its line go, Done stays (assistant-shared-categories #1 AC-2, AC-5)', async ({ page }) => {
+    const ID_DONE = { finished: true, done: true, pending: false, taggings: [] };
+    const before = { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': ID_DONE, ...TC.trio((c) => TC.done(c)), 'trusted-assertions': TC.shared('scores', 'entirely') } };
+    const after = { ...before, actions: { ...before.actions, 'trusted-assertions': TC.done('scores') } };
+    const state = await setup(page, { policy: 'external', relay: 'accept', attention: [before, after] });
+    const hubCard = (title) => page.locator('.bs-assistant-hub-card').filter({ has: page.locator('.bs-assistant-hub-card-link', { hasText: new RegExp(`${title}$`) }) });
+
+    await page.goto('/assistant');
+    await expect(hubCard('Scores').getByText(TC.SHARED_COPY.pill, { exact: true }), 'Scores is shared before the save').toBeVisible();
+    await expect(hubCard('Scores').getByText(TC.SHARED_COPY.line.entirely, { exact: false })).toBeVisible();
+    await page.evaluate(() => { window.__sameDocument = true; });
+    const asked = state.attentionCalls;
+
+    // In the app, never a reload: the shared line's own link, straight to /treasure-map.
+    await hubCard('Scores').getByRole('link', { name: TC.SHARED_COPY.link, exact: true }).click();
+    await expect(page).toHaveURL(/\/treasure-map$/);
+    await startEditing(page);
+    await pick(page, pickerButton(page, 'Scores'), 'Zed');
+    await saveButton(page).click();
+    await expect(toast(page)).toBeVisible();
+    await expect.poll(() => state.attentionCalls, { message: 'the attention answer is asked again after the save', timeout: 10000 }).toBeGreaterThan(asked);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/assistant$/);
+    expect(await page.evaluate(() => window.__sameDocument), 'the same document: no reload').toBe(true);
+    await expect(hubCard('Scores').getByText('Done', { exact: true }), 'Scores is still Done').toBeVisible();
+    await expect(hubCard('Scores').getByText(TC.SHARED_COPY.pill, { exact: true }), 'no Shared pill after the save').toHaveCount(0);
+    await expect(hubCard('Scores').locator('.bs-assistant-hub-card-shared'), 'no shared line after the save').toHaveCount(0);
   });
 });
