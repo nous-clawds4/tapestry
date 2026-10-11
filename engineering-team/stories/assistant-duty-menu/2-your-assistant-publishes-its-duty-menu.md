@@ -1,6 +1,6 @@
 # Story 2: Your Assistant publishes its Duty Menu
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-11
 **Type:** Feature
 **Epic:** `assistant-duty-menu`
@@ -184,4 +184,4 @@ No concept changes and no firmware reinstall.
 
 - ADR: `engineering-team/decisions/assistant-duty-menu/0002-the-assistant-signs-its-duty-menu-through-one-narrow-route.md`
 - Test plan: `engineering-team/stories/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.md`
