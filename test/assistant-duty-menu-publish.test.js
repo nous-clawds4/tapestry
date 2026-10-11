@@ -21,6 +21,9 @@
  *   S — sentinels: the route registered, no other caller, nothing automatic, the guard's source, the docs.
  *                                                                                                [AC-2, AC-4]
  *
+ * ADR 0002 Amendment 2: the route table opens the route to a signed-in person (S6; S2 allows routeAccess.js to name it),
+ * and an empty send set has its own sentence (W11).
+ *
  * Everything FAILS against the current code: src/api/assistant/dutyMenuPublish.js and src/utils/relayHostGuard.js do
  * not exist, the route is not registered, and dutyMenu.js exports no write-relay helpers.
  */
@@ -41,6 +44,7 @@ const OPENAPI = path.join(REPO, 'src/api/openapi.yaml');
 const BIBLE = path.join(REPO, 'BIBLE.md');
 const GENERIC_SIGNER = path.join(REPO, 'src/api/strfry/commands/publishEvent.js');
 const CLIENT_UTIL = path.join(REPO, 'ui/src/utils/publishAssistantDutyMenu.js');
+const ROUTE_ACCESS = path.join(REPO, 'src/middleware/routeAccess.js');
 const NL = String.fromCharCode(10);
 
 const VIEWER = 'f1'.repeat(32);
@@ -568,6 +572,26 @@ test('W10: a relay that hangs while the newest version is looked up costs at mos
   assert(calls.publishToRelays.length === 1 && calls.publishToRelays[0].includes(A1), `the Assistant's write relay is sent to: ${show(calls.publishToRelays)}`);
 });
 
+test('W11: saved here, not local-only, and no relay at all to send to — the answer says "Your Assistant\'s Duty Menu was saved on this instance\'s relay. There was no other relay to send it to." with no relay rows; with one relay in the set, or in local-only mode, summarizePublish\'s sentence stands (ADR 0002 Amendment 2 item 3)', async () => {
+  const { summarizePublish } = require('../src/api/assistant/profilePublish');
+  const subject = DM.PUBLISH.subject;
+  const wrong = [];
+  const empty = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [], nous: [], latest: null });
+  const r = empty.result || {};
+  if (!(r.ok === true && r.message === DM.PUBLISH.nothingElse)) wrong.push(`empty set: want ${show(DM.PUBLISH.nothingElse)}, got ${show(r.message)} (${show({ ok: r.ok, outcome: r.outcome })})`);
+  if (!(r.relays && r.relays.total === 0 && Array.isArray(r.relays.results) && r.relays.results.length === 0)) wrong.push(`empty set: no relay rows, got ${show(r.relays)}`);
+  if (empty.calls.importEvent.length !== 1 || empty.calls.publishToRelays.some((c) => c.relays.length > 0)) wrong.push('empty set: saved here, nothing sent');
+  const one = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [A1], nous: [], latest: null });
+  const want1 = summarizePublish({ subject, rows: rowsOf(one), localOnly: false }).message;
+  if (!one.result || one.result.message !== want1 || one.result.message === DM.PUBLISH.nothingElse) wrong.push(`one relay: want summarizePublish's ${show(want1)}, got ${show(one.result && one.result.message)}`);
+  const refused = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [A1], nous: [], notPublic: [hostOf(A1)] });
+  const wantR = summarizePublish({ subject, rows: rowsOf(refused), localOnly: false }).message;
+  if (!refused.result || refused.result.message !== wantR || refused.result.message === DM.PUBLISH.nothingElse) wrong.push(`one relay, refused by the guard (the set is not empty before it): want ${show(wantR)}, got ${show(refused.result && refused.result.message)}`);
+  const local = await answer({ localOnly: true, inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [], nous: [] });
+  if (!local.result || local.result.message !== DM.PUBLISH.localOnly) wrong.push(`local-only, empty set: want ${show(DM.PUBLISH.localOnly)}, got ${show(local.result && local.result.message)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
 /* ───────────────────────── G — the DNS guard's shared home (sub-decision 6) ───────────────────────── */
 
 test('G1: src/utils/relayHostGuard.js exports isPublicRelayHostWithin, within and LOOKUP_BUDGET_MS = 3000 — an IP literal or a private-by-construction name answered without DNS, and within() giving its fallback in time (sub-decision 6)', async () => {
@@ -613,7 +637,7 @@ test('S1: the route is registered — app.post(\'/api/assistant/duty-menu/publis
     "src/api/index.js does not register app.post('/api/assistant/duty-menu/publish', require('./assistant/dutyMenuPublish').handlePublishDutyMenu)");
 });
 
-test('S2: nothing else signs or publishes a menu — no module but src/api/index.js names dutyMenuPublish or the route, nothing at Assistant creation or on a schedule (no caller in src/, bin/, setup/ or scripts/), the client helper is the UI\'s one caller, and the generic signer gains nothing (AC-2)', () => {
+test('S2: nothing else signs or publishes a menu — no module but src/api/index.js (and the route table) names dutyMenuPublish or the route, nothing at Assistant creation or on a schedule (no caller in src/, bin/, setup/ or scripts/), the client helper is the UI\'s one caller, and the generic signer gains nothing (AC-2)', () => {
   assert(fs.existsSync(MODULE), `${rel(MODULE)} does not exist (the refusals below need the module to mean anything)`);
   const offenders = [];
   const walk = (dir, allowed) => {
@@ -626,7 +650,8 @@ test('S2: nothing else signs or publishes a menu — no module but src/api/index
       if (/dutyMenuPublish|publishDutyMenuFor|handlePublishDutyMenu|duty-menu\/publish/.test(src)) offenders.push(rel(p));
     }
   };
-  for (const dir of ['src', 'bin', 'setup', 'scripts']) walk(path.join(REPO, dir), [MODULE, API_INDEX]);
+  // Re-aimed by ADR 0002 Amendment 2 item 1: the fail-closed route table names the route to open it (S6 pins its entry).
+  for (const dir of ['src', 'bin', 'setup', 'scripts']) walk(path.join(REPO, dir), [MODULE, API_INDEX, ROUTE_ACCESS]);
   walk(path.join(REPO, 'ui/src'), [CLIENT_UTIL]);
   assert(offenders.length === 0, `only src/api/index.js (and, in the UI, the client helper) may name the route: ${offenders.join(', ')}`);
   const mod = codeOnly(safeRead(MODULE));
@@ -671,6 +696,21 @@ test('S5: attention.js\'s header names the duty-menu check in its list of the ch
   }
   const shape = lines.find((l) => /an assistant\s+→/.test(l)) || '';
   if (!/duty-menu/.test(shape)) wrong.push('the answer\'s shape does not name duty-menu');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('S6: the fail-closed route table opens POST /api/assistant/duty-menu/publish to a signed-in person, with a why, in the same shape as the Outbox Relays publish entry — so a customer is not refused as owner-only (ADR 0002 Amendment 2 item 1; AC-2). test/admin-action-sweep-access.test.js AC4 derives its reachability walk from this table.', () => {
+  const { ROUTE_ACCESS: table } = load(ROUTE_ACCESS, 'It is the fail-closed route table (ADR security-auth-exposure/0005).');
+  const entry = table && table['POST /api/assistant/duty-menu/publish'];
+  const outbox = table && table['POST /api/assistant/outbox-relays/publish'];
+  const wrong = [];
+  if (!entry) wrong.push('no entry for POST /api/assistant/duty-menu/publish');
+  else {
+    if (entry.access !== 'signed-in') wrong.push(`access: want 'signed-in', got ${show(entry.access)}`);
+    if (typeof entry.why !== 'string' || entry.why.trim().length < 10) wrong.push(`a why: got ${show(entry.why)}`);
+    if (outbox && !sameJson(Object.keys(entry).sort(), Object.keys(outbox).sort())) wrong.push(`the outbox entry's shape ${show(Object.keys(outbox).sort())}, got ${show(Object.keys(entry).sort())}`);
+    if (outbox && entry.kind !== outbox.kind) wrong.push(`kind: want ${show(outbox.kind)} as the outbox entry, got ${show(entry.kind)}`);
+  }
   assert(wrong.length === 0, wrong.join('; '));
 });
 

@@ -1,7 +1,7 @@
 # Test Plan: Story 2 — Your Assistant publishes its Duty Menu
 
 **Story:** `engineering-team/stories/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.md`
-**ADR:** `engineering-team/decisions/assistant-duty-menu/0002-the-assistant-signs-its-duty-menu-through-one-narrow-route.md`
+**ADR:** `engineering-team/decisions/assistant-duty-menu/0002-the-assistant-signs-its-duty-menu-through-one-narrow-route.md` (with Amendments 1 and 2)
 **Date:** 2026-10-11
 
 ## Coverage map
@@ -25,8 +25,8 @@ Events are really signed and verified with nostr-tools. E6 and W10 run the real 
 
 | Criterion | Tests | File | Level |
 |---|---|---|---|
-| **AC-1** the button and its report | P7 the words (`DUTY_MENU_COPY.publish.{button, publishing, subject, empty, requestFailed}`) · P8 the client helper: one POST, no body, `{ status, ...json }`, and "This instance did not answer" on a non-JSON answer · D4 (re-aimed) publishing only through the helper, `refresh()` in one place · D6 the button's words, its disabled rule (publishing, `'checking'`, `current`), `describeServerPublish` + `relayLine` in an aria-live region, `result.ok === true` before refreshing, the empty line on `duties === 0` · W9 the answer's shape and summary sentences · B12 enabled when none, out of date, unfinished or failed; disabled when up to date and while checking · B13 Publishing… (disabled), one POST with no body, the report (summary + accepted, rejected, unreachable, timed out, not-sent lines), the answer asked again, the panel Done, the report kept · B14 a refusal, a failed request and a failed local write each give one line, nothing asked again · B15 kept-local words and skipped lines; the empty line | page, publish, browser | unit (ESM) · source · DI · browser |
-| **AC-2** whose key, what is signed | P1 exports, CODES and WORDS · P2 401 before any key is read · P3 403 `no-assistant`: key looked up for the session's viewer, nothing else read, signed, written or sent · P4 the body is never read (a getter records any read); query, kind, pubkey, tags, rows and content change nothing · P5 signed by the session's own Assistant, Owner and customer alike · P6 one press signs exactly one event, kind 39999 · P7 500 with `WORDS.failed` on a throw · S1 the route registered · S2 no other caller in `src/`, `bin/`, `setup/` or `scripts/`; the client helper is the UI's one caller; nothing scheduled; no key literal; tags via `buildMenuTags`; the generic signer untouched | publish | DI · source |
+| **AC-1** the button and its report | P7 the words (`DUTY_MENU_COPY.publish.{button, publishing, subject, empty, requestFailed}`) · P8 the client helper: one POST, no body, `{ status, ...json }`, and "This instance did not answer" on a non-JSON answer · D4 (re-aimed) publishing only through the helper, `refresh()` in one place · D6 the button's words, its disabled rule (publishing, `'checking'`, `current`), `describeServerPublish` + `relayLine` in an aria-live region, `result.ok === true` before refreshing, the empty line on `duties === 0` · W9 the answer's shape and summary sentences · W11 an empty send set (saved here, not local-only) gets its own sentence with no relay rows; one relay, a refused relay and local-only keep `summarizePublish`'s (Amendment 2 item 3) · B12 enabled when none, out of date, unfinished or failed; disabled when up to date and while checking · B13 Publishing… (disabled), one POST with no body, the report (summary + accepted, rejected, unreachable, timed out, not-sent lines), the answer asked again, the panel Done, the report kept · B14 a refusal, a failed request and a failed local write each give one line, nothing asked again · B15 kept-local words and skipped lines; the empty line | page, publish, browser | unit (ESM) · source · DI · browser |
+| **AC-2** whose key, what is signed | P1 exports, CODES and WORDS · P2 401 before any key is read · P3 403 `no-assistant`: key looked up for the session's viewer, nothing else read, signed, written or sent · P4 the body is never read (a getter records any read); query, kind, pubkey, tags, rows and content change nothing · P5 signed by the session's own Assistant, Owner and customer alike · P6 one press signs exactly one event, kind 39999 · P7 500 with `WORDS.failed` on a throw · S1 the route registered · S6 the fail-closed route table opens it to a signed-in person, with a `why`, in the outbox entry's shape (Amendment 2 item 1; `admin-action-sweep-access` AC4 derives its reachability walk from the table) · S2 no other caller in `src/`, `bin/`, `setup/` or `scripts/`; the client helper is the UI's one caller; nothing scheduled; no key literal; tags via `buildMenuTags`; the generic signer untouched | publish | DI · source |
 | **AC-3** the event | L13 `buildMenuTags`: d, Nous' z, p, then one duty tag per duty row in order; three tags for an empty offer; a menu by § 6.1 whose rows read back as the offer · E1 kind, content `''`, verifies, tags exactly as L13 · E2 `isDutyMenu` holds; rows read back are the offer · E3 an empty offer publishes an empty menu, `duties: 0` · E4 `created_at`: now; one second after a newest from the future, even an invalid one; now when the newest is older · E5 the author check: signed by another key, Nous' z dropped, or a second p → 500, nothing written or sent · E6 read back by story 1's check (real offer, real local-first read, an older version from the future): current and Done | check, publish | unit · DI |
 | **AC-4** where it goes | W1 local first; a failed local write sends nothing, with the local-failure sentence · W2 the set, each relay once: the Assistant's write relays, the new rows' relays, the found menu's row relays (from an invalid one too), Nous'; never this instance's own, never the profile publish set · W3 Nous' list not found: nothing for Nous · W4 configured row relays sent without a lookup, even when an event names them too; event-named relays looked up · W5 a refused relay reads `not-sent: not a public address`, paired with an accepted one that is sent; the summary counts only relays sent to · W6 at most 50 event-named relays, the first 50 in the ADR's order after de-duplication against each other and the configured set; beyond that no lookup, send or row; the configured relay on top · W7 local-only: skipped rows, kept-local sentence, nothing sent · W8 a DNS lookup that never answers costs only the 3 s budget · W10 a relay hanging in the newest-version lookup costs at most the 8 s relay budget plus the DNS budget · G1 `relayHostGuard` exports `isPublicRelayHostWithin`, `within` and `LOOKUP_BUDGET_MS` = 3000 · G2 `relayListPublish` re-exports the same function and budget · G3 `dutyMenu.js` and `dutyMenuPublish.js` require the guard's home and never name `relayListPublish` | publish | DI · source |
 | **AC-5** this instance's relay first, reading | U33 a version here: the newest here counts, even with a newer one outside; no Map or relay-list lookup, no DNS check, no outside read · U34 a newest version here that is not a menu → none, still no outside read · U35 none here, or a failed scan: the two rounds run, the newest found counts, "finished" unchanged · U36 `lookupPublishedMenu` returns `latest` (here, invalid, outside, none) beside `published`; the answer's shape stays U3's exact seven fields · U37 `assistantWriteRelays` and `nousWriteRelays` exported, sharing the check's one Nous cache · re-aimed U15, U16, U17, U19, U20, U31 (below) · S3 openapi documents the route and says the attention read is local-first | check, publish | DI · source |
@@ -95,6 +95,13 @@ the suite failed where shown and the re-aimed version passed.
   - **S3:** back to strict; story 1's carve-out for `dutyMenu.js` is removed (sub-decision 6).
   - **A10:** the `Resolver` rule now reads the guard's home, and the route must require
     `../../utils/relayHostGuard`. *HEAD A10 fails on the sketch* (open point 1).
+- **ADR 0002 Amendment 2 (after Implementation's first pass).**
+  - **`test/assistant-duty-menu-publish.test.js` S2** also allows `src/middleware/routeAccess.js` to name the route
+    (item 1). Every other file stays refused. S6 pins the table's entry.
+  - **`test/assistant-taggings-publish.test.js` S2** also allows `src/api/assistant/dutyMenuPublish.js` to name
+    `identificationTaggings` for `privkeyBytesOf` (item 2). `index.js` and `relayListPublish.js` stay required, and
+    every other file stays refused.
+  - **`test/helpers/dutyMenuFixtures.js`** adds `PUBLISH.nothingElse`, item 3's sentence.
 - **`tests/brainstorm/assistant-duty-menu.spec.js`.** The mock takes an attention-answer queue and a `publish` answer
   for the POST; B1–B11 are unchanged.
 - **`test/helpers/dutyMenuFixtures.js`.** Adds `PUBLISH` and `PUBLISH_SENTENCES` (§ Copy).
@@ -248,3 +255,28 @@ Mutating the sketch turned the intended tests red:
 The DNS-budget mutation first showed that a hanging handler could leave the console silenced for later suites. The
 suite now bounds every handler call and restores the console it captured at load (Test infrastructure).
 
+### ADR 0002 Amendment 2 (2026-10-11, against the Implementer's uncommitted code)
+
+Changed: route-suite S2 and `assistant-taggings-publish` S2 (both allow one more file). Added: S6 (the route-table entry) and
+W11 (the empty-set sentence, with its controls).
+
+Against the working tree (the Implementer's code):
+
+| Suite | Pass / fail / skip | Failing |
+|---|---|---|
+| `assistant-duty-menu-publish` | 32 / 1 / 0 | W11 only |
+| `assistant-taggings-publish` | 19 / 0 / 1 | — |
+| `assistant-duty-menu-check` | 61 / 0 | — |
+| `assistant-duty-menu-page` | 15 / 0 | — |
+| `assistant-relay-list-publish` | 32 / 0 / 1 | — |
+| `admin-action-sweep-access` | 13 / 0 | — |
+
+W11 is the only failure. The code does not cover item 3 yet: an empty send set still gets the shared sentence.
+
+```
+FAIL  W11: saved here, not local-only, and no relay at all to send to — …
+      empty set: want "Your Assistant's Duty Menu was saved on this instance's relay. There was no other relay to send it to.", got "Your Assistant's Duty Menu was saved on this instance's relay only: no general-purpose, profile or WoT relays are configured." …
+```
+
+Full gate: `npm run gate:status` → `20261011T223419Z-5537-9a8a [duty-menu-2-tester-amendment2] … on c3f0c0ff+dirty — FAIL,
+exit 1, 5728 passed, 1 failed, 582 skipped, 303/303 suites; failed: assistant-duty-menu-publish`. The one failure is W11.

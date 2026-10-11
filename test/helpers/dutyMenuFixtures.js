@@ -112,6 +112,8 @@ const PUBLISH = {
   noneAccepted: (n) => `${PUBLISH_SUBJECT} was saved on this instance's relay, but none of the ${n} relays accepted it; see below.`,
   localOnly: `${PUBLISH_SUBJECT} was saved on this instance's relay only: local-only publish mode is on, so it was not sent to any other relay.`,
   localFailed: (reason) => `${PUBLISH_SUBJECT} could not be saved on this instance's relay (${reason}), so it was not sent to any other relay.`,
+  // ADR 0002 Amendment 2 item 3 (story § Copy as amended): saved here, not local-only, and no relay at all to send to.
+  nothingElse: `${PUBLISH_SUBJECT} was saved on this instance's relay. There was no other relay to send it to.`,
 };
 /** Story 2's sentences the page shows from its copy module, never typed into the JSX. */
 const PUBLISH_SENTENCES = [PUBLISH.button, PUBLISH.empty, PUBLISH.requestFailed, PUBLISH.emptyMenu];
