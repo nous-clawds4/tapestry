@@ -332,3 +332,31 @@ amendment.
 - Reading other Assistants' menus, § 8.2's query, and the directory.
 - Your Assistant's Treasure Map, `/treasure-map`'s relay fill, and the empty-relay fix.
 - Pointing `src/lib/identification-tags` at `NOUS_PUBKEY`.
+
+## Amendment 1: clarifications from Test Design (2026-10-11)
+
+The test plan (`1-the-duty-menu-page-and-its-check.test-plan.md` § "Not covered, and open points") found gaps this
+ADR left open. The Architect settles them here. Each is pinned by a test, and none changes a decision above.
+
+1. **No status line when the check did not finish.** The page shows one of AC-4's three status lines only for a
+   finished answer. When the check did not finish, or failed, the published panel's reason line is the only line,
+   and there is no status line.
+2. **Local-only mode** is read through `isPublishLocalOnly()` (`src/api/publish-policy/index.js`, the house reader:
+   the environment first, then the config file), behind a seam named `isLocalOnly`.
+3. **Every offer relay is in its one spelling.** `buildOffer` passes `ownRelay` and `dlistRelay` through
+   `normalizeRelayUrl`, so a DList entry written as `wss://Dcosl.example/` is offered as `wss://dcosl.example`.
+4. **A `duty` row whose relay doesn't normalize to a `ws://` or `wss://` address** (`normalizeRelayUrl` gives null:
+   an `https://` URL, garbage) is dropped like a row with a missing relay (§ 5.1). That makes a `duty` row's relay
+   never null after reading.
+5. **A `not-offered` row's `relay` is `null`**, in `readMenuRows`' output and therefore in the answer.
+6. **naddr/nevent segments.** Sub-decision 5 stands: segments are compared as written. A key whose kind slot is not
+   one of the four forms is dropped (sub-decision 1). Treasure Maps § 4.7 puts an naddr or nevent in a segment, never
+   in the kind slot.
+7. **Docs.** As for the outbox check (assistant-outbox-relays ADR 0001 § Implementation notes 5):
+   - `src/api/openapi.yaml` describes the `duty-menu` action of `GET /api/assistant/attention`: its keys `offer`,
+     `published` and `current`, and the `no-relay-answered` reason;
+   - BIBLE §11's `/api/assistant/attention` row names the duty-menu check.
+8. **The SSRF guard's home.** `dutyMenu.js` takes `isPublicRelayHostWithin` from `relayListPublish.js`, as
+   sub-decision 3 says. `assistant-relay-list-publish` S3 is re-aimed narrowly to allow that one read-only import.
+   Moving the guard into `src/utils/ssrfGuard.js` would be cleaner, but it is a refactor of a shipped security module
+   that this story doesn't need. It is left for a follow-up.
