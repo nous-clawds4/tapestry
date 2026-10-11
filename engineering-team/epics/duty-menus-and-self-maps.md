@@ -26,6 +26,8 @@ This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` �
    - the new § 9.2 (Self-Maps) is what `duty-menus.md` § 10's pointer to Treasure Maps § 9 means;
    - `39999:duty-menu` as a Concept key (§ 4.5, § 5.3) must never read as a menu. Do not reserve `duty-menu` as a general Concept `d` (ADR 0002, Consequences);
    - settle A1-8's two Concept readings (`39998:` and `39999:`; what a bare `39998` and a bare `39999` cover) and the order of `39998` and `39999` keys in Treasure Maps § 6, and say how `duty-menus.md` § 5.3 and § 6.2 follow. This is the owner's decision in ledger row `2026-10-09-draft-grammar-bare-39999`.
+   - settle which List and Score kinds take the *DList headers* category (`39998`) in Treasure Maps § 4.3, in line with Content Categories § 1.3 and § 2, and say how `duty-menus.md` § 6.2 step 1 follows (A1-9; the spec reads `30393`, `30394` and `30397` meanwhile);
+   - restate Treasure Maps § 4.4's profiles bullet in the light of § 13 question 3: whether an empty category in a `30392` or `30382` key is the Profiles category, whether `30392:tag::` equals `30392:tag`, whether a profile kind gets a key for a Tag in every category, and whether an empty category in a family or `*` key reaches a profile kind's DList categories (per key, as the spec reads it meanwhile, or per insight); and say how `duty-menus.md` § 6.2 follows (A1-10).
 
 ## Not on this epic's path
 

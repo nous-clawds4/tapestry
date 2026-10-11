@@ -1,6 +1,6 @@
 # ADR 0002: The Duty Menus pre-NIP — one self-signed item per Assistant key under Nous' header
 
-**Status:** Accepted; amended by A1 (2026-10-11); A1-9 to A1-12 proposed
+**Status:** Accepted; amended by A1 (2026-10-11)
 **Date:** 2026-10-10
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md`
 
@@ -359,6 +359,21 @@ one entry a new key takes insights from, names every entry it takes insights fro
 several, builds a nested meet from the Map before the new key, and puts a new Assistant that replaces no one first.
 A1-9 to A1-12 are proposed and await the owner's approval. The rest of A1 stands as approved.
 
+**Revision 4** (2026-10-11) is the owner's gate on A1-9 to A1-12. A1-11 was replaced there, and A1-4's Backups bullet
+with it, by a short rule: which providers a new key has, and in what order, is the observer's choice, and the spec sets
+no default. The earlier text made a client's suggestion normative, and after two revisions two blocking findings
+against it were still open. The passages that relied on it are rewritten or removed.
+
+**Approved** by the owner, 2026-10-11: A1-9, A1-10 and A1-12 as written; A1-11 replaced by the short rule below
+(revision 4).
+
+**After approval.** Fix pass 5 of story 2 (the Implementer) added "unless they are listed on it" to A1-11's rule and
+to its four restatements below. Without those words the SHOULD is false once one of K's other providers is listed on
+the new key, which the rule leaves to the observer. The words come from A1-11's own Why: "They do not, unless the
+observer lists them on the new key." The owner's substance is unchanged, but these words were not on the gate, and
+they await the Architect's ratification. Fix pass 5 also corrected the implementation note on A1-4's Backup offer. The
+client may still offer to add K's providers. A1-11 dropped A1-4's SHOULD that it offer to carry them over in K's order.
+
 **How it was settled.** The orchestrator built a brute-force model of Treasure Maps matching and precedence, in the
 session scratchpad (`model/check.py`, `model/check2.py`; not durable). It models § 4.4 (an empty or omitted segment
 means any) and § 6 (kind-slot rank, then the left-most difference). Its kind slot is a reduced § 4.2: exact kinds
@@ -401,9 +416,9 @@ Concept keys. It fixes each DList's subject in advance.
 The owner approved proceeding on this proposal at the review round 2 gate, 2026-10-11. The proposal said "or none when the
 answering row is not a duty row". A1-4 reads that as: the menu gives K no relay. Sub-decision 10 still lets the observer
 keep K for A, so A1-4 decides that entry's relay (the insisted key). A1 also goes beyond the proposal in four places: the
-meet and the Backup offer (A1-4), A1-7's restored publishing target, and A1-8's reader rules, order and SHOULD. A1-8
-also takes a side on an open owner question (ledger row `2026-10-09-draft-grammar-bare-39999`; see A1-8). A1 itself is
-proposed and awaits approval at this gate.
+meet and the Backup offer (A1-4; A1-11 has since replaced the offer), A1-7's restored publishing target, and A1-8's
+reader rules, order and SHOULD. A1-8 also takes a side on an open owner question (ledger row
+`2026-10-09-draft-grammar-bare-39999`; see A1-8). A1 itself is proposed and awaits approval at this gate.
 
 **Approved** by the owner, 2026-10-11, with both gate points confirmed: A1-4's insisted-key relay (the offering rows'
 shared relay, else the empty string), and A1-8 as the spec's reading of the bare Concept kinds until story 3.
@@ -517,7 +532,7 @@ entry bullet, and its "writes the narrower Map entries as well"; spec § 6.2 ste
   any other key. The client resolves the chosen key afresh by A1-1 to A1-4, and lists the rows within it. (See A1-10
   and A1-11.)
   - The meet beats K. So when the row offers, choosing its meet for A gives the row's part the row's relay, unless
-    another Map entry beats the meet. (See A1-11.)
+    another Map entry beats the meet.
   - The row's own key is no substitute when K beats it by § 6: K's kind slot is narrower, or, with the same kind slot,
     K names a value at the first segment where the two keys differ. K then wins every insight they share. Case C shows
     both. Under K = `30396`, choosing `3039x:tag:⟨D⟩` changes nothing; its meet, `30396:tag:⟨D⟩`, gives D's other
@@ -528,10 +543,7 @@ entry bullet, and its "writes the narrower Map entries as well"; spec § 6.2 ste
   - A new key can take insights that K's entry already got right. They show up among the new key's differing rows. In
     case D, choosing `3039x:tag` gives `30396:tag:⟨D⟩:⟨T⟩` R1 in the Map. Resolving `3039x:tag` lists `30396:tag` → R0
     as its differing row, whose meet the observer may choose in turn.
-  - **Backups.** A less specific key is never a fallback for a more specific one (Treasure Maps § 7, `:282`). So when
-    the observer chooses a new key within K, the client SHOULD offer to carry K's other providers onto it, in K's
-    order, each resolved from its own menu the same way. If the observer declines, the client says the new key has no
-    Backup. (See A1-11.)
+  - **Backups.** Replaced by A1-11: which providers a new key has, and in what order, is the observer's choice.
 - **The guarantee, and no more.**
   - For each chosen key K whose answering row is a `duty` row, the entry's relay is the menu's relay for every insight
     under K except those in a differing row's part. The client lists every differing row.
@@ -797,127 +809,29 @@ A1-3's "the meet is always defined, and it is a § 4.7 key"; A1-4's "A new key w
   - *A trailing empty category as the Profiles category too*, so that `30392:tag::` would differ from `30392:tag`. It
     conflicts with the spec's trimming and with § 4.4's "`30396:tag` and `30396:tag::` both mean" the same.
 
-**A1-11 — Carrying providers onto a new key: those of the one entry it takes insights from, in that entry's order.**
-*(Qualifies: A1-4's "A new key within K" and its Backups bullet; spec § 6.2 step 5's Alternates bullet.)*
-- **Holders.** The observer chooses a key K′ that has no entries yet, for an Assistant X. Each insight that K′ would
-  win once added (Treasure Maps § 6) is won now by a Map key, its **holder**, or by none. K′ takes those insights from
-  their holders. The client finds them from the keys alone, as A1-3 finds the rows within K, so they do not change
-  with the observer's supported sets.
-  - The rule applies to every such choice, whatever led to it: a differing row's meet or own key (A1-4), a nested meet
-    (below), or the observer's own pick. A1-4's "new key within K" is one that K covers (A1-1), as every meet that has
-    a key is. The rule does not depend on it.
-  - The client names every holder: the insights K′ takes from it, its providers, and who becomes Preferred for those
-    insights. A1-4 says a meet loses insights to a Map entry that beats it. A meet can also beat a Map entry, and then
-    takes that entry's insights. So no key takes insights from another entry unsaid.
-- **One holder: the carry.** When every insight K′ takes has the same holder H, the client SHOULD offer to give K′
-  H's providers, each resolved against its own menu by A1-1 to A1-4. A provider **offers** K′ when its answering row
-  is a `duty` row. Each provider has a place: its place on H. X keeps its own place when it is on H. Otherwise X
-  takes the place of the first of H's providers that does not offer K′, just ahead of it, or the first place when
-  they all offer K′. The offer gives K′:
-  1. first, the providers that offer K′, by place;
-  2. then the providers that do not offer K′ and that the observer keeps (sub-decision 10), by place, as insisted
-     keys (A1-4). X counts as kept: the observer chose it, after A1-4's warning when it does not offer K′.
-
-  Each entry's relay comes from its provider's own menu (A1-4). A provider with no menu that may fill its entries
-  (none is found, or sub-decision 7 forbids it) counts as offering K′, since nothing says it does not, and its entry
-  keeps the relay of its entry for H. When K′ comes from A1-4's flow, H is K unless another entry holds what K′
-  takes. In these examples H is K, and B and D offer every key named.
-  - K = [B, A], and the observer chooses for A the meet of a row that A offers: [B, A]. B stays Preferred.
-  - K = [B, A], A's differing row is `not-offered`, and the observer chooses its meet for C: [B, C]. With K = [A, B]:
-    [C, B]. Chosen for B: [B].
-  - K = [A, B, D], A does not offer the meet, and the observer chooses it for D, already on K: [B, D]. D keeps its own
-    place; it does not take A's.
-  - K = [A, B]. A's menu is `3039x` → R0, `not-offered 3039x:tag`, and B's is `3039x` → S0, `3039x:tag` → S1. The
-    meet `3039x:tag` is a differing row of both. Chosen for B, by either route, with A kept: [B, A], A's entry with
-    the empty string (A1-4).
-  - K = `3039x` → [A], and the observer chooses `30396:tag` for C. A and C each have no menu, or one that offers
-    `30396:tag`: [C, A]. C replaces no one, so it goes first, and A is its Backup. With K = [A, B], both offering:
-    [C, A, B].
-- **Another entry as the one holder.** K = `3039x` → [B, A], A's menu is `3039x` → R0, `30396:tag` → R1, and the Map
-  also has `3039x:tag` → [E, F], neither of which has a menu. `3039x:tag` holds every insight that the meet
-  `30396:tag` takes. Chosen for A, the meet gets [A, E, F], and the client says that it takes the `30396` Tag-based
-  lists from `3039x:tag` → [E, F]. K's order is not carried there: carried, it would make B Preferred for insights
-  the observer gave E.
-- **Several holders, or none for part: no carry.** A holder's order is the observer's order for its own insights
-  only. Carried onto another holder's insights, it would make its providers Preferred where the observer chose others.
-  Carried onto insights no entry holds, it would give its providers insights the observer never gave them. So K′ gets
-  X alone, the client names the holders, and the observer may add providers in an order it sets. If K′ takes no
-  insight, because other entries beat it everywhere, nothing is carried either.
-  - The same menu, with `3039x:tag::⟨T1⟩` → [E] in the Map in place of `3039x:tag`: the meet takes T1's lists from E
-    and the rest from K. Chosen for A, it gets [A], and the client names both holders.
-  - A row's own key that reaches outside K (A1-4, A1-10) takes insights from K and, outside K, from other entries or
-    from none. Example, A1-10's: K = `3039x:tag::⟨T⟩` → [B, A], the Map also has `3039x` → [E], and the observer
-    chooses `30392` for A. Inside K, T's profile lists in every category go from [B, A] to [A]: B is dropped, and A
-    becomes Preferred. Outside K, the other `30392` lists go from [E] to [A].
-- **A provider that partly offers K′.** A provider on H that does not offer K′ as a whole may still offer rows within
-  it. Left off K′, it loses those insights. So the client lists those rows, says that choosing K′ takes their
-  insights from that provider, and offers, with K′, each row's meet with K′ for that provider. It builds them by this
-  rule from the Map as it stood before K′, so each keeps its part as it was. Where that meet has no key, A1-10
-  applies. The observer may instead keep the provider on K′, as an insisted key at A1-4's relay, after the providers
-  that offer K′.
-  - Example: A's menu is `3039x` → R0, `not-offered 3039x:tag`, `30396:tag` → R0, and K = `3039x` → [B, A]. The
-    observer chooses `3039x:tag` for C: [B, C]. The client lists `30396:tag` → R0 within `3039x:tag`, and offers
-    `30396:tag` for A, built from K, its one holder before `3039x:tag`: [B, A]. With it, `30396:tag:⟨D⟩:⟨T⟩` keeps
-    [B, A]. With K = [A, B], `3039x:tag` gets [C, B] and `30396:tag` gets [A, B]. If the observer keeps A on
-    `3039x:tag` instead, that key gets [B, C, A] (with K = [A, B]: [C, B, A]), A's entry at R0.
-  - Chosen later, on its own, `30396:tag` for A is a new choice against the Map as it then stands. Its one holder is
-    `3039x:tag` → [B, C]. A has no place there, and B and C offer it, so the offer is [A, B, C] (with K = [A, B]:
-    [A, C, B]).
-- **A key that already has entries.** X is added after them, unless already listed, and nothing is carried: the key
-  already has the observer's order.
-- **Declined, or no carry.** The client says that the new key has no fallback provider, as A1-4 says.
+**A1-11 — Alternates on a new key are the observer's choice.** *(Supersedes: A1-4's Backups bullet; the earlier
+A1-11 text (commit cf2085d1); spec § 6.2 step 5's Alternates bullet.)*
+- **The rule.** A less specific key is never a fallback for a more specific one (Treasure Maps § 7,
+  `treasure-maps.md:282`). So when the observer chooses a new key within K, the client SHOULD show which providers the
+  new key will have, and say that K's other providers do not back it up unless they are listed on it. It MAY offer to
+  add them. Which providers the new key has, and in what order, is the observer's choice. The spec sets no default.
+  *("Unless they are listed on it" was added after approval; see "After approval", under revision 4.)*
+  - Example: K = `3039x` → [B, A], and the observer chooses for A the meet of one of A's differing rows. The client
+    shows that the meet will have A alone, and that B does not back it up there. The observer may add B, before A or
+    after it, or leave it off.
 - **Why.**
-  - The observer set each entry's order. The first is the Preferred provider, whose insight clients use (Treasure Maps
-    § 7, `treasure-maps.md:279–280`). A key chosen through A1-4's flow gives part of K the right relay, or replaces a
-    provider where its own menu does not offer, and the providers that offer keep their order.
-  - The insights a new key takes are its holders', and not K's wherever another entry holds them. Carrying from the
-    one holder keeps every insight with the providers that served it, and X. No other provider gains an insight it
-    did not serve. So a new key moves insights only to the Assistant the observer chose, and the client says from
-    whom.
-  - Each provider is judged by its own menu, so the offer depends only on K′, X, the menus and the Map it is built
-    from, not on which differing row led there. Revision 3's text put X in the place of the one Assistant whose row
-    led there. Where a meet was a differing row of two providers, the two routes gave [A, B] and [B, A]
-    (`r4/skep_k3.py`, case 3). Where X was already on K, behind a provider that stays, X moved ahead of it: [A, B, D]
-    gave [D, B] (`r4/skep_k3_order.py`).
-  - Every listed provider is asked to publish (Treasure Maps § 9). So a provider whose menu does not offer K′ is not
-    carried unless the observer keeps it, and then goes after those that offer K′. The Preferred provider is then one
-    that offers K′, whenever one does.
-  - X, when new to H, takes the place of the first provider that does not offer K′: it replaces where a replacement
-    is needed. Where none is needed, the observer has chosen X for that part over H's providers, so X goes first, and
-    they follow as its Backups, A1-4's word. In A1-4's flow with K as the one holder that never happens: X is on K,
-    or replaces A, which does not offer its own `not-offered` row's meet.
-  - A nested meet is built from the Map before K′ because it exists to leave its part as it was. The same key chosen
-    later is a new choice against a Map that now has K′, and the client shows that offer before writing it.
-  - `r6/k3_holder.py` checks the rule on the model's menus: 2,368 meets chosen from random menus of two to four
-    providers, with up to two more Map entries for other Assistants. 2,344 have one holder (45 of them not K), 18
-    have several, and 6 take nothing. No provider but X gains an insight it did not serve; the providers that offer
-    K′ keep the holder's order; no provider that does not offer K′ is carried unless kept; the holder's Preferred
-    provider stays Preferred whenever it offers K′, unless X is new and replaces no one; and with K as the one holder,
-    A1-4's flow gives the same offer as the text before the second review (0 failures each). In 192 a provider partly
-    offers K′. Its nested meets keep it, in its order, wherever it offers, except once, where the nested meet has no
-    key (A1-10). 6,000 free choices of any key for any Assistant (429 with one holder) give the same zeros.
-- **Not taken:**
-  - *X first always, then the holder's other providers in their order* (the kick-back's second reading). For a relay
-    fix X is A, already on K, and going first would make A Preferred for that part, which the observer did not choose.
-    For a replacement, X belongs in the place of the provider it replaces.
-  - *X last when it replaces no one* (the text after the first skeptic review). An observer who gives part of K to a
-    new Assistant would see the offer keep K's Preferred provider ahead of it, and the providers carried would not be
-    the Backups A1-4 names.
-  - *X in the place of the Assistant whose row led to K′* (revision 3's text): two routes to one key gave two orders,
-    and X already on K could move ahead of a provider that stays (above).
-  - *Each carried provider keeps its place, whether or not it offers K′.* A provider whose menu does not offer K′
-    could stay Preferred for it.
-  - *K's providers, onto every key within K* (the text after the first skeptic review). A key within K can beat an
-    entry more specific than K and take its insights, and a nested meet lies within two Map keys, which gave two
-    orders (`r4/fresh/fe_k3.py`).
-  - *The providers of the most specific Map key that covers K′, counting a key chosen in the same step.* That key may
-    not hold every insight K′ takes: in the `3039x:tag::⟨T1⟩` example it is `3039x`, and its order would reach E's
-    insights. Counting K′ for its own nested meets would build them from `3039x:tag` → [B, C], where A has no place:
-    [B, C, A] under the text the second review read, [A, B, C] under this one. Neither keeps the part as it was,
-    which is what the nested offer is for.
-  - *Limiting the rule to keys reached through A1-4's flow.* A1-4's Backups bullet speaks of any new key within K, so
-    every other choice would keep the kick-back's open question.
-  - *Carrying nothing and saying nothing*, when there are several holders: the key would drop providers unsaid.
+  - The order of a key's providers is the observer's: the first is Preferred, the rest are Alternates, in order
+    (Treasure Maps § 7, `:279`).
+  - Every reader reads the saved Map alone, by Treasure Maps § 6 and § 7, whatever a client suggested. So two clients
+    that suggest different providers, or a different order, are no interoperability defect, and the spec need not
+    prescribe what a client suggests.
+  - What a client must not leave unsaid is the gap: an observer may assume that K's other providers still back up the
+    new key's insights. They do not, unless the observer lists them on the new key.
+- **Set aside:** the earlier rules that carried K's providers onto the new key. A1-4's Backups bullet carried them in
+  K's order. The earlier A1-11 then placed the chosen Assistant among them, found the new key's **holders** (the Map
+  entries it takes insights from), carried from one holder only, built nested meets from the Map before the new key,
+  and gave steps for a provider that partly offers it. Each made a client's suggestion normative. Each revision raised
+  new cases, and after two revisions two blocking findings were still open.
 
 **A1-12 — A replaced menu does not survive where readers look first.** *(Qualifies: A1-6, A1-7, and sub-decision 8's
 reader order; spec § 8.1, § 11 and § 12.)*
@@ -992,7 +906,7 @@ reader order; spec § 8.1, § 11 and § 12.)*
 ### Consequences of A1
 
 - **The Map stays the observer's.** A client writes only the entries the observer chose, so a menu cannot move insights
-  away from another Assistant. (See A1-11.)
+  away from another Assistant. A new key's providers, and their order, are the observer's choice too (A1-11).
 - **Insights in a differing row's part get their relay at read time.** Until story 3's read-time resolution exists, a
   reader that follows the Map alone looks for them at K's relay, and may not find them there. Meanwhile the observer can
   choose a differing row's meet as a key. That gives the row's part its relay, unless another entry beats the meet.
@@ -1020,11 +934,9 @@ reader order; spec § 8.1, § 11 and § 12.)*
   key of their own: a Tag, Pin or metric in every category of a profile kind. The client lists them and says so. Unless
   the row's own key beats K, only keys for some of their categories, or read-time resolution (story 3), give such a
   part its relay.
-- **A new key carries the providers of the one entry it takes insights from (A1-11)**, in that entry's order among the
-  providers that offer it. A new Assistant that replaces no one goes first. A provider whose menu does not offer the
-  key is carried only if the observer keeps it, after them. A key that takes insights from several entries, or from
-  none for part, gets no carry. The client names every entry a new key takes insights from, so no provider but the
-  chosen one gains an insight it did not serve.
+- **A new key's Alternates are the observer's choice (A1-11).** The client shows which providers a new key within K
+  will have, says that K's other providers do not back it up unless they are listed on it, and may offer to add them.
+  The spec sets no default, so clients may suggest differently; every reader reads the saved Map alike.
 - **Readers ask every relay in all three places (A1-12):** 5 to 9 relays per key with one hint, and every lookup
   reaches Nous' write relays (§ 12). Publishers keep sending each menu to every relay that an earlier version's `duty`
   rows named, and may drop a relay they know is gone.
@@ -1053,8 +965,8 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   `*:tag` example, as an overlapping row within K. Say "differing row", never "exception", for this.
 - **§ 6.2 step 5** (:165): A1-4. One entry per chosen key; menus supply relays, never keys; every row within K listed
   with its meet; the meet offered for each differing row, and why the row's own key may not do (in A1-4's words: K
-  beats it by § 6, at the kind slot or at a later segment); the Backup offer; the guarantee in A1-4's words, no
-  stronger; the insisted key's relay.
+  beats it by § 6, at the kind slot or at a later segment); the Backup offer (since replaced by A1-11, below); the
+  guarantee in A1-4's words, no stronger; the insisted key's relay.
   - Write "read-time resolution, which Treasure Maps does not yet define". Do not cite Treasure Maps § 3 for a fallback
     it does not have (`treasure-maps.md:77`), and do not name a story, which a spec can't cite (review round 1,
     Deviation 3).
@@ -1088,7 +1000,8 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   order of `39998` and `39999` keys in Treasure Maps § 6, and say how `duty-menus.md` § 5.3 and § 6.2 follow. This is
   the owner's decision in ledger row `2026-10-09-draft-grammar-bare-39999`.
 
-**For A1-9 to A1-12**, once the owner approves them. AC6 still holds: inside `protocols/`, only
+**For A1-9 to A1-12**, as the owner approved them, 2026-10-11 (A1-11 in its revision 4 form, with the words added
+after approval; see "After approval", under revision 4). AC6 still holds: inside `protocols/`, only
 `drafts/duty-menus.md` changes.
 
 `protocols/drafts/duty-menus.md`:
@@ -1111,26 +1024,11 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   - "A new key within K" (:201–208): A1-10's case. The client offers the row's own key when it beats K, and otherwise
     says that Treasure Maps has no key for the part as a whole; the observer may still choose keys for some of its
     categories. Use A1-10's two examples.
-  - "Alternates" (:209): A1-11.
-    - The rule applies to every key with no entries that the observer chooses, whatever led to it. Define its
-      holders: the Map keys that now win the insights it would win once added. The client names each holder, the
-      insights the key takes from it, its providers, and who becomes Preferred for them. Say that a meet can also beat
-      another Map entry, and then takes its insights.
-    - With one holder: resolve the key against the menus of the holder's providers and of the chosen Assistant. The
-      providers that offer it come first, in the holder's order. The chosen Assistant keeps its place when it is on
-      the holder; otherwise it takes the place of the first provider that does not offer the key, or the first place
-      when they all offer it. Then come the providers that do not offer it and that the observer keeps, the chosen
-      Assistant included, as insisted keys. A provider with no menu found counts as offering, and keeps the relay of
-      its entry for the holder.
-    - With several holders, or none for part of the key, or no insight taken: no carry; the key gets the chosen
-      Assistant alone.
-    - A provider that partly offers the key: list its rows within it, say that choosing the key takes their insights
-      from it, and offer, with the key, their meets for it, built the same way from the Map as it stood before the
-      key, or keeping it as an insisted key.
-    - A key that already has entries gets the chosen Assistant after them, and nothing is carried. Keep the sentence
-      for a declined offer, and say the same where nothing is carried.
-    - Use A1-11's examples: the two-provider and nested ones, the new Assistant that replaces no one, another entry
-      as the one holder, and the two-holder case.
+  - "Alternates" (:209): A1-11. Keep its first sentence. Replace the rest with: "So when the observer chooses a new
+    key within K, the client SHOULD show which providers the new key will have, and say that K's other providers do
+    not back it up unless they are listed on it. It MAY offer to add them. Which providers the new key has, and in what
+    order, is the observer's choice; this spec sets no default." Drop the offer to bring K's providers over in K's
+    order, and the sentence for a declined offer. The bullet needs no example.
 - **§ 8.1** (:234–240): A1-12.
   - "Look, in order:" becomes: ask every relay in all three places (every hint in hand for the key, every write relay
     in the key's kind 10002, every write relay in Nous' kind 10002), and use the latest version among the answers (the
@@ -1147,7 +1045,8 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
 - **§ 11** (:265–272): "Publish the menu where § 8.1 says" now includes those relays. A deletion goes wherever the
   empty menu it accompanies goes.
 - **§ 12:** a new bullet, **Lookups**. Every lookup asks Nous' write relays (§ 8.1), so their operators can see which
-  keys a client looks up, and when. A reader may skip them, at the risk of an older version.
+  keys a client looks up, and when. A reader may skip them, to keep its lookups private or to save queries, at the
+  risk of an older version. § 8.1 gives the cost of asking them all.
 - **§ 14:** add two questions.
   - (6) Category `39998`: which List and Score kinds take the *DList headers* category. This spec reads `30393`,
     `30394` and `30397` meanwhile (§ 6.2 step 1).
@@ -1157,15 +1056,31 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
     DList categories, judged per key or per insight? This spec reads A1-10's carve-out, per key, meanwhile.
 - The spec names no story, ADR or deployment, and the vocabulary gate applies.
 
-**The story's Deviations:** a block after "Fix pass 3", answering the questions kicked back there:
-- category `39998` → A1-9; where A goes on a new key, and a new key chosen for another Assistant → A1-11; the profiles
-  category slot → A1-10; the stale menu → A1-12;
+**The story's Deviations:** a block after "Fix pass 3", headed "Fix pass 4 (owner gate, 2026-10-11)":
+- the four questions kicked back in fix passes 1 to 3, each answered:
+  - category `39998` → A1-9: it agrees with `30393`, `30394` and `30397`, so Fix pass 2's example gives R0, with
+    `30397` → R1 as a differing row;
+  - the profiles category slot → A1-10: `30392:tag::⟨T⟩` is exact, so Fix pass 2's example gives R0;
+  - where A goes on a new key → A1-11: neither answer is prescribed. The observer chooses the new key's providers and
+    their order, and the client shows them and says that K's other providers do not back the new key up unless they
+    are listed on it;
+  - the stale menu → A1-12: both of Fix pass 3's options, widened. Publishers send each version to every relay an
+    earlier version's `duty` rows named, and readers ask all three § 8.1 places and keep the latest version;
+- what each changed in the spec: § 6.2 steps 1, 4 and 5; § 8.1; § 11; § 12's Lookups bullet; § 14's questions 6 and 7;
 - the Fix pass 3 example, tightened on two points. The newest-copy reader writes `["30382:rank", "<A>", ""]` only if
   the observer keeps K for A (the insisted key); otherwise it writes no entry. And the old relay keeps the stale copy
   only when it is not also one of A's or Nous' kind 10002 write relays;
-- § 14's questions 6 and 7.
+- Fix pass 2's last bullet, settled: A1-9 and A1-10 add § 14's questions 6 and 7 and two story-3 carry-forwards.
+  A1-11 and A1-12 add neither;
+- Fix pass 2's note that A1's model has no `30394`, no `30397` and no category `39998`, and reads an empty profiles
+  category as "any": A1-9 and A1-10 were checked on a model that has all of these (ADR 0002, A1-10's "The model").
 
-**The epic's story-3 carry-forwards** (`epics/duty-menus-and-self-maps.md:20–28`), two more bullets:
+Round 3's judgment call on A1-4's "Backup" offer also gets an inline "*Fix pass 4:*" note: A1-11 replaced the offer.
+Step 5's Alternates bullet keeps Treasure Maps § 7's words. It no longer has the client offer to carry K's providers
+onto the new key in K's order; the client MAY offer to add them, and the observer chooses which, and in what order.
+
+**The epic's story-3 carry-forwards** (`epics/duty-menus-and-self-maps.md:20–28`): A1-11 and A1-12 add none. A1-9 and
+A1-10 add two bullets, after the last (:28):
 - settle which List and Score kinds take the *DList headers* category (`39998`) in Treasure Maps § 4.3, in line with
   Content Categories § 1.3 and § 2, and say how `duty-menus.md` § 6.2 step 1 follows (A1-9; the spec reads `30393`,
   `30394` and `30397` meanwhile);
@@ -1175,8 +1090,8 @@ Docs-mode. AC6 holds: inside `protocols/`, round 3 may change only `drafts/duty-
   kind's DList categories (per key, as the spec reads it meanwhile, or per insight); and say how `duty-menus.md` § 6.2
   follows (A1-10).
 
-**This ADR, on approval:** the status line becomes "**Status:** Accepted; amended by A1 (2026-10-11)". On approval of
-A1-9 to A1-12, it returns to that line, and the approval is recorded after the Revision 3 paragraph.
+**This ADR:** done at the owner's gate, 2026-10-11. The status line is "**Status:** Accepted; amended by A1
+(2026-10-11)", and the approval of A1-9 to A1-12 is recorded after the Revision 3 paragraph (revision 4).
 
 **Gates:** as in Implementation notes above, except the scope line: `git diff --stat` touches, inside `protocols/`, only
 `drafts/duty-menus.md`; outside it, the story and the epic.
@@ -1239,15 +1154,10 @@ A1-9 to A1-12, it returns to that line, and the approval is recorded after the R
   answering row is `30392`, and the entry R0. Step 4 names the meet with no key, and step 5 handles it, with A1-10's
   two examples. § 14 has question 7, which also asks about family and `*` keys. Read per key, menu `3039x` → R0,
   `3039x:tag::⟨T⟩` → R1 and K = `3039x:tag:⟨D⟩:⟨T⟩` give R1, with no differing row.
-- **A1-11.** Step 5's Alternates bullet defines a new key's holders, names them for every key chosen, whatever led to
-  it, and carries only from one holder. With K the one holder: [B, A] gives [B, A] for A; with C chosen for a
-  `not-offered` part, [B, C]; with B chosen, [B]. [A, B, D], with A not offering and D chosen, gives [B, D]. The
-  two-provider case gives [B, A] by either route. K = `3039x` → [A], with no menus, and `30396:tag` chosen for C,
-  gives [C, A]. With `3039x:tag` → [E, F] also in the Map, the meet `30396:tag` chosen for A gives [A, E, F] and names
-  `3039x:tag`; with `3039x:tag::⟨T1⟩` → [E] instead, it gives [A] and names both holders. The nested case lists
-  `30396:tag` → R0 and offers `30396:tag` for A, with `3039x:tag`, as [B, A] (K = [A, B]: [A, B]); chosen later, on
-  its own, it gives [A, B, C] (K = [A, B]: [A, C, B]). A1-10's example carries nothing to `30392`, and names what it
-  takes from each holder. A key that already has entries gets the chosen Assistant after them.
+- **A1-11.** Step 5's Alternates bullet keeps Treasure Maps § 7's "never a fallback". When the observer chooses a new
+  key within K, the client SHOULD show the new key's providers and say that K's other providers do not back it up
+  unless they are listed on it, and MAY offer to add them. The providers and their order are the observer's choice,
+  with no default. Nothing else in step 5 says which providers a new key gets, or in what order.
 - **A1-12.** § 8.1 asks every relay in all three places, keeps the latest version (lowest id on a tie), skips a relay
   that does not answer, allows fewer relays at the risk of an older version, and states the cost. Its publisher
   sentence adds every relay that a `duty` row of an earlier version named, with the way out and the case of a
@@ -1263,17 +1173,13 @@ A1-9 to A1-12, it returns to that line, and the approval is recorded after the R
     The cross-reading lines give 0 wherever the spec's reading of `39998` is at least as wide as the world's, non-zero
     wherever it is narrower, and non-zero both ways for the profiles slot.
   - `k2_variants.py` shows the per-insight carve-out's meet matching a list its first key does not.
-  - `k3_order.py` holds revision 3's order rule, which A1-11 now replaces. `skep_k3.py` and `skep_k3_order.py` show
-    its defects.
   - `k4_stale.py` prints the stale-menu table. Every row for "every relay an earlier version went to" (`P2`) reads
     "ok".
   - `sk/sk_k1simple.py` and `sk/sk_k1cost.py` give A1-9's cost. `sk/sk_b2checks.py` and `sk/sk_b2cross.py` compare
     A1-10's per-key and per-insight readings. `skK4lens/k4_skeptic.py` and `skK4lens/k4_skeptic_b.py`, run from their
     own folder, model failed sends, the readers, and a stale hint the publisher never sent to.
-  - From the scratchpad's `r5/` folder: `k3_rule.py` holds A1-11 as it stood before the second skeptic review, whose
-    defects `r4/fresh/fe_k3.py` and `r4/fresh/fe_k3_scope.py` show. `k4_p3.py` shows that the relays earlier `duty`
-    rows named do what `P2` does, that a reader asking place 3 only when places 1 and 2 find nothing fails for a key
-    with no kind 10002, and how each reader fares when 20% of sends fail.
-  - From the scratchpad's `r6/` folder: `k3_holder.py` prints A1-11's named cases, the second review's among them, and
-    asserts its properties over random menus and Maps, for meets and for free choices.
-  - The scratchpad is not durable. If the scripts are gone, rebuild them from A1-9 to A1-12.
+  - From the scratchpad's `r5/` folder: `k4_p3.py` shows that the relays earlier `duty` rows named do what `P2` does,
+    that a reader asking place 3 only when places 1 and 2 find nothing fails for a key with no kind 10002, and how each
+    reader fares when 20% of sends fail.
+  - A1-11 sets no rule that a model could check, so no script covers it.
+  - The scratchpad is not durable. If the scripts are gone, rebuild them from A1-9, A1-10 and A1-12.

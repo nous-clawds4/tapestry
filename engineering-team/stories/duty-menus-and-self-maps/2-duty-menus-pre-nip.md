@@ -152,7 +152,9 @@ Round 3 (2026-10-11), carrying ADR 0002 Amendment A1, which answers review round
     "turn a storefront's rows into Treasure Map entries", so it no longer implies that rows become entries (A1-4: menus
     supply relays, never keys). What it forbids is unchanged.
   - A1-4's "Backup" offer is written in Treasure Maps § 7's words: "Alternates", "fallback provider". Treasure Maps has
-    no term "Backup".
+    no term "Backup". *Fix pass 4:* A1-11 replaced the offer. Step 5's Alternates bullet keeps Treasure Maps § 7's
+    words. It no longer has the client offer to carry K's providers onto the new key in K's order; the client MAY
+    offer to add them, and the observer chooses which, and in what order.
   - A1-1's agreement rules name the Score kinds beside the List kinds (an event kind with `30383`/`30393` and so on; a
     NIP-73 type with `30385`/`30395`), following Treasure Maps § 4.3's rule that a Score key is its List key plus a
     metric, as the model scripts do.
@@ -192,7 +194,8 @@ Round 3 (2026-10-11), carrying ADR 0002 Amendment A1, which answers review round
   empty category in a `30392`/`30382` key is "any" (A1-1) or the profiles category (Treasure Maps § 4.4, § 13 q2).
 - **Fix pass 2:** the verifiers raised all three again. They stay kicked back, with the text unchanged, because A1 has
   not answered them. Each changes a Map entry, and A1's model does not decide it: it has no `30394`, no `30397` and no
-  category `39998`, and it reads an empty profiles category as "any". The questions for the Architect:
+  category `39998`, and it reads an empty profiles category as "any". *(Fix pass 4: all three are answered, and this
+  note on the model is superseded.)* The questions for the Architect:
   - *Category `39998`.* Does it agree with `30397` only, or also with `30394`, since `39998` is an addressable kind?
     Treasure Maps § 4.3 lists both. Take a menu `3039x` → R0, `30397` → R1, and K = `3039x:tag:39998`. The first reading
     gives the entry R1. The second gives R0, with `30397` as a differing row.
@@ -215,7 +218,89 @@ Round 3 (2026-10-11), carrying ADR 0002 Amendment A1, which answers review round
     that is then withdrawn. The first reader writes `["30382:rank", "<A>", "wss://scores.example"]`, and the second
     writes `["30382:rank", "<A>", ""]`. Should § 11 send a republished menu (the empty one included) and any deletion
     to the relays named by the replaced version's `duty` rows? Or should a § 8.1 reader that finds a menu at a step-1
-    hint also check step 2 and keep the latest `created_at`? Or both?
+    hint also check step 2 and keep the latest `created_at`? Or both? *(Fix pass 4: both, widened, by A1-12. The
+    example is corrected below.)*
+- **Fix pass 4 (owner gate, 2026-10-11).** The owner approved ADR 0002's A1-9, A1-10 and A1-12 as written. A1-11, and
+  A1-4's Backups bullet with it, were replaced by a short rule (ADR 0002, revision 4). Each question kicked back in fix
+  passes 1 to 3 now has its answer:
+  - *Category `39998`* → A1-9. It agrees with `30393`, `30394` and `30397`, and with their Score kinds. So Fix pass 2's
+    example gives R0, with `30397` → R1 as a differing row (meet `30397:tag:39998`).
+  - *The profiles category slot* → A1-10. In a `tag` or `pin` key whose kind slot is `30392` or `30382`, an empty
+    category left after trimming is the Profiles category, so `30392:tag::⟨T⟩` is exact. Fix pass 2's example gives R0.
+  - *Where A goes on a new key* → A1-11. Neither answer is prescribed. The observer chooses the new key's providers and
+    their order. The client shows them, and says that K's other providers do not back the new key up unless they
+    are listed on it.
+  - *The stale menu* → A1-12. Both of Fix pass 3's options, widened. Publishers send each version, the empty menu
+    included, to every relay an earlier version's `duty` rows named, and a deletion wherever the empty menu goes.
+    Readers ask every relay in all three § 8.1 places and keep the latest version.
+  - What changed in the spec: § 6.2 step 1 (A1-9; A1-10, with A1-1's empty-segment example given the exception); step 4
+    (A1-10's meets with no key); step 5 (A1-10 in the listing and in "A new key within K"; A1-11 in "Alternates"); § 8.1
+    and § 11 (A1-12); § 12's new Lookups bullet (A1-12); § 14's questions 6 (A1-9) and 7 (A1-10).
+  - Fix pass 3's example, tightened on two points. The reader that keeps the newest copy writes
+    `["30382:rank", "<A>", ""]` only if the observer keeps K for A (the insisted key); otherwise it writes no entry. And
+    the old relay keeps the stale copy only when it is not also one of A's or Nous' kind 10002 write relays.
+  - Fix pass 2's last bullet, settled: A1-9 and A1-10 add § 14's questions 6 and 7 and two story-3 carry-forwards in the
+    epic. A1-11 and A1-12 add neither.
+  - Fix pass 2's note on the model: A1's earlier model had no `30394`, no `30397` and no category `39998`, and read an
+    empty profiles category as "any". A1-9 and A1-10 were checked on a model that has all of these (ADR 0002, A1-10's
+    "The model").
+  - Judgment calls A1 does not dictate:
+    - Step 4 says a keyless meet arises when "neither K nor the row is limited to the Profiles category", for A1-10's
+      "has the Profiles category". The Profiles category is spelled by an empty slot, so "has" could be read as naming a
+      category value.
+    - Step 1 keeps two one-line examples from A1-9's and A1-10's rules: `30397` does not cover `3039x:tag:39998`, and
+      `3039x:tag::⟨T⟩` matches `30392:tag:⟨D⟩:⟨T⟩`. The kick-back examples then re-derive from the text.
+    - § 8.1 keeps its numbered list, so "step 1" to "step 3" still resolve, and step 3 keeps A1-7's "the relays where
+      Nous' header is published". The reader rule's details and the publisher rule's reasons follow as short bullets.
+      The publisher sentence says "the relays that version's `duty` rows name", A1-7's target made per version.
+    - § 8.1 gives A1-12's "as on a relay, which keeps only the latest version at the address" as "a relay, too, returns
+      only the latest version at the address". NIP-01 lets a relay store older versions, but it SHOULD return only the
+      latest.
+    - § 8.1's stale-hint bullet names all three of A1-12's examples (a `storefront` link's relay, a hand-written entry,
+      an entry filled before the menu was found), not only the `storefront` link the notes name.
+    - § 14 question 7 spells out A1-10's "per key" and "per insight" (judged by the key's own kind slot, or by each
+      insight's kind), since the spec does not use those terms.
+    - § 12's Lookups bullet sits after Listing, and § 11's deletion SHOULD sits under the deletion bullet.
+    - Fix passes 2 and 3 get short inline pointers to this block, so their stale text does not mislead.
+- **Fix pass 5, answering the verifiers of fix pass 4** (none outside A1):
+  - The inline *Fix pass 4* note on the Backup offer said the Alternates bullet "no longer offers to bring K's
+    providers over". The bullet still lets the client offer to add them (MAY). What A1-11 dropped is the offer to carry
+    them over in K's order. The note now says so, and so does the ADR 0002 implementation note it came from.
+  - The Alternates SHOULD said "say that K's other providers do not back it up". That is false when the new key already
+    lists one of them: with `3039x` → [B, A] and `3039x:tag` → [B] in the Map, `3039x:tag` chosen for A has B. It now
+    ends "unless they are listed on it", from A1-11's own "Why". ADR 0002's rule and its four restatements gain the
+    same words, and the line above on A1-11 does too.
+  - Judgment calls A1 does not dictate:
+    - The Alternates bullet says "Assistants" where A1-11 says "providers". § 2 defines a provider as whoever runs
+      Assistant keys, and one provider may run two keys listed on one Map key. A1-11 means Treasure Maps § 7's
+      providers: the Assistants named in a key's entries.
+    - The bullet says that adding one of K's other Assistants chooses the new key for it, so its entry is filled as for
+      any chosen key. A client that copied that Assistant's entry for K would keep K's relay, where its menu may name
+      another for the new key. The sentence names no Assistant and no order.
+    - A1-10 follow-ons. Step 4 defines a row's part as the insights both K and the row's key match, not "the insights
+      of its meet", since a meet may have no key. Step 5 says "A meet that is a key beats K", as step 4 does. § 14
+      question 4 no longer says the observer can always choose the meet: where it has no key, the observer can choose
+      the row's own key, when that beats K, or keys for some of the part's categories.
+    - § 8.2 keeps only the latest version at each address, as § 8.1 does, and an address whose latest version is not a
+      menu has none. As written, § 8.2 could show a version that § 8.1 does not count, or two versions of one menu.
+      A1-12 did not name § 8.2; this carries its "the latest version counts" there. A bullet notes that the `#z` query
+      does not return a later version that dropped Nous' `z`, while § 8.1's query does. It adds no rule.
+    - Not changed: the meet's first sentence and step 5's "A new key within K" lead. Step 4 states the exception for a
+      meet with no key in the same bullet, and step 5's "Where the meet has no key" bullet says what the client offers
+      instead.
+- **Fix pass 6, answering the verifiers of fix pass 5** (none outside A1):
+  - Fix pass 5 changed ADR 0002's approved A1-11 rule without marking it, so a reader of the ADR alone took "unless
+    they are listed on it" for owner-approved wording. ADR 0002 now marks it: an "After approval" paragraph after the
+    owner's Approved line says what fix pass 5 changed and why, and that the words await the Architect's
+    ratification. A1-11's rule points to it, and so does the lead of the implementation notes for A1-9 to A1-12.
+  - Judgment call: the words stay, in the ADR and in the spec. Without them the SHOULD is false once the observer
+    lists one of K's other providers on the new key, as the rule allows. They come from A1-11's own Why, and the
+    verifier found the substance sound. The owner's Approved line is left as the owner gave it.
+- **Fix pass 7, answering the verifiers of fix pass 6** (none outside A1):
+  - ADR 0002's "After approval" paragraph said the client may offer to add K's providers "but not to carry them over in
+    K's order". That reads as a ban, and A1-11 bans no suggestion: the spec sets no default. It now says that A1-11
+    dropped A1-4's SHOULD to offer them in K's order, as the implementation note and fix pass 5's note above say. The
+    spec had no such ban, so it is unchanged.
 
 ## Linked artifacts
 
