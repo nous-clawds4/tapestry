@@ -1,0 +1,34 @@
+# Epic: assistant-duty-menu — the hub's Duty Menu page
+
+**Status:** Active
+**Created:** 2026-10-11
+**Book:** `engineering-team/audits/assistant-duty-menu/book.md` (no PRD — acceptance frame)
+**Provenance:** the owner's ask of 2026-10-11, quoted verbatim in the book and settled through three questions at
+intake (book § Decisions).
+
+## Goal
+
+**Replace the hub's Duty Menu placeholder (assistant-duty-cards #1) with a real page.** The page shows the Duty Menu
+this instance would publish for the viewer's Assistant beside the one published now. One button has the Assistant
+sign and publish it, per `protocols/drafts/duty-menus.md`. The card's mark becomes a real check: **Done** when a
+valid, current menu is found.
+
+## Stories
+
+`stories/assistant-duty-menu/`.
+
+1. `1-the-duty-menu-page-and-its-check.md`: what this instance offers for the viewer's Assistant, the menu found
+   for it now, whether they match, the hub's real mark, and the page that shows all three. Read-only.
+2. *(planned)* Your Assistant publishes its Duty Menu: the button, the event (`duty-menus.md` §§ 4–5), where it
+   goes (§ 8.1's publisher rule), and the report. Depends on 1.
+
+## Key facts / guardrails
+
+- **"Whose Assistant?"** is the viewer's own, from the session, as on the rest of the hub.
+- **Honest rows.** A menu says what a key *offers*: what it will publish if a Treasure Map assigns it. It lists what
+  this instance publishes for that key, at the relay where it lands (book Decision 1), plus Lists for every
+  Assistant, a commitment the owner made at story 1's approval (tracked in `_intake.md`, 2026-10-11).
+- **The spec is read, not edited.** `protocols/drafts/duty-menus.md` belongs to book `duty-menus-and-self-maps`.
+- **Nous' pubkey is a community constant**, not the per-deployment TA pubkey. Define it once in shared code.
+- **Not this epic:** Your Assistant's Treasure Map (self-Maps are not ratified yet), `/treasure-map`'s relay fill
+  order, and the empty-relay fix (ledger `2026-10-10-external-assistant-relay-left-empty`).

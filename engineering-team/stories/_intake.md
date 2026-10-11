@@ -2804,3 +2804,25 @@ build would touch, so the next session doesn't have to re-derive it.
 
 **Classification:** feature; parked. When picked up: `/plan-feature` (Standard) and an ADR under
 `engineering-team/decisions/<epic>/`, with the pre-NIP's core-node rule ratified into the BIBLE in docs-mode.
+
+## 2026-10-11 — Customers' Assistants publish Lists (feature; deferred at intake)
+
+**Origin:** book `assistant-duty-menu`, story 1's approval (2026-10-11). Asked whether a customer's Duty Menu should
+offer Lists, though today only the instance's Tapestry Assistant signs them, the owner answered:
+
+> Act as if the customer's menu does publish Lists. Our plan is to build support for it, even if we haven't yet.
+
+So every Assistant's Duty Menu on this instance offers Lists (assistant-duty-menu #1 AC-2), and this entry tracks the
+promise behind it.
+
+**What is true today** (found at that intake): Trusted Lists (kinds `30392`–`30394`) are built and signed only with
+the instance's Tapestry Assistant key, to this instance's relay; kind `30395` is built nowhere. A customer's or an
+admin's own Assistant signs none. The hub's Lists card already tells every viewer that "your Assistant will publish
+kinds 3039x events on your behalf".
+
+**Until it is built:** a person who gives Lists to their own Assistant on this instance gets a Map entry whose relay
+holds no Lists signed by that Assistant. A reader that looks there finds nothing.
+
+**Classification:** feature, Standard (all five phases). When picked up: `/plan-feature`. Check it against the Show
+and Tell philosophy (`design-philosophies/show-and-tell.md`), since a customer's Lists are built from other people's
+activity.
