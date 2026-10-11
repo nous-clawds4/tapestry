@@ -73,6 +73,13 @@ does not edit `protocols/`. Lines it touches: the hub's actions and attention ch
 `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`), and
 re-read `duty-menus.md` for changes to §§ 3–8 and § 11.
 
+- **Recheck before Implementation (2026-10-11).** `duty-menus.md` is unchanged since intake. ADR
+  `duty-menus-and-self-maps/0003` (Self-Maps; *proposed*, not yet ratified) sub-decision 11 would give § 6.1 a fifth
+  condition: no `["z", "list"]`, and no `z` naming any author's `39998:<author>:concept-header`. Story 1's
+  `isDutyMenu` implements the four conditions the spec states today, and this instance's own menus never carry such a
+  `z`. If that sub-decision lands in `duty-menus.md`, `isDutyMenu` gains the fifth condition, and its tests gain a
+  case for it. Recheck this before Review.
+
 ## Provenance
 
 - **Mode:** Acceptance-frame
