@@ -1,6 +1,6 @@
 # ADR 0003: Self-Maps — a key's own Map reports what is live, and element 3 is a hint resolved per insight at read time
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`
 
@@ -977,6 +977,9 @@ Where a sub-decision depends on an open owner question, it says so.
 
 Each needs the owner's decision at this ADR's gate. The ADR is written under each recommended answer; the Implementation
 notes say what changes under another.
+
+**Answered by the owner, 2026-10-11, at this ADR's gate:** the recommended answer to all four: 1 (a), 2 (a), 3 (a),
+4 (a). The ADR stands as written; the story's Deviations record what AC2, AC3 and AC5 now read as (Implementation notes).
 
 1. **What does a self-entry claim, and how far do AC2's "copied verbatim" and AC3's "only that key's slice" give way?**
    AC2 asks that a self-entry's key be "the customer's winning key, copied verbatim" and its relay "the relay where the
