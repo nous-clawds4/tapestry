@@ -283,3 +283,23 @@ These come from the test plan's flagged points. The Architect settles them here,
    budget, and the newest-version read keeps the check's budgets.
 4. **Exactly the four places of AC-4.** The menu is not sent to the profile publish relays (General Purpose, Profile,
    WoT) unless one of the four places names them. Only the hint lookups read those relays.
+
+## Amendment 2: what Implementation surfaced (2026-10-11)
+
+1. **The route table opens the route.** `src/middleware/routeAccess.js` is fail-closed (ADR security-auth-exposure/0005).
+   It gains `'POST /api/assistant/duty-menu/publish': allow('signed-in', "Your Assistant signs its own Duty Menu,
+   built from this instance's offer; bound to your session.")`, the same shape as the Outbox Relays and Identification
+   Tags publish entries. Without it a customer is refused as owner-only, which breaks AC-2.
+   - The `assistant-duty-menu-publish` S2 sentinel ("only `src/api/index.js` names the route") also allows
+     `src/middleware/routeAccess.js` (Phase 3).
+2. **The signing helper.** `dutyMenuPublish.js` takes `privkeyBytesOf` from `identificationTaggings.js`, as
+   `relayListPublish.js` does.
+   - The `assistant-taggings-publish` S2 sentinel ("only `index.js` and `relayListPublish.js` name it") adds
+     `src/api/assistant/dutyMenuPublish.js` (Phase 3).
+3. **Its own sentence when nothing goes outside.** On a fresh instance every row names this instance's own relay, and
+   often no outbox list, earlier menu or Nous relay list is found. The send set is then empty, and the shared summary
+   would say that "no general-purpose, profile or WoT relays are configured", which is wrong for a Duty Menu.
+   - When the menu was saved here, publish mode is not local-only, and the set holds no relay at all (before the
+     guard), the summary is: "Your Assistant's Duty Menu was saved on this instance's relay. There was no other relay
+     to send it to."
+   - Story § Copy is amended. Every other case keeps `summarizePublish`'s sentences.

@@ -110,6 +110,8 @@ where, and my hub card shows Done.
   - "Your Assistant's Duty Menu was saved on this instance's relay, but none of the {n} relays accepted it; see below."
   - "Your Assistant's Duty Menu was saved on this instance's relay only: local-only publish mode is on, so it was not
     sent to any other relay."
+  - "Your Assistant's Duty Menu was saved on this instance's relay. There was no other relay to send it to." Used when
+    no relay outside this instance is named for it. *(Added 2026-10-11, ADR 0002 Amendment 2 item 3.)*
   - "Your Assistant's Duty Menu could not be saved on this instance's relay ({reason}), so it was not sent to any other
     relay."
 - **Empty menu,** after the summary: "Your Assistant's Duty Menu now lists no duties."
@@ -156,6 +158,27 @@ No concept changes and no firmware reinstall.
    their own story.
 
 ## Deviations
+
+- **Implementation, 2026-10-11 (small judgment calls):**
+  - The page imports the report's tone rule as `publishTone as reportTone`. Page D4 refuses any call named
+    `publish…(` other than `publishAssistantDutyMenu`, and that also catches `publishTone`, which only picks the
+    report's style, the one AC-1 asks for. If the Tester prefers, D4 can allow `publishTone` by name and the alias can go.
+  - The button and its report sit in the published panel, as the Outbox Relays page puts its button in the panel it
+    publishes.
+  - The route counts a write-relay lookup that throws (the Assistant's or Nous') as none: once the menu is written
+    here, a missing relay list only shrinks the set and never fails the publish.
+  - `assistantWriteRelays` reads the Assistant's list from this instance's relay alone when the profile publish relays
+    can't be read, as story 1's hint round already did.
+  - `src/middleware/routeAccess.js` gains `POST /api/assistant/duty-menu/publish` as `signed-in`, worded like the
+    outbox publish's entry. The ADR doesn't name the table, but without the entry the route is owner-only (the table
+    fails closed), so a customer could not publish (AC-2). `admin-action-sweep` AC6a requires it.
+  - **Not done, for the Tester (two stale sentinels, left unedited):**
+    - `assistant-taggings-publish` S2 pins the files that name `identificationTaggings` to exactly the route
+      registration and `relayListPublish.js`, "which shares its key reader". `dutyMenuPublish.js` takes
+      `privkeyBytesOf` from there too, as ADR 0002's Implementation notes direct. S2 needs `src/api/assistant/dutyMenuPublish.js`
+      added.
+    - `assistant-duty-menu-publish` S2 lets no file but `src/api/index.js` name `duty-menu/publish`, but the access
+      table must (above; `admin-action-sweep` AC6a). S2 needs `src/middleware/routeAccess.js` allowed.
 
 ## Linked artifacts
 
