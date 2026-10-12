@@ -217,8 +217,14 @@ test.describe('Coming soon (assistant-coming-soon #1)', () => {
       expect(look.color, `${c.title}: not the Needs attention colour`).not.toBe(amber);
       expect(look.color, `${c.title}: not the Done colour`).not.toBe(green);
     }
+    // A click where a person would make it: on the description, by position, as assistant-management-page B5 does
+    // (Locator.click() refuses an element the card-wide link covers by design; mouse.click() does not scroll).
     const bounties = CS.CARDS[0];
-    await cardOf(page, bounties.path).locator('.bs-assistant-hub-card-text').click();
+    const description = cardOf(page, bounties.path).locator('.bs-assistant-hub-card-text');
+    await description.scrollIntoViewIfNeeded();
+    const box = await description.boundingBox();
+    expect(box, 'precondition: the Bounties card shows its description').not.toBeNull();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect.poll(() => new URL(page.url()).pathname, { message: 'a click on the card opens its page' }).toBe(bounties.path);
   });
 

@@ -121,7 +121,8 @@ test.describe('Scores, Lists and Concepts on the hub (assistant-trusted-content-
     await open(page, X.HUB);
     const links = trustedContent(page).locator('.bs-assistant-hub-card-link');
     const titles = (await links.evaluateAll((els) => els.map((el) => el.textContent)))
-      .map((t) => squash(t).replace(/^(Needs attention: |Done: )/, ''));
+      // Re-aimed by assistant-coming-soon #1 (AC-1): Bounties, Pins and Tags read "Coming soon: <title>" to a screen reader.
+      .map((t) => squash(t).replace(/^(Needs attention: |Done: |Coming soon: )/, ''));
     expect(titles).toEqual(['Scores', 'Lists', 'Concepts', 'Bounties', 'Pins', 'Tags']);
     for (const old of ['Trusted Assertions', 'Trusted Lists', 'Decentralized Lists']) {
       await expect(page.locator('.bs-assistant-hub-card-link', { hasText: new RegExp(`^(Needs attention: |Done: )?${old}$`) }), `no card titled ${old}`).toHaveCount(0);
