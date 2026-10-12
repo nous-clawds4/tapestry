@@ -499,20 +499,24 @@ large and partly unsettled (story 4), and no Map here uses it. **Deferred.**
 
 ## Open questions for the owner
 
+**Answered by the owner, 2026-10-12, at this ADR's gate:** 1 (a), 2 (a), 3 (a), 4 approved as written.
+
 1. **Supported Scores.** Under a scope key such as `3038x` or `30382`, what does a `30382` self-entry speak for?
    - (a) The eleven metrics this instance computes, as its Duty Menu offer reads them. The self-entry is `30382`.
    - (b) Nothing assumed. The self-Map always lists one `30382:<metric>` self-entry per metric.
 
    **Recommended: (a).** It matches the menu and the spec's own example under § 9.2, and (b) is always available if a
-   Map names a metric this instance doesn't compute.
+   Map names a metric this instance doesn't compute. *Owner: (a).*
 2. **Lists.**
    - (a) Never claimed here until this instance's Lists take Treasure Maps `d` tags (`older-form` for the TA).
    - (b) Claimed as the Duty Menu offers them.
 
    **Recommended: (a).** A reader that follows § 5.1 can't find them, so a claim would be false for every reader.
+   *Owner: (a).*
 3. **`cron-parser` as a direct dependency** (`4.9.0`, already installed through BullMQ).
    - (a) Yes.
    - (b) No: treat a `cron` entry's interval as one day.
 
-   **Recommended: (a).** (b) misreads an hourly or weekly cron.
-4. **The three new reasons and their copy** (§ Story deviations). Approve as written, or reword.
+   **Recommended: (a).** (b) misreads an hourly or weekly cron. *Owner: (a).*
+4. **The three new reasons and their copy** (§ Story deviations). Approve as written, or reword. *Owner: approved as
+   written.*

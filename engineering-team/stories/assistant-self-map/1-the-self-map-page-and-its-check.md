@@ -185,6 +185,10 @@ whether anyone switching a duty to my Assistant can trust it.
     - "Nothing to publish yet."
     - "Not published yet."
     - "Not kept up to date: last landed <date>."
+    - *Added at Architecture, 2026-10-12 (ADR 0001 § Story deviations; owner-approved):*
+      - "This instance publishes these in an older form that Treasure Map readers can't find yet."
+      - "Not kept up to date: no upkeep is scheduled on this instance."
+      - "This instance can't check this key yet, so it isn't claimed."
   - Given elsewhere: "Your Treasure Map gives this to another Assistant."
   - A false claim: "Your Assistant's self-Map claims this, but it isn't live."
   - Empty: "Your Treasure Map gives your Assistant no duties." plus a link to **your Treasure Map**.
@@ -250,6 +254,16 @@ Architecture"), with seven ACs kept as one story.
    - (c) Keep the wording.
 
    **Recommended: (a).** *Owner: (a).*
+
+## Deviations
+
+- **AC-2's reasons gain three** (Architecture, 2026-10-12, ADR 0001 § Story deviations, approved by the owner at
+  its gate): `older-form` for the TA's Lists, whose `d` tags no Treasure Maps key reaches (§ 5.1); `not-scheduled`
+  when no enabled schedule re-signs the family; `unchecked` for key shapes the check doesn't reason over yet. Their
+  words are in § Copy.
+- **No List is claimed on this instance** until its Lists take Treasure Maps `d` tags (ADR 0001 open question 2,
+  owner: (a); ledger row `2026-10-12-list-d-tags-not-treasure-maps`). This follows AC-2's "live" rule; it is listed
+  here because it means no List line is ever **Active** yet.
 
 ## Linked artifacts
 
