@@ -180,7 +180,7 @@ None open. The seven questions were settled at intake (book § Decisions). The o
 - *(Implementation round 2, 2026-10-12)* **One more Tester-side fix.** In R3 of
   `test/assistant-duties-settings.test.js`, round 2's test design missed re-aiming the duplicate case. Its
   `30382::` is now refused as `bad-key` before it can be a duplicate, so the case uses `' 30382 '` instead, as L6 does.
-  The fix has its own commit (`3b3b3e0ed`).
+  The fix has its own commit (`903c10e98`).
 - *(Implementation, 2026-10-12)* **A follow-up ledger row.** `settings.json`'s in-place write, per ADR § Consequences, is
   ledger row `2026-10-12-settings-json-written-in-place`.
 
