@@ -59,6 +59,14 @@ review's numbered finding, which holds the evidence.
 16. *(Architect)* ADR 0003 Verification AC4's third case (ADR :1480–1481) says "No menu", then names "A's menu relay
     R1". The script it rests on describes "No self-Map". Either wording gives Rw (review NB16).
 
+- *Added 2026-10-12 (story 4, after ADR 0004's clarifications):* two small Treasure Maps wording items for story 5 or
+  a later docs pass, neither a rule change:
+  - Principle 8 ("A shorter key covers more", `treasure-maps.md` § 1) has no exceptions, while the At a glance bullet
+    that says the same now names them (§ 4.4's Profiles category; a Concept key's `d`, § 4.5). Gloss it, or accept the
+    segment reading.
+  - Treasure Maps' metadata Sources line names numbered sections only, so it does not list the At a glance wording
+    ADR 0004's KB-2 clarification changed; Duty Menus' Sources line lists every section touched. Align the two.
+
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings; story
 `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`; ADR
 `engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md`; related rows

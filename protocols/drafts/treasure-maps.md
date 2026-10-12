@@ -36,7 +36,7 @@ This NIP gives those tags one grammar. It extends NIP-85's `<kind>:<metric>` key
 ```
 
 - The **kind** says what the members are (pubkeys, events, addressable events, external things, lists). The **category** says which content category they come from.
-- Cut a key short, or leave a segment empty, and it covers more.
+- Cut a key short, or leave a segment empty, and it covers more, except where § 4.4 makes an empty category the Profiles category, and within a Concept key's `d`, which is one segment and never empty (§ 4.5).
 - The most specific matching key wins.
 - The same key listed more than once: the first is Preferred, the rest are Alternates.
 - A List's `d` tag, and a Score's value tag, are the key minus its kind.
@@ -501,7 +501,7 @@ Each row gives a key pattern, an example where the pattern has parts, and the en
 | `30392:tag::<Tag>` | `30392:tag::⟨Podcaster⟩` | …the Trusted List of every profile my trusted community tags as Podcaster. |
 | `30392:tag:<DList>:<Tag>` | `30392:tag:⟨Nashville Chefs⟩:⟨Vegan⟩` | …the Trusted List of the Nashville chefs (a DList of people) my trusted community tags as Vegan. |
 | `30382:tag` | | …for every profile, a Score for each Tag in my supported Tags, in each category of profiles it is supported in, in every metric, except where this Map says otherwise. |
-| `30382:tag::<Tag>` | `30382:tag::⟨Podcaster⟩` | …for every profile, its Podcaster Scores in every metric, except where this Map says otherwise. |
+| `30382:tag::<Tag>` | `30382:tag::⟨Podcaster⟩` | …for every profile, its Podcaster Scores in the Profiles category, in every metric, except where this Map says otherwise. |
 | `30382:tag::<Tag>:<metric>` | `30382:tag::⟨Podcaster⟩:confidence` | …for every profile, a confidence score for how strongly my trusted community agrees it is a Podcaster. |
 | `30382:tag:::<metric>` | `30382:tag:::confidence` | …for every profile, a confidence score for each Tag in my supported Tags for profiles, except where this Map says otherwise. |
 

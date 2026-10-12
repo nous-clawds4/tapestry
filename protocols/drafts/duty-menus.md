@@ -3,7 +3,7 @@
 > **Canonical:** not yet published
 > **Companion to:** [NIP-85: Trusted Assertions](https://nips.nostr.com/85) and [Treasure Maps](./treasure-maps.md) (kind `10040`); built on [Decentralized Lists](../nips/decentralized-lists.md).
 > **Implementation (reference deployment):** partial. An instance publishes a signed-in person's Assistant's menu when the person asks, with rows naming the instance's own relay, and reads a key's published menu (§ 8.1) for its Duty Menu check. Nothing yet fills a Treasure Map entry's relay from a menu (§ 6.2 step 5), and Nous' header is not yet published.
-> **Sources:** [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md) (the owner's decisions D1–D10, 2026-10-10); `duty-menus-and-self-maps` ADR 0001 (self-declaration, which the header relies on), ADR 0002 with Amendment A1 (this spec), and ADR 0003 with Amendment A1 (Self-Maps and the read-time fallback in Treasure Maps, which § 2's own Assistant, § 4's `z` rule, § 6.1, § 6.2's lead, step 1's last bullet and step 5, § 7's own-Assistant exception, § 10 and § 14 follow), and ADR 0004 (the key grammar Treasure Maps §§ 4.3–4.6 and 6 settles, which § 5.3, § 6.2 and § 14 follow, and the wording of §§ 2, 4, 5, 6.2, 8 and 13.3).
+> **Sources:** [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md) (the owner's decisions D1–D10, 2026-10-10); `duty-menus-and-self-maps` ADR 0001 (self-declaration, which the header relies on), ADR 0002 with Amendment A1 (this spec), and ADR 0003 with Amendment A1 (Self-Maps and the read-time fallback in Treasure Maps, which § 2's own Assistant, § 4's `z` rule, § 6.1, § 6.2's lead, step 1's last bullet and step 5, § 7's own-Assistant exception, § 10 and § 14 follow), and ADR 0004 (the key grammar Treasure Maps §§ 4.3–4.6 and 6 settles, which § 5.3, § 6.2 and § 14 follow, and the wording of §§ 2, 4, 5, 6.2, 8, 11 and 13.3).
 
 ---
 
@@ -84,7 +84,7 @@ There is one shared header: kind `39998`, signed by Nous, `d` = `duty-menu`.
 
 ## 4. The item
 
-Each Assistant key publishes one replaceable kind-`39999` event with `d` = `duty-menu`, signed by itself. Its address is `39999:<key>:duty-menu`.
+Each Assistant key publishes one addressable kind-`39999` event with `d` = `duty-menu`, signed by itself. Its address is `39999:<key>:duty-menu`.
 
 - **`p`** — exactly one: the key itself.
 - **`z`** — `["z", "39998:15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270:duty-menu"]`, required. It is the item's parent pointer under the [base NIP](../nips/decentralized-lists.md), and so its "personal `z`" in the sense of [Stamping](./stamping.md). Other `z` tags are allowed and ignored by menu readers, except those § 6.1 names: a menu MUST NOT carry `["z", "list"]`, or a `z` whose value is the address of a kind-`39998` event with `d` = `concept-header`, whoever its author ([DList Header Declaration](./dlist-header-declaration.md) § 2).
@@ -249,7 +249,7 @@ The filter is `{"kinds":[39999], "authors":["<key>"], "#d":["duty-menu"]}`. A re
 2. every write relay in the key's NIP-65 (kind 10002) relay list;
 3. the relays where Nous' header is published: every write relay in Nous' own kind 10002.
 
-- **The latest version counts.** The reader uses the latest version among the answers: the latest `created_at`, and on a tie the lowest id, as [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) keeps for replaceable events. If that version is not a menu (§ 6.1), the key has none, even if an older version is one: a relay, too, SHOULD return only the latest version at the address, as NIP-01 asks for replaceable events.
+- **The latest version counts.** The reader uses the latest version among the answers: the latest `created_at`, and on a tie the lowest id, as [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) keeps for replaceable events. If that version is not a menu (§ 6.1), the key has none, even if an older version is one: a relay, too, SHOULD return only the latest version at the address. NIP-01 asks this for replaceable events, and this spec asks it for menus, which are addressable.
 - **Where to stop.** The list's order says where to look first, not where to stop. A relay that does not answer within the reader's own timeout is skipped. If none answers, no menu is found.
 - **Fewer relays.** A reader may ask fewer relays, to save queries or to keep Nous' relays from seeing its lookups (§ 12). It may then get an older version.
 - **The cost.** Two kind 10002 lookups, the key's and Nous', then the relays themselves: 5 to 9 per key with one hint, if each kind 10002 lists 2–4 write relays, as NIP-65 advises. Nous' kind 10002 is the same for every key and can be cached, and step 3 can ask for many keys in one REQ, with `authors` listing them.
@@ -286,7 +286,7 @@ A menu says what a key offers. Whether the key is publishing those insights now 
 ## 11. Publishing and withdrawing
 
 - Publish each version of the menu where § 8.1 says, including every relay that a `duty` row of an earlier version named.
-- Change the offers by republishing the one replaceable item.
+- Change the offers by republishing the one addressable item.
 - Withdrawing every offer SHOULD be done by republishing the menu with no `duty` rows. The empty menu still carries Nous' `z`, so it travels by the same `#z`-filtered relay sync as the old one, and replaces it wherever it arrives.
 - A [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) deletion MAY accompany a withdrawal.
   - Its `created_at` MUST be strictly earlier than the empty menu's. The timestamps decide, not the order of publishing or of arrival. NIP-09 says that "when an `a` tag is used, relays SHOULD delete all versions of the replaceable event up to the `created_at` timestamp of the deletion request event". So the `a` removes the versions up to the deletion's own `created_at`, and spares the empty menu, whichever reaches a relay first. The `e` tags (below) name every earlier version with `duty` rows. "Strictly", because "up to" does not say whether an equal timestamp counts.

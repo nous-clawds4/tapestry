@@ -445,6 +445,13 @@ in as written; none of these changes a rule.
 - **Commits.** None made in this phase. The item-1 line and the loose-ends row's note say that items 2 and 3 went in
   with ADR 0004's `adr:` commit and item 4 in a `story:` commit. Both hold once the commits land in that order: `adr:`
   (ADR 0003 and ADR 0004), `story:` (stories 3 and 4, the PO's text), then `impl:`.
+- **KB-1.** Treasure Maps § 10.5's `30382:tag::<Tag>` row (:504) now says "in the Profiles category", in the words of
+  ADR 0004's "Clarifications after acceptance"; rows :501, :505 and :506 are unchanged, as that paragraph reads them.
+- **KB-2.** Treasure Maps' At a glance bullet (:39) now names its two exceptions, an empty category under § 4.4 and a
+  Concept key's `d` under § 4.5, in the clarification's words.
+- **KB-3.** Duty Menus calls the menu addressable in § 4 (:87) and § 11 (:289), § 8.1's SHOULD (:252) is now the
+  spec's own with NIP-01's rule for replaceable events named beside it, and the Sources line (:6) adds § 11. Step 1's
+  `10002` (:169), § 8.1's tie clause and § 11's NIP-09 quotation are unchanged.
 
 ## Linked artifacts
 
