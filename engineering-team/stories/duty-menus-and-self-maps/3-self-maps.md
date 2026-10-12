@@ -575,4 +575,4 @@ The last check left five non-blocking kick-backs; all five are closed:
 
 - ADR: [`decisions/duty-menus-and-self-maps/0003-self-maps.md`](../../decisions/duty-menus-and-self-maps/0003-self-maps.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md`](../../reviews/duty-menus-and-self-maps/3-self-maps.md)
