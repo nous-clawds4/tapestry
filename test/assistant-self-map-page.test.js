@@ -119,6 +119,17 @@ test('P4: reasonLine gives each reason\'s sentence, word for word; upkeep-stoppe
   assert(wrong.length === 0, wrong.join('; '));
 });
 
+test('P5 (ADR 0001 A2 item 7, review N4): no date, no upkeep-stopped sentence — reasonLine gives no line for upkeep-stopped without a lastLandedAt, and the copy module carries no words § Copy lacks for an unknown date', async () => {
+  const reasonLine = needFn(await copyModule(), 'reasonLine');
+  const wrong = [];
+  for (const lastLandedAt of [null, undefined, 0]) {
+    const got = reasonLine(SM.line({ key: '30382', status: 'offered', reason: 'upkeep-stopped', lastLandedAt }));
+    if (got) wrong.push(`lastLandedAt ${show(lastLandedAt)}: no line (got ${show(got)})`);
+  }
+  if (/unknown date/i.test(codeOnly(safeRead(COPY_MOD)))) wrong.push(`${rel(COPY_MOD)} still has "an unknown date", which § Copy does not give`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
 /* ───────────────────────── D — the page's source ───────────────────────── */
 
 test('D1: App.jsx serves /assistant/treasure-map with the page — AssistantTreasureMapPage imported from ./pages/assistant/AssistantTreasureMap and given to ACTION_PAGES under treasure-map (AC-6; ADR 0001 sub-decision 9)', () => {

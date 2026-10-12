@@ -141,6 +141,8 @@ const SCORES_EVERY_12H = [SM.scheduleEntry('processAllTasks', { hours: 12 })];
  *   headers           — the d tags of the Concept headers the Assistant has signed here.
  *   extraLocal        — more events on this instance's relay (a self-Map, Lists, …).
  *   schedule          — readScheduleEntries' answer. scheduler — schedulerEnabled's. timer — timerExists'.
+ *   customerTimers    — { <customer main pubkey>: ms }: the per-customer timers running now (ADR 0001 A2 item 3).
+ *   dropConfig        — config keys absent from brainstorm.conf (e.g. an older one with no TASK_QUEUE_ENABLED line).
  *   config, settings, customer, relays, refused, rejectScan, clock — as in the Duty Menu suite.
  */
 function world(opts = {}) {
@@ -157,7 +159,8 @@ function world(opts = {}) {
     schedule: opts.schedule === undefined ? SCORES_EVERY_12H : opts.schedule,
     scheduler: opts.scheduler === undefined ? true : opts.scheduler,
     timer: Boolean(opts.timer),
-    config: { ...SM.DOCKER_CONFIG, ...(opts.config || {}) },
+    config: Object.fromEntries(Object.entries({ ...SM.DOCKER_CONFIG, ...(opts.config || {}) }).filter(([k]) => !(opts.dropConfig || []).includes(k))),
+    customerTimers: Object.fromEntries(Object.entries(opts.customerTimers || {}).map(([k, v]) => [lc(k), v])),
     settings: opts.settings || { aDListRelays: [DLIST] },
     customer: opts.customer === undefined ? null : opts.customer,
     relays: opts.relays || Object.fromEntries([PUB1, MAPR, HINT_A, HINT_B, OTHER_HINT, A_WRITE, A_READ, DLIST].map((u) => [u, []])),
@@ -176,7 +179,7 @@ function hostOf(x) {
 
 /** The injected dependencies, under the names ADR 0001 gives them. Every one RECORDS its calls. */
 function fakes(w) {
-  const calls = { scanLocal: [], readRelay: [], guard: [], getCustomer: [], checkSelfMap: [], readScheduleEntries: 0, timerExists: [] };
+  const calls = { scanLocal: [], readRelay: [], guard: [], getCustomer: [], checkSelfMap: [], readScheduleEntries: 0, timerExists: [], customerTimer: [] };
   const relays = Object.fromEntries(Object.entries(w.relays).map(([u, v]) => [normUrl(u), v]));
   const deps = {
     getAssistantPubkeyFor: async () => w.assistant,
@@ -203,6 +206,11 @@ function fakes(w) {
     readScheduleEntries: () => { calls.readScheduleEntries += 1; return JSON.parse(JSON.stringify(w.schedule)); },
     schedulerEnabled: () => w.scheduler,
     timerExists: (p) => { calls.timerExists.push(p); return w.timer; },
+    // ADR 0001 Amendment 2 item 3: the per-customer scheduler's running timer, by the customer's main pubkey.
+    customerTimerIntervalMs: (pubkey) => {
+      calls.customerTimer.push(lc(pubkey));
+      return Object.prototype.hasOwnProperty.call(w.customerTimers, lc(pubkey)) ? w.customerTimers[lc(pubkey)] : null;
+    },
     // The other checks, stubbed: this suite is about the self-Map (their own suites drive the real ones).
     checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
@@ -520,7 +528,7 @@ test('U11 (AC-2; ADR sub-decision 6): with no BullMQ entry, the systemd timer co
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U12 (AC-2; ADR sub-decision 6, open question 3): a cron entry\'s interval is the gap between its next two fire times — "0 */6 * * *" is 6 h: 11 hours ago is live, 13 is stopped', async () => {
+test('U12 (AC-2; ADR sub-decision 6 as amended by A2 item 2, open question 3): a cron entry\'s interval is the shortest gap among its next fires — "0 */6 * * *" is 6 h: 11 hours ago is live, 13 is stopped', async () => {
   const schedule = [SM.scheduleEntry('processAllTasks', { cron: '0 */6 * * *' })];
   const live = (lineOf(mustAnswer(await answer({ scoresHoursAgo: 11, schedule })), '3038x', '30382') || {}).reason;
   const stale = (lineOf(mustAnswer(await answer({ scoresHoursAgo: 13, schedule })), '3038x', '30382') || {}).reason;
@@ -935,6 +943,140 @@ test('S6 (ADR sub-decision 10): no new route — the answer rides GET /api/assis
   if (!/['"]GET \/api\/assistant\/attention['"]\s*:\s*PUBLIC_READ/.test(src)) wrong.push('GET /api/assistant/attention stays PUBLIC_READ');
   if (/self-?map|treasure-map\/publish/i.test(src)) wrong.push('no self-Map route');
   assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Round 2: ADR 0001 Amendment 2 (review round 1) ───────────────────────── */
+
+/** A local Thursday, 04:00 — a weekday cron's next two fires are then Friday and Monday (the review's N1). */
+const THURSDAY_4AM = new Date(2026, 9, 15, 4, 0, 0).getTime();
+/** The Assistant's Scores, landed `hoursAgo` before the clock `atMs` (the world's scoresHoursAgo counts from T0). */
+const scoresBefore = (author, atMs, hoursAgo) => [1, 2, 3].map((n) => ev(SM.SCORE_KIND, author, Math.floor(atMs / 1000) - hoursAgo * H, [['d', `${n}`.repeat(64)], ['rank', '7']]));
+const scoreReason = async (o, item = '3038x', key = '30382') => (lineOf(mustAnswer(await answer(o)), item, key) || {}).reason;
+
+test('U34 (AC-2; ADR 0001 A2 item 1, review B2): the queue flag is read as the instance reads it — BullMQ entries count only when TASK_QUEUE_ENABLED is exactly "true"; absent, "True" or "1" counts none, and nothing is claimed; the systemd timer still counts with the flag absent', async () => {
+  const wrong = [];
+  const on = await scoreReason({ scoresHoursAgo: 1 });
+  if (on !== 'live-unclaimed') wrong.push(`TASK_QUEUE_ENABLED="true" with an enabled 12-hour processAllTasks entry: live (got ${on})`);
+  const cases = {
+    'the setting absent (an older brainstorm.conf; the instance then never starts its queue, bin/control-panel.js)': { dropConfig: ['TASK_QUEUE_ENABLED'] },
+    '"True"': { config: { TASK_QUEUE_ENABLED: 'True' } },
+    '"1"': { config: { TASK_QUEUE_ENABLED: '1' } },
+  };
+  for (const [label, o] of Object.entries(cases)) {
+    const a = mustAnswer(await answer({ scoresHoursAgo: 1, ...o }));
+    const r = (lineOf(a, '3038x', '30382') || {}).reason;
+    if (r !== 'not-scheduled') wrong.push(`${label}: the entry never runs, so Scores are not-scheduled (got ${r})`);
+    if ((a.shouldSay || []).some((e) => /^30382/.test(e.key))) wrong.push(`${label}: no Score is claimed (shouldSay ${show(a.shouldSay)})`);
+  }
+  const timer = await scoreReason({ scoresHoursAgo: 1, schedule: [], timer: true, dropConfig: ['TASK_QUEUE_ENABLED'], config: { BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL: '12hours' } });
+  if (timer !== 'live-unclaimed') wrong.push(`the flag absent does not stop the systemd timer (got ${timer})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U35 (AC-2; ADR 0001 A2 item 2, review N1): a cron entry\'s interval is the shortest gap among its next 8 fires — "0 3 * * 1-5" read on a Thursday at 04:00 is 24 h, so Scores 49 hours old are upkeep-stopped (the old two-fire rule gave 72 h and called them live); an expression cron-parser rejects counts for nothing', async () => {
+  const weekday = [SM.scheduleEntry('processAllTasks', { cron: '0 3 * * 1-5' })];
+  const at = (hoursAgo, schedule = weekday) => scoreReason({ clock: { t: THURSDAY_4AM }, schedule, extraLocal: scoresBefore(TA, THURSDAY_4AM, hoursAgo) });
+  const wrong = [];
+  const fresh = await at(47);
+  if (fresh !== 'live-unclaimed') wrong.push(`47 hours old, within twice 24 h: live (got ${fresh})`);
+  const stale = await at(49);
+  if (stale !== 'upkeep-stopped') wrong.push(`49 hours old, past twice 24 h: upkeep-stopped (got ${stale}) — the interval must not stretch to the Friday-to-Monday gap`);
+  const bad = await at(1, [SM.scheduleEntry('processAllTasks', { cron: 'whenever it likes' })]);
+  if (bad !== 'not-scheduled') wrong.push(`an unparseable cron gives no interval: not-scheduled (got ${bad})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U36 (AC-2; ADR 0001 A2 item 3, review N5): the per-customer scheduler\'s running timer counts for its own customer — whatever the queue flag says, beside BullMQ entries (the shortest wins), before the systemd fallback; never for the Owner or another customer; asked by the customer\'s main pubkey', async () => {
+  const base = { viewer: CUSTOMER, assistant: CUSTOMER_ASSISTANT, customer: { status: 'active' }, mapTags: [['30382:rank', CUSTOMER_ASSISTANT, OWN]], schedule: [] };
+  const reason = async (o) => scoreReason({ ...base, ...o }, '30382:rank', '30382:rank');
+  const H_MS = 3600 * 1000;
+  const wrong = [];
+  for (const [hoursAgo, want] of [[23, 'live-unclaimed'], [25, 'upkeep-stopped']]) {
+    const r = await reason({ customerTimers: { [CUSTOMER]: 12 * H_MS }, scoresHoursAgo: hoursAgo });
+    if (r !== want) wrong.push(`the customer's 12-hour timer, Scores ${hoursAgo}h old: ${want} (got ${r})`);
+  }
+  const claimed = mustAnswer(await answer({ ...base, customerTimers: { [CUSTOMER]: 12 * H_MS }, scoresHoursAgo: 1 }));
+  if (!sameEntries(claimed.shouldSay, [{ key: '30382:rank', relay: OWN }])) wrong.push(`the customer's shouldSay: 30382:rank (got ${show(claimed.shouldSay)})`);
+  const flagOff = await reason({ customerTimers: { [CUSTOMER]: 12 * H_MS }, scoresHoursAgo: 1, config: { TASK_QUEUE_ENABLED: 'false' } });
+  if (flagOff !== 'live-unclaimed') wrong.push(`the timer runs in-process whatever TASK_QUEUE_ENABLED says: live (got ${flagOff})`);
+  const another = await reason({ customerTimers: { [ANOTHER_CUSTOMER]: 12 * H_MS }, scoresHoursAgo: 1 });
+  if (another !== 'not-scheduled') wrong.push(`another customer's timer: not-scheduled (got ${another})`);
+  const none = await reason({ scoresHoursAgo: 1 });
+  if (none !== 'not-scheduled') wrong.push(`no timer running and no entry: not-scheduled (got ${none})`);
+  const joined = { customerTimers: { [CUSTOMER]: 6 * H_MS }, schedule: [SM.scheduleEntry('processCustomer', { hours: 24, args: { customer: CUSTOMER } })] };
+  for (const [hoursAgo, want] of [[11, 'live-unclaimed'], [13, 'upkeep-stopped']]) {
+    const r = await reason({ ...joined, scoresHoursAgo: hoursAgo });
+    if (r !== want) wrong.push(`a 6-hour timer beside a 24-hour entry, Scores ${hoursAgo}h old: the shortest wins, ${want} (got ${r})`);
+  }
+  const fallback = await reason({ customerTimers: { [CUSTOMER]: 24 * H_MS }, timer: true, config: { BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL: '6h' }, scoresHoursAgo: 13 });
+  if (fallback !== 'live-unclaimed') wrong.push(`with the customer's 24-hour timer running, the systemd timer stays the fallback: Scores 13h old are live (got ${fallback})`);
+  const asked = await answer({ ...base, customerTimers: { [CUSTOMER]: 12 * H_MS }, scoresHoursAgo: 1 });
+  if (!asked.calls.customerTimer.includes(CUSTOMER)) wrong.push(`the timer is asked for by the customer's main pubkey (asked ${show(asked.calls.customerTimer)})`);
+  if (asked.calls.customerTimer.includes(CUSTOMER_ASSISTANT)) wrong.push('never by the customer\'s Assistant key');
+  const owner = await scoreReason({ scoresHoursAgo: 1, schedule: [], customerTimers: { [OWNER]: 12 * H_MS } });
+  if (owner !== 'not-scheduled') wrong.push(`the Owner's Scores never count a per-customer timer: not-scheduled (got ${owner})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U37 (AC-6; ADR 0001 A2 item 4, review B1): a found self-entry that wins a part this instance does not offer is a false claim — staging\'s shape with ["3038x", TA, R] found: the 3038x not-offered line has falseClaim true; with no such claim it has false', async () => {
+  const wrong = [];
+  const claimed = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'], extraLocal: [selfMapEv([['3038x', TA, OWN]])] }));
+  const notOffered = linesOf(claimed, '3038x', 'not-offered');
+  if (notOffered.length !== 1) wrong.push(`one not-offered line under 3038x (got ${show(notOffered)})`);
+  else if (notOffered[0].falseClaim !== true) wrong.push(`3038x claims 30383–30389, which are not offered: falseClaim true (got ${show(notOffered[0])})`);
+  if (claimed.current !== false) wrong.push(`the self-Map is out of date (current ${show(claimed.current)})`);
+  const clean = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'] }));
+  const l = linesOf(clean, '3038x', 'not-offered')[0];
+  if (!l || l.falseClaim !== false) wrong.push(`with no self-Map, the not-offered line has falseClaim false (got ${show(l)})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('L6 (AC-6; ADR 0001 A2 item 5, review N2): readSelfEntries counts as other entries only tags whose key parses and whose element 2 is another 64-hex key — never a p tag or an unparseable key', () => {
+  const read = need(libModule(), 'readSelfEntries', rel(LIB));
+  const got = read(selfMapEv([
+    ['39998', TA, OWN],
+    ['p', STRANGER],
+    ['bogus', OTHER, OWN],
+    ['30392', OTHER, 'wss://scores.brainstorm.world'],
+  ]), TA);
+  assert(got && got.otherEntries === 1, `one other entry (30392 naming another key); a p tag and the unparseable "bogus" are not entries (got ${show(got && got.otherEntries)})`);
+});
+
+test('U38 (AC-6; ADR 0001 A2 item 6, review N3): a kind outside Scores, Lists and Concepts has no category — a Map entry 30023 naming the TA gives a line whose category is null', async () => {
+  const a = mustAnswer(await answer({ scoresHoursAgo: 1, mapTags: [['30023', TA, OWN], ['39998', TA, OWN]], headers: ['dog-tricks'] }));
+  const it = itemOf(a, '30023');
+  const lines = (it && it.lines) || [];
+  assert(lines.length > 0 && lines.every((l) => l.category === null), `the 30023 item's lines have category null, never "concepts" (got ${show(it)})`);
+});
+
+test('S7 (ADR 0001 A2 item 3): src/api/customer-schedule exports getTimerIntervalMs, which keeps the interval on the running timer and answers null for a customer with none; selfMap.js wires customerTimerIntervalMs to it', () => {
+  const MOD = path.join(REPO, 'src/api/customer-schedule/index.js');
+  const src = codeOnly(safeRead(MOD));
+  const wrong = [];
+  if (!/module\.exports\s*=\s*\{[\s\S]*\bgetTimerIntervalMs\b[\s\S]*\}/.test(src)) wrong.push(`${rel(MOD)} exports getTimerIntervalMs`);
+  if (!/function\s+startCustomerTimer[\s\S]*?\bintervalMs\s*[,:}]/.test(src)) wrong.push('startCustomerTimer keeps intervalMs in the timer\'s state');
+  else {
+    try {
+      delete require.cache[require.resolve(MOD)];
+      const mod = require(MOD);
+      const got = typeof mod.getTimerIntervalMs === 'function' ? mod.getTimerIntervalMs('ab'.repeat(32)) : undefined;
+      if (got !== null) wrong.push(`getTimerIntervalMs answers null with no timer running (got ${show(got)})`);
+    } catch (err) { wrong.push(`${rel(MOD)} loads in Node: ${err.message}`); }
+  }
+  const sm = codeOnly(safeRead(SELF_MAP_MODULE));
+  if (!/customerTimerIntervalMs\s*:[\s\S]{0,200}require\(\s*['"]\.\.\/customer-schedule['"]\s*\)\.getTimerIntervalMs/.test(sm)) wrong.push('selfMap.js defaultDeps: customerTimerIntervalMs lazily requires ../customer-schedule\'s getTimerIntervalMs');
+  if (!/getConfigFromFile\(\s*['"]TASK_QUEUE_ENABLED['"]\s*,\s*['"]false['"]\s*\)/.test(sm)) wrong.push('selfMap.js reads TASK_QUEUE_ENABLED with the default "false", as bin/control-panel.js does');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('S8 (ADR 0001 A2 item 6): openapi.yaml\'s duties line category is nullable', () => {
+  const yaml = safeRead(path.join(REPO, 'src/api/openapi.yaml'));
+  const at = yaml.indexOf('/api/assistant/attention:');
+  const block = at >= 0 ? yaml.slice(at, yaml.indexOf(NL + '  /api/', at + 10)) : '';
+  const lines = block.split(NL);
+  const duties = lines.findIndex((l) => /^\s+duties:\s*$/.test(l));
+  const cat = duties >= 0 ? lines.slice(duties).find((l) => /^\s+category:/.test(l)) : '';
+  assert(cat && /nullable:\s*true/.test(cat), `the duties lines' category has nullable: true (got ${show(cat)})`);
 });
 
 async function run() {

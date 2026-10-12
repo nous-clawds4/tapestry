@@ -597,7 +597,10 @@ blocking findings; N1–N5 are non-blocking. Items 1–3 change sub-decision 6, 
    - **When it counts.** For a customer C, not for the Owner, C's timer interval joins the matching BullMQ entries'
      intervals, and the shortest wins. The systemd timer stays the fallback when neither gives one.
    - **Why the systemd timer stays a fallback.** If a customer has both a per-customer timer and the bare-metal timer,
-     counting only the per-customer one claims no more than is true.
+     the per-customer timer is read from live state and runs for this customer, so a landing within twice its interval
+     is current upkeep. The systemd timer is read only from its unit file, which can outlive a stopped timer (N6).
+     *(Reworded at round 2's Test Design, 2026-10-12. The earlier sentence, "counting only the per-customer one claims
+     no more than is true", implied this was the stricter interval, which it need not be. The behaviour is unchanged.)*
 4. **A claim on a part that isn't offered is a false claim (B1).** This clarifies sub-decision 7's `falseClaim`
    rule for the `not-offered` line.
    - The line's `falseClaim` is true when any found self-entry wins one of its duty probes. A part that isn't offered

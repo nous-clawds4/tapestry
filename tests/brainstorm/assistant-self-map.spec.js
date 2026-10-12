@@ -36,6 +36,9 @@ const SM = require('../../test/helpers/selfMapFixtures');
  *         status line; Checking… while the answer is on its way.                                         [AC-6]
  *   B12 — read-only, one request: one GET of the answer per load, nothing but GETs, no button but
  *         sign-in.                                                                                        [AC-7]
+ *   B13 — round 2 (ADR 0001 Amendment 2 item 4, review B1): a not-offered line the found self-Map claims
+ *         says so — "Not offered" and the false-claim sentence on the 3038x line. A guard: the page draws
+ *         the sentence on any line that carries falseClaim, so this passes on the round-1 build too.      [AC-6]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. /api/assistant/attention answers per scenario: an object, 'hang' or 'error' (a 500).
@@ -336,5 +339,15 @@ test.describe('Your Assistant\'s Treasure Map card and page (assistant-self-map 
     expect(log.attentionCalls[0]).not.toContain('?');
     expect(log.nonGet, 'nothing but GETs').toEqual([]);
     await expect(main.getByRole('button'), 'no button on the page itself').toHaveCount(0);
+  });
+
+  test('B13: a not-offered part the found self-Map claims says so — the 3038x line reads Not offered and the false-claim sentence (AC-6; ADR 0001 A2 item 4)', async ({ page }) => {
+    const duties = SM.stagingDuties({ scores: 'offered', scoresReason: 'live-unclaimed' });
+    duties[1].lines[1].falseClaim = true;
+    await mock(page, { attention: answerWith(SM.action({ done: false, pending: true, current: false, duties, published: SM.published([{ key: '3038x', relay: SM.OWN }]) })) });
+    await open(page);
+    await expectLine(dutiesPanel(page), { category: 'scores', key: '3038x', parts: [SM.PAGE.statusWords['not-offered'], SM.PAGE.falseClaim] }, 'the claimed not-offered line');
+    const lines = await linesIn(dutiesPanel(page));
+    expect(lines.filter((l) => l.includes(SM.PAGE.falseClaim)).length, `only that line is a false claim; the lines are ${JSON.stringify(lines)}`).toBe(1);
   });
 });

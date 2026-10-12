@@ -3,7 +3,7 @@
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md` (§ Copy and § Deviations as
 amended at Architecture)
 **ADR:** `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (accepted
-2026-10-12; open questions 1–4 answered as recommended)
+2026-10-12; open questions 1–4 answered as recommended; Amendment 1 at Test Design; Amendment 2 from review round 1)
 **Spec followed (read-only):** `protocols/drafts/treasure-maps.md` §§ 5.1–5.2, 6, 8, 9, 9.2; `duty-menus.md` § 6.2 step 1
 **Date:** 2026-10-12 (approved by the owner at the Test Design gate, the same day)
 
@@ -203,3 +203,46 @@ existing suites pass against the prototype, among them:
   hub specs pass: 79 passed, 5 skipped.
 - **The prototype's build:** the hub-level specs pass, 130 of 130. The prototype's stub page doesn't draw the real
   page, so the new spec is left for Implementation.
+
+### Round 2 (review round 1's findings, ADR 0001 Amendment 2), 2026-10-12 — approved by the owner at round 2's Test Design gate
+
+| Item | Test | File | Level |
+|---|---|---|---|
+| **A2 item 1** (B2), the queue flag | U34: an enabled 12-hour `processAllTasks` entry counts with `TASK_QUEUE_ENABLED="true"`. With the setting absent (`dropConfig`), `"True"` or `"1"`, Scores are `not-scheduled` and no `30382` is claimed. With the flag absent, the systemd timer still counts. | check | unit (DI) |
+| **A2 item 2** (N1), the cron interval | U35: `0 3 * * 1-5` read on a local Thursday at 04:00 has a 24 h interval, so 47 h is live and 49 h is `upkeep-stopped`. The old two-fire rule gave 72 h. An expression `cron-parser` rejects counts for nothing. U12 is retitled to the amended rule; its 6 h case is unchanged. | check | unit (DI) |
+| **A2 item 3** (N5), the per-customer timer | U36: the customer's running timer counts. A 12 h timer gives 23 h live and 25 h stopped, and `shouldSay` claims `30382:rank`. It counts with `TASK_QUEUE_ENABLED="false"`. Another customer's timer, or no timer, gives `not-scheduled`. Beside a 24 h `processCustomer` entry, a 6 h timer wins. With the customer's 24 h timer, the 6 h systemd timer stays the fallback and isn't used. It is asked by the customer's main pubkey, never the Assistant's. The Owner never counts one. S7: `customer-schedule` exports `getTimerIntervalMs` (null with no timer running), `startCustomerTimer` keeps `intervalMs`, and `selfMap.js` wires `customerTimerIntervalMs` to it and reads the flag with the default `"false"`. | check | unit (DI) · source |
+| **A2 item 4** (B1), a claimed not-offered part | U37: staging's shape plus a found `["3038x", TA, R]`. The `3038x` not-offered line has `falseClaim: true`; with no self-Map it has `false`. B13: the page shows "Not offered" and the false-claim sentence on that line, and on no other. | check · browser | unit (DI) · browser |
+| **A2 item 5** (N2), `otherEntries` | L6: a `p` tag and an unparseable key are not entries, so a self-Map with one entry naming another key counts 1. | check | unit |
+| **A2 item 6** (N3), a kind outside the families | U38: a Map entry `30023` naming the TA gives lines whose category is null. S8: `openapi.yaml` marks the duties lines' `category` nullable. | check | unit (DI) · source |
+| **A2 item 7** (N4), no date | P5: `reasonLine` gives no line for `upkeep-stopped` when `lastLandedAt` is null, undefined or 0, and the copy module no longer says "an unknown date". | page | unit (ESM) · source |
+
+**Infrastructure.** `world()` gains two inputs:
+- `dropConfig`: config keys absent from `brainstorm.conf`;
+- `customerTimers`: `{ <customer main pubkey>: ms }`.
+
+`fakes()` injects `customerTimerIntervalMs(pubkey)` (Amendment 2 item 3), which records each call in
+`calls.customerTimer`.
+
+**Before the fix**, on `50489762` plus these tests, the stack-free gate gives:
+
+```
+20261012T173113Z-15080-0130 [self-map-round2-phase3] — FAIL, exit 1, 5811 passed, 9 failed, 582 skipped, 306/306 suites;
+failed: assistant-self-map-check, assistant-self-map-page
+```
+
+The 9 failures are exactly the new tests: U34–U38, L6, S7 and S8 in the check suite, and P5 in the page suite. Each fails
+for its own reason:
+- the flag is read with the default `"true"`;
+- the next two fires give 72 h;
+- the timer is never asked;
+- the not-offered line is always `falseClaim: false`;
+- the count is 3;
+- the category is `"concepts"`;
+- no export or wiring exists;
+- `category` is not nullable;
+- the copy says "an unknown date".
+
+No other test changed state. U35's 47 h case and U36's "another customer" and "no timer" cases pass already; they guard
+against over-correcting. B13 passes on the round-1 build (Chromium: `assistant-self-map.spec.js`, 14 passed), because
+the page draws the false-claim sentence on any line that carries the flag. It is a guard for the page, and U37 is the
+test that fails.
