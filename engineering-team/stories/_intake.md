@@ -2911,3 +2911,16 @@ relay from that setting when its host is public. `tapestry` isn't, so Scores and
 back to the DList relay. The menu published on staging (Assistant `8e901369…`) has only `39998` and `39999` at
 `wss://dcosl.brainstorm.world`. Production uses the same compose file. The Outbox Relays page's "this instance's own
 relay" suggestion uses the same rule (`outboxRelays.js` `outboxSuggestions`).
+
+## 2026-10-12 — The hub's unbuilt cards say Coming soon and stop counting (feature)
+
+**PICKED UP** 2026-10-12 at intake → book `engineering-team/audits/assistant-coming-soon/book.md`, epic
+`assistant-coming-soon`, story 1. **Strictness:** Light (trial) — workflows/light-profile.md (the owner's choice).
+
+**Raw request:** quoted verbatim in the book. In short, Bounties, Pins, Tags, Notifications and Alerts, and
+Preferences on `/assistant` should say "Coming soon", like the background image panel on `/assistant/profile`, and
+not count toward the actions that need attention. Their pages' "Placeholder page." line becomes "Coming soon." too.
+Your Assistant's Treasure Map card is left as it is.
+
+**Classification:** feature, client-only page change (no event shape, auth default, schema, dependency or routing
+change), so the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B.
