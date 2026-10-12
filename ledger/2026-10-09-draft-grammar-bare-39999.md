@@ -4,8 +4,8 @@
 **Type:** protocol
 **Opened:** 2026-10-08 (the Concepts hotfix, ledger `2026-10-08-concepts-assignment-adds-39999`; carried by the
 treasure-map-card-details close)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-12 (`duty-menus-and-self-maps` #4, ADR 0004): settled in Treasure Maps § 4.5, § 6, § 10.1 and § 10.12.
 
 At the owner's request, Edit mode on `/treasure-map` now writes both `39998` and `39999` when Concepts is assigned.
 `protocols/drafts/treasure-maps.md` § 4.5 defines the bare `39998` as "all of the observer's Concept headers". It names
@@ -31,3 +31,10 @@ open question 2(a)). Read "story 3" above, and every "story 3" in ADR `duty-menu
 A1-10 and the lines that speak of them, as story 4 (recorded in ADR 0003). The row stays OPEN until Treasure Maps
 § 4.5, § 6 and § 10 say so, and until two sentences story 3 wrote to wait on A1-8 are updated to match: § 3's on a K
 that is a Concept kind and a colon alone, and § 9.2's Ties (story 3's Deviations).
+
+**Note, 2026-10-12 (story 4, ADR `duty-menus-and-self-maps/0004`).** Settled by the owner's answers 1(a) and 2(a) to
+story 4's open questions, in Treasure Maps § 4.5, § 6, § 10.1 and § 10.12, with § 3 and § 9.2 updated (story 4, ADR
+0004). A bare `39998` covers every Concept header, those declared as kind-39999 items included; a bare `39999` covers
+the headers declared as kind-39999 items; a `39999` key beats a bare `39998` in § 6; and a Concept kind and a colon
+alone (`39998:`, `39999:`) is not a key. Duty Menus § 5.3, § 6.2 and § 14 point at Treasure Maps. Where shipped
+readers take these keys otherwise, ledger row `2026-10-12-treasure-map-concept-key-readers` names it. DONE.

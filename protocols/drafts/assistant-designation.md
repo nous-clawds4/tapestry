@@ -1,7 +1,7 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Sources:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D7, D8); `community-reference` ADRs 0029 (the `b` type registry — the inherit-typed delegation path), 0030 (TA-authored header seeding), 0031 (this spec); `curated-dlist-update` ADR 0001 (the curated header's `pointer` link and curation copies); `duty-menus-and-self-maps` ADR 0003 with Amendment A1 (§ Authorship: a TA's own self-Map; § Relationship to NIP-85: a triple naming its own author). Companion to upstream **NIP-85** (Trusted Assertions, kind 10040 — Vitor Pamplona), which this spec does not modify.
+> **Sources:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D7, D8); `community-reference` ADRs 0029 (the `b` type registry — the inherit-typed delegation path), 0030 (TA-authored header seeding), 0031 (this spec); `curated-dlist-update` ADR 0001 (the curated header's `pointer` link and curation copies); `duty-menus-and-self-maps` ADR 0003 with Amendment A1 (§ Authorship: a TA's own self-Map; § Relationship to NIP-85: a triple naming its own author); `duty-menus-and-self-maps` ADR 0004 (§ Relationship to NIP-85 and § Per-DList curation entries: which headers the blanket entry covers, a d-tag that is never empty, and the keys `39999:dlist-header` and `39999:duty-menu`, which name no header, as Treasure Maps §§ 4.5 and 4.6 say). Companion to upstream **NIP-85** (Trusted Assertions, kind 10040 — Vitor Pamplona), which this spec does not modify.
 
 ---
 
@@ -35,7 +35,7 @@ Each triple delegates: "for events of `<kind>` and assertion-type `<assertionTyp
 ["39998:dlist-header", "<TA-pubkey>", "<relayURL>"]
 ```
 
-— "for my kind-39998 DList headers, the authoring provider is `<TA-pubkey>`, fetchable at `<relayURL>`." The provider pubkey (element 2) **is** the user's Tapestry Assistant pubkey; reading it is how an independent client discovers a user's TA from their npub alone, with no out-of-band deployment knowledge.
+— "for my DList headers, the authoring provider is `<TA-pubkey>`, fetchable at `<relayURL>`." Which headers that covers, those declared as kind-39999 items included, is for [Treasure Maps](./treasure-maps.md) § 4.5 to say. The provider pubkey (element 2) **is** the user's Tapestry Assistant pubkey; reading it is how an independent client discovers a user's TA from their npub alone, with no out-of-band deployment knowledge.
 
 A reader who understands only NIP-85 (or only the deployed `30382:*` rows) ignores a `39998:*` or `39999:*` row; it breaks nothing.
 
@@ -61,7 +61,7 @@ A second entry family lets the Map's owner empower their Tapestry Assistant to *
 | provider (element 2) | the owner's **Tapestry Assistant pubkey** — the header's author |
 | relay (element 3) | a relay where the assistant-authored header and its items can be fetched |
 
-**Reconstruction.** The curated header's address is `<kind>:<assistant pubkey>:<d-tag>` — the kind from the key, the pubkey from element 2, the d-tag from the key. Readers split the assertion key at the **first** colon only; everything after it is the d-tag, which may itself contain colons.
+**Reconstruction.** The curated header's address is `<kind>:<assistant pubkey>:<d-tag>` — the kind from the key, the pubkey from element 2, the d-tag from the key. Readers split the assertion key at the **first** colon only; everything after it is the d-tag, which may itself contain colons and is never empty: a kind and a colon alone (`39998:`, `39999:`) is not a key, and `39999:dlist-header` and `39999:duty-menu` name no header ([Treasure Maps](./treasure-maps.md) §§ 4.5 and 4.6).
 
 **Meaning.** The owner empowers the named assistant to author and maintain that header on their behalf; the header is the owner's curation of the community DList its `b` tag names. **Authorization is read from the Map; composition is read from the header.**
 

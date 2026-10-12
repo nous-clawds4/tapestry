@@ -69,3 +69,9 @@ So none of the items below is a defect in either book's deliverable. They are fo
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings, non-blocking 17; book
 `assistant-duty-menu`; ledger rows `2026-10-11-self-entry-reads-as-another-assistant` and
 `2026-10-10-external-assistant-relay-left-empty`.
+
+**Note, 2026-10-12 (story 4, ADR `duty-menus-and-self-maps/0004`).** Item 1's spec texts and handoff text are done in
+story 4: `duty-menus.md`:5 (the Implementation line) and `protocols/README.md`'s Duty Menus row say what the reference
+deployment builds now, and the handoff's Status line says "code partly built". Item 1's intake part, and items 2–4,
+stay with the code books. Story 4's answers also leave shipped readers taking some Concept keys otherwise than Treasure
+Maps; ledger row `2026-10-12-treasure-map-concept-key-readers` names them. The row stays OPEN.

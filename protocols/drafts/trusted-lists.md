@@ -3,7 +3,9 @@
 > **Status:** 📝 pre-NIP (internal wire format; consumed by our own readers + federation today).
 > **Sources:** the Trusted List publishers (`src/api/trustedList/`), the pinned-tag TL work
 > (`pin-a-tag` ADRs, kind-30392), the tag-applicability lists (`tag-applicability` ADR 0001), the
-> note Trusted List (`event-tagging` ADR 0016). Companion to upstream **[NIP-85: Trusted
+> note Trusted List (`event-tagging` ADR 0016); and `duty-menus-and-self-maps` ADR 0004
+> (§ Treasure-Map advertisement: the `39998`/`39999` families, read as Treasure Maps §§ 4.5 and 4.6
+> say). Companion to upstream **[NIP-85: Trusted
 > Assertions](https://nips.nostr.com/85)** (Vitor Pamplona) — this spec does not modify NIP-85; it
 > defines the *list* analog and binds its kinds to NIP-85's subject-type convention.
 
@@ -100,10 +102,13 @@ bare-kind entry** (ADR `tl-treasure-map/0001`):
 - **Shape.** `["<TL-kind>", <pubkey>, <relay>]` — the first element is the decimal TL kind as a
   string, with **no `:name` suffix**. Parse rule: split the first element on `:` — a single
   all-digits segment is a generic TL entry; two segments are NIP-85 kind:metric (`3038x`) or a
-  named TL entry (`3039x`, reserved below). The `39998`/`39999` families — the blanket Tapestry
-  Assistant designation and per-DList curation entries — are specified in
-  [assistant-designation.md](./assistant-designation.md); for those, readers split the first element
-  at the **first** colon and treat the remainder as an opaque d-tag.
+  named TL entry (`3039x`, reserved below). The `39998`/`39999` families are Concept keys, not
+  Trusted List entries: the bare kinds `39998` and `39999`, specified in
+  [Treasure Maps](./treasure-maps.md) § 4.5, and the blanket Tapestry Assistant designation and
+  per-DList curation entries, specified in [assistant-designation.md](./assistant-designation.md).
+  What each covers is for Treasure Maps §§ 4.5 and 4.6 to say. For a key with a d-tag, readers
+  split the first element at the **first** colon and treat the remainder as an opaque d-tag, never
+  empty: a kind and a colon alone (`39998:`, `39999:`) is not a key.
 - **Meaning.** The advertised pubkey publishes the Map owner's Trusted Lists of that kind —
   lists computed under the owner's point of view — discoverable at the relay hint. One entry
   delegates *all* lists of the kind; list names are not enumerated.

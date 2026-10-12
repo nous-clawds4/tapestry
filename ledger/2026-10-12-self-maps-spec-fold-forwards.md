@@ -1,4 +1,4 @@
-# Story 3's review left non-blocking wording gaps in the Self-Maps text of Treasure Maps and Duty Menus for its fix round or story 4 to fold in
+# Story 3's review left non-blocking wording gaps in the Self-Maps text of Treasure Maps and Duty Menus for story 5 of the epic to fold in
 
 **Id:** 2026-10-12-self-maps-spec-fold-forwards
 **Type:** protocol
@@ -91,3 +91,16 @@ stays OPEN.
     third case (review NB20).
 
 The row stays OPEN.
+
+**Note, 2026-10-12 (story 4, ADR `duty-menus-and-self-maps/0004`).** Story 4 did items 3, 8 and 15:
+- 3 (NB3): Treasure Maps § 6 orders the Concept kinds, and § 9.2's Ties says that none arise. § 9.2's MUST NOT on a
+  self-entry that speaks for none of the insights it wins agrees with the order: ADR 0003 sub-decision 2's
+  {`39998` → Rc, `39999` → Rd} meets it when each of its self-entries wins a duty it speaks for.
+- 8 (NB8): Duty Menus § 14 question 3 asks what the self-entries of a key that serves several observers speak for.
+- 15 (NB15): Duty Menus' Sources line names § 6.2 step 1's last bullet and § 7; the handoff's § 5 landing line names
+  Assistant Designation § Relationship to NIP-85; `protocols/README.md`'s Treasure Maps row names Self-Maps and the
+  read-time fallback.
+
+Items 5, 9, 10, 12, 13, 19 and 20, and the § 5.4 Enumerate question, go to story 5 of the epic (the owner's answer
+5(a) to story 4's open question 5). That includes NB10 (item 10), which ADR 0003 A2 left "for story 4's ADR" (ADR 0004
+sub-decision 10). The title names story 5. The row stays OPEN.

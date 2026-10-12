@@ -1,10 +1,10 @@
-# Story 2's review round 3 left non-blocking wording gaps in the Duty Menus spec for story 3 to fold in
+# Story 2's review round 3 left non-blocking wording gaps in the Duty Menus spec
 
 **Id:** 2026-10-11-duty-menus-spec-fold-forwards
 **Type:** protocol
 **Opened:** 2026-10-11 (`duty-menus-and-self-maps` #2, review round 3, non-blocking 12–24, 26 and 27)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-12 (`duty-menus-and-self-maps` #4, ADR 0004): the last items landed in story 4.
 
 Story 2 (the Duty Menus pre-NIP) passed review round 3. Its non-blocking findings target
 `protocols/drafts/duty-menus.md`, which story 3 of the epic edits anyway (its carry-forwards say how § 5.3 and § 6.2
@@ -55,3 +55,14 @@ Status line is misinformed.
 **Note, 2026-10-11 (story 3, ADR `duty-menus-and-self-maps/0003`).** Story 3 handled findings 14, 16, 20, 21 and 26,
 and 27 (the handoff's Status line). Findings 12, 13, 15, 17, 18 (with A1-9), 19 (with A1-8), 22, 23 and 24 went to
 story 4 of the epic (owner, 2026-10-11, story 3's open question 2(a)). The row stays OPEN until story 4 lands.
+
+**Note, 2026-10-12 (story 4, ADR `duty-menus-and-self-maps/0004`).** The items left for story 4 landed there:
+- findings 12, 13, 15, 17, 22, 23 and 24 in Duty Menus, as story 4's AC5 asks: 12 in § 6.2 step 5; 13 in step 2; 15 in
+  § 8.1; 17 in § 5.3, § 5.4 and § 4; 22 in § 5.1; 23 in § 2, steps 3 and 4, and § 13.3; 24 in § 8.2 and § 4;
+- finding 18 in Treasure Maps § 4.3, where a replaceable kind counts as addressable, which Duty Menus § 6.2 step 1
+  follows;
+- finding 19 in Treasure Maps § 4.5, where a Map key `39998:` or `39999:` is not a key, and in Duty Menus § 6.2 step
+  1's last bullet;
+- the "its own key included" note in § 2, which drops the clause.
+
+The title no longer names story 3 (story 3's review, CONF-4). DONE.

@@ -1,6 +1,6 @@
 # Duty Menus and Self-Maps — Design Handoff
 
-**Status:** ✅ SUPERSEDED (2026-10-11): spec ratified in `protocols/`; code NOT built (tracked in `engineering-team/stories/_intake.md` § "2026-10-11 — Duty Menus and Self-Maps in code" and ledger row `2026-10-10-external-assistant-relay-left-empty`).
+**Status:** ✅ SUPERSEDED (2026-10-11): spec ratified in `protocols/`; code partly built: book `assistant-duty-menu` publishes and reads Duty Menus, and book `assistant-self-map` (open) builds self-Maps; the rest is tracked in `engineering-team/stories/_intake.md` § "2026-10-11 — Duty Menus and Self-Maps in code" and ledger row `2026-10-10-external-assistant-relay-left-empty`.
 
 **Where each part landed** (book `duty-menus-and-self-maps`):
 - D1: *offered* → `protocols/drafts/duty-menus.md` (§§ 1, 10); *active* → `protocols/drafts/treasure-maps.md` § 9.2.
@@ -12,7 +12,7 @@
   `shared-concepts.md`; the header itself → `duty-menus.md` § 3.
 - § 4.2's reservation of `duty-menu` → `duty-menus.md` § 4, and the Map-key rule → `treasure-maps.md` § 4.6.
 - § 5, Self-Maps → `treasure-maps.md` §§ 1, 2, 3, 7, 9, 9.2 and 13, and `protocols/drafts/assistant-designation.md`
-  § Authorship.
+  § Authorship and § Relationship to NIP-85.
 - The spec half of § 6 (filling the relay) → `treasure-maps.md` § 3 and `duty-menus.md` § 6.2 step 5.
 - The W1 note → `protocols/worksheet.md`.
 
