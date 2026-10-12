@@ -162,5 +162,5 @@ None open. The seven questions were settled at intake (book § Decisions). The o
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-duties-settings/0001-the-offered-duties-live-in-the-instance-settings.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-duties-settings/1-the-assistant-duties-tab.test-plan.md`
 - Review: (filled in after Review phase)

@@ -20,6 +20,9 @@
  * Everything FAILS against the current code: dutyMenuCopy.js and DutyMenu.jsx do not exist, and /assistant/duty-menu
  * routes to the placeholder page.
  *
+ * assistant-duties-settings #1 (§ Copy; ADR assistant-duties-settings/0001 sub-decision 8) re-aims P1 through
+ * test/helpers/dutyMenuFixtures.js: the offer panel's two sentences say "offers" now.
+ *
  * Story 2 (assistant-duty-menu #2, ADR 0002 sub-decision 8): the publish words (P7), the client helper (P8), the button,
  * its report and the empty lines by source (D6, D7). Re-aimed: D4 (the page now publishes, through its helper only, and
  * asks the answer again after a written menu) and D5 (story 2's sentences have one home too).
