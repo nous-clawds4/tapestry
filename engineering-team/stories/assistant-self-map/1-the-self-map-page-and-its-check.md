@@ -1,6 +1,6 @@
 # Story 1: The self-Map page and its check
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Type:** Feature
 **Epic:** `assistant-self-map`
@@ -276,4 +276,4 @@ Architecture"), with seven ACs kept as one story.
 
 - ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (Amendment 1 at Test Design; Amendments 2 and 3 from review rounds 1 and 2)
 - Test plan: `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md`
-- Review: `engineering-team/reviews/assistant-self-map/1-the-self-map-page-and-its-check.md` (rounds 1 and 2, 2026-10-12)
+- Review: `engineering-team/reviews/assistant-self-map/1-the-self-map-page-and-its-check.md` (rounds 1–3, 2026-10-12)

@@ -16,7 +16,7 @@ own Map (`/treasure-map`) says what they asked for.
 
 ## Stories
 
-`stories/assistant-self-map/`. Story 1 is approved (`1-the-self-map-page-and-its-check.md`, 2026-10-12). The rest
+`stories/assistant-self-map/`. Story 1 is Done (`1-the-self-map-page-and-its-check.md`, approved and passed review in round 3, 2026-10-12). The rest
 are a first cut, to be revised at `/plan-feature`:
 
 1. The self-Map check and page, read-only. What this instance can truly claim for the viewer's Assistant, the

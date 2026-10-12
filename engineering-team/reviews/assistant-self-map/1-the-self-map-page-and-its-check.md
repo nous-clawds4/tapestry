@@ -361,3 +361,85 @@ Round 3's order:
 4. Review round 3, with the shared-lines recheck again.
 
 The story stays **Approved** until a later round passes.
+
+---
+
+# Round 3
+
+**Reviewer:** Claude (acting as Reviewer). Every claim below was re-derived from commands.
+**Date:** 2026-10-12
+**Diff:** `git diff 74814e0e..6bfeefba`, attributed commit by commit:
+- `6316cb4d`: ADR 0001 Amendment 3 and the story's ADR link. Docs only.
+- `a0351d81`: the Tester's round-3 tests, the plan's round-3 record, and RW7 occurrences on its flake row. It touches
+  no `src/` or `ui/`.
+- `6bfeefba`: the fix, in `src/lib/self-map/index.js` only (+27 / −10). It touches no `test/` or `tests/`.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `6bfeefba`, clean tree, label `self-map-round3-review`. `npm run gate:status`:
+
+  > `20261012T210356Z-5740-46af [self-map-round3-review] started 2026-10-12T21:03:56.968Z on 6bfeefba — PASS, exit 0, 5825 passed, 0 failed, 582 skipped, 306/306 suites`
+
+  `assistant-self-map-check` 61 / 0 / 0 and `assistant-self-map-page` 11 / 0 / 0. These match the Implementer's run on
+  the same commit, `20261012T204954Z-3970-9388`.
+- [x] **Playwright, chromium.** `ui/` is unchanged since `7e4cae43` (`git diff 7e4cae43 HEAD -- ui` is empty), so I
+  served round 2's build of it on :4184. `assistant-self-map` (B0–B13), `assistant-management-page`,
+  `assistant-attention`, `assistant-alert`, `assistant-coming-soon` and `assistant-duty-menu`: **76 passed, 0 failed**
+  (4.9 m). I stopped the server afterwards.
+- [x] `bash scripts/harness-lint.sh`: **clean**.
+- [x] **Shared lines.** `git fetch origin staging` leaves `origin/staging` at `7ab2c955`, as at round 2.
+  `git merge-tree --write-tree HEAD origin/staging` is clean. Nothing in `protocols/`, `src/` or `ui/` changed since
+  round 2's recheck. ADR `duty-menus-and-self-maps/0004` stays Accepted, and the library now follows its §§ 4.5–4.6.
+
+## Round 2's findings, each re-derived as a fresh claim
+
+| Finding | Re-derived by | Result |
+|---|---|---|
+| **R2-B1**, the four non-keys | Round 2's own reproduction, run again: staging's Owner shape, Scores live, the right self-Map (`30382`, `39998` at R), plus each of `39999:duty-menu`, `39999:dlist-header`, `39998:` and `39999:` | Every case: `shouldSay` is `39998` and `30382`, `current` is true, and there are no false claims. Each spelling alone gives no duty. With another key named under `39998:` or `39999:dlist-header` beside `["39998", TA]`, there is no `elsewhere` line. `otherEntries` for three non-keys naming other keys is 0. **Fixed** (`index.js`: `NAMELESS_KEYS`, checked in `parseKey`). |
+| **R2-B1**, what must still parse | `parseKey('39998::')`, `parseKey('39998:dlist-header')`; a Map naming the TA under `39998::` | `d` = `:` at rank 3; the bare `39998`; a `not-landed` line for the `:` header. **Unchanged, as § 4.5 wants.** |
+| **R2-N1**, empty relays | Found `["3038x", TA, ""]`; found `["30382", TA, ""]` with `["39998", TA, R]`; the right self-Map plus `["30382:rank", TA, ""]`; found `["30382", TA, "not a url"]` | No false claim, on the offered and the not-offered lines alike. The `30382` line is `live-unclaimed`, and the self-Map is out of date. With the extra empty-relay entry for a part that isn't the TA's duty, `30382` stays active and `current` is false. The unparseable relay is still a false claim. **Fixed**, as Amendment 3 item 2 says. |
+| **R2-N2** | `ledger/2026-10-12-self-map-profiles-category-lines.md` | The row exists, **OPEN**. |
+
+**ADR adherence, Amendment 3:**
+- Item 1: `parseKey` returns null for the four after `normalizeMenuKey`, and every reader drops a null key. The
+  unreachable branch that kept `39998:` as `unchecked` is gone.
+- Item 2: `selfEntryRelay` keeps the three cases apart, and both `falseClaim` rules skip a winning empty-relay claim.
+- Item 3: only `src/lib/self-map/index.js` changed. The docs did not need to.
+
+## Findings
+
+### Blocking
+
+None.
+
+### Non-blocking
+
+1. **R3-N1 — `src/lib/self-map/index.js` (the comment above the not-offered `falseClaim`): it says "any found
+   self-entry winning one is a false claim".** Since Amendment 3, that excludes one with an empty relay, as the next
+   line of code does. Optional: reword the comment in the next push that touches this file.
+2. **R3-N2 — `src/api/assistant/selfMap.js` (`mapHints`): relay hints are still read from every viewer Map entry
+   naming the Assistant, a `39998:` entry included.** It only adds a relay, guarded and within the cap, to the
+   self-Map lookup, and it changes no reading. § 4.5's "as if absent" would leave it out. Optional: filter `mapHints`
+   through `parseKey` in story 2, which reads the same hints.
+
+### Harness friction
+
+None new. RW7's repeated 0.77 s failures in round 3's Test Design gates are on their own row,
+`2026-10-08-realtime-wrapper-timing-flake-under-load`. This round's gates passed.
+
+## Verdict
+**PASS**
+
+Every blocking finding from rounds 1 and 2 is fixed and re-verified from commands:
+- round 1's B1 (a claimed not-offered part) and B2 (the queue flag);
+- round 2's R2-B1 (Concept non-keys, under the now-accepted §§ 4.5–4.6).
+
+The non-blocking items folded into Amendments 2 and 3 are fixed too. Those deferred are ledger rows: N6, N7 and
+R2-N2. Every acceptance criterion has a passing test, and the code matches ADR 0001 as amended three times. The gate
+passes (5825 / 0), and the browser specs pass on Chromium (76 / 0).
+
+## On PASS (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection performed. The result is in the chat. The book is not complete: stories 2–5 and their frame
+  bullets remain.
