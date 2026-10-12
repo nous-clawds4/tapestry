@@ -418,6 +418,6 @@ epic's story-5 entry and Goal bullet, as story 3's approval did for story 4.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md`](../../decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
