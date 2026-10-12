@@ -2,7 +2,7 @@
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
 > **Companion to:** [NIP-85: Trusted Assertions](https://nips.nostr.com/85) and [Treasure Maps](./treasure-maps.md) (kind `10040`); built on [Decentralized Lists](../nips/decentralized-lists.md).
-> **Implementation (reference deployment):** partial. An instance publishes a signed-in person's Assistant's menu when the person asks, with rows naming the instance's own relay, and reads a key's published menu (§ 8.1) for its Duty Menu check. Nothing yet fills a Treasure Map entry's relay from a menu (§ 6.2 step 5), and Nous' header is not yet published.
+> **Implementation (reference deployment):** partial. An instance publishes a signed-in person's Assistant's menu when the person asks, with the rows its Owner lists in Assistant Duties settings, and reads a key's published menu (§ 8.1) for its Duty Menu check. Nothing yet fills a Treasure Map entry's relay from a menu (§ 6.2 step 5), and Nous' header is not yet published.
 > **Sources:** [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md) (the owner's decisions D1–D10, 2026-10-10); `duty-menus-and-self-maps` ADR 0001 (self-declaration, which the header relies on), ADR 0002 with Amendment A1 (this spec), and ADR 0003 with Amendment A1 (Self-Maps and the read-time fallback in Treasure Maps, which § 2's own Assistant, § 4's `z` rule, § 6.1, § 6.2's lead, step 1's last bullet and step 5, § 7's own-Assistant exception, § 10 and § 14 follow), and ADR 0004 (the key grammar Treasure Maps §§ 4.3–4.6 and 6 settles, which § 5.3, § 6.2 and § 14 follow, and the wording of §§ 2, 4, 5, 6.2, 8, 11 and 13.3).
 
 ---

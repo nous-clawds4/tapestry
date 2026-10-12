@@ -19,6 +19,7 @@ const {
   getSettingsPath,
 } = require('../../config/settings');
 const { validateNip05 } = require('../nip05');
+const { validateDutyList } = require('../../lib/duty-menu');
 
 /**
  * Validate relay URLs: must be wss:// or ws://
@@ -128,6 +129,16 @@ function handleUpdateSettings(req, res) {
       if (errors.length > 0) {
         return res.status(400).json({ success: false, error: 'Invalid nip05 settings', details: errors });
       }
+    }
+
+    // The Assistant Duties list: the same rule as its own route, so this one is no backdoor
+    // (ADR assistant-duties-settings/0001 sub-decision 4). Stored normalized.
+    if (patch.assistantDuties !== undefined) {
+      const checked = validateDutyList(patch.assistantDuties);
+      if (!checked.ok) {
+        return res.status(400).json({ success: false, error: 'Invalid assistant duties', code: checked.code, index: checked.index });
+      }
+      patch.assistantDuties = checked.duties;
     }
 
     const updated = updateOverrides(patch);
