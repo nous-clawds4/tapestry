@@ -70,8 +70,9 @@ Implementation and again before Gate B: `git fetch` and `git merge-tree --write-
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** high for the code and its tests; medium-high for the experience. The owner saw the built hub
-  and the ring comparison at Gate B, but nobody has looked at the hub signed in on a live instance (audit header, §6 #4)
+- **Confidence at close:** high for the code and its tests; medium-high for the experience, raised to high the same day.
+  The owner saw the built hub and the ring comparison at Gate B, and checked the hub signed in on production after the
+  release (audit header, §6 #4)
 
 ## Close artifacts *(filled by `/close-book`)*
 

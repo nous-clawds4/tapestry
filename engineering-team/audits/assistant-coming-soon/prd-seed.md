@@ -6,8 +6,9 @@
 intake: which five cards, not counted in either reading, the page line, and the Light trial. There was no Discovery
 conversation; the owner pointed at an existing example (the background image panel on `/assistant/profile`) and named
 the cards.
-**Confidence:** **high** for what shipped and why. **Medium-high** for how it reads to a person: the owner saw the built
-hub section and the two rings side by side at Gate B, but nobody has looked at the hub signed in on a live instance.
+**Confidence:** **high** for what shipped and why. **High** for how it reads to a person (medium-high at the close):
+the owner saw the built hub section and the two rings side by side at Gate B, and after the release confirmed the five
+cards signed in on production.
 **Date:** 2026-10-12
 
 > This is a reverse-engineered baseline in the product-team PRD shape. It is a **strawman for the product team**, not a

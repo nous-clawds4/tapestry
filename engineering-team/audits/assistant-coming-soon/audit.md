@@ -19,14 +19,15 @@ close. They are interleaved with books `duty-menu-public-relay` and `duty-menus-
 settled at intake: which five cards, not counted in either reading, the page line, and the Light trial. The owner
 approved Gate A ("approved, go ahead") and passed the story at Gate B ("pass with the records note"), both on
 2026-10-12.
-**Confidence:** **high** for what the code does; **medium-high** for the frame as the owner will meet it.
+**Confidence:** **high** for what the code does; **medium-high** for the frame as the owner will meet it at the close,
+**high** after the owner's signed-in check on production the same day (§6 #4).
 - **For the code:**
   - Three blinded gate-judges (J1, J2, J3) each approved on their first verdict. J2 and J3 re-ran the scoped gate
     themselves, and J3 repeated the fails-before check on `88fa4da`.
   - The Gate B Reviewer built HEAD itself, re-ran both halves of the fails-before check, and ran the full suite at HEAD.
 - **For the experience:** the built UI was seen on screen with every `/api` route mocked: desktop, 390 px, and a Coming
-  soon page. The owner was shown the hub section and a side-by-side of the two rings at Gate B. Nobody has looked at the
-  hub signed in on a live instance (§6 #4).
+  soon page. The owner was shown the hub section and a side-by-side of the two rings at Gate B. After the production
+  release, the owner checked the hub signed in as straycat and confirmed the five cards' Coming soon status (§6 #4).
 
 > The Build Audit is the as-built record. It does not propose changes — that is `prd-seed.md`'s job.
 
@@ -175,8 +176,10 @@ its J3 evidence or its Gate B record.
   (`pickTopBarPill` draws only above 0), but the hub's line has no zero state. Decide it with the Treasure Map card's
   book.
   *Picked up 2026-10-12 → book `assistant-self-map` (open), § Design notes.*
-- [ ] **4. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check the
+- [x] **4. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check the
   five pills, the count line and the top-bar pill. Same kind of gap as `assistant-shared-categories` audit §6 #2.
+  **Done 2026-10-12, on production:** after the release, the owner opened tapestry.brainstorm.world/assistant signed
+  in as straycat and confirmed the five cards' Coming soon status, as expected.
 - [ ] **5. Building the five.** Linked, not duplicated: `assistant-management` audit §6 #1–#2 (annotated at this
   close). When one is built, its key leaves `COMING_SOON_ACTIONS`, and joins `CHECKED_ACTIONS` if it gets a check.
   Node C1 pins the list exactly, so the change is visible in the tests.
