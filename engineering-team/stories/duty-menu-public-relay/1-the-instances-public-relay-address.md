@@ -1,6 +1,6 @@
 # Story 1: The instance's public relay address
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Type:** Bug
 **Epic:** `duty-menu-public-relay`
@@ -148,4 +148,4 @@ The full `npm test` runs at book close.
 
 - ADR: none (Design note above; Light)
 - Test plan: the edge cases and AC → handles above (Light)
-- Review: (filled in after Review)
+- Review: `engineering-team/reviews/duty-menu-public-relay/1-the-instances-public-relay-address.md` (round 2; Gate B approved by the owner 2026-10-12)

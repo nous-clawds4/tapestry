@@ -141,3 +141,84 @@ Not flipped. The story stays **Status:** Approved, per the brief and the verdict
 ## Verdict
 
 **CHANGES_REQUESTED**. One blocking finding (B1): correct the false Docker relay-URL premise in the source comment, the test framing and the story record, and pin the real `ws://localhost:7777` shape in I8 and U38 (or G6). There is no behaviour change to make. The fix itself is correct for staging and production.
+
+## Round 2
+
+**Date:** 2026-10-12
+**Diff:** `git diff 762d3508..865dbdbe`, attributed:
+- `ab125cbd` corrects the premise in the story, the epic and the intake entry, and commits this file.
+- `865dbdbe` answers B1 in the code comment and the four suites, fixes NB6, and adds a story Deviations entry.
+- `c51ef492`, between them, is another book's plan (`assistant-coming-soon`, `engineering-team/` only). Its Shared lines name `ui/` files only, so it is not part of this story.
+
+### Quality gates (re-run by reviewer)
+
+- [x] Scoped gate: the story's loop exactly as written, in the foreground, exit code by brace-redirect. `scoped r2 exit=0`; 259 tests pass, 0 fail.
+- [x] `npm test`, read with `npm run gate:status -- --label reviewer-duty-menu-public-relay-1-r2`:
+  `20261012T015922Z-32686-a952 [reviewer-duty-menu-public-relay-1-r2] started 2026-10-12T01:59:22.039Z on 865dbdbe — PASS, exit 0, 5741 passed, 0 failed, 582 skipped, 303/303 suites`.
+  This matches the Implementer's `20261012T015208Z-31710-065a`.
+- [x] Shared line: after `git fetch origin staging`, HEAD and `origin/staging` are both `865dbdbe`. `git merge-tree --write-tree HEAD origin/staging` is clean, with tree `b1e8fdda…`, the same as HEAD's.
+- [x] `bash scripts/harness-lint.sh` (run after this section was written): exit 1, one violation, L1. It flags this story as still Approved while this file is final-verdict PASS. It clears when the story flips to Done in the review commit; see "Story status" below. There are no other violations.
+
+### B1: answered
+
+I checked each corrected statement against the source, per `roles/reviewer.md` step 10, rather than recognizing my own wording.
+
+| Statement | Where | Checked against | Result |
+|---|---|---|---|
+| On Docker, `BRAINSTORM_RELAY_URL` is the container-internal `ws://localhost:7777`, the entrypoint's `RELAY_URL` default | `profileDefaults.js:105-107`; the comments in all four suites | `docker/entrypoint.sh:9,46`; the `tapestry` service's `environment` (`docker-compose.yml:15-29`) has no `RELAY_URL`; `Dockerfile` has no `ENV` for it; no workflow sets it | True |
+| The tapestry container never sets `RELAY_URL`; `docker-compose.yml:82` is nostr-search-api's | Story Background `:18-24`, Deviations `:117-120`; intake `:2908-2915`; epic `:11-13` | `docker-compose.yml:73-90`; `BIBLE.md:1050-1056` | True |
+| AC-1's Given: `ws://localhost:7777`, or any other non-public relay URL | Story `:39-40` | `instanceRelayUrl` treats every non-public host the same way; I8 and U38 pin two such hosts | True, and pinned |
+| The rejected alternative: set the tapestry container's `RELAY_URL` to the public address | Story `:61-63` | 13 `BRAINSTORM_RELAY_URL` readers reach strfry from inside the container | The real option is now named, and its reason holds |
+| "I10 keeps it with no domain, so the relay-URL-host fallback stays covered"; "no test cites `docker-compose.yml`" | Story `:140-143` | I10's case `{ ws://tapestry:80/relay, STRFRY_DOMAIN: '' }` falls back to host `tapestry:80` and gives `null`; `grep` finds no citation | True |
+
+- **No `tapestry:80` premise remains.** Every remaining mention is one of two kinds:
+  - a correction note (story `:21`, `:118`, `:142`; intake);
+  - a second internal address labelled as such (I8, U38, I10, and the suite comments).
+- **The code changed only in a comment.** `git diff 762d3508 HEAD -- src` is 5 comment lines in `profileDefaults.js`.
+
+### The tests' teeth
+
+These were checked by mutation, in a scratch copy of HEAD. S4 and R1 fail there at baseline too, because the copy lacks `BIBLE.md` and the page sources; they are environment artifacts.
+
+- **The real Docker case.** A regression that refuses to derive when the relay URL's host is `localhost` fails I8, U38, W13 and G6.
+- **The second example.** The same regression for `tapestry` fails I8 and U38, so the kept example has teeth of its own.
+- **Pre-fix source.** `e7d73c9d`'s three modules still fail exactly I8, I9, I10, U38, W13 and G6.
+- **AC-4's `STRFRY_DOMAIN` route.** Dropping outsideOnly's `STRFRY_DOMAIN` entry fails U41, W12 and W13. With the Docker URL now `localhost`, the derived host counts as this instance only through `STRFRY_DOMAIN`, so those three still isolate that route.
+- **The trailing dot.** Stripping it from the derived URL fails I8 and U41.
+- **AC-3.** Deriving without the publicness check fails I10, U40 and all eight round-1 re-aims.
+- **Fixture shifts.** The constant change cost U40 and G7 their `tapestry` relay-host-fallback cases; I10 keeps one. U41's, W12's and W13's own-host lists moved from `tapestry` to `localhost`, which matches the config. No assertion was weakened.
+
+### Nothing else moved
+
+`git diff 762d3508 HEAD --stat -- src test ui docker config setup lib` names only `profileDefaults.js` (the comment) and the four suites. `dutyMenu.js`, `outboxRelays.js` and `setup/status.js` are byte-unchanged since round 1.
+
+### Round 1's non-blocking items, disposed
+
+| Item | Disposition | Where it lives |
+|---|---|---|
+| N1: AC-4 gap for a `STRFRY_DOMAIN` with a port, an IDN or a bracketed IPv6 literal | **Carried.** Not fixed; it was optional. No deployment has such a domain. | A new ledger row (type `bug`, low) opened by the committing session, e.g. `ledger/2026-10-12-derived-relay-literal-domain-match.md`, with round 1's fix shape. The book-close audit lists it as a known gap. |
+| N2: pushed and deployed before Gate B | **Accepted as explained.** The push was deliberate, for the environment's stop hook; the gate was green; it is a bug fix; staging is the target. | Not a new row; the root cause is already open. Add a dated line to `ledger/2026-10-07-staging-sessions-push-red-tests.md` (the stop hook puts work on `staging` before its gate). The book audit §7 records it as the Light trial's bent rule: under the stop hook, Gate B on `staging` is a post-deploy review. |
+| N3: the cross-book ledger note's item 2 is stale | **Carried.** It is another book's row, so it isn't this story's diff. | A dated line appended under item 2 of `ledger/2026-10-12-duty-menu-code-cross-book-notes.md`, naming `instanceRelayUrl` and this story. Append; don't rewrite the original text. Written by that row's owner (book `duty-menus-and-self-maps`) or the committing session. |
+| N4: the `done/` ADRs state the superseded rule and the false staging premise | **Carried, with no ADR edit.** Accepted text is not edited (ledger `2026-10-11-implementer-edited-accepted-adr`), and `done/` is read-only by convention. | Two places. The story's Design note already declares the supersession. This book's close audit records that the own-relay source in ADR `assistant-duty-menu/0001` sub-decision 2 and in `assistant-outbox-relays/0002` sub-decision 1 is superseded, and that `0002:41-45`'s staging premise was false. |
+| N5: the re-aims' route shift | **Left.** It is informational, and it was re-verified above with the new constants. | This file. |
+| N6: the dead `isPublicHost` seam; G7's double guard | **Seam fixed** in `865dbdbe` (`lowLevel`, `test/assistant-duty-menu-publish.test.js`). **G7 left:** two guards both hold AC-3, and I10 and U40 carry the helper's teeth. | — |
+| Harness friction 1 | Same as N2. | Same as N2. |
+| Harness friction 2: the premise error had no rejection point before Gate B in the Bug lane | **Carried.** | The book audit §7, as a Light-trial friction. |
+
+### Round 2 findings
+
+- Blocking: none.
+- Non-blocking: none new.
+
+### Light trial (round 2)
+
+- **The profile's rules held.** The fix pass stayed inside the blast radius, logged its changes in § Deviations, and re-ran both gates with run ids.
+- **The only bent rule** remains the pre-Gate-B push, now explained (N2).
+
+### Story status
+
+The review commit must set the story's `Status:` line to `Done` as well. harness-lint L1 reads this file's final verdict, below, and requires that flip. Per the brief, I did not edit the story file.
+
+### Round 2 verdict
+
+**PASS**. B1 is fully answered: the false premise is corrected in the source comment, the tests and the record, and I8 and U38 now pin the real `ws://localhost:7777` case with teeth. Nothing else moved, and both gates are green.
