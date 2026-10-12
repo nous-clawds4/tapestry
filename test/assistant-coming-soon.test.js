@@ -142,7 +142,7 @@ test('C3: AC-2\'s table — every check done: the Treasure Map card alone, 1 and
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C4: an answer that says anything about one of the five changes nothing — done, pending, unfinished, shared or nonsense: never marked, never Done, never shared, never counted (AC-2; E1)', async () => {
+test('C4: an answer that says anything about one of the five changes nothing — done, pending, unfinished, shared or nonsense: never marked, never Done, never shared, never counted (AC-2; E4)', async () => {
   const mod = await actionsModule();
   const base = mod.assistantAttention(USER, answered(allCheckedDone(mod)));
   const claims = [

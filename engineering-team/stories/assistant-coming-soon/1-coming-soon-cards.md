@@ -169,7 +169,7 @@ None open. Settled at intake: which cards (Decision 1), not counted in either re
   - Tests: a new Node suite `test/assistant-coming-soon.test.js` (+ `test/registry.js`), a new browser spec
     `tests/brainstorm/assistant-coming-soon.spec.js`, the hub fixture(s), and the re-aims listed at Gate A.
 
-## Edge cases & not-covered *(J2)*
+## Edge cases & not-covered *(J2; approved at J2, 2026-10-12, first verdict)*
 
 - **E1 (not derivable from any AC):** the two "Coming soon" words can't drift. The hub's pill word is written out in
   `actions.js` (its one import), and it must stay equal to the background image panel's,
@@ -201,7 +201,7 @@ None open. Settled at intake: which cards (Decision 1), not counted in either re
   - *Other instances' builds.* Coming soon is a build-time list; it is the same for every viewer of one build, and a
     new build changes it.
 
-## AC→handle lines *(J2)*
+## AC→handle lines *(J2; approved at J2, 2026-10-12)*
 
 - AC-1 → Node C1, C2, D1, D2, D4; browser CS1, CS3, CS4, CS5, CS6; re-aimed assistant-management-page B1 (a pill on
   each of the five, their screen-reader prefix)
@@ -220,6 +220,9 @@ Suites: Node `test/assistant-coming-soon.test.js` (C, D classes), registered in 
 `tests/brainstorm/assistant-coming-soon.spec.js` (CS1–CS7). Cards and words: `test/helpers/comingSoonFixtures.js`. The
 hub fixture `test/helpers/assistantManagementFixtures.js` gains `COUNTED` (every card but the five), which the browser
 re-aims read in place of `ACTIONS` wherever they count; `ACTIONS` still lists every card.
+
+*(J2's non-blocking notes, 2026-10-12: Node C4's title named E1 and now names E4, as these lines map it. The browser
+fails-before counts were read, not re-run, by the judge; Gate B re-checks them.)*
 
 **How each re-aim moved.** Every one encodes "every action without a check is marked and counted", and each now leaves
 the five out, through `comingSoonFixtures.js` (fixed values, so each fails before the work). Nothing was weakened:
