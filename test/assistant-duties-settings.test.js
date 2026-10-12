@@ -474,7 +474,8 @@ test('A1: the route table opens the three routes to the owner\'s side only — G
 });
 
 test('A2: src/api/index.js registers GET and PUT /api/settings/assistant-duties and POST /api/settings/assistant-duties/reset, each behind requireOwner (which admits the Owner and Admins) (AC-1; ADR sub-decision 4)', () => {
-  const src = codeOnly(safeRead(API_INDEX));
+  // Raw source: codeOnly would read the "/*" inside the string '/api/settings/*' (the reset route) as a comment opener.
+  const src = safeRead(API_INDEX);
   const wrong = [];
   for (const [method, p] of [['get', AD.ROUTES.list], ['put', AD.ROUTES.list], ['post', AD.ROUTES.reset]]) {
     const re = new RegExp(`app\\.${method}\\(\\s*['"]${p.replace(/[/.*+?^${}()|[\]\\]/g, '\\$&')}['"]\\s*,\\s*requireOwner\\s*,`);

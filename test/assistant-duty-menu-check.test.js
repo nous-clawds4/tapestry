@@ -889,7 +889,9 @@ test('U24: out of date — a different relay, a row missing, a row more, a not-o
   const variants = [
     ['a different relay', offer.map((r) => (r.key === '30392' ? { ...r, relay: 'wss://elsewhere.example' } : r))],
     ['a row missing', offer.filter((r) => r.key !== '39999')],
-    ['a row more', [...offer, { tag: 'duty', key: '30382', relay: OWN }]],
+    // A key the offer lacks: since assistant-duties-settings #1 the six include 30382, so a second 30382 would only be a
+    // duplicate readers merge away (§ 5.3), not a row more.
+    ['a row more', [...offer, { tag: 'duty', key: '30383', relay: OWN }]],
     ['a not-offered row more', [...offer, { tag: 'not-offered', key: '30385' }]],
     // assistant-duties-settings #1 (ADR 0001 sub-decision 5): order counts.
     ['the same rows in another order', offer.slice().reverse()],
