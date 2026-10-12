@@ -13,9 +13,15 @@
  * It keeps its section, address, title and description; its page has the ADR's alert criteria and no planning notes
  * (read from test/helpers/dutyMenuFixtures.js), and it joins CHECKED right after Outbox Relays. Your Assistant's Treasure
  * Map stays a placeholder (PLACEHOLDER_KEYS), word for word.
+ *
+ * Re-aimed 2026-10-12 by assistant-self-map #1 (its story AC-5 and ADR 0001 sub-decision 9): the Treasure Map card is
+ * built too. It keeps its section, address, title and description; its page has the story's criteria line and no
+ * planning notes (read from test/helpers/selfMapFixtures.js), and it joins CHECKED right after the Duty Menu. No card of
+ * this book is a placeholder any more (PLACEHOLDER_KEYS is empty).
  */
 
 const DMF = require('./dutyMenuFixtures');
+const SMF = require('./selfMapFixtures');
 
 const HUB = '/assistant';
 
@@ -42,8 +48,12 @@ const CARDS = [
     title: "Your Assistant's Treasure Map",
     text: 'Your Assistant keeps its own Treasure Map (kind 10040), naming itself as its own Assistant, to show which duties it is publishing right now. If you move a duty to this Assistant and it is already publishing it, the switch takes effect right away instead of waiting for a first computation.',
     link: null,
-    alertCriteria: null,
-    planningNotes: 'Your Assistant will tell the world which duties it is actively managing by publishing its own Treasure Map, in which it acts as its own Assistant. The protocol is still being written; this page will be built once it is settled.',
+    // Re-aimed by assistant-self-map #1 (ADR 0001 sub-decision 9). The placeholder's words were: alertCriteria null;
+    // planningNotes 'Your Assistant will tell the world which duties it is actively managing by publishing its own
+    // Treasure Map, in which it acts as its own Assistant. The protocol is still being written; this page will be built
+    // once it is settled.'
+    alertCriteria: SMF.ALERT_CRITERIA,
+    planningNotes: SMF.PLANNING_NOTES,
   },
 ];
 
@@ -60,12 +70,16 @@ const ALL_KEYS = [
 
 /**
  * The actions with a real check (ADR 0001 sub-decision 3 left them unchanged; re-aimed by assistant-duty-menu #1, whose
- * ADR 0001 sub-decision 6 adds duty-menu right after outbox-relays).
+ * ADR 0001 sub-decision 6 adds duty-menu right after outbox-relays, and by assistant-self-map #1, whose ADR 0001
+ * sub-decision 9 adds treasure-map right after duty-menu).
  */
-const CHECKED = ['profile', 'identification-tags', 'outbox-relays', 'duty-menu', 'trusted-assertions', 'trusted-lists', 'dlists'];
+const CHECKED = ['profile', 'identification-tags', 'outbox-relays', 'duty-menu', 'treasure-map', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
-/** The book's cards that are still placeholders (assistant-duty-menu #1 AC-4: the Treasure Map card stays one). */
-const PLACEHOLDER_KEYS = ['treasure-map'];
+/**
+ * The book's cards that are still placeholders: none. assistant-duty-menu #1 built the Duty Menu's page and check, and
+ * assistant-self-map #1 the Treasure Map card's (its ADR 0001 sub-decision 9).
+ */
+const PLACEHOLDER_KEYS = [];
 
 /** The person's own Treasure Map page, which neither card links to (story § Out of scope). */
 const PERSON_TREASURE_MAP_PATH = '/treasure-map';

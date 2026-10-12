@@ -3,6 +3,7 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 const P = require('../../test/helpers/profileChecklistFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
+const SM = require('../../test/helpers/selfMapFixtures');
 
 /**
  * assistant-profile-checklist #1: the profile check and the hub's Done mark — the browser class.
@@ -72,7 +73,8 @@ async function mock(page, attention) {
   await page.route('**/api/auth/user-classification', (r) => r.fulfill(json({ success: true, ...CUSTOMER_USER })));
   await page.route('**/api/setup/status**', (r) => r.fulfill(json(SETUP_DONE)));
   await page.route('**/api/assistant/status**', (r) => r.fulfill(json(P.statusAnswer())));
-  await page.route('**/api/assistant/attention**', (r) => r.fulfill(json(DM.withDutyMenu(TC.withTrio({ ...attention, actions: { ...OTHERS_DONE, ...attention.actions } })))));
+  // Re-aimed by assistant-self-map #1: SM.withSelfMap adds the Treasure Map card's answer, pending by default, as the placeholder counted.
+  await page.route('**/api/assistant/attention**', (r) => r.fulfill(json(SM.withSelfMap(DM.withDutyMenu(TC.withTrio({ ...attention, actions: { ...OTHERS_DONE, ...attention.actions } }))))));
 }
 
 async function open(page, address, settleMs = 1500) {

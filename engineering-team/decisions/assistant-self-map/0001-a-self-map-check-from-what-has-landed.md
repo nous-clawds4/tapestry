@@ -520,3 +520,34 @@ large and partly unsettled (story 4), and no Map here uses it. **Deferred.**
    **Recommended: (a).** (b) misreads an hourly or weekly cron. *Owner: (a).*
 4. **The three new reasons and their copy** (§ Story deviations). Approve as written, or reword. *Owner: approved as
    written.*
+
+## Amendment 1: clarifications from Test Design (2026-10-12)
+
+**Status of A1:** proposed by the Architect at Test Design, for the owner's approval at the Test Design gate. Each item
+settles a detail this ADR left open and the test plan pins
+(`stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md` § Points the ADR leaves open). None
+changes a decision above.
+
+1. **`lastLandedAt`** is the newest event's `created_at`, in seconds, as NIP-01 dates it.
+2. **`readSelfEntries(event, author)`** returns `{ selfEntries: [{ key, relay }], otherEntries }`.
+3. **`compareKeys(a, b)`** is a sort comparator that puts the more specific key first: negative when `a` is more
+   specific. Sub-decision 2's "sorted by `compareKeys`, most specific first" is `keys.sort(compareKeys)`.
+4. **Which kinds get a line.** A duties item has a line only for the offered kinds where the viewer's key still wins
+   some insight in the viewer's Map. On staging the Owner's Map names both `39998` and `39999` for the TA, so the
+   `39998` item has no `39999` line: that kind belongs to the `39999` item.
+5. **Lines' relays.** An `offered` or `active` line carries the offer's relay for its kind. A `not-offered` or
+   `elsewhere` line carries `null`.
+6. **`SELF_MAP_CHECK_FAILED`** has all ten answer fields:
+   `{ finished: false, done: false, pending: false, reason: 'check-failed', mapFound: false, duties: [], shouldSay: [],
+   published: null, current: null, instanceMap: false }`.
+7. **The copy module's helpers.** `assistantTreasureMapCopy.js` exports `statusLine(answer)` and `reasonLine(line)` beside
+   the words, as `dutyMenuCopy.js` exports `statusLine`:
+   - `statusLine` gives no line for an unfinished, check-failed or missing answer. Otherwise it gives the up-to-date line
+     when `current`; the not-published line when nothing is claimed (`published` is null or has no self-entries); and
+     the out-of-date line otherwise.
+   - `reasonLine` gives a line's reason sentence, with `upkeep-stopped`'s date shown as the page's other dates are. An
+     active line has none.
+8. **The could-not-check lines.**
+   - `no-relay-answered` shows "No relay answered, so your Assistant's self-Map could not be checked."
+   - `instance-unanswered`, `check-failed` and a failed request show "Could not check: this instance did not answer."
+9. **The `not-offered` line's key** is the item's own key. The tests don't pin it.

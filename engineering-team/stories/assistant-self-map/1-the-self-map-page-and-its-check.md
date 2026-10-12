@@ -268,5 +268,5 @@ Architecture"), with seven ACs kept as one story.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md`
 - Review: (filled in after Review phase)

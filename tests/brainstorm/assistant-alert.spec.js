@@ -5,6 +5,7 @@ const { PROFILE_PENDING } = require('../../test/helpers/profileChecklistFixtures
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
+const SM = require('../../test/helpers/selfMapFixtures');
 // Every checked action pending — Identification Tags (assistant-identification-tags #1), the profile
 // (assistant-profile-checklist #1), Outbox Relays (assistant-outbox-relays #1), Scores, Lists and Concepts
 // (assistant-trusted-content-status #1), and the Duty Menu (assistant-duty-menu #1) — so every action is marked AND
@@ -13,7 +14,9 @@ const DM = require('../../test/helpers/dutyMenuFixtures');
 // Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted: the
 // counts here are every action the hub can count (X.COUNTED.length).
 const ATTENTION_BASE = O.attentionWith({ idtags: ID_TAGS_PENDING.actions[IDTAGS], outbox: O.OUTBOX.PENDING });
-const ATTENTION_PENDING = DM.withDutyMenu(TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } }));
+// Re-aimed by assistant-self-map #1: the Treasure Map card is checked now. SM.withSelfMap adds its answer, pending by default,
+// which marks and counts it as the placeholder was, so the counts below stay as they were.
+const ATTENTION_PENDING = SM.withSelfMap(DM.withDutyMenu(TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } })));
 
 /**
  * assistant-management #2: the Assistant Alert — the browser class.

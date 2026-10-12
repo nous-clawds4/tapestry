@@ -220,6 +220,14 @@ From the owner's ask and the facts above; the Architect decides.
   closed at `92eb023a`.
 - **`/treasure-map`'s cards** (`ui/src/pages/treasure-map/`) and `src/lib/treasureMapCategories.mjs`, for the badges
   and the self-entry reading.
+- **Recheck at Test Design (2026-10-12, `origin/staging` at `00341d7e`).**
+  - `protocols/` is unchanged since this book's intake read.
+  - Story 4 of `duty-menus-and-self-maps` drafted its ADR 0004 (proposed, revision 2). Its 1(a) agrees with ADR
+    `assistant-self-map/0001` sub-decision 4 word for word: a bare `39998` covers every Concept key, and `39999` beats
+    `39998`. So test U19 stands.
+  - One item to watch: ADR 0004 would have readers MUST ignore a Map entry keyed `39998:` or `39999:`, as if absent.
+    ADR 0001 shows such an entry as an `unchecked` line. No test pins that case. If 0004 is accepted, the Implementer
+    drops those entries from the duties, and the Reviewer checks it.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

@@ -40,9 +40,11 @@ const KEY = 'duty-menu';
 const PATH = '/assistant/duty-menu';
 const ALERT_CRITERIA = 'If your Assistant has not published a Duty Menu, or the one it published differs from what this instance offers for it now.';
 const PLANNING_NOTES = null;
-/** The action it follows in CHECKED_ACTIONS (ADR 0001 sub-decision 6), and the placeholder that stays one (AC-4). */
+/**
+ * The action it follows in CHECKED_ACTIONS (ADR 0001 sub-decision 6). Its STILL_PLACEHOLDER ('treasure-map', AC-4) was
+ * retired by assistant-self-map #1, which built that card's page and check; its suites read selfMapFixtures.KEY now.
+ */
 const CHECKED_AFTER = 'outbox-relays';
-const STILL_PLACEHOLDER = 'treasure-map';
 
 // ─── The offer (story AC-2 as amended; ADR 0001 R1 and K1) ──────────────────────────────────────────────────────────
 /** K1: the kinds actually built, by category, in the offer's order: Scores, Lists, Concepts. */
@@ -165,7 +167,7 @@ function withDutyMenu(answer, dutyMenu = ANSWERS.NONE) {
 module.exports = {
   NOUS_PUBKEY, DUTY_MENU_KIND, DUTY_MENU_D, DUTY_MENU_HEADER, menuFilter, RELAY_LIST_KIND, TREASURE_MAP_KIND,
   RELAY_BUDGET_MS, MAX_EVENT_RELAYS, NOUS_CACHE_MS,
-  KEY, PATH, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER, STILL_PLACEHOLDER,
+  KEY, PATH, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER,
   OFFER_KEYS, CATEGORY_NAMES, expectedOffer,
   PAGE, PAGE_SENTENCES, PUBLISH, PUBLISH_SENTENCES,
   OWN, OFFER, STALE_ROWS, action, ANSWERS, withDutyMenu,

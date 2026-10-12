@@ -29,6 +29,9 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const TC = require('./helpers/trustedContentFixtures');
 const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
+// Re-aimed by assistant-self-map #1 (ADR 0001 sub-decision 8): the self-Map check joins the answer; stubbed here, as the
+// Duty Menu's is, so this suite's reads stay its own. test/assistant-self-map-check.test.js drives the real one.
+const SELF_MAP_ANSWER = require('./helpers/selfMapFixtures').ANSWERS.DONE;
 
 const REPO = path.resolve(__dirname, '..');
 const CHECK_MODULE = path.join(REPO, 'src/api/assistant/trustedContent.js');
@@ -300,6 +303,7 @@ function attentionDeps({ trustedContent = 'default', local = [] } = {}) {
     mapDefaultRelays: () => [ONE],
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
     checkDutyMenu: async () => DUTY_MENU_ANSWER,
+    checkSelfMap: async () => SELF_MAP_ANSWER,
   };
   if (trustedContent === 'reject') deps.checkTrustedContent = async () => { throw new Error('fixture: the trusted-content check exploded'); };
   return deps;

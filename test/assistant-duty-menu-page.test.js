@@ -189,7 +189,7 @@ test('P8: the client helper publishAssistantDutyMenu() — one POST to /api/assi
 
 /* ───────────────────────── D — the page and its route, by source ───────────────────────── */
 
-test('D1: App.jsx serves /assistant/duty-menu with the page — DutyMenuPage imported from ./pages/assistant/DutyMenu and given to ACTION_PAGES under duty-menu; the Treasure Map card still has none (AC-5; ADR 0001 sub-decision 6)', () => {
+test('D1: App.jsx serves /assistant/duty-menu with the page — DutyMenuPage imported from ./pages/assistant/DutyMenu and given to ACTION_PAGES under duty-menu (AC-5; ADR 0001 sub-decision 6; the Treasure Map card\'s own page, since assistant-self-map #1, is pinned in test/assistant-self-map-page.test.js D1)', () => {
   const app = codeOnly(safeRead(APP));
   const wrong = [];
   if (!/import\s+DutyMenuPage\s+from\s+['"]\.\/pages\/assistant\/DutyMenu(?:\.jsx)?['"]/.test(app)) wrong.push("no `import DutyMenuPage from './pages/assistant/DutyMenu'`");
@@ -197,7 +197,6 @@ test('D1: App.jsx serves /assistant/duty-menu with the page — DutyMenuPage imp
   if (pages === undefined) wrong.push('App.jsx has no `const ACTION_PAGES = { … };`');
   else {
     if (!/['"]duty-menu['"]\s*:\s*<DutyMenuPage\s*\/>/.test(pages)) wrong.push("ACTION_PAGES has no 'duty-menu': <DutyMenuPage />");
-    if (/['"]?treasure-map['"]?\s*:/.test(pages)) wrong.push('the Treasure Map card stays a placeholder');
   }
   assert(wrong.length === 0, wrong.join('; '));
 });

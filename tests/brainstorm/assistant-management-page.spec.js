@@ -5,6 +5,7 @@ const { PROFILE_PENDING } = require('../../test/helpers/profileChecklistFixtures
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
+const SM = require('../../test/helpers/selfMapFixtures');
 const CS = require('../../test/helpers/comingSoonFixtures');
 // Every checked action pending — Identification Tags (assistant-identification-tags #1), the profile
 // (assistant-profile-checklist #1), Outbox Relays (assistant-outbox-relays #1), Scores, Lists and Concepts
@@ -14,7 +15,9 @@ const CS = require('../../test/helpers/comingSoonFixtures');
 // Re-aimed by assistant-coming-soon #1 (AC-1, AC-2): the five that say Coming soon are never marked or counted, so the
 // marks and counts here are every action the hub can count (X.COUNTED.length), and the five carry the Coming soon pill.
 const ATTENTION_BASE = O.attentionWith({ idtags: ID_TAGS_PENDING.actions[IDTAGS], outbox: O.OUTBOX.PENDING });
-const ATTENTION_PENDING = DM.withDutyMenu(TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } }));
+// Re-aimed by assistant-self-map #1: the Treasure Map card is checked now. SM.withSelfMap adds its answer, pending by default,
+// which marks and counts it as the placeholder was, so the counts below stay as they were.
+const ATTENTION_PENDING = SM.withSelfMap(DM.withDutyMenu(TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } })));
 
 /**
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
@@ -382,6 +385,8 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
       if (a.path === '/assistant/outbox-relays') test.skip(true, 'no longer a placeholder (assistant-outbox-relays #2)');
       // assistant-duty-menu #1 builds this action's page; tests/brainstorm/assistant-duty-menu.spec.js pins it.
       if (a.path === DM.PATH) test.skip(true, 'no longer a placeholder (assistant-duty-menu #1)');
+      // assistant-self-map #1 builds this action's page; tests/brainstorm/assistant-self-map.spec.js pins it.
+      if (a.path === SM.PATH) test.skip(true, 'no longer a placeholder (assistant-self-map #1)');
       await mock(page, { who: CUSTOMER_USER });
       const main = await open(page, a.path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), `${a.path} is a page`).toHaveCount(0);

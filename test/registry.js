@@ -300,6 +300,9 @@ const suites = [
   { file: 'assistant-duty-menu-check.test.js' },
   { file: 'assistant-duty-menu-page.test.js' },
   { file: 'assistant-duty-menu-publish.test.js' },
+  // assistant-self-map #1: the self-Map check and the Your Assistant's Treasure Map page (ADR assistant-self-map/0001).
+  { file: 'assistant-self-map-check.test.js' },
+  { file: 'assistant-self-map-page.test.js' },
   { file: 'my-assistants-page.test.js' },
   { file: 'my-assistants-actions.test.js' },
   { file: 'my-assistants-map.test.js' },

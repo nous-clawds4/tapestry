@@ -7,6 +7,7 @@ const TC = require('../../test/helpers/trustedContentFixtures');
 const DC = require('../../test/helpers/dutyCardsFixtures');
 const CS = require('../../test/helpers/comingSoonFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
+const SM = require('../../test/helpers/selfMapFixtures');
 
 /**
  * assistant-duty-menu #1: the hub's Duty Menu card and the Duty Menu page — the browser class.
@@ -80,13 +81,18 @@ function answerWith(dutyMenu) {
       [O.KEY]: O.OUTBOX.DONE,
       ...TC.trio((c) => TC.done(c)),
       [DM.KEY]: dutyMenu,
+      // Re-aimed by assistant-self-map #1: the Treasure Map card, pending (not published), marked and counted as the
+      // placeholder was.
+      [SM.KEY]: SM.ANSWERS.NOT_PUBLISHED,
     },
   };
 }
 /**
  * The placeholders once the Duty Menu is checked (Your Assistant's Treasure Map among them). Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted.
  */
-const PLACEHOLDERS = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k) && !CS.KEYS.includes(k)).length;
+// Re-aimed by assistant-self-map #1: no placeholder is left; the one card answerWith always counts is the Treasure Map
+// card, pending (SM.ANSWERS.NOT_PUBLISHED), so the counts below keep their numbers.
+const PLACEHOLDERS = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k) && !CS.KEYS.includes(k)).length + 1;
 
 /**
  * Mock every route. `attention` is an answer object, 'hang', 'error', or a queue of them (the last repeats); `publish`
