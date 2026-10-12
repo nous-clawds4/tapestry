@@ -1,8 +1,8 @@
 # Story 1: Coming soon — five hub cards that aren't built yet stop asking for attention
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-12
-**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A awaiting the owner; scoped gate (named at Gate A):
+**Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-10-12 by the owner ("approved, go ahead"); scoped gate (named at Gate A):
 `node -e "const ps=['./test/assistant-coming-soon.test.js','./test/assistant-alert.test.js','./test/assistant-attention.test.js','./test/assistant-duty-cards.test.js','./test/assistant-duty-menu-check.test.js','./test/assistant-duty-menu-page.test.js','./test/assistant-identification-tags-page.test.js','./test/assistant-management-page.test.js','./test/assistant-outbox-check.test.js','./test/assistant-outbox-relays-page.test.js','./test/assistant-profile-check.test.js','./test/assistant-shared-categories.test.js','./test/assistant-trusted-content.test.js','./test/my-assistants-page.test.js'];(async()=>{let f=0;for(const p of ps){const r=await require(p).run();console.log(p,'pass='+r.pass,'fail='+r.fail);f+=r.fail}console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})()"`
 — the new suite and every suite that loads the hub's actions or its one answer. No guard suite: nothing here signs,
 publishes or touches strfry.)*
@@ -90,7 +90,7 @@ None. The hub's actions are page data, not concept-graph nodes. No concept chang
 None open. Settled at intake: which cards (Decision 1), not counted in either reading (Decision 2), the page line
 (Decision 3).
 
-## Gate A *(Light profile — awaiting the owner)*
+## Gate A *(Light profile — approved by the owner 2026-10-12: "approved, go ahead")*
 
 - **Scope:** one subsystem, the hub's action list, its one answer, its card and its placeholder page. The four ACs
   above.
