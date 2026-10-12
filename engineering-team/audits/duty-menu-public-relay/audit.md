@@ -64,6 +64,10 @@
 ## 6. Carry-forward register
 
 - [ ] **The owner republishes the Duty Menu** on staging and production. Both read **out of date** until then.
+      *Staging done, 2026-10-12.* Menu `6b5a73ca…` (02:58:53Z) is valid by § 6.1 and is the same newest version on
+      staging's relay and dcosl. It offers `30382`, `30392`–`30394`, `39998` and `39999`, all at
+      `wss://staging.brainstorm.world/relay`, and that relay holds events of each kind signed by the Assistant.
+      Production is still to do.
 - [ ] **AC-4's gap for a domain with a port, an IDN or an IPv6 literal** (ledger
       `2026-10-12-derived-relay-literal-domain-match`). No deployment is affected.
 - [ ] **The Map vs menu relay for Scores** (ledger `2026-10-11-nip85-home-relay-without-copy`, unchanged by this book).
