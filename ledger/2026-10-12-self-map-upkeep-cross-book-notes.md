@@ -45,7 +45,9 @@ when each item is built or answered.
    Assistant (Assistant Designation: on duplicate entries for one (kind, d-tag), the first occurrence wins) is no
    stop for that list: dropping a bare `39998`, say, or re-giving the entry at another relay. A reorder that puts
    another assistant's entry for the list first ends curation as Revocation does, though Treasure Maps §§ 7 and 9
-   still give the Assistant a duty as an Alternate: the same question as a bare `39998` (below).
+   still give the Assistant a duty as an Alternate. Whether that duty asks it to curate is a separate question,
+   related to the bare `39998` one (below) but not confirmed by the owner, which the docs pass must answer on its
+   own (sub-decision 10; Treasure Maps § 13 question 13).
    - **A bare `39998` in the same Map.** If the Map drops a list's entry but keeps a bare `39998` naming the
      Assistant, then under Assistant Designation's current text, where only a per-DList entry empowers (the blanket
      entry names no list), curation of that list ends. Where the list is among the person's Supported Concepts

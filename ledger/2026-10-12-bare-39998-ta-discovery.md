@@ -35,7 +35,10 @@ owner confirmed that one more question rides with it, for that pass: does a bare
 a list that has no entry of its own in the Map? Treasure Maps § 10.1 gives it "the items filed under" the person's
 headers, and Spawning § 3.6, under principle 3's two gates, has it spawn the curated Concept of a list among the
 Supported Concepts. But Assistant Designation's blanket entry "names no individual list", and only a per-DList entry
-empowers an assistant to curate (§ Per-DList curation entries; ADR 0005, Consequences, cross-book item 4). An
-Alternate entry for a list is the same question: Treasure Maps §§ 7 and 9 give that Assistant a duty, which
-Assistant Designation, where the first occurrence wins, does not empower. Until the pass decides, a self-Map narrows
-to exact keys for such a list (row `2026-10-12-self-map-upkeep-cross-book-notes`, item 4). The row stays OPEN.
+empowers an assistant to curate (§ Per-DList curation entries; ADR 0005, Consequences, cross-book item 4). Until the
+pass decides, a self-Map narrows to exact keys for such a list (row `2026-10-12-self-map-upkeep-cross-book-notes`,
+item 4). The row also carries a separate, related question, which ADR 0005 adds and the owner has not confirmed:
+does an Alternate entry for a list ask that Assistant to curate it? Treasure Maps §§ 7 and 9 give an Alternate a
+duty, which Assistant Designation, where the first occurrence wins, does not empower (Treasure Maps § 13
+question 13). An answer to the bare-`39998` question does not answer this one, and the row closes only when the pass
+has answered each. The row stays OPEN.

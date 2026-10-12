@@ -535,6 +535,11 @@ into the deliverables. The ADR's quoted text went in as written, and none of the
   it again: run `20261012T222217Z-28889-b851`, PASS, exit 0, the same counts. Fix round 3 ran it on its final text:
   run `20261012T224116Z-29343-084a`, PASS, exit 0, the same counts. With no failure, no baseline comparison was
   needed. No commit, by the task.
+- **KB-C2.** Answered by ADR 0005's Clarifications after acceptance; both rows take its text as written. The
+  cross-book item 4 matches the ADR's word for word, and the bare-`39998` note is rewrapped from the change on.
+- **KB-RD-1.** Answered there too: § 11's How many colons? answer is sub-decision 8's clarified text, as written.
+- **KB-RD-2.** Answered there too: § 13 question 13 goes after question 12 on one line, as written, and the Sources
+  line's ADR 0005 clause now ends "and § 13 question 13, which it opens)".
 
 ## Linked artifacts
 
