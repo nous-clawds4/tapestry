@@ -253,6 +253,6 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

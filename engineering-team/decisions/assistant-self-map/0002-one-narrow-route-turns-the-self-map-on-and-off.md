@@ -1,6 +1,8 @@
 # ADR 0002: One narrow route turns the self-Map on and off, merging only the self-entries, with the choice in its own file
 
-**Status:** Proposed
+**Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
+its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
+follow-up)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
