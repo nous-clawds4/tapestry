@@ -1,6 +1,6 @@
 # ADR 0001: A self-Map check beside the others, with "live" read from what has landed at the Assistant's relay
 
-**Status:** Proposed
+**Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md`
 
