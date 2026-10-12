@@ -1,6 +1,6 @@
 # ADR 0001: A self-Map check beside the others, with "live" read from what has landed at the Assistant's relay
 
-**Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended)
+**Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended); Amendment 1 approved; Amendment 2 approved (review round 1)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md`
 
@@ -551,3 +551,100 @@ changes a decision above.
    - `no-relay-answered` shows "No relay answered, so your Assistant's self-Map could not be checked."
    - `instance-unanswered`, `check-failed` and a failed request show "Could not check: this instance did not answer."
 9. **The `not-offered` line's key** is the item's own key. The tests don't pin it.
+
+## Amendment 2: fixes from review round 1 (2026-10-12)
+
+**Status of A2:** approved by the owner at the Architecture gate of round 2, 2026-10-12, as written, with item 3 reading the running timer (not `schedule.json`). The owner chose at the review gate to fold in N1 and N5.
+
+**Source:** review round 1 (`reviews/assistant-self-map/1-the-self-map-page-and-its-check.md`). B1 and B2 are its
+blocking findings; N1–N5 are non-blocking. Items 1–3 change sub-decision 6, item 4 clarifies sub-decision 7, and items
+5–7 settle details the tests didn't pin. Each item names what it supersedes.
+
+1. **The queue flag is read as the instance reads it (B2).** Supersedes sub-decision 6's "when `TASK_QUEUE_ENABLED`
+   isn't `false`".
+   - BullMQ schedule entries count only when `getConfigFromFile('TASK_QUEUE_ENABLED', 'false') === 'true'`. That is
+     exactly how the instance decides whether to start its queue and scheduler: `bin/control-panel.js:333`,
+     `src/api/index.js:555`, `src/api/manage/commands/runTask.js:417`, `src/api/deploy-safety/index.js:100`.
+   - When the setting is absent, or set to `'True'` or `'1'`, no BullMQ entry counts, because none of them runs.
+   - The kill switch still applies on top of the flag.
+   - Neither the systemd timer nor the per-customer timer (item 3) depends on the flag.
+2. **A cron entry's interval is its shortest gap (N1).** Supersedes sub-decision 6's "the gap between its next two
+   fire times".
+   - The interval is the shortest gap between consecutive fire times among the entry's next 8 fires, counted from now
+   by `cron-parser`. That is 7 gaps.
+   - An expression `cron-parser` rejects gives no interval, so the entry doesn't count.
+   - **Why.** The old rule's interval changed with the time of day it was read. For `0 3 * * 1-5` read on a Thursday
+     morning it gave 72 h, so a 5-day-old landing read as live: more than is true.
+   - **Cost, accepted.** A weekday-only schedule now reads `upkeep-stopped` over each weekend, until Monday's run
+     lands. That errs toward claiming less, as the owner chose.
+3. **The per-customer scheduler counts for its customer (N5).** This adds a schedule source to sub-decision 6, and
+   corrects § Context, whose survey missed it.
+   - **What it is.** `src/api/customer-schedule/index.js` runs `processCustomer` for one customer on an in-process
+     timer. Its settings are `/var/lib/brainstorm/customers/<directory>/schedule.json`
+     (`{ enabled, intervalHours, intervalDays }`). Timers start at boot for active customers (`src/api/index.js:511`)
+     and whenever the owner saves a schedule. Each run goes through `/api/run-task`, with or without the queue flag.
+   - **Read the running timer, not the file.** The timer is what actually runs:
+     - it refuses intervals under 1 h;
+     - it starts at boot only for active customers;
+     - a trigger-only state has no timer.
+
+     The deploy-safety endpoint already reads this module's live state (`getInFlightCount`), so there is precedent.
+   - **The module gains:**
+     - `startCustomerTimer` stores `intervalMs` in its timer state;
+     - a new export, `getTimerIntervalMs(pubkey)`, gives that interval in ms for a customer's main pubkey while a timer
+       runs, and `null` otherwise.
+   - **The check gains** a dependency, `customerTimerIntervalMs(pubkey)`, lazily required as the others are.
+   - **When it counts.** For a customer C, not for the Owner, C's timer interval joins the matching BullMQ entries'
+     intervals, and the shortest wins. The systemd timer stays the fallback when neither gives one.
+   - **Why the systemd timer stays a fallback.** If a customer has both a per-customer timer and the bare-metal timer,
+     counting only the per-customer one claims no more than is true.
+4. **A claim on a part that isn't offered is a false claim (B1).** This clarifies sub-decision 7's `falseClaim`
+   rule for the `not-offered` line.
+   - The line's `falseClaim` is true when any found self-entry wins one of its duty probes. A part that isn't offered
+     is never live, so this is the rule's own reading. The code set it to false.
+   - The page already shows the false-claim sentence on any line that carries it, so the page doesn't change.
+5. **What `otherEntries` counts (N2).** This clarifies Amendment 1 item 2.
+   - It counts the event's entries that name another key: tags whose element 1 parses as a Treasure Maps key and whose
+     element 2 is a 64-hex key other than the author's, as `mapGroups` reads entries.
+   - A `p` tag, or a tag whose element 1 doesn't parse, is not an entry.
+6. **A kind outside the three families has no category (N3).** A line's `category` is null for any kind outside
+   Scores (30380–30389), Lists (30390–30399) and Concepts (39998, 39999), and the page shows no category for it.
+   `openapi.yaml` marks the field nullable.
+7. **No date, no upkeep-stopped sentence (N4).** `reasonLine` gives no line for `upkeep-stopped` without a
+   `lastLandedAt`. § Copy has no words for an unknown date, and the check always sends one.
+8. **Recorded drift, no change.** Sub-decision 7's signature line is superseded by what was built:
+   - `evaluateSelfMap` takes `{ mapEvent, offer, assistantPubkey, isOwner, scores, record, lookup }`;
+   - `checkSelfMap` maps an unfinished Map lookup to its reason before calling it.
+
+   The behaviour is what sub-decision 7 describes.
+9. **Follow-ups, not in this story** (each a ledger row):
+   - **N6** (`ledger/2026-10-12-stopped-timer-counts-as-upkeep.md`): a stopped systemd timer still counts while its
+     unit file exists.
+   - **N7** (`ledger/2026-10-12-live-unclaimed-when-unclaimable.md`): a line nothing can claim says "Live, but…", and
+     needs a copy decision.
+
+**Files for round 2:**
+- `src/api/assistant/selfMap.js`: items 1–3;
+- `src/api/customer-schedule/index.js`: item 3;
+- `src/lib/self-map/index.js`: items 4–6;
+- `ui/src/pages/assistant/assistantTreasureMapCopy.js`: item 7;
+- `src/api/openapi.yaml`: item 6's nullable `category`.
+
+BIBLE §11's row stays accurate.
+
+**For the Tester:**
+- **The queue flag:** absent, `'True'` and `'1'` count no BullMQ entry. With the flag absent, the systemd timer still
+  counts.
+- **The weekday cron:** read on a Thursday morning, it gives a 24 h interval.
+- **The per-customer timer:**
+  - it counts for its customer, with the queue flag off;
+  - it counts neither for the Owner nor for another customer;
+  - it joins BullMQ entries, and the shortest interval wins;
+  - with no timer running, nothing counts.
+- **Items 4–7:**
+  - the review's B1 scenario (staging's shape with a found `["3038x", TA, R]`): the `3038x` not-offered line has
+    `falseClaim: true`, and the page shows the sentence on it;
+  - `otherEntries` with a `p` tag and an unparseable key;
+  - a `30023` entry's line has a null category;
+  - `reasonLine` for `upkeep-stopped` without a date.
+- **A sentinel:** `customer-schedule` exports `getTimerIntervalMs`.
