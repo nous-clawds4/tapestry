@@ -4,7 +4,7 @@
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md`
 
-> **Note (2026-10-12):** Option B, a non-counting "coming soon" placeholder, was later adopted for five other cards (Bounties, Pins, Tags, Notifications and Alerts, and Preferences) by the owner's choice in assistant-coming-soon #1. It is a key list, `COMING_SOON_ACTIONS`, rather than a flag on each entry; see that story's Design note (`engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md`). This ADR's decision for its two cards stands: Your Assistant's Treasure Map is still marked and counted, and the Duty Menu is a checked action since assistant-duty-menu #1.
+> **Note (2026-10-12):** Option B, a non-counting "coming soon" placeholder, was later adopted for five other cards (Bounties, Pins, Tags, Notifications and Alerts, and Preferences) by the owner's choice in assistant-coming-soon #1. It is a key list, `COMING_SOON_ACTIONS`, rather than a flag on each entry; see that story's Design note (`engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md`). This ADR's decision for its two cards stands: Your Assistant's Treasure Map is still marked and counted, and the Duty Menu is a checked action since assistant-duty-menu #1.
 
 ## Context
 

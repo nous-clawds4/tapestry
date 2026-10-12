@@ -230,6 +230,8 @@ which neither section's body lists (review 3 non-blocking 6; §6 #6).
   § Consequences; §4 #3)
 - [ ] **12. The hub's remaining placeholders:** Bounties, Pins, Tags, Notifications and Alerts, Preferences.
   (`stories/_intake.md` 2026-09-21; assistant-management audit §6 #1–#2)
+  *2026-10-12: the five say Coming soon and no longer count (book `assistant-coming-soon`); building them is still
+  open.*
 
 ## 7. Process findings (harness)
 

@@ -76,3 +76,8 @@ would have avoided both.
   GitHub auto-deleted the branch on merge.
 - **Fix shape it suggests.** Promotion PRs from a pinned `promote/<date>` branch by default, not from moving
   `staging`, so the bundle a person approves is the bundle that merges.
+
+**This book's side, 2026-10-12 (`assistant-coming-soon` #1; book-close retro §7 #7).** Its failing Phase-3 tests
+were on `staging` for about 14 minutes: `af217d0` (deploy run 656, 02:08 UTC) until `72c4b7b` (run 657, 02:21). The
+stop hook also had the implementation pushed before J3's verdict; J3 then approved it on its first verdict. Nothing of
+this book reached production.

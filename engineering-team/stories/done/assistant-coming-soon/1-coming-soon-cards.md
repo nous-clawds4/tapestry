@@ -301,7 +301,7 @@ at `3d0b6d4`, EXIT=0, 386 passed, and the fails-before on `88fa4da`)*
 ## Gate B *(the owner's verdict, 2026-10-12: "pass with the records note")*
 
 The Reviewer's verdict was **PASS** with nothing blocking
-(`engineering-team/reviews/assistant-coming-soon/1-coming-soon-cards.md`). It re-ran every gate on its own build:
+(`engineering-team/reviews/done/assistant-coming-soon/1-coming-soon-cards.md`). It re-ran every gate on its own build:
 - the scoped gate: `EXIT=0`, 386 passed;
 - the browser specs: 103 passed, 0 failed, 4 skipped;
 - both fail-before halves on `88fa4da`: 17 Node failures and 32 browser failures, exactly as recorded;
@@ -331,6 +331,6 @@ owner was shown both rings side by side and did not ask for it. AC-1 is met as w
 - ADR: — (Light: the Design note above; no irreversibility trigger)
 - Test plan: this file's *Edge cases & not-covered* and *AC→handle lines*; suites `test/assistant-coming-soon.test.js`,
   `tests/brainstorm/assistant-coming-soon.spec.js`
-- Review: `engineering-team/reviews/assistant-coming-soon/1-coming-soon-cards.md` (PASS; the owner's Gate B verdict
+- Review: `engineering-team/reviews/done/assistant-coming-soon/1-coming-soon-cards.md` (PASS; the owner's Gate B verdict
   2026-10-12)
 - Book: `engineering-team/audits/assistant-coming-soon/book.md`

@@ -114,6 +114,7 @@ Derived from what PR #832 brought into `staging` (`git diff 17243cdf^1 17243cdf`
 - [ ] **7. One vocabulary on the page.** The FAQ and the three descriptions still say Trusted Assertions, Trusted Lists and Decentralized Lists. (§4 #6)
 - [ ] **8. Whether the Assistant actually publishes** Scores, Lists and Concepts events. The check reads only where the Map points. (story § Out of scope)
 - [ ] **9. The remaining placeholders:** Bounties, Pins, Tags, Notifications and Alerts, Preferences. (`assistant-management` audit §6 #1, annotated at this close)
+  *2026-10-12: the five say Coming soon and no longer count (book `assistant-coming-soon`); building them is still open.*
 - [ ] **10. The review's small follow-ups.** (ledger `2026-10-09-trusted-content-review-followups`)
 
 ## 7. Process findings (harness)

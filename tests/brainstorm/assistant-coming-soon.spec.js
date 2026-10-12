@@ -9,7 +9,7 @@ const DM = require('../../test/helpers/dutyMenuFixtures');
 /**
  * assistant-coming-soon #1 — Coming soon: what a viewer SEES on the hub and on the five pages.
  *
- * Story (Design note, Edge cases, AC→handle lines): engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md
+ * Story (Design note, Edge cases, AC→handle lines): engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md
  * Node half: test/assistant-coming-soon.test.js. Cards and words: test/helpers/comingSoonFixtures.js.
  *
  *   CS1 — every check done: the five say Coming soon, unmarked and not Done; Your Assistant's Treasure Map is marked;

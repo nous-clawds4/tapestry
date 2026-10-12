@@ -3,7 +3,7 @@
  * assistant-coming-soon #1: Coming soon — five hub cards that aren't built yet stop asking for attention.
  *
  * Story (with its Design note, Edge cases and AC→handle lines; Light profile, no ADR):
- *   engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md
+ *   engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md
  * Browser half: tests/brainstorm/assistant-coming-soon.spec.js.
  * Expected cards and words: test/helpers/comingSoonFixtures.js (CS).
  * The suites this story re-aims (every action without a check counted, now less the five): assistant-attention C3, R2;

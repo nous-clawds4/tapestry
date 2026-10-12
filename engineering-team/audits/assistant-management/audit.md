@@ -187,6 +187,9 @@ Reconciled against the diff.
       eleventh action) and Scores, Lists and Concepts (book `assistant-trusted-content-status`, which also renamed those
       three) have real answers too. Five placeholders remain: Bounties, Pins, Tags, Notifications and Alerts,
       Preferences.*
+      *2026-10-12: those five now say Coming soon and are never marked or counted (book `assistant-coming-soon`,
+      `COMING_SOON_ACTIONS`). Your Assistant's Treasure Map (book `assistant-duty-cards`) is the one counted
+      placeholder. Real answers for the five still wait on the actions being built.*
 - [ ] **2. The ten action pages,** each with its own action cards, starting with the profile checklist that points to
       the editor for what is wrong. (intake item 2)
       *2026-09-22: one of the ten, `/assistant/identification-tags`, is built (the same book); nine remain.*
@@ -194,8 +197,11 @@ Reconciled against the diff.
       (book `assistant-profile-checklist`), and `/assistant/outbox-relays` as an eleventh action (book
       `assistant-outbox-relays`).*
 - [ ] **3. The assistant's DMs,** the FAQ's "Coming soon". (intake item 3)
-- [ ] **4. Whether the pill should reach production while every action counts.** Held by the owner at this close.
+- [x] **4. Whether the pill should reach production while every action counts.** Held by the owner at this close.
       (story 2 § Out of scope; §4 #13)
+      *Ticked 2026-10-12 at book `assistant-coming-soon`'s close: the pill is on production (its bundle
+      `index-XPqw1cb6.js` carries "Manage your Tapestry Assistant"), seven actions have real checks, and the five
+      unbuilt ones no longer count (on staging, with that book).*
 - [ ] **5. Two product questions from intake.** Whether the pill stays persistent once its count is real, and how the
       hub groups its actions past ten ("8 or 9 (and growing)"). (intake "Product questions")
       *2026-10-09 (book `assistant-outbox-relays`): the hub now has eleven actions; Outbox Relays is the third persona

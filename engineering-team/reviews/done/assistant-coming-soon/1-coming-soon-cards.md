@@ -8,7 +8,7 @@ post-plan fixes in `f1e0bbc` (three browser specs, test-only). Its planning and 
 - Reviewed at HEAD `f92c462`. During the review `origin/staging` moved to `fe163bc`: three commits from other books
   (`efbf8ed`, `3894738`, `fe163bc`). They change only documents and the ledger, and none of this story's files. They
   are not under review here.
-**Story:** `engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md` (no ADR: Design note)
+**Story:** `engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md` (no ADR: Design note)
 
 ## Quality gates (run by reviewer, not trusted)
 
@@ -191,7 +191,7 @@ None.
    `2026-10-08-realtime-wrapper-timing-flake-under-load` (0.76 s against the 0.8 s floor). Alone the suite passed
    24/0 three times out of three, and the second full run passed.
 5. **New pointers that will go stale.** The new header pointers in `actions.js:27` and `test/helpers/comingSoonFixtures.js`
-   name `stories/assistant-coming-soon/…`, which moves under `done/` at epic close-out. Four neighbouring pointers in
+   name `stories/done/assistant-coming-soon/…`, which moves under `done/` at epic close-out. Four neighbouring pointers in
    the same `actions.js` header already miss. This is ledger `2026-09-20-done-move-breaks-inbound-refs` (OPEN).
 
 ## Verdict

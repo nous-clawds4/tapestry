@@ -5,7 +5,7 @@
  * and the hub fixture (test/helpers/assistantManagementFixtures.js, whose COUNTED leaves them out), so every hub suite and
  * spec agrees on them.
  *
- * Source of truth: engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md § Copy and AC-1–AC-3 (approved
+ * Source of truth: engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md § Copy and AC-1–AC-3 (approved
  * at Gate A, 2026-10-12). Keys follow ADR assistant-duty-cards/0001 sub-decision 2 (each key is its path's last
  * segment). Change a word there first, then here.
  */

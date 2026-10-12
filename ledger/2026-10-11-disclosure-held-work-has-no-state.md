@@ -39,5 +39,11 @@ Nearby rows: `2026-10-10-review-files-committed-unscreened` (screening before co
 
 Ports to both flows: a Director holds disclosure-sensitive work the same way.
 
+**Recurred 2026-10-12, from a different cause (`assistant-coming-soon` #1, Gate B; book-close retro §7 #8).** The
+Reviewer's PASS file could not be committed before the owner's Gate B verdict: `harness-lint` L1 requires a PASS-final
+review's story to read Done. Meanwhile the stop hook asked for the untracked file to be committed. The session held the
+draft outside the repo (a copy in its scratchpad) and committed it with the verdict. The gap is the same: the harness
+has no named state for work that must wait, so each refusal of the hook is a judgment call.
+
 **Pointer:** `engineering-team/audits/admin-action-owner-check/audit.md` §7 #1 and §4 #7; book `admin-action-owner-check`
 ground rule 1.

@@ -24,7 +24,7 @@
  * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy (the Duty Menu's
  * alert criteria since engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md, ADR
  * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page), and
- * engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md § Copy (the Coming soon words, since five of the
+ * engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md § Copy (the Coming soon words, since five of the
  * placeholders say Coming soon and are never marked or counted: COMING_SOON_ACTIONS).
  */
 
