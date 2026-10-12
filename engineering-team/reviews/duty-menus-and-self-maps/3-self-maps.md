@@ -521,3 +521,331 @@ Asks, in order:
     `2026-10-12-duty-menu-code-cross-book-notes` (NB17);
   - a dated recurrence note appended to `2026-10-11-implementer-edited-accepted-adr`.
 - Committed after the independent check (Method), with the story's review link and the ledger rows.
+
+## Round 2 (2026-10-12)
+
+**Reviewer:** Claude (acting as Reviewer)
+**Diff:** `git diff b25f89ac 11cc0008 -- protocols/ engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md ledger/`.
+- Round 1's review commit `18d0cb9f` is not an ancestor of HEAD. Its rebased copy `b25f89ac` is (same subject, same
+  timestamp), and `git diff --stat 18d0cb9f b25f89ac` over the drafts, the story, ADR 0003, this review and round 1's
+  ledger rows is empty. So the round-2 diff is the same from either base, and A2's "as of `b25f89ac`" line numbers
+  apply.
+- Round 2's commits:
+  - `38947382` (`adr:`): A2, approved in substance, plus a note in a meta row;
+  - `fe163bc0` (`impl:`): the drafts, the story's § Deviations, the fold-forwards row;
+  - `11cc0008` (`adr:`): A2's wording approved.
+- In `ledger/`, the range also changes five rows of book `duty-menu-public-relay` (`efbf8ed0`). They are out of scope.
+
+**Owner input since round 1** (2026-10-12):
+- chose option (c) for B1 (the provider's self-Map decides) and approved A2 in substance (ADR 0003:2187–2188);
+- approved A2's wording, revision 1, "with the search going on past an unclaimed retraction, the cost for a provider
+  that keeps no self-Map, the send-to-each-relay rule, and without the extra reader rule" (ADR 0003:2190–2193);
+- named B2's provisional AC3 departure (story :524; ADR 0003 A2-4);
+- folded NB1, NB6, NB7, NB11 and NB14 into this round (ADR 0003:2431–2432).
+
+**Method:**
+- I read A2 in full (ADR 0003:2185–2607), the story's ACs and § Deviations, Treasure Maps §§ 1–3 and 7–9.2, and Duty
+  Menus §§ 2, 6.2 step 5, 9 and 14, all at HEAD.
+- **My own scripts**, under `scratchpad/rv-s3r2/reviewer/`:
+  - `quotes.py` checks every A2 "becomes"/insert text. Each appears verbatim and once in `treasure-maps.md` at HEAD,
+    and none at `b25f89ac`. The three superseded strings are gone.
+  - § 7's three sentences sit between the acceptance sentence and "A reader that does not follow § 3".
+  - The file has 670 lines before and after. The changed lines are exactly :5, :80, :84, :95, :304, :329, :361, :393,
+    :403, :415 and :416: A2's ten, plus NB7's :329.
+  - `links.py` checks links (see Quality gates).
+- **The model scripts.** I re-ran `s3r2/a2.py 4000`, `s3r2/a2_nb4.py 3000` and `s3r2/r1/a2r1.py` with `python3 -I`,
+  each from its own folder, into `scratchpad/rv-s3r2/reviewer/runs/`. All exit 0, and each output is byte-identical to
+  its saved `.out`.
+- I fetched NIP-01, 65 and 85 (raw `nostr-protocol/nips` master) through the proxy.
+- I worked B1's cases and B2's case by hand from the spec text (below) before comparing them with the model's table.
+- **Auditors.** Four lenses (b1, conformance, coherence, sources) reported no blocking finding and nine non-blocking
+  ones. I checked each against the sources, and all nine hold. They merge into NB19–NB24 below and Harness friction 1:
+  - R2-B1-NB1 → NB19;
+  - coherence NB-2 → NB20;
+  - NB-C1, coherence NB-1 and S-NB1's record part → NB21;
+  - NB-C3 and S-NB1's marker part → NB22;
+  - NB-C4 → NB23;
+  - NB-C5 → NB24;
+  - NB-C2 → Harness friction 1.
+- **Independent check.** After I drafted this round, an independent checker re-derived it: the two gate lines
+  against `gate:status`, harness-lint and the verdict parser, the base commit, `quotes.py` and `links.py`, the three
+  model scripts, the NIP fetches, and the rows of the tables and findings. It found no blocking issue and two
+  non-blocking slips in this text. I verified both before correcting them in place:
+  - CHK-1. The sentence after B1's table, and the verdict, said that only the Residual changes with age. My re-run of
+    `s3r2/r1/a2r1.py` (into `scratchpad/rv-s3r2/final/`, byte-identical to the saved output) shows N and Z2 in (b)
+    changing answer with age when O's entry hint is Rw, with no failed send, as A2 says. Both passages now say so.
+  - CHK-2. The NB4 and A2-2 rows cited DM:235 (No menu found). The NB4 case is DM:203 and :228, and the nested-row
+    values come from DM:202. Both rows are corrected.
+
+  Neither changes a finding or the verdict.
+
+### Quality gates (round 2)
+
+- [x] `npm test` on a clean tree at `11cc0008`, two runs:
+  - **First run.** `GATE_LABEL=duty-menus-3-review-r2 npm test`. `npm run -s gate:status -- --label duty-menus-3-review-r2` reports:
+    `20261012T031805Z-5307-95e8 [duty-menus-3-review-r2] started 2026-10-12T03:18:05.807Z on 11cc0008 — FAIL, exit 1, 5743 passed, 1 failed, 591 skipped, 304/304 suites; failed: tagging-edges-realtime-wrapper`
+    - The one failure is RW7, "node exits 1": the first restart came 0.77 s after the first start, against a 0.8 s
+      floor (starts `[0, 0.77, 2.81]` s). My model re-runs were running on the same machine at the time.
+    - This is the known load flake, row `2026-10-08-realtime-wrapper-timing-flake-under-load`, with the same check
+      and the same 0.77 s as in its 2026-10-10 and 2026-10-12 notes.
+    - Run alone (`node test/tagging-edges-realtime-wrapper.test.js`), the suite gives 24 passed, 0 failed.
+  - **Quiet rerun**, with nothing else running. `GATE_LABEL=duty-menus-3-review-r2-rerun npm test`. `npm run -s gate:status -- --label duty-menus-3-review-r2-rerun` reports:
+    `20261012T032424Z-11118-3178 [duty-menus-3-review-r2-rerun] started 2026-10-12T03:24:24.308Z on 11cc0008 — PASS, exit 0, 5744 passed, 0 failed, 591 skipped, 304/304 suites`
+  - The diff touches no code and no test, so the green run means no regression. I added a dated note to the flake's
+    row.
+- [x] `npm run test:playwright`: not applicable (no UI).
+- [x] `bash scripts/harness-lint.sh | tail -1`: `harness-lint: clean (0 violations)`. I ran it before writing anything
+  and again with this section, the status change and the ledger edits in place.
+- [x] **Links.** 51 relative links in the two drafts, the story and the fold-forwards row resolve, with their anchors,
+  and 0 fail. This includes § 7's new `trusted-lists.md#common-wire-shape` (trusted-lists.md:52, "## Common wire
+  shape").
+- [x] **Vocabulary.** The added lines of the scoped diff contain no "canonical", "consensus" or "root".
+- [x] **Citations in spec bodies.** In added spec lines outside the `>` metadata block, a grep finds no ADR, story,
+  `A1-`/`A2-`, `engineering-team`, ledger or `brainstorm.world`. ADR 0003's amendments are named only in the metadata
+  Sources line (TM:5).
+- [x] **External sources:**
+  - `85.md:39`: "a key per user when the algorithm is personalized to that user's point of view or settings" (NB7's
+    wording);
+  - `85.md:109`: the same phrase, and `.content`;
+  - `85.md:13`: an assertion's `d` is its subject;
+  - `01.md:101`: the lowest id on a tie;
+  - `65.md:27`: write relays.
+- [x] **Scope.** `git diff --stat b25f89ac 11cc0008 -- protocols/` shows only `treasure-maps.md` (11 lines for 11)
+  and `duty-menus.md` (1 for 1). `assistant-designation.md`, ADR 0002, BIBLE and `protocols/README.md` are untouched.
+
+### B1 and B2 re-derived
+
+**B1.** I used:
+- the text: § 7 (TM:304); § 3's trigger (:84) and "does not end the search" (:90); § 9.2 Meaning (:351), What a reader
+  can tell (:355), the MUST to remove or narrow before a stop (:386), the move (:388), Lists (:393), Finding a self-Map
+  (:399–401), Maintained (:405), and the allowance's cases (:413–416);
+- the setup: O's Map is `["3039x:tag", A, R]`, `["3039x:tag", B, S]`, the List is `30392:tag::⟨T⟩`, and the reader's
+  limit is 300;
+- A2's five readers. F follows § 3, finds self-Maps, and holds O's supported sets and Map. N finds self-Maps and holds
+  neither. X follows § 3 without self-Maps. Z1 and Z2 stop at the entry's relay, Z1 without self-Maps and Z2 with them.
+
+| Case | Spec path, by hand | F | N | X | Z1 | Z2 | = A2-1 |
+|---|---|---|---|---|---|---|---|
+| (a) Round 1's case: A's service ends | A removes its self-entry before the stop (:386) and retracts at R and Rw (:393). No self-entry of A wins the List, so the marker is "no copy" (:304, "Otherwise"). A reader without self-Maps reads it the same way ("as where the reader finds no self-Map"). § 3 runs on its new cause (:84), finds only retractions or nothing, and A's insight "is not found" (:90). § 7 moves to B. A reader that stops at the entry's relay moves on after it. | B | B | B | B | B | ✓ |
+| (a'') The same, but the reader holds A's self-Map from before the removal | The self-entry still claims the List, so the marker is A's empty List, maintained at R (:405). § 9.2's first case covers this: "so does a removal a reader never sees" (:413). | A empty | | | | | ✓ (`a2.out` Part 2) |
+| (b) O unpins T | F knows that neither self-entry speaks for T's list, so neither retraction is a copy. N and Z2 take the self-entry to speak for what it wins (:355), so A's retraction is a List with no members, maintained at R. The third case says so (:415). X and Z1 read no copy. | not found | A empty | not found | not found | A empty | ✓ |
+| (c) The fourth case: O gives `30396:tag:⟨D1⟩:⟨T2⟩` to B. Cells read: through O's Map / through P's Map / as a point of view; nf = not found | Through O's Map, B's exact key wins. Through P's Map `[A R]`, `[C U]`, a reader with O's Map reads no copy and gets C, and a reader without it gets A's empty List (:416). A's self-Map as a point of view gives not found, or A's empty List. | B / C / nf | B / A empty / A empty | B / C / nf | B / C / nf | B / A empty / A empty | ✓ |
+| (d) A moves the List from R to R1 | No marker is read. "It does not retract what it moved" (:388). As before A2. | A at R1 | A at R1 | B | B | B | ✓ |
+| (e) A maintains the List with no members and publishes the marker | The self-entry claims it, so it is A's empty List, maintained. A reader without self-Maps reads no copy and gets B. This is the owner-approved cost (ADR 0003:2441–2444; NB19 asks whether publishers mark such a List). | A empty | A empty | B | B | A empty | ✓ |
+| (e') As (e), but A keeps no self-Map | No copy for every reader. | B | B | B | B | B | ✓ |
+
+With O's entry hint at R, as in this table, every reader gets one answer in every state, at every retraction age, and
+only the failed-send leftover (the Residual, which the owner approved) depends on age. With the hint at A's write relay
+Rw, readers N and Z2 in (b) show an empty List at every age, but whose List changes with age: A's at Rw while that
+retraction is no older than they accept, then A's at R (N) or B's (Z2). That follows from § 9.2's third case (:415)
+with § 7's acceptance rule (:304) and Maintained (:405), and A2 says so (ADR 0003:2327–2332, :2467–2471, :2580–2582;
+`s3r2/r1/a2r1.out`, which I re-ran). Each event still has one reading. The model's Part 1 table matches A2-1's cell for
+cell, and so does mine above.
+
+**Alternative readings, tried and ruled out:**
+- *"Still claims" means a self-Map version newer than the retraction.* No text orders the two by time. § 3's Read-time
+  only (:93) takes the current self-Map, and the new clauses in the third and fourth cases describe a self-Map that
+  never changed.
+- *"Wins" is judged over A's whole Map.* Meaning (:351) says "found by § 6 among A's self-entries alone".
+- *An unclaimed retraction ends the search for that provider.* :90 says "does not end the search", and :84 lists it as
+  a reason to run § 3.
+
+**Round 1's asks for B1:**
+- an amendment at the owner's gate: A2, approved in substance and then in wording (ADR 0003:2187–2193) ✓;
+- one rule, in § 7 or § 3: § 7 holds it (:304), and § 3 (:84) and § 9.2 (:393, :415, :416) point at it ✓;
+- whether the marker is a copy the reader accepts from that provider: "a copy only where the provider's self-Map still
+  claims the List", and "Otherwise … it is no copy" ✓;
+- what the marker means in Treasure Maps, beside Trusted Lists' use:
+  - "It is then the List with no members, as Trusted Lists has it for 'a list that no longer has members'". The quote
+    is verbatim from trusted-lists.md:71–72.
+  - For the unclaimed case, the spec says only what the reader does, by A2's revision 1. That is enough for one
+    reading. ✓
+- S4: the Lists bullet cites Trusted Lists for the wire shape and points to § 7 for the reading ✓;
+- cases (a)–(d), re-derived above ✓.
+
+**B1 is closed.**
+
+**B2.** The PO's line (story :511–524):
+- names the departure and cites "ADR 0003 A2-4" and Treasure Maps § 9.2 Ties;
+- gives round 1's case, and a second shape: `*` beside `39998` and `39999`;
+- says the departure is provisional until story 4 orders the Concept kinds;
+- records that the owner confirmed it by name on 2026-10-12.
+
+Re-derived:
+- The bare `39998` covers every Concept header (TM:182), and Ties (:357) leaves `39998` and `39999` unordered. So for a
+  header declared under `39999`, no single self-entry wins, and Confirmed duties (:403) confirms nothing, though AC3's
+  "the same key" would.
+- A `*` self-entry loses to both, so it does not win either.
+- `rv-s3/rederive/probe/p1_tie_ac3.out` and `s3r2/po_b2_cases.out` print the same.
+- The record's heading (:500) now names A1 and A2.
+
+**B2 is closed.**
+
+**The ACs after round 2:**
+- AC1, AC5, AC6, AC7 and AC8 are unchanged from round 1. Round 2 edits none of their lines except NB6 (TM:80), which
+  AC3's sentence covers.
+- AC2: "the existing retraction convention" stands. A2-1 says where the retraction is sent, not what it is.
+- AC3: met as the PO's record reads it, with two named departures (ADR 0003 A1-4, and A2-4, provisional).
+- AC4: an unclaimed retraction is one more cause for the fallback, which fits "whatever the cause".
+
+### A2 conformance
+
+| Item | Where | Evidence | OK |
+|---|---|---|---|
+| A2-1, § 7's three sentences | TM:304 | Verbatim, once, in A2's position | ✓ |
+| A2-1, § 3's cause | TM:84 | Verbatim | ✓ |
+| A2-1, Lists: the send clause and the pointer | TM:393 | Verbatim | ✓ |
+| A2-1, the third and fourth cases | TM:415, :416 | Verbatim. "unless it is a List the key retracted" occurs 0 times | ✓ |
+| A2-2, Its relay's parenthesis | TM:361 | Verbatim, and the old "(Duty Menus § 6.2 step 5), and a key to which" is gone. In the nested-row example (:367), `3039x:tag` → R1 and `30396:tag` → R0 are what step 5 would give those keys from A's menu (DM:200, :202, :232) | ✓ |
+| A2-3 | ADR 0003:1510–1511 | The marker on AC4's checks says "No self-Map" | ✓ |
+| A2-4 | ADR 0003:1175; story :511–524 | The marker is on the departures bullet, and the PO's line cites "ADR 0003 A2-4" | ✓ |
+| A2-5 | TM:80, :95, :403 | NB6, NB11 and NB1 are verbatim. Meaning's and Confirmed duties' blank-relay phrases are unchanged, as "Recorded, with no edit" says | ✓ |
+| Metadata Sources | TM:5 | Verbatim | ✓ |
+| Markers | ADR 0003:211, :292, :473, :479, :530, :581, :610, :623, :647, :679, :1175, :1192, :1464, :1482, :1510, :1718, :2058 | Every passage A2 says it qualifies has an "(Amended by A2-n …)" marker. The only other change outside A2 is the Status line (:3) | ✓ (NB22) |
+| The Implementer's block | story :591–631 | Labelled by role. It names A2-1, A2-2 and A2-5 with their lines, NB7 with the three citations checked, and NB14 | ✓ (NB21) |
+| The ledger note | fold-forwards row | Folded: 1, 4, 6, 7, 11, 14 and 16. Staying: 3, 5, 8–10, 12, 13 and 15. The row stays OPEN | ✓ |
+| Not edited | ADR 0002, `assistant-designation.md` | Untouched | ✓ |
+| Verification for A2's figures | my runs | See below | ✓ |
+
+The Verification for A2 figures, from my runs:
+- `a2.py` Part 1 matches A2-1's table.
+- Part 2: (a') under C gives A's last version at age 60 and B's List at 5000. (a'') gives A's empty List.
+- Part 3, under C: no answer changes with age for any reader, and F differs from the truth in 178 Maps.
+- Part 3, under R1 (age-dependent answers): F 1,717, N 1,096, X 2,366, Z1 1,335 and Z2 636. F differs in 1,717 Maps
+  (1,562 + 155).
+- Part 3, under R2: no answer changes with age, and F differs in 949 Maps (771 + 178).
+- `a2_nb4.py`: 1,138 self-entries; 401 keyed as an observer key for A; 737 not (722 + 15); 0 mismatches.
+- `a2r1.py`: byte-identical to the saved output, which A2's revision-1 paragraph describes, N and Z2's
+  age-dependent answers in (b) with the hint at Rw included.
+
+### Folded NBs
+
+Each fold was re-derived as a fresh claim, including the wording that came from round 1.
+
+| NB | Where | Re-derived | OK |
+|---|---|---|---|
+| NB1 | TM:403, "such a self-entry"; story :583–584 | "Such" can only point at the first sentence's self-entry: element 3 not empty, and taken to speak for the duty. The sentence no longer confirms for a blank-relay self-entry, which agrees with Its relay's "confirms no duty" (:361). Fix 7's bullet carries the correction | ✓ |
+| NB4 | TM:361 (A2-2) | Step 5 writes only keys the observer chooses (DM:200), and gives a key the menu does not offer an entry only "if the observer keeps K for A" (DM:203; the insisted key, :228). The gloss supplies both conditions. "From A's menu" rules out the self-entry route, as No guess words it (DM:232). `a2_nb4`: 0 of 1,138 differ | ✓ |
+| NB6 | TM:80 | § 9 gives the two exceptions (:330–331). Principle 2 (:47) and § 7 (:306) already say "except as § 9 says" | ✓ |
+| NB7 | TM:329 | Matches 85.md:39. The pointer reuses :353's phrase, and DM § 14 Q3 is "Non-personalized providers" (DM:372). The three specs that cite the bullet (spawning.md:164, trust-determination-methods.md:158, DM:45) still read true for a personalized key, as A2-5's owner-approved wording argues | ✓ |
+| NB11 | TM:95 | Now covers step 3's write relays, and takes step 2's storefront exclusion (:94) with it | ✓ |
+| NB14 | DM:284 | Counting Maps is § 9.2's paragraph (TM:425). Applied to a count of storefront-linked keys, it leaves out self-entries | ✓ |
+| NB16 | ADR 0003:1510–1511 (A2-3) | `s3/r1/m6r.py`:93 says "No self-Map" | ✓ |
+
+### Deviations, judged
+
+- **The Implementer's round-2 block** (story :591–631) is accepted:
+  - the A2 items, with the right lines;
+  - NB7's judgment call, in NIP-85's words, with the three citations checked;
+  - NB14;
+  - NB1's correction under fix 7;
+  - the "Not the Implementer's" bullet, which names the Architect's and the PO's edits by role, as round 1 asked.
+- **The round 2 fix 1 sub-block** (:633–644): its ledger note on § 5.4 Enumerate is accepted. Its list of open
+  kick-backs is out of date (NB21).
+- **The PO's record** (:500–524) is accepted, and the A2-4 line meets B2's ask. Its AC3 "only that key's slice" gloss
+  (:448–456) does not yet carry A2-1's empty-List case (NB24).
+- **ADR 0003 A2** (Architect) is carried in full. In A2's own text, one passage is still in gate tense (NB23) and one
+  marker is misplaced (NB22).
+
+### Findings (round 2)
+
+#### Blocking
+
+None. A blocker this round would have been numbered B3.
+
+#### Non-blocking
+
+Round 1 used 1–18, so this list starts at 19.
+- 19 and 20 go to ledger row `2026-10-12-self-maps-spec-fold-forwards` as items 19 and 20.
+- 21 to 24 go to the new row `2026-10-12-self-maps-record-loose-ends`.
+
+19. **Whether a List that is still maintained but has no members carries the marker. Trusted Lists and Spawning read
+    two ways, and under § 7 (TM:304) the answer now matters to readers without self-Maps.**
+    - **What the specs say.** Trusted Lists replaces "a list that no longer has members" with the marker event
+      (trusted-lists.md:71–73). Spawning puts `status` only "on retirement" (spawning.md:28, :160), and keeps Refresh
+      apart from Retire (§ 5).
+    - **What the code does.** The reference publisher publishes a live pin's computed members, possibly none, with no
+      marker (`src/api/trustedList/refreshPinnedTags.js`:197–232). It marks only a removed pin
+      (`retractStaleTLs`, :270–298) or a migration off a kind (`refreshApplicabilityLists.js`:61–73).
+    - **Why it matters now.** In A2's case (e), readers X and Z1 get B's List with the marker. Without it, they get
+      A's empty List while that List is young enough to accept, then B's. F, N and Z2 get A's empty List either way.
+    - **Why it does not block.** Each event reads one way, and neither form shows stale members. The difference is
+      bounded by the reader's age limit. The publisher rule sits in specs outside this story's scope (AC8).
+    - *Ask (story 4, or a later docs pass):* settle the rule in Trusted Lists or Spawning. If such a List carries no
+      marker, note that A2's case (e) and its cost arise only for a publisher that marks a live empty List.
+      (Auditor R2-B1-NB1.)
+20. **TM:414, What the allowance rests on, second case. "Until the key has read a change to the observer's Map" leaves
+    out a change to the observer's supported sets.** Supported sets are Pin-based lists, not the kind 10040 (§ 8).
+    - **The case.** After a re-pin of T, A's scope self-entry speaks for T's list again before A has restarted it.
+    - **What a reader then does.** A reader that holds the sets now takes A's old retraction (from case (b)) as A's
+      empty List, maintained at R whatever its age (:304, :405).
+    - **Why it does not block.** The text is A1's, from before this round. The brief gap (:385) already lets A keep the
+      self-entry while T's list lands. Scores and Concepts had the same gap before A2.
+    - *Ask:* "until the key has read a change to the observer's Map or supported sets". Optionally, also note in the
+      third case that a re-pin can bring an old retraction back as a List with no members. (Auditor coherence NB-2.)
+21. **story :633–642, "Implementer, round 2 fix 1". Its kick-back list contradicts the record.** Three of the four
+    items it lists as open were already done:
+    - the departures heading, which the same commit `fe163bc0` changed at :500;
+    - the A2-2 markers at ADR 0003:1718 and :2058, already in `38947382`;
+    - the approval line, which `11cc0008` added.
+
+    Only the Verification marker is still open (NB22), and no line says which items closed.
+    - *Ask (Implementer):* add a dated close-out line under the block, as fix 7 has. (Auditors NB-C1, coherence NB-1,
+      S-NB1.)
+22. **ADR 0003:1482–1485, Verification AC3. The § 3 part of A2-5's marker sits on the bullet above the § 3 quote it
+    amends**, so the quote at :1484–1485 carries no marker. The marker names its target, and A2 governs, so a reader
+    still reaches the right text.
+    - *Ask (Architect):* move "§ 3's sentence reads …" into its own marker after :1485. (Auditors NB-C3, S-NB1.)
+23. **ADR 0003:2429–2440, A2's Questions for the owner. They still read as an open gate:** "At this gate the owner
+    approves A2's wording", and "The owner may also add the reader rule". "Status of A2" (:2190–2193) settles it:
+    approved, without the reader rule. So there is one reading. A1's precedent was rewritten after approval.
+    - *Ask (Architect):* one past-tense sentence. (Auditor NB-C4.)
+24. **story :448–456, the PO's AC3 "only that key's slice" gloss.** It names only stale copies as what can show
+    outside the slice. Since A2-1, the third and fourth cases it points at (TM:415–416) also show a List the key
+    retracted as a List with no members. In A2's case (c3), N and Z2 get "A's empty List".
+    - The reading itself ("holds for the insights the self-entries speak for") is unchanged, so ADR 0003:2491's "A2-1
+      changes no reading in the record" holds. Only the list of what else can show is short.
+    - *Ask (PO):* add "or, for a List the key retracted, a List with no members (Treasure Maps § 7)". No draft edit.
+      (Auditor NB-C5.)
+
+### Harness friction
+
+1. **The PO's A2-4 lines and the heading rename landed in the `impl:` commit `fe163bc0`.** The fix-1 block's own
+   plan named an `adr:` commit for the record's hunk (story :643–644). `38947382` (`adr:`) touches only ADR 0003 and the
+   meta row. This repeats round 1's Harness friction 1 in how the commits were packaged. I added a dated note to meta
+   row `2026-10-11-implementer-edited-accepted-adr`. (Auditor NB-C2.)
+2. **RW7's load flake hit my first gate run** (Quality gates). My model re-runs shared the machine. I added a dated
+   occurrence note to row `2026-10-08-realtime-wrapper-timing-flake-under-load`.
+3. **Known items, no new rows:**
+   - The dispatch again holds the commit for an independent check, against `workflows/5-review.md`
+     (`2026-10-11-reviewer-dispatch-tools-and-commit`).
+   - The template's "On PASS" heading reads as a verdict (`2026-10-07-on-pass-heading-reads-as-verdict`), so the last
+     section here is "Close-out (round 2)".
+   - The template's docs-mode filename note (`2026-10-10-review-template-docs-mode-filename`).
+4. **Round 1's friction 3 did not recur.** The three A2 scripts print in a fixed order, and my runs were
+   byte-identical.
+
+### Verdict (round 2)
+
+**PASS**
+
+B1 is closed: under ADR 0003 A2-1, each reader reads a retracted List one way in every case round 1 named. A reader's
+answer changes with age only for the failed-send Residual and, with O's entry hint at A's write relay, for N and Z2 in
+(b), which show an empty List at every age (A's at Rw, then A's at R or B's), as § 9.2's third case says. B2 is
+named in the PO's record and confirmed by the owner. A2 is carried verbatim, the five folds re-derive, and the gate is
+green on the quiet rerun.
+
+### Close-out (round 2)
+
+- The story's `Status:` is now `Done`, set in place. No file moves (retirement is per epic).
+- **Completion detection** (book `duty-menus-and-self-maps`, acceptance frame): the book does not look complete.
+  - Stories 1–3 are Done.
+  - The frame's last bullet is unmet: Treasure Maps settles the three key-grammar questions, Duty Menus follows, and
+    row `2026-10-11-duty-menus-spec-fold-forwards` closes. That is story 4, which is planned but has no story file yet.
+  - No offer to close the book.
+- Ledger:
+  - a dated note adding items 19 and 20 to `2026-10-12-self-maps-spec-fold-forwards`;
+  - a new row, `2026-10-12-self-maps-record-loose-ends` (NB21–NB24);
+  - dated notes appended to `2026-10-11-implementer-edited-accepted-adr` and
+    `2026-10-08-realtime-wrapper-timing-flake-under-load`.
+- Committed after the independent check (Method), with the story's status and the ledger edits.

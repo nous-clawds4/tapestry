@@ -53,3 +53,24 @@ Same fix shapes as above. Shape (b) would have split `bc37a62c` into `adr:`, `st
 Architect script (`s3r2/r1/apply_r1.py`, session scratchpad) rewrote the PO's A2-4 line in story 3's record. The
 substance was right; the role was not. Same fix shapes as above, for every role: an edit to another role's text is a
 kick-back, not a script.
+
+**Recurred 2026-10-12, commit packaging** (review of `duty-menus-and-self-maps` #3, round 2, Harness friction 1).
+- The PO's A2-4 lines in story 3's record, and the rename of the departures heading, landed in `fe163bc0`, an `impl:`
+  commit.
+- The fix-1 block's own plan (story :643–644) put the record's hunk in an `adr:` commit. `38947382` (`adr:`) touches
+  only ADR 0003 and this row.
+- No rule text changed. The fix shapes above apply: one commit per role, or a role-named block per edit.
+
+**Recurred 2026-10-12, commit packaging** (review of `duty-menus-and-self-maps` #4, non-blocking 9 and Harness
+friction 1–2).
+- ADR `duty-menus-and-self-maps/0004` asks for the PO's edits in "a `story:` commit of their own", and for the
+  Implementer's item-1 line "after the PO's `story:` commit". `899253ee` (`story:`) also carries the Implementer's
+  Deviations block in story 4 and its item-1 line in story 3 (:660–662). `ae888a7e` (`impl:`) does not touch story 3.
+  The story's "Commits" bullet (:445–447) says the `story:` commit carries "the PO's text".
+- No rule text changed. The same fix shapes apply: one commit per role, or a role-named block per edit.
+- **What went right:** ADR 0004's Clarifications after acceptance (KB-1 to KB-3) landed in an `adr:` commit of their
+  own (`0311cca3`) before the next `impl:` commit, as fix shape (b) asks. But the record says "each by option (a)"
+  without naming who chose it. ADR 0003's amendments went through owner gates. Each clarification changes no rule,
+  and the Reviewer audited each one. That is the gap row `2026-10-08-new-browser-spec-amendments-unratified` names for
+  test plans: who ratifies a no-rule-change amendment. Fix shape: an accepted ADR's post-acceptance section names its
+  approver, or says that the Reviewer ratifies it by audit.

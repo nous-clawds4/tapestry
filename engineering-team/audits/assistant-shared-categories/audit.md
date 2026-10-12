@@ -199,6 +199,7 @@ its Gate B record. SV18, a test added beyond the Design note's list, is named an
 - [ ] **3. Self-entries.** When book `duty-menus-and-self-maps` #3 reaches code, the hub's shared rule and the
   `/treasure-map` cards should learn self-entries together. (§4 #3; ledger
   `2026-10-11-self-entry-reads-as-another-assistant`)
+  *Picked up 2026-10-12 → book `assistant-self-map` (open), acceptance frame "The hub reads self-entries".*
 - [ ] **4. The Shared pill's brightness.** It has the brightest text of the three pills. A hub-only dimmer text colour
   would still clear 4.5:1; the owner's eye decides. (§4 #4; review non-blocking 5)
 - [ ] **5. "Assigned" versus "publishing" is now sharper.** Done means the Map points at an Assistant, any Assistant

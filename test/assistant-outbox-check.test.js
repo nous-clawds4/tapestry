@@ -28,6 +28,9 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const O = require('./helpers/outboxRelaysFixtures');
 const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
+// Re-aimed by assistant-self-map #1 (ADR 0001 sub-decision 8): the self-Map check joins the answer; stubbed here, as the
+// Duty Menu's is, so this suite's reads stay its own. test/assistant-self-map-check.test.js drives the real one.
+const SELF_MAP_ANSWER = require('./helpers/selfMapFixtures').ANSWERS.DONE;
 
 const REPO = path.resolve(__dirname, '..');
 const LIB = path.join(REPO, 'src/lib/relay-list/index.js');
@@ -151,6 +154,7 @@ function fakes(opts = {}) {
     // Re-aimed by assistant-duty-menu #1: the duty-menu check (its ADR 0001 sub-decision 7), stubbed whether or not it
     // has landed: it reads the viewer's Map, two relay lists and outside relays, which this suite must not see.
     checkDutyMenu: async () => DUTY_MENU_ANSWER,
+    checkSelfMap: async () => SELF_MAP_ANSWER,
   };
   if (opts.checkOutboxRelays) deps.checkOutboxRelays = opts.checkOutboxRelays;
   return { deps, calls };

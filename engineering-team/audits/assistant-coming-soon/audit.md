@@ -12,20 +12,22 @@ close. They are interleaved with books `duty-menu-public-relay` and `duty-menus-
     pre-rebase twins (`5cc1592`, `1b0ab5f`, `0d7c32d`) were never pushed (§7 #3).
 - **Staging: deployed.** Deploy run 657 (`3d0b6d4`) succeeded. staging.brainstorm.world serves `index-BcVRd6k3.js`,
   the same entry bundle that this session and the Gate B Reviewer each built from the tree and tested.
-- **Production: not yet.** Production serves `index-XPqw1cb6.js`, the build before this book (§6 #1).
+- **Production: not yet at the close; shipped the same day.** PR #854, merged as `ccb9b3b`, deploy run 151; production
+  serves `index-BcVRd6k3.js` (§6 #1).
 
 **Provenance:** Acceptance-frame. There is no PRD. The owner's ask is quoted verbatim in `book.md`. Four decisions were
 settled at intake: which five cards, not counted in either reading, the page line, and the Light trial. The owner
 approved Gate A ("approved, go ahead") and passed the story at Gate B ("pass with the records note"), both on
 2026-10-12.
-**Confidence:** **high** for what the code does; **medium-high** for the frame as the owner will meet it.
+**Confidence:** **high** for what the code does; **medium-high** for the frame as the owner will meet it at the close,
+**high** after the owner's signed-in check on production the same day (§6 #4).
 - **For the code:**
   - Three blinded gate-judges (J1, J2, J3) each approved on their first verdict. J2 and J3 re-ran the scoped gate
     themselves, and J3 repeated the fails-before check on `88fa4da`.
   - The Gate B Reviewer built HEAD itself, re-ran both halves of the fails-before check, and ran the full suite at HEAD.
 - **For the experience:** the built UI was seen on screen with every `/api` route mocked: desktop, 390 px, and a Coming
-  soon page. The owner was shown the hub section and a side-by-side of the two rings at Gate B. Nobody has looked at the
-  hub signed in on a live instance (§6 #4).
+  soon page. The owner was shown the hub section and a side-by-side of the two rings at Gate B. After the production
+  release, the owner checked the hub signed in as straycat and confirmed the five cards' Coming soon status (§6 #4).
 
 > The Build Audit is the as-built record. It does not propose changes — that is `prd-seed.md`'s job.
 
@@ -144,11 +146,28 @@ its J3 evidence or its Gate B record.
 
 ## 6. Carry-forward register
 
-- [ ] **1. Production.** It ships with the owner's next `staging` → `main` promotion, which needs the owner's explicit
-  yes. Production serves `index-XPqw1cb6.js` today. Another book's promotion PR
-  ([nous-clawds4/tapestry#852](https://github.com/nous-clawds4/tapestry/pull/852)) briefly carried this book's
-  failing tests. It was closed unmerged and replaced by a selective promotion, so nothing of this book reached
-  production (§7 #7).
+- [x] **1. Production.** Shipped 2026-10-12 in PR [nous-clawds4/tapestry#854](https://github.com/nous-clawds4/tapestry/pull/854)
+  (`staging` → `main`, head `92eb023`), merged as `ccb9b3b` at 03:37 UTC on the owner's explicit "promote it to
+  production".
+  - **Before the merge:** the PR's `stack-free` and `main-source-guard` passed on `92eb023`. `check-safe-to-merge.sh`
+    gave SAFE at 03:37:12 (attempt 1/45). The merge was pinned to `92eb023`, so nothing pushed to `staging` meanwhile
+    could ride along.
+  - **Deploy:** run 151 succeeded in about 1m37s. Production serves `index-BcVRd6k3.js`, the same bundle as staging
+    and as the builds this session and the Gate B Reviewer tested.
+  - **Smoke test:** all five tiers clean.
+    - Tier 1: 3×200 at once, and Neo4j ready.
+    - Tier 2: every page and API answers 200; Odell's `get-user-data` 504 with its JSON body, as expected; search
+      returns hits.
+    - Tier 3: the bundle carries the new words. `/assistant`, the five pages, `/assistant/treasure-map` and
+      `/assistant/profile` answer 200 `text/html`. The attention answer is `signedIn:false` anonymously.
+    - Tier 4: `assistant-coming-soon.spec.js` and `assistant-management-page.spec.js` against production's served UI,
+      29 passed, 0 failed, 4 skipped (B8 for pages already built), with every `/api` call mocked. Chrome is not
+      connected in this session.
+    - Tier 5: `/treasure-map`, `/assistant/duty-menu`, `/assistant/outbox-relays`, `/assistant/identification-tags`,
+      `/assistant/trusted-lists`, `/setup` and their APIs answer 200.
+  - Before this, another book's promotion PR
+    ([nous-clawds4/tapestry#852](https://github.com/nous-clawds4/tapestry/pull/852)) had briefly carried this book's
+    failing tests. It was closed unmerged and replaced by a selective promotion (§7 #7).
 - [ ] **2. The ring's colour.** The example's empty circle is dim grey; the hub's is indigo. A hub-only class could
   dim it on the five, with one CS6 assertion. The owner's eye decides; at Gate B they did not ask for it. (§4 #1;
   review non-blocking 2)
@@ -156,8 +175,11 @@ its J3 evidence or its Gate B record.
   real check, a fully set-up viewer's hub would read "0 actions need attention". The top-bar pill already hides at 0
   (`pickTopBarPill` draws only above 0), but the hub's line has no zero state. Decide it with the Treasure Map card's
   book.
-- [ ] **4. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check the
+  *Picked up 2026-10-12 → book `assistant-self-map` (open), § Design notes.*
+- [x] **4. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check the
   five pills, the count line and the top-bar pill. Same kind of gap as `assistant-shared-categories` audit §6 #2.
+  **Done 2026-10-12, on production:** after the release, the owner opened tapestry.brainstorm.world/assistant signed
+  in as straycat and confirmed the five cards' Coming soon status, as expected.
 - [ ] **5. Building the five.** Linked, not duplicated: `assistant-management` audit §6 #1–#2 (annotated at this
   close). When one is built, its key leaves `COMING_SOON_ACTIONS`, and joins `CHECKED_ACTIONS` if it gets a check.
   Node C1 pins the list exactly, so the change is visible in the tests.

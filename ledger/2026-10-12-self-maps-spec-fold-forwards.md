@@ -1,4 +1,4 @@
-# Story 3's review left non-blocking wording gaps in the Self-Maps text of Treasure Maps and Duty Menus for its fix round or story 4 to fold in
+# Story 3's review left non-blocking wording gaps in the Self-Maps text of Treasure Maps and Duty Menus for story 5 of the epic to fold in
 
 **Id:** 2026-10-12-self-maps-spec-fold-forwards
 **Type:** protocol
@@ -59,6 +59,14 @@ review's numbered finding, which holds the evidence.
 16. *(Architect)* ADR 0003 Verification AC4's third case (ADR :1480–1481) says "No menu", then names "A's menu relay
     R1". The script it rests on describes "No self-Map". Either wording gives Rw (review NB16).
 
+- *Added 2026-10-12 (story 4, after ADR 0004's clarifications):* two small Treasure Maps wording items for story 5 or
+  a later docs pass, neither a rule change:
+  - Principle 8 ("A shorter key covers more", `treasure-maps.md` § 1) has no exceptions, while the At a glance bullet
+    that says the same now names them (§ 4.4's Profiles category; a Concept key's `d`, § 4.5). Gloss it, or accept the
+    segment reading.
+  - Treasure Maps' metadata Sources line names numbered sections only, so it does not list the At a glance wording
+    ADR 0004's KB-2 clarification changed; Duty Menus' Sources line lists every section touched. Align the two.
+
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings; story
 `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`; ADR
 `engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md`; related rows
@@ -72,3 +80,35 @@ Consequences of A2 ("Not in A2") rather than from the review: Treasure Maps § 5
 keeps every list of a provider's under the scope, retracted Lists included, and § 3's Enumerating line (:95) points at
 it. Whether it drops a retraction that § 7 (:304) reads as no copy is open, for story 4 or a later docs pass. The row
 stays OPEN.
+
+**Note, 2026-10-12 (story 3, review round 2).** Two more items, numbered as the review's findings:
+19. Trusted Lists and Spawning read two ways on whether a List that is still maintained but has no members carries
+    `["status", "retracted"]`.
+    - Trusted Lists replaces "a list that no longer has members" with the marker event (`trusted-lists.md`:71–73).
+      Spawning gives `status` only "on retirement" (`spawning.md`:28, :160, § 5's Refresh against Retire).
+    - The reference publisher marks only a removed pin or a migration off a kind
+      (`src/api/trustedList/refreshPinnedTags.js`:197–232 against :270–298; `refreshApplicabilityLists.js`:61–73).
+    - Under Treasure Maps § 7 (:304), a reader without self-Maps reads the two forms differently: the marked form as no
+      copy (the next Alternate's List), the unmarked form as A's empty List while it is young enough to accept.
+    - Settle the rule in Trusted Lists or Spawning. If such a List carries no marker, note that ADR 0003 A2's case (e)
+      arises only for a publisher that marks a live empty List (review NB19).
+20. Treasure Maps § 9.2, What the allowance rests on, second case (:414). Make it "until the key has read a change to the
+    observer's Map or supported sets". A re-pin is a change to the supported sets (Pin-based lists, § 8), not to the
+    kind 10040. Until the key restarts the List, a reader that holds the sets takes its old retraction as a maintained
+    List with no members (:304, :405). The same gap already applied to Scores and Concepts. Optionally, say so in the
+    third case (review NB20).
+
+The row stays OPEN.
+
+**Note, 2026-10-12 (story 4, ADR `duty-menus-and-self-maps/0004`).** Story 4 did items 3, 8 and 15:
+- 3 (NB3): Treasure Maps § 6 orders the Concept kinds, and § 9.2's Ties says that none arise. § 9.2's MUST NOT on a
+  self-entry that speaks for none of the insights it wins agrees with the order: ADR 0003 sub-decision 2's
+  {`39998` → Rc, `39999` → Rd} meets it when each of its self-entries wins a duty it speaks for.
+- 8 (NB8): Duty Menus § 14 question 3 asks what the self-entries of a key that serves several observers speak for.
+- 15 (NB15): Duty Menus' Sources line names § 6.2 step 1's last bullet and § 7; the handoff's § 5 landing line names
+  Assistant Designation § Relationship to NIP-85; `protocols/README.md`'s Treasure Maps row names Self-Maps and the
+  read-time fallback.
+
+Items 5, 9, 10, 12, 13, 19 and 20, and the § 5.4 Enumerate question, go to story 5 of the epic (the owner's answer
+5(a) to story 4's open question 5). That includes NB10 (item 10), which ADR 0003 A2 left "for story 4's ADR" (ADR 0004
+sub-decision 10). The title names story 5. The row stays OPEN.

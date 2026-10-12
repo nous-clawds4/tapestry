@@ -51,6 +51,7 @@ const { pathToFileURL } = require('url');
 const DM = require('./helpers/dutyMenuFixtures');
 const DC = require('./helpers/dutyCardsFixtures');
 const CS = require('./helpers/comingSoonFixtures');
+const SM = require('./helpers/selfMapFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const LIB = path.join(REPO, 'src/lib/duty-menu/index.js');
@@ -258,6 +259,9 @@ function fakes(opts = {}) {
     checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
     checkTrustedContent: async () => ({}),
+    // Re-aimed by assistant-self-map #1 (ADR 0001 sub-decision 8): the self-Map check joins the answer; stubbed so this
+    // suite's reads stay the Duty Menu's (test/assistant-self-map-check.test.js drives the real one).
+    checkSelfMap: async () => SM.ANSWERS.DONE,
   };
   if (opts.checkDutyMenu) {
     deps.checkDutyMenu = async (input, d) => { calls.checkDutyMenu.push(input); return opts.checkDutyMenu(input, d); };
@@ -1175,7 +1179,7 @@ test('C1: the Duty Menu entry keeps its title, address, section and description,
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C2: CHECKED_ACTIONS gains duty-menu right after outbox-relays, in ASSISTANT_ACTIONS order; the Treasure Map card is not checked (AC-4; ADR 0001 sub-decision 6)', async () => {
+test('C2: CHECKED_ACTIONS gains duty-menu right after outbox-relays, in ASSISTANT_ACTIONS order; the Treasure Map card follows it since assistant-self-map #1 (AC-4; ADR 0001 sub-decision 6)', async () => {
   const mod = await actionsModule();
   const checked = Array.isArray(mod.CHECKED_ACTIONS) ? mod.CHECKED_ACTIONS : [];
   const keys = (mod.ASSISTANT_ACTIONS || []).map((a) => a.key);
@@ -1184,7 +1188,8 @@ test('C2: CHECKED_ACTIONS gains duty-menu right after outbox-relays, in ASSISTAN
   if (at < 0) wrong.push(`${DM.KEY} is not checked`);
   else if (checked[at - 1] !== DM.CHECKED_AFTER) wrong.push(`right after ${DM.CHECKED_AFTER}, got after ${show(checked[at - 1])}`);
   if (!sameJson(checked, keys.filter((k) => checked.includes(k)))) wrong.push('in ASSISTANT_ACTIONS order');
-  if (checked.includes(DM.STILL_PLACEHOLDER)) wrong.push(`${DM.STILL_PLACEHOLDER} stays a placeholder`);
+  // Re-aimed by assistant-self-map #1 (its ADR 0001 sub-decision 9): the Treasure Map card is checked, right after this one.
+  if (at >= 0 && checked[at + 1] !== SM.KEY) wrong.push(`${SM.KEY} right after ${DM.KEY}, got ${show(checked[at + 1])}`);
   assert(wrong.length === 0, `CHECKED_ACTIONS ${show(checked)}: ${wrong.join('; ')}`);
 });
 
@@ -1221,23 +1226,23 @@ test('C3: the two readings for the Duty Menu — done: unmarked, in Done, not co
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C4: Your Assistant\'s Treasure Map stays an always-marked placeholder — marked, counted and never Done whatever the answer says for it, beside a Duty Menu that is Done (AC-4)', async () => {
+test('C4, re-aimed by assistant-self-map #1: beside a Duty Menu that is Done, Your Assistant\'s Treasure Map card is read by its own answer — none: marked, not counted; done: Done; pending: marked and counted — and the Duty Menu stays Done throughout (AC-4)', async () => {
   const mod = await actionsModule();
   const wrong = [];
-  for (const claim of [undefined, { finished: true, done: true, pending: false }, { finished: true, done: false, pending: true }]) {
+  const read = (claim) => {
     const att = withOthersDone(mod, DM.ANSWERS.DONE);
-    if (claim) att.actions[DM.STILL_PLACEHOLDER] = claim;
-    const got = mod.assistantAttention(USER, att);
-    const label = claim ? show(claim) : 'no claim';
-    if (!got.needsAttention.includes(DM.STILL_PLACEHOLDER)) wrong.push(`${label}: the Treasure Map card stays marked`);
-    if ((got.done || []).includes(DM.STILL_PLACEHOLDER)) wrong.push(`${label}: never Done`);
+    if (claim === null) delete att.actions[SM.KEY]; else att.actions[SM.KEY] = claim;
+    return mod.assistantAttention(USER, att);
+  };
+  const none = read(null);
+  const done = read({ finished: true, done: true, pending: false });
+  const pending = read({ finished: true, done: false, pending: true });
+  for (const [label, got] of [['no answer', none], ['done', done], ['pending', pending]]) {
     if (!(got.done || []).includes(DM.KEY)) wrong.push(`${label}: the Duty Menu beside it is Done (the path ran)`);
   }
-  const none = mod.assistantAttention(USER, { answered: false, actions: {} });
-  const all = (mod.ASSISTANT_ACTIONS || []).map((a) => a.key);
-  // Re-aimed by assistant-coming-soon #1 (AC-2): the counted placeholders, less the five that say Coming soon.
-  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k) && !CS.KEYS.includes(k));
-  if (!placeholders.includes(DM.STILL_PLACEHOLDER) || none.alertCount !== placeholders.length) wrong.push(`unanswered: the Alert counts the placeholders only, the Treasure Map among them (${none.alertCount} vs ${show(placeholders)})`);
+  if (!none.needsAttention.includes(SM.KEY) || none.alertCount !== 0) wrong.push(`no answer: marked, not counted; got ${show({ needsAttention: none.needsAttention, alertCount: none.alertCount })}`);
+  if (done.needsAttention.includes(SM.KEY) || !(done.done || []).includes(SM.KEY)) wrong.push('done: unmarked and Done');
+  if (!pending.needsAttention.includes(SM.KEY) || pending.alertCount !== 1) wrong.push(`pending: marked and counted once; got ${show({ needsAttention: pending.needsAttention, alertCount: pending.alertCount })}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

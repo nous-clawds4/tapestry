@@ -134,6 +134,7 @@ import IdentificationTagsPage from './pages/assistant/IdentificationTags';
 import OutboxRelaysPage from './pages/assistant/OutboxRelays';
 import ProfileChecklistPage from './pages/assistant/ProfileChecklist';
 import DutyMenuPage from './pages/assistant/DutyMenu';
+import AssistantTreasureMapPage from './pages/assistant/AssistantTreasureMap';
 import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
 import {
   ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MY_ASSISTANTS_PATH, MANAGE_TREASURE_MAP_PATH, TREASURE_MAP_ADVANCED_PATH,
@@ -153,6 +154,7 @@ const ACTION_PAGES = {
   'identification-tags': <IdentificationTagsPage />,
   'outbox-relays': <OutboxRelaysPage />,
   'duty-menu': <DutyMenuPage />,
+  'treasure-map': <AssistantTreasureMapPage />,
 };
 
 const router = createBrowserRouter([

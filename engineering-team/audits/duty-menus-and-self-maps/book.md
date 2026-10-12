@@ -27,6 +27,7 @@ Confirmed by the owner at kickoff, 2026-10-10.
   `assistant-designation.md`'s "A TA cannot designate itself" is narrowed.
 - [ ] Each wire fact is normative in exactly one place, links resolve, the worksheet W1 note is in, and the handoff flips to ✅ SUPERSEDED.
 - [ ] *(Added by the owner, 2026-10-11, at story 3's approval.)* `treasure-maps.md` settles the three key-grammar questions `duty-menus.md` reads provisionally (ADR `duty-menus-and-self-maps/0002` A1-8, A1-9, A1-10: the bare Concept kinds and their order, category `39998`, the profiles category slot), `duty-menus.md` follows, and ledger row `2026-10-11-duty-menus-spec-fold-forwards` is closed (story 4).
+- [ ] *(Added by the owner, 2026-10-12, at story 4's approval.)* The rules that keep a self-Map true are settled: items 5, 9, 10, 12, 13, 19 and 20 of ledger row `2026-10-12-self-maps-spec-fold-forwards` (among them what happens to curation copies when an Assistant stops, and whether a List that is still maintained but has no members carries the retraction marker) and the § 5.4 Enumerate question, and that row is closed (story 5).
 
 Throughout: no "canonical" or "consensus" in normative text (`docs/NIP_REORG_DESIGN_HANDOFF.md` D2).
 
@@ -35,7 +36,7 @@ Throughout: no "canonical" or "consensus" in normative text (`docs/NIP_REORG_DES
 **Not in this book (owner, 2026-10-10):** code. Publishing menus and self-Maps, the `/treasure-map` changes and the fix for OPEN.md row `2026-10-10-external-assistant-relay-left-empty` are a separate book, opened after this one.
 
 ## Epics in this book
-- `duty-menus-and-self-maps` — ratify Duty Menus and Self-Maps into `protocols/` (stories 1–4).
+- `duty-menus-and-self-maps` — ratify Duty Menus and Self-Maps into `protocols/` (stories 1–5).
 
 ## Provenance
 - **Mode:** Acceptance-frame

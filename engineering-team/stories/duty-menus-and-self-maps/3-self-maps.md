@@ -1,6 +1,6 @@
 # Story 3: Self-Maps
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-11
 **Type:** Doc
 
@@ -426,6 +426,10 @@ blocks above note as absent. The ACs are not edited: read them as below. Where A
 **ADR 0003 Amendment A1.** The owner approved ADR 0003's Amendment A1 on 2026-10-11. This record is revised for it at
 the four points ADR 0003 A1 names (its "Not A1's"), and cites its items as "ADR 0003 A1-n": a bare A1-n in this story names ADR 0002's.
 
+**Story 4 (ADR 0004).** The owner accepted ADR 0004 on 2026-10-12. The PO revised this record for it on 2026-10-12, at
+two points: AC3's "only that key's slice" gains the retracted List (ledger row `2026-10-12-self-maps-record-loose-ends`,
+item 4), and AC3's second exception (ADR 0003 A2-4) has ended.
+
 **Answer 1 (a), per duty.** "An Assistant's self-entry speaks for its duties; a key that serves only itself, for every
 insight it wins in its supported sets. The verbatim key gives way only where it would win a duty A does not publish at
 its relay (a `not-offered` part, a part at another relay that no narrower self-entry separates, an insisted key's
@@ -447,13 +451,16 @@ Map, with a menu that offers everything at one relay, the Brainstorm Assistant k
     (below) allows that relay for that key", so the spec's sentence and this record read AC2 alike.
 - **AC3's "only that key's slice"** ("reading a self-Map as a point of view is coherent, and it shows only that key's
   slice") now "holds for the insights the self-entries speak for: stale copies of insights outside the observer's
-  supported sets (and, under (a), of insights the observer gave to another key) can show too". ADR 0003 places it the
-  same way (sub-decision 5, As a point of view; Verification, AC3):
+  supported sets (and, under (a), of insights the observer gave to another key) can show too", or, for a List the key
+  retracted, a List with no members (Treasure Maps § 7). ADR 0003 places it the same way (sub-decision 5, As a point of
+  view; Verification, AC3):
   - the self-entries show the slice of the observer the key serves, "where it serves one";
   - entries naming other keys are the author's own requests;
   - a self-Map that has both, such as the TA's (AC7), "read as a point of view mixes two observers' views".
 
-  The two kinds of stale copy are the third and fourth cases of Treasure Maps § 9.2's What the allowance rests on.
+  The two kinds of stale copy are the third and fourth cases of Treasure Maps § 9.2's What the allowance rests on. Since
+  ADR 0003 A2-1, each case also says that a reader that cannot tell takes a List the key retracted as one with no
+  members.
 
 **Answer 2 (a), SHOULD.** "Both specs state one rule at one level; Duty Menus quotes Treasure Maps' level."
 - **AC5's first bullet** reads as worded: "the self-entry keyed K comes first, with no condition" (ADR 0003
@@ -501,27 +508,34 @@ Map, with a menu that offers everything at one relay, the Brainstorm Assistant k
 and Consequences of A2). The ACs are
 not edited: read them as below.
 - **AC3's confirmed duty** ("an entry naming A in the observer's Map plus a matching self-entry in A's Map", where
-  matching means "the same key, or a key that wins for it under § 6") has two exceptions, the second provisional. The
-  first is ADR 0003 A1-4's. A self-entry keyed as the observer's entry, whose element 3 is the empty string, matches by
-  AC3's words but confirms no duty. Readers take it "to claim nothing: it still wins insights among A's self-entries
-  (§ 6), but confirms no duty" (ADR 0003 A1-4's sentence for Treasure Maps § 9.2, Its relay). Nothing changes for a
-  self-Map that follows § 9.2, since no self-entry there has an empty relay.
+  matching means "the same key, or a key that wins for it under § 6") has one exception, ADR 0003 A1-4's. A second,
+  provisional one (ADR 0003 A2-4) ended with story 4 (below). A self-entry keyed as the observer's entry, whose element
+  3 is the empty string, matches by AC3's words but confirms no duty. Readers take it "to claim nothing: it still wins
+  insights among A's self-entries (§ 6), but confirms no duty" (ADR 0003 A1-4's sentence for Treasure Maps § 9.2, Its
+  relay). Nothing changes for a self-Map that follows § 9.2, since no self-entry there has an empty relay.
   - *Confirmed by name.* The rule was in the text of A1 that the owner approved, but ADR 0003 named this departure
     only at A1's revision 3, after the approval. The owner confirmed it by name on 2026-10-11, before review.
-  - *The second exception, provisional (ADR 0003 A2-4; Treasure Maps § 9.2, Ties).* Where § 6 as written picks no
-    single self-entry of A for an insight, as for a bare `39998` and a `39999` key, no self-entry wins it. A
-    self-entry keyed as the observer's entry then confirms nothing for that insight, though AC3's "the same key"
-    confirms it. That self-entry may be one of the two that tie, as in the case the review of story 3 found (its B2):
-    A's self-Map `{* → R0, 39998 → Rc, 39999 → Rd, 39999:c1 → Rd}` and the observer's `[39999:c1, A]`, where
-    `39999:c1` ties with the bare `39998`. It may also be a wider key that both outrank, such as `*` beside A's
+  - *The second exception, ended (ADR 0003 A2-4; Treasure Maps § 9.2, Ties).* While § 6 did not order a bare
+    `39998` and a `39999` key, where it picked no single self-entry of A for an insight, no self-entry won it. A
+    self-entry keyed as the observer's entry then confirmed nothing for that insight, though AC3's "the same key"
+    confirmed it. That self-entry could be one of the two that tied, as in the case the review of story 3 found (its
+    B2): A's self-Map `{* → R0, 39998 → Rc, 39999 → Rd, 39999:c1 → Rd}` and the observer's `[39999:c1, A]`, where
+    `39999:c1` tied with the bare `39998`. It could also be a wider key that both outranked, such as `*` beside A's
     `39998` and `39999`.
-    - The rule is ADR 0003's own, from before A1 (sub-decision 2, Why a tie claims nothing; Out of scope, where such
-      ties "claim nothing meanwhile"). The spec is right to carry it; only the departure's name was missing.
-    - It holds until story 4 orders the Concept kinds in § 6 (ledger row `2026-10-09-draft-grammar-bare-39999`), and
-      the PO then revises this record.
-    - Whether a self-Map that follows § 9.2 can meet it, as none can meet the first, turns on how story 4 reads § 9.2's
-      "MUST NOT add a self-entry that speaks for none of the insights it wins" (the review's NB3).
+    - The rule was ADR 0003's own, from before A1 (sub-decision 2, Why a tie claims nothing; Out of scope, where such
+      ties "claim nothing meanwhile"). The spec was right to carry it; only the departure's name was missing.
     - *Confirmed by name.* The owner confirmed this departure by name on 2026-10-12, at the review's B2.
+    - *Ended (story 4; ADR 0004, accepted by the owner on 2026-10-12).* Story 4 orders the Concept kinds in Treasure
+      Maps § 6: a `39999` key beats a bare `39998`, as an exact kind beats a family (ADR 0004 sub-decision 3; ledger
+      row `2026-10-09-draft-grammar-bare-39999`). Under the order, § 6 picks one self-entry of A for every insight its
+      self-entries match, so no ties arise (§ 9.2's Ties, ADR 0004 sub-decision 4). In the B2 case, `39999:c1` → Rd
+      wins the header and confirms the duty, as AC3's "the same key" says. AC3's confirmed duty now has only the first
+      exception.
+    - *NB3, settled.* Before story 4 this line said that whether a self-Map that follows § 9.2 can meet the second
+      exception turned on how story 4 reads § 9.2's "MUST NOT add a self-entry that speaks for none of the insights it
+      wins". Under the order the MUST NOT and § 6 agree: ADR 0003 sub-decision 2's self-Map `{39998 → Rc, 39999 → Rd}`
+      meets it exactly when each of its two self-entries wins a duty it speaks for, and with duties of only one kind A
+      leaves the other out (ADR 0004 sub-decision 4).
 - **AC7's "the rest of the user-signed designation is unchanged"** gives way, at one sentence of Assistant Designation
   § Relationship to NIP-85, to AC7's "no longer contradicts it" (ADR 0003 A1-9). The sentence follows the quoted "Each
   triple delegates" sentence: "A triple whose provider is the event's own author is the exception: it designates no
@@ -642,6 +656,10 @@ Implementer, round 2 fix 1 (2026-10-12), after the review of round 2:
   sits above the sentence it amends; and an approval line once the owner approves A2's wording.
 - **Left for the commit:** in role order, an `adr:` commit (ADR 0003 and the record's hunk), then an `impl:` commit
   (the drafts, this block's hunk and the ledger row).
+
+*2026-10-12 (story 4): three of the four kick-backs above were done before story 4: the departures heading
+(`fe163bc0`), the A2-2 markers (`38947382`) and the approval line (`11cc0008`). The fourth, the § 3 part of A2-5's
+marker, was done in ADR 0004's `adr:` commit (loose-ends row, item 2). None is open.*
 
 ## Linked artifacts
 

@@ -1,0 +1,288 @@
+'use strict';
+/**
+ * The Your Assistant's Treasure Map action's answer (assistant-self-map #1, ADR assistant-self-map/0001 with Amendment
+ * 1): the duties the signed-in viewer's own Treasure Map gives their Assistant and which are live, what that
+ * Assistant's self-Map should say, the self-Map found now, and whether the two match.
+ *
+ * Called by GET /api/assistant/attention (src/api/assistant/attention.js) for the session's viewer, with the Assistant
+ * that answer already resolved from the session (for the Owner the instance TA). No request parameter reaches it.
+ *
+ * - The offer is the Duty Menu check's own (resolveOfferInputs + buildOffer), so the two pages never disagree.
+ * - The viewer's Map is /setup's read (lookupNewest over treasureMapRelays): this instance's relay first.
+ * - Live (sub-decisions 3 and 6) is read from what has landed at the offer's relay:
+ *   - Scores: the newest Assistant-signed 30382 in this instance's strfry (both publishers re-sign every event every
+ *     run), against twice the shortest enabled schedule interval among the tasks that re-sign them for this Assistant
+ *     (the BullMQ entries while the queue is on, and a customer's own per-customer timer; else the bare-metal systemd
+ *     timer — Amendment 2);
+ *   - Concepts: the Assistant's 39998 headers at their relay (this instance's strfry, or the DList relay with no public
+ *     address);
+ *   - Lists are never live here: their d tags are not Treasure Maps § 5.1's.
+ * - The self-Map found (sub-decision 5): this instance's relay first; only when it holds none, one outside round over the
+ *   viewer's Map's relays for entries naming the Assistant and the Assistant's kind 10002 write relays (event-named: at
+ *   most 50, each guarded) plus the offer's relays.
+ *
+ * Read-only: strfry is only scanned, outside relays are only read, the schedule file is only read, nothing is stored.
+ */
+
+const { normalizeRelayUrl, MAX_RELAYS } = require('../../lib/relay-list');
+const { buildOffer } = require('../../lib/duty-menu');
+const { SELF_MAP_KIND, evaluateSelfMap, readSelfEntries, parseKey } = require('../../lib/self-map');
+
+const SCORE_KIND = 30382;
+const CONCEPT_HEADER_KIND = 39998;
+const SYSTEMD_TIMER = '/etc/systemd/system/processAllTasks.timer';
+const DEFAULT_TIMER_MS = 12 * 60 * 60 * 1000;
+/** At most this many named Concept d tags are looked up per check. */
+const MAX_NAMED_HEADERS = 50;
+
+/** The tasks whose runs re-sign an Assistant's Scores (ADR 0001 sub-decision 6). */
+const OWNER_SCORE_TASKS = ['processAllTasks', 'updateAllScoresForOwner', 'exportOwnerKind30382'];
+const ALL_CUSTOMER_SCORE_TASKS = ['processAllTasks', 'processAllActiveCustomers'];
+const ONE_CUSTOMER_SCORE_TASKS = ['processCustomer', 'updateAllScoresForSingleCustomer', 'exportCustomerKind30382'];
+
+/** What the answer says for this action when its check threw (Amendment 1 item 6). */
+const SELF_MAP_CHECK_FAILED = Object.freeze({
+  finished: false, done: false, pending: false, reason: 'check-failed',
+  mapFound: false, duties: [], shouldSay: [], published: null, current: null, instanceMap: false,
+});
+
+/** The real dependencies, required lazily so the module loads in a bare checkout. */
+function defaultDeps() {
+  return {
+    scanLocal: (filter) => require('../setup/status').scanLocalStrict(filter),
+    readRelay: (url, filter) => require('../_shared/relaySource').readRelayEvents(url, filter),
+    getConfigFromFile: (key, fallback) => require('../../utils/config').getConfigFromFile(key, fallback),
+    mapDefaultRelays: () => require('../export/nip85/currentMap').defaultRelays(),
+    isPublicRelayHostWithin: (host) => require('../../utils/relayHostGuard').isPublicRelayHostWithin(host),
+    now: () => Date.now(),
+    readScheduleEntries: () => {
+      const config = require('../scheduled-tasks').readConfig();
+      return config && Array.isArray(config.entries) ? config.entries : [];
+    },
+    schedulerEnabled: () => require('../../manage/taskQueue/queue/schedulerSwitch').schedulerEnabled(),
+    timerExists: (p = SYSTEMD_TIMER) => require('fs').existsSync(p),
+    // The per-customer scheduler's running timer, by the customer's main pubkey (Amendment 2 item 3).
+    customerTimerIntervalMs: (pubkey) => require('../customer-schedule').getTimerIntervalMs(pubkey),
+  };
+}
+
+/** The attention handler's relay read within the relay budget, and NIP-01's newest; required lazily (no cycle). */
+const shared = () => require('./attention');
+const statusLib = () => require('../setup/status');
+
+/** One read: its answer, or the fallback when it threw. */
+const attempt = (fn, fallback) => Promise.resolve().then(fn).catch(() => fallback);
+
+/** A systemd time span as BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL writes it ("12hours", "6h", "1d"), in ms; else null. */
+function parseTimeSpan(text) {
+  const m = String(text || '').trim().match(/^(\d+)\s*(s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)?$/i);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const unit = (m[2] || 's').toLowerCase();
+  const scale = unit.startsWith('d') ? 86400000 : unit.startsWith('h') ? 3600000 : (unit === 'm' || unit.startsWith('min')) ? 60000 : 1000;
+  return n > 0 ? n * scale : null;
+}
+
+/** How many upcoming fires a cron entry's interval is read over (Amendment 2 item 2). */
+const CRON_FIRES = 8;
+
+/**
+ * One schedule entry's interval in ms: a cron's shortest gap between consecutive fires among its next CRON_FIRES
+ * (Amendment 2 item 2, so an irregular schedule never stretches the allowance), else its interval fields.
+ */
+function entryInterval(entry, now) {
+  const cron = entry && typeof entry.cron === 'string' ? entry.cron.trim() : '';
+  if (cron) {
+    try {
+      const it = require('cron-parser').parseExpression(cron, { currentDate: new Date(now) });
+      let previous = it.next().getTime();
+      let shortest = null;
+      for (let i = 1; i < CRON_FIRES; i += 1) {
+        const next = it.next().getTime();
+        const gap = next - previous;
+        if (gap > 0 && (shortest === null || gap < shortest)) shortest = gap;
+        previous = next;
+      }
+      return shortest;
+    } catch { return null; }
+  }
+  const minutes = (Number(entry && entry.intervalDays) || 0) * 1440 + (Number(entry && entry.intervalHours) || 0) * 60 + (Number(entry && entry.intervalMinutes) || 0);
+  return minutes > 0 ? minutes * 60000 : null;
+}
+
+/**
+ * The shortest enabled interval among the schedules that re-sign this Assistant's Scores, in ms, or null when none
+ * does (sub-decision 6, Amendment 2 items 1 and 3):
+ * - BullMQ entries count only when TASK_QUEUE_ENABLED is exactly "true" (default "false"), as bin/control-panel.js
+ *   decides whether to start the queue, and the kill switch is on;
+ * - for a customer, their per-customer scheduler's running timer counts too, whatever the flag says;
+ * - with neither, the bare-metal systemd timer counts when its unit exists.
+ */
+function scheduleIntervals({ viewer, isOwner }, d) {
+  const now = d.now();
+  const who = String(viewer || '').toLowerCase();
+  const queueOn = d.getConfigFromFile('TASK_QUEUE_ENABLED', 'false') === 'true'
+    && attemptSync(() => d.schedulerEnabled() !== false, true);
+  const counts = (e) => {
+    if (!e || e.enabled !== true) return false;
+    if (isOwner) return OWNER_SCORE_TASKS.includes(e.taskId);
+    if (ALL_CUSTOMER_SCORE_TASKS.includes(e.taskId)) return true;
+    const customer = e.args && typeof e.args.customer === 'string' ? e.args.customer.toLowerCase() : '';
+    return ONE_CUSTOMER_SCORE_TASKS.includes(e.taskId) && customer === who;
+  };
+  const entries = queueOn ? attemptSync(() => d.readScheduleEntries(), []) : [];
+  const intervals = (Array.isArray(entries) ? entries : []).filter(counts).map((e) => entryInterval(e, now)).filter((x) => x > 0);
+  if (!isOwner) {
+    const timer = attemptSync(() => d.customerTimerIntervalMs(who), null);
+    if (Number.isFinite(timer) && timer > 0) intervals.push(timer);
+  }
+  if (intervals.length) return Math.min(...intervals);
+  if (attemptSync(() => d.timerExists(SYSTEMD_TIMER), false) === true) {
+    return parseTimeSpan(d.getConfigFromFile('BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL', '')) || DEFAULT_TIMER_MS;
+  }
+  return null;
+}
+function attemptSync(fn, fallback) {
+  try { return fn(); } catch { return fallback; }
+}
+
+/** Is this relay this instance's own (read through the local scan, never as outside)? */
+const isOwnRelay = (url, d) => statusLib().outsideOnly([url], d).length === 0;
+
+/**
+ * The upkeep inputs (sub-decision 6): the Scores' status and the Concepts this Assistant has at their relay.
+ * @returns {Promise<{ finished: true, scores, record } | { finished: false, reason }>}
+ */
+async function readUpkeep({ viewer, assistantPubkey, isOwner, offer, namedHeaders }, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
+  const { readWithinBudget, newest } = shared();
+  const relayOf = (kind) => { const row = offer.find((r) => r && r.tag === 'duty' && r.key === String(kind)); return row ? row.relay : null; };
+  const out = { scores: { status: 'not-scheduled', lastLandedAt: null }, record: { anyHeader: false, headers: new Set() } };
+
+  try {
+    if (relayOf(SCORE_KIND)) {
+      const interval = scheduleIntervals({ viewer, isOwner }, d);
+      const events = await d.scanLocal({ kinds: [SCORE_KIND], authors: [assistantPubkey], limit: 1 });
+      const beat = newest((Array.isArray(events) ? events : []).filter((e) => e && e.kind === SCORE_KIND && String(e.pubkey).toLowerCase() === assistantPubkey));
+      const lastLandedAt = beat ? beat.created_at : null;
+      if (!interval) out.scores = { status: 'not-scheduled', lastLandedAt };
+      else if (!beat) out.scores = { status: 'not-landed', lastLandedAt: null };
+      else if (d.now() - lastLandedAt * 1000 > 2 * interval) out.scores = { status: 'upkeep-stopped', lastLandedAt };
+      else out.scores = { status: 'live', lastLandedAt };
+    }
+  } catch {
+    return { finished: false, reason: 'instance-unanswered' };
+  }
+
+  const conceptRelay = relayOf(CONCEPT_HEADER_KIND);
+  if (conceptRelay) {
+    const ds = [...new Set(namedHeaders)].slice(0, MAX_NAMED_HEADERS);
+    const filters = [{ kinds: [CONCEPT_HEADER_KIND], authors: [assistantPubkey], limit: 1 }];
+    if (ds.length) filters.push({ kinds: [CONCEPT_HEADER_KIND], authors: [assistantPubkey], '#d': ds });
+    let answers;
+    if (isOwnRelay(conceptRelay, d)) {
+      try { answers = await Promise.all(filters.map((f) => d.scanLocal(f))); } catch { return { finished: false, reason: 'instance-unanswered' }; }
+    } else {
+      const reads = await Promise.all(filters.map((f) => readWithinBudget(conceptRelay, f, d)));
+      if (reads.some((r) => !r || r.status !== 'ok')) return { finished: false, reason: 'no-relay-answered' };
+      answers = reads.map((r) => r.events);
+    }
+    const mine = (e) => e && e.kind === CONCEPT_HEADER_KIND && String(e.pubkey).toLowerCase() === assistantPubkey;
+    const [any, named = []] = answers.map((xs) => (Array.isArray(xs) ? xs : []).filter(mine));
+    out.record.anyHeader = any.length > 0;
+    for (const e of named) {
+      const t = (e.tags || []).find((x) => Array.isArray(x) && x[0] === 'd');
+      if (t && typeof t[1] === 'string') out.record.headers.add(t[1]);
+    }
+  }
+  return { finished: true, ...out };
+}
+
+/** The relays the viewer's Map names for this Assistant (element 3 of its entries naming it). */
+function mapHints(mapEvent, assistantPubkey) {
+  const tags = mapEvent && Array.isArray(mapEvent.tags) ? mapEvent.tags : [];
+  return tags.filter((t) => Array.isArray(t) && typeof t[1] === 'string' && t[1].toLowerCase() === assistantPubkey && typeof t[2] === 'string').map((t) => t[2]);
+}
+
+/**
+ * The self-Map found for one Assistant now (sub-decision 5). `latest` is the newest version found, kept for story 2's
+ * merge; `published` its self-entries, or null when there is none.
+ * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object } | { finished: false, reason: 'no-relay-answered' }>}
+ */
+async function lookupSelfMap({ assistantPubkey, mapEvent, offer }, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
+  const { readWithinBudget, newest } = shared();
+  const who = String(assistantPubkey || '').toLowerCase();
+  const filter = { kinds: [SELF_MAP_KIND], authors: [who] };
+  const mine = (e) => e && typeof e === 'object' && e.kind === SELF_MAP_KIND && String(e.pubkey || '').toLowerCase() === who;
+  const found = (latest, source) => ({
+    finished: true,
+    latest,
+    published: latest ? { ...readSelfEntries(latest, who), createdAt: latest.created_at, source, eventId: latest.id } : null,
+  });
+
+  const local = await Promise.resolve().then(() => d.scanLocal(filter))
+    .then((events) => ({ ok: true, events: Array.isArray(events) ? events : [] }), () => ({ ok: false, events: [] }));
+  const here = newest(local.events.filter(mine));
+  if (here) return found(here, 'local');
+
+  const { assistantWriteRelays } = require('./dutyMenu');
+  const writes = await attempt(() => assistantWriteRelays({ assistantPubkey: who }, d), []);
+  const named = statusLib().outsideOnly([...mapHints(mapEvent, who), ...(Array.isArray(writes) ? writes : [])].map(normalizeRelayUrl).filter(Boolean), d)
+    .slice(0, MAX_RELAYS);
+  const accepted = await Promise.all(named.map((url) => attempt(async () => ((await d.isPublicRelayHostWithin(new URL(url).hostname)) === true ? url : null), null)));
+  const configured = (Array.isArray(offer) ? offer : []).map((row) => row && row.relay).filter(Boolean);
+  const relays = statusLib().outsideOnly([...accepted.filter(Boolean), ...configured], d);
+
+  const answers = await Promise.all(relays.map((url) => readWithinBudget(url, filter, d)));
+  const answered = answers.filter((a) => a && a.status === 'ok');
+  if (!local.ok && answered.length === 0) return { finished: false, reason: 'no-relay-answered' };
+  return found(newest(answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine)), 'relay');
+}
+
+/** An unfinished answer, with every field (Amendment 1 item 6's shape). */
+const unfinished = (reason, { mapFound = false, isOwner = false } = {}) => ({
+  finished: false, done: false, pending: false, reason,
+  mapFound, duties: [], shouldSay: [], published: null, current: null, instanceMap: Boolean(isOwner),
+});
+
+/**
+ * The Your Assistant's Treasure Map action for the session's viewer and their own Assistant.
+ * @param {{ viewer: string, assistantPubkey: string }} input
+ */
+async function checkSelfMap({ viewer, assistantPubkey }, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
+  const who = String(viewer || '').toLowerCase();
+  const assistant = String(assistantPubkey || '').toLowerCase();
+  const owner = String(d.getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '') || '').trim().toLowerCase();
+  const isOwner = !!owner && owner === who;
+  const { resolveOfferInputs } = require('./dutyMenu');
+  const offer = buildOffer(await resolveOfferInputs(who, d));
+
+  const { lookupNewest, treasureMapRelays } = statusLib();
+  const mapLookup = await lookupNewest({ kind: 10040, pubkey: who, relays: treasureMapRelays(d) }, d);
+  if (!mapLookup.finished) return unfinished(mapLookup.reason === 'local-unreadable' ? 'instance-unanswered' : 'no-relay-answered', { isOwner });
+  const mapEvent = mapLookup.event || null;
+
+  const namedHeaders = [];
+  for (const t of mapEvent && Array.isArray(mapEvent.tags) ? mapEvent.tags : []) {
+    const k = Array.isArray(t) ? parseKey(t[0]) : null;
+    if (k && k.scope.type === 'd' && k.kinds.includes(CONCEPT_HEADER_KIND)) namedHeaders.push(k.scope.d);
+  }
+  const [upkeep, lookup] = await Promise.all([
+    readUpkeep({ viewer: who, assistantPubkey: assistant, isOwner, offer, namedHeaders }, d),
+    lookupSelfMap({ assistantPubkey: assistant, mapEvent, offer }, d),
+  ]);
+  if (!upkeep.finished) return unfinished(upkeep.reason, { mapFound: !!mapEvent, isOwner });
+  if (!lookup.finished) return unfinished(lookup.reason, { mapFound: !!mapEvent, isOwner });
+  return evaluateSelfMap({ mapEvent, offer, assistantPubkey: assistant, isOwner, scores: upkeep.scores, record: upkeep.record, lookup });
+}
+
+module.exports = {
+  checkSelfMap,
+  lookupSelfMap,
+  readUpkeep,
+  scheduleIntervals,
+  parseTimeSpan,
+  SELF_MAP_CHECK_FAILED,
+};

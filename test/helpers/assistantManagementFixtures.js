@@ -223,6 +223,8 @@ const COUNTED = ACTIONS.filter((a) => !CS.PATHS.includes(a.path));
 
 /** The count line on the hub, and inside the pill (story 1 § Copy; story 2 § Copy). */
 function countText(n) {
+  // Re-aimed by assistant-self-map #1 (story AC-5; the owner's answer to its open question 2): zero has its own words.
+  if (n === 0) return 'Nothing needs attention';
   return n === 1 ? '1 action needs attention' : `${n} actions need attention`;
 }
 
