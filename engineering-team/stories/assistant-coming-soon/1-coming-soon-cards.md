@@ -255,6 +255,48 @@ with no code change):
   `BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/assistant-coming-soon.spec.js tests/brainstorm/assistant-management-page.spec.js tests/brainstorm/assistant-alert.spec.js tests/brainstorm/assistant-attention.spec.js tests/brainstorm/assistant-duty-menu.spec.js tests/brainstorm/assistant-identification-tags-page.spec.js tests/brainstorm/assistant-profile-check.spec.js tests/brainstorm/assistant-shared-categories.spec.js tests/brainstorm/assistant-taggings-publish.spec.js tests/brainstorm/assistant-trusted-content.spec.js --project=chromium --reporter=line --output=<scratch dir>`
   `--reporter=line` and `--output` keep the config's HTML/JSON reports and `test-results/` out of the repo.
 
+## Implementation *(J3 evidence, 2026-10-12)*
+
+- **Files:** code `72c4b7b`: `ui/src/pages/assistant/actions.js`, `ui/src/pages/assistant/Index.jsx` and
+  `ui/src/pages/assistant/ActionPage.jsx`, all inside the Design note's blast radius. No deviation from the Design note.
+  No CSS, server or documentation change.
+- **Shared-lines recheck before Implementation:** after `git fetch origin staging`, HEAD contained `origin/staging`, and
+  `git merge-tree --write-tree HEAD origin/staging` was clean. None of the three files had changed since
+  `8f49e16`. *(An earlier push had rebased this story's three planning commits onto another book's
+  `6bab1e5`. Those commits changed `test/assistant-duty-menu-check.test.js` elsewhere in the file; afterwards that
+  suite failed exactly the three re-aims, C3–C5.)*
+- **Scoped gate** (the header command, foreground, exit code captured by brace-redirect): `EXIT=0`, `TOTAL_FAIL=0`, 386
+  passed. Per suite: assistant-coming-soon 12, assistant-alert 15, assistant-attention 38,
+  assistant-duty-cards 12, assistant-duty-menu-check 65, assistant-duty-menu-page 15,
+  assistant-identification-tags-page 16, assistant-management-page 23, assistant-outbox-check 29,
+  assistant-outbox-relays-page 21, assistant-profile-check 33, assistant-shared-categories 21,
+  assistant-trusted-content 30, my-assistants-page 50, treasure-map-needs-attention 6.
+- **Lint:** `ui/node_modules/.bin/eslint` on the three files: exit 0.
+- **Browser** (`vite build` of this tree, served on :7799; the command in *How to run*): first run 100 passed,
+  3 failed, 4 skipped; after the three test fixes below, **103 passed, 0 failed, 4 skipped** (exit 0). The skips are
+  assistant-management-page B8 for the four pages already built, as before.
+- **Tests changed beyond J2's plan** (`f1e0bbc`, test-only; none weakens an assertion):
+  - *CS6* (this story's spec) clicked the card's description with `Locator.click()`. The card-wide link covers the
+    description by design, so Playwright refused the click. It now clicks by position, exactly as hub B5 does. The
+    code was right; the test's click was wrong.
+  - *assistant-trusted-content TC1* reads the cards' titles by stripping the screen-reader prefixes it knows
+    ("Needs attention: ", "Done: "). Bounties, Pins and Tags now carry "Coming soon: ", so it strips that too. It
+    still pins the six titles in order. It passes before and after: before, the prefix doesn't exist.
+  - *assistant-shared-categories SC2* used Bounties' amber Needs attention pill as the colour the Shared pill must
+    not be. Bounties has no such pill now, so the reference is Your Assistant's Treasure Map card, which still has
+    one (AC-4). Same assertion, same colour.
+  - Neither the intake trial nor J2 could see TC1 or SC2: both only break once the card renders a new prefix or loses
+    its mark. That's a browser-only effect the Node trial didn't reach.
+- **Full suite** (`npm test`, the book-close gate, run for the record on `88fa4da` plus the implementation, before the
+  browser-only fixes): `Overall: PASS — 5753 passed, 0 failed, 582 skipped across 304 suites`, exit 0 (gate run
+  `20261012T021106Z-17851-7755`). The skips need a live stack.
+- **Seen on screen** (the built UI, with every route mocked as the spec mocks them, every check done):
+  - The hub reads "1 action needs attention".
+  - Bounties, Pins and Tags show the grey **Coming soon** pill beside the title, with the empty circle an unmarked card
+    has. Scores, Lists and Concepts show ✓ and **Done**.
+  - `/assistant/bounties` opens with **Coming soon.** in bold, then the description and "Alert criteria: Not yet
+    defined.".
+
 ## Linked artifacts
 
 - ADR: — (Light: the Design note above; no irreversibility trigger)
