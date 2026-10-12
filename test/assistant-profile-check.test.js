@@ -36,6 +36,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const X = require('./helpers/profileChecklistFixtures');
 const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
+const CS = require('./helpers/comingSoonFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const LIB = path.join(REPO, 'src/lib/assistant-profile-items/index.js');
@@ -599,7 +600,8 @@ test('C2: the two readings for the profile — no answer, checking, failed, unfi
   const mod = await actionsModule();
   const summarize = (await uiUtil()).summarizeAttention;
   const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
-  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k)).length;
+  // Re-aimed by assistant-coming-soon #1 (AC-2): the counted placeholders, less the five that say Coming soon.
+  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k) && !CS.KEYS.includes(k)).length;
   const ID_DONE = undefined; // withProfile's default: identification-tags done
   const cases = [
     ['no answer', undefined, true, false],

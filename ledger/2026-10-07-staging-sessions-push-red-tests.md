@@ -65,3 +65,19 @@ would have avoided both.
   earlier. So a close on shared `staging` cannot certify a green tree while any other book sits between Test Design
   and Implementation.
 - Fix shape (a) above, a feature branch shipped through `/cycle-staging` after Gate B, covers all three.
+
+**Recurrence, 2026-10-12 (duty-menu-public-relay #1).** It recurred twice, and a workaround was found.
+- **Pushed before Gate B.** The stop hook led this session to push its green fix to `staging` before Gate B (review
+  N2). It was deliberate and recorded.
+- **Red tests in a promotion PR.** While the fix's promotion PR (#852, head `staging`) was open,
+  `assistant-coming-soon` #1's failing Phase-3 tests (`af217d07`) landed on `staging` and entered the PR.
+- **The workaround.** A selective promotion from a pinned branch, `promote/duty-menu-public-relay` at `6bab1e5a`.
+  `guard-main-source.yml` already allows `promote/*`. It went out as PR #853, merge `6f75160a`, deploy run 150.
+  GitHub auto-deleted the branch on merge.
+- **Fix shape it suggests.** Promotion PRs from a pinned `promote/<date>` branch by default, not from moving
+  `staging`, so the bundle a person approves is the bundle that merges.
+
+**This book's side, 2026-10-12 (`assistant-coming-soon` #1; book-close retro §7 #7).** Its failing Phase-3 tests
+were on `staging` for about 14 minutes: `af217d0` (deploy run 656, 02:08 UTC) until `72c4b7b` (run 657, 02:21). The
+stop hook also had the implementation pushed before J3's verdict; J3 then approved it on its first verdict. Nothing of
+this book reached production.

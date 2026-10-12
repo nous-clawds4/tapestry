@@ -63,3 +63,12 @@ review's numbered finding, which holds the evidence.
 `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`; ADR
 `engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md`; related rows
 `2026-10-09-draft-grammar-bare-39999` and `2026-10-11-duty-menus-spec-fold-forwards`.
+
+**Note, 2026-10-12 (story 3, Implementer round 2; ADR `duty-menus-and-self-maps/0003` Amendment A2).** Folded this
+round: items 1 (NB1, A2-5), 4 (NB4, A2-2), 6 (NB6, A2-5), 7 (NB7), 11 (NB11, A2-5) and 14 (NB14) in the drafts, and
+16 (NB16) by A2-3's marker on ADR 0003's check. Item 2 was blocker B2, which the owner named (A2-4). Items 3, 5, 8, 9,
+10, 12, 13 and 15 stay, for story 4 or a later docs pass. One more question stays with them, from ADR 0003's
+Consequences of A2 ("Not in A2") rather than from the review: Treasure Maps § 5.4 Enumerate (`treasure-maps.md`:255)
+keeps every list of a provider's under the scope, retracted Lists included, and § 3's Enumerating line (:95) points at
+it. Whether it drops a retraction that § 7 (:304) reads as no copy is open, for story 4 or a later docs pass. The row
+stays OPEN.

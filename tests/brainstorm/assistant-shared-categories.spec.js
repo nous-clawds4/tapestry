@@ -45,7 +45,8 @@ const SETUP_DONE = {
   },
 };
 const ID_DONE = { finished: true, done: true, pending: false, taggings: [] };
-const TOTAL = X.ACTIONS.length;
+// Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted.
+const TOTAL = X.COUNTED.length;
 // The actions other than the three and Identification Tags: marked and counted in every answer here.
 const OTHERS = TOTAL - 1 - TC.KEYS.length;
 
@@ -153,7 +154,8 @@ test.describe('Done, but shared (assistant-shared-categories #1)', () => {
     const colour = (loc) => loc.evaluate((el) => getComputedStyle(el).color);
     const shared = await colour(sharedPill(lists));
     const done = await colour(lists.locator('.bs-setup-step-badge.is-done'));
-    const amber = await colour(cardOf(page, 'Bounties').getByText(X.COPY.needsAttention, { exact: true }));
+    // Re-aimed by assistant-coming-soon #1 (AC-1): Bounties says Coming soon now; Your Assistant's Treasure Map is still marked.
+    const amber = await colour(cardOf(page, "Your Assistant's Treasure Map").getByText(X.COPY.needsAttention, { exact: true }));
     expect(shared, 'not the Done green').not.toBe(done);
     expect(shared, 'not the Needs attention amber').not.toBe(amber);
     const order = await lists.locator('.bs-assistant-hub-card-body > *').evaluateAll((els) => els.map((el) => el.className));

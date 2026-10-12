@@ -37,5 +37,11 @@ exact. That fixes one book, not the rule.
 Either way the existing stale refs under `compute-endpoint-hardening` want the same sweep; there may
 be more from earlier closes.
 
+**Recurred 2026-10-12 (`assistant-coming-soon` #1, Gate B review, harness friction 5).** New inbound pointers name
+`engineering-team/stories/assistant-coming-soon/…`: `ui/src/pages/assistant/actions.js`'s header,
+`test/helpers/comingSoonFixtures.js`, and the two ADR lines added at Gate B (`assistant-identification-tags/0001`,
+`assistant-duty-cards/0001`). They go stale when the epic's folders move under `done/` at close. Four neighbouring
+pointers in the same `actions.js` header already miss.
+
 **Pointer:** `engineering-team/workflows/6-book-close.md` step 9;
 `engineering-team/audits/nip05-ssrf-guard/audit.md` §7.

@@ -48,3 +48,8 @@ it.
 - No rule text of ADR 0003 changed, and ADR 0002 is untouched.
 
 Same fix shapes as above. Shape (b) would have split `bc37a62c` into `adr:`, `story:` and `impl:` commits.
+
+**Recurred 2026-10-12, other direction** (story `duty-menus-and-self-maps` #3, round 2): at ADR 0003 A2's revision 1, an
+Architect script (`s3r2/r1/apply_r1.py`, session scratchpad) rewrote the PO's A2-4 line in story 3's record. The
+substance was right; the role was not. Same fix shapes as above, for every role: an edit to another role's text is a
+kick-back, not a script.

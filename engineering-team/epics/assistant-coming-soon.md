@@ -1,6 +1,7 @@
 # Epic: assistant-coming-soon — the hub's unbuilt cards say Coming soon and stop counting
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-12; the folders sit under `done/`; on staging since `72c4b7b`; production
+pending, audit §6 #1)
 **Created:** 2026-10-12
 **Book:** `engineering-team/audits/assistant-coming-soon/book.md` (no PRD — acceptance frame; Light trial)
 **Provenance:** the owner's ask of 2026-10-12, quoted verbatim in the book. It revisits `assistant-management` (Done),
@@ -15,7 +16,7 @@ neither the hub's count line nor the top-bar pill counts them, the way the backg
 
 ## Stories
 
-`stories/assistant-coming-soon/`.
+`stories/done/assistant-coming-soon/`.
 
 1. `1-coming-soon-cards.md` (feature): the five cards' pill, the two counts, and the line on their pages.
 

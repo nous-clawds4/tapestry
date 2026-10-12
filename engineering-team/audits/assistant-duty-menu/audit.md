@@ -113,7 +113,9 @@ The owner approved every amendment at a gate.
 - **Browser:** the Duty Menu spec passed 17/17 against a Vite build with Chromium, mocking sign-in and the answer. The
   neighbouring hub specs passed 75–84, with 4 skipped by their own guards.
 - **`harness-lint`:** clean.
-- **Not verified:** no signed-in viewer has used the page on staging. The browser specs mock sign-in, and this
+- **Verified later, 2026-10-12:** the owner published from the page on staging while signed in, which surfaced the bug
+  fixed by book `duty-menu-public-relay`, and then republished: a valid menu with all six rows at the instance's relay.
+- **Not verified at close:** no signed-in viewer had used the page on staging. The browser specs mock sign-in, and this
   container has no nostr login. **The owner's first press of the button on staging is the real end-to-end check.**
 
 ## 6. Carry-forward register

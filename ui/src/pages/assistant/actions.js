@@ -23,7 +23,9 @@
  * engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md § Copy), and
  * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy (the Duty Menu's
  * alert criteria since engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md, ADR
- * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page).
+ * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page), and
+ * engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md § Copy (the Coming soon words, since five of the
+ * placeholders say Coming soon and are never marked or counted: COMING_SOON_ACTIONS).
  */
 
 import { ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks.js';
@@ -242,6 +244,12 @@ export const ASSISTANT_COPY = {
   doneSharedSrPrefix: 'Done, shared: ',
   sharedLine: { partly: 'Partly handled by another Assistant', entirely: 'Handled by another Assistant' },
   sharedMoveLink: 'Move it here →',
+  // An action that is not built yet (assistant-coming-soon #1 § Copy): the hub's muted pill, in the background image
+  // panel's words (PROFILE_CHECKLIST_COPY.comingSoon, written out to keep this module's one import), its screen-reader
+  // prefix, and the bold line on its page in place of "Placeholder page.".
+  comingSoon: 'Coming soon',
+  comingSoonSrPrefix: 'Coming soon: ',
+  comingSoonPage: 'Coming soon.',
   faqToggle: 'Frequently asked questions',
   placeholder: 'Placeholder page.',
   alertCriteriaHeading: 'Alert criteria',
@@ -279,8 +287,17 @@ export function plainText(parts) {
 export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'duty-menu', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
 /**
+ * The actions that are not built yet and say so (assistant-coming-soon #1, the owner's choice of 2026-10-12): each card
+ * shows a muted "Coming soon" pill, for every viewer, and is never marked or counted, as the background image panel on
+ * /assistant/profile is listed but never counted. Every other action without a check is a placeholder, marked and counted
+ * until its check is built (today Your Assistant's Treasure Map). In ASSISTANT_ACTIONS order.
+ */
+export const COMING_SOON_ACTIONS = ['bounties', 'pins', 'tags', 'notifications-and-alerts', 'preferences'];
+
+/**
  * Which of the viewer's actions need attention (story 1 AC-2; the pill counts the same answer, story 2 AC-5), in the
- * two readings ADR assistant-identification-tags/0001 sub-decision 6 defines:
+ * two readings ADR assistant-identification-tags/0001 sub-decision 6 defines (an action in COMING_SOON_ACTIONS is in
+ * neither, nor in `done` or `shared`, whatever the answer says for it — assistant-coming-soon #1):
  *   - the page reading, `needsAttention` and `count`: a placeholder is always marked; a checked action is marked
  *     unless its answer says `done` — so while the answer is on its way, when the fetch failed, and when the check
  *     did not finish, it stays marked, as /setup shows a step as not done until it knows;
@@ -310,6 +327,7 @@ export function assistantAttention(user, attention = null) {
   const shared = {};
   let alertCount = 0;
   for (const action of ASSISTANT_ACTIONS) {
+    if (COMING_SOON_ACTIONS.includes(action.key)) continue;
     if (!CHECKED_ACTIONS.includes(action.key)) {
       needsAttention.push(action.key);
       alertCount += 1;

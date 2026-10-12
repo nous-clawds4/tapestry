@@ -1,9 +1,10 @@
 # Book of Work: Coming soon — the hub's unbuilt cards stop asking for attention
 
 **Slug:** assistant-coming-soon
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-12
-**Closed:** —
+**Closed:** 2026-10-12 (on staging since `72c4b7b`, deploy run 657; the owner's Gate B verdict in `f61b7ff`;
+production pending, audit §6 #1)
 **Strictness:** Light (trial) — workflows/light-profile.md *(chosen by the owner at intake, 2026-10-12; one
 Feature-lane story)*
 
@@ -36,16 +37,17 @@ placeholders: the five above and Your Assistant's Treasure Map. So a person whos
 
 ### Acceptance frame
 
-*Proposed at intake and confirmed by the owner (2026-10-12: "go ahead, Light process, change the page line too").*
+*Proposed at intake and confirmed by the owner (2026-10-12: "go ahead, Light process, change the page line too").
+All four met at the close (audit §1; story AC-1–AC-4, each Met in the Gate B review).*
 
-- [ ] **The five cards say Coming soon.** On `/assistant`, Bounties, Pins, Tags, Notifications and Alerts, and
+- [x] **The five cards say Coming soon.** On `/assistant`, Bounties, Pins, Tags, Notifications and Alerts, and
       Preferences each show a muted **Coming soon** pill, as the background image panel on `/assistant/profile` does,
       with no "!" marker and no **Needs attention**.
-- [ ] **They are not counted.** The hub's "N actions need attention" line and the top-bar pill leave them out. With
+- [x] **They are not counted.** The hub's "N actions need attention" line and the top-bar pill leave them out. With
       every real check passing, both say 1 (the Treasure Map card) where they said 6.
-- [ ] **Their pages say Coming soon.** Each card still opens its own page, whose bold first line reads "Coming soon."
+- [x] **Their pages say Coming soon.** Each card still opens its own page, whose bold first line reads "Coming soon."
       in place of "Placeholder page."; the notes on that page are unchanged.
-- [ ] **Nothing else moves.** Your Assistant's Treasure Map card is still marked and counted, and the other cards
+- [x] **Nothing else moves.** Your Assistant's Treasure Map card is still marked and counted, and the other cards
       behave as before.
 
 ## Epics in this book
@@ -68,7 +70,8 @@ Implementation and again before Gate B: `git fetch` and `git merge-tree --write-
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(filled by `/close-book`)*
+- **Confidence at close:** high for the code and its tests; medium-high for the experience. The owner saw the built hub
+  and the ring comparison at Gate B, but nobody has looked at the hub signed in on a live instance (audit header, §6 #4)
 
 ## Close artifacts *(filled by `/close-book`)*
 

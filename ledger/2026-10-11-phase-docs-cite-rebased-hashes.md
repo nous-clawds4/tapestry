@@ -21,5 +21,11 @@ full-suite record sat on `035c80ea`. That commit was rebased onto another sessio
 `035c80ea` is not an ancestor of `staging`. The Reviewer re-ran the suite at HEAD for the review. The story's evidence
 section now names the landed commit.
 
+**Recurred 2026-10-12 (`assistant-coming-soon` #1, Gate B review, harness friction 3), as a sibling.** The story's
+J3 full-suite record (gate run `20261012T021106Z-17851-7755`) ran on `88fa4da4+dirty`, a working tree that matches no
+commit; the story says so. Its planning commits were also rebased before push (`c51ef49` stayed, the next three were
+rewritten onto another book's `6bab1e5`). The reviewer's full run at HEAD `f92c462` (`20261012T025139Z-32472-0dfa`)
+replaces the record.
+
 **Pointer:** `engineering-team/reviews/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md` (NB13, Harness
 friction).

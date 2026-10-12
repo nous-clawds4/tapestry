@@ -189,7 +189,8 @@ test.describe("Your Assistant's taggings (assistant-identification-tags #3, re-a
     await page.waitForTimeout(1500);
     // Every card but Identification Tags (done) stays marked: the placeholders, and the checked Outbox Relays card, whose
     // answer this mock does not carry (re-aimed by assistant-outbox-relays #1: ten).
-    expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(X.ACTIONS.length - 1));
+    // Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted.
+    expect(squash(await textOf(page.locator('main').first()))).toContain(X.countText(X.COUNTED.length - 1));
   });
 
   test('B3: a failed local write, then a tag not found — each on the row, with the error tone; the card stays marked (AC-4, AC-6)', async ({ page }) => {

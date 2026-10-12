@@ -1,6 +1,6 @@
 # Epic: duty-menu-public-relay — the instance's public relay address
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-12; the folders sit under `done/`)
 **Created:** 2026-10-12
 **Book:** `engineering-team/audits/duty-menu-public-relay/book.md` (no PRD — acceptance frame; Light trial, Bug lane)
 

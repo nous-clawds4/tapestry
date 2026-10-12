@@ -38,6 +38,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const TC = require('./helpers/trustedContentFixtures');
 const AM = require('./helpers/assistantManagementFixtures');
+const CS = require('./helpers/comingSoonFixtures');
 const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
 
 const REPO = path.resolve(__dirname, '..');
@@ -512,7 +513,8 @@ test('C2: the two readings for each of the three — no answer, checking, failed
   const summarize = (await uiUtil()).summarizeAttention;
   const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
   const checked = mod.CHECKED_ACTIONS || [];
-  const placeholders = all.filter((k) => !checked.includes(k)).length;
+  // Re-aimed by assistant-coming-soon #1 (AC-2): the counted placeholders, less the five that say Coming soon.
+  const placeholders = all.filter((k) => !checked.includes(k) && !CS.KEYS.includes(k)).length;
   const cases = [['no answer', undefined, 'marked'], ['checking', { phase: 'checking', answered: false, actions: {} }, 'marked'], ['failed', summarize(null), 'marked']];
   for (const r of TC.REASONS.unfinished) cases.push([`unfinished (${r})`, summarize(answerWith(TC.trio((c) => TC.unfinished(c, r)))), 'marked']);
   for (const r of TC.REASONS.finished) cases.push([`pending (${r})`, summarize(answerWith(TC.trio((c) => TC.pending(c, r)))), 'counted']);

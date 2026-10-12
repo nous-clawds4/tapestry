@@ -6,7 +6,8 @@ import { useAssistantAttention } from '../../context/AssistantAttentionContext';
 import { MANAGE_TREASURE_MAP_PATH } from '../../config/avatarMenuLinks';
 import ActionText from './ActionText';
 import {
-  ASSISTANT_SECTIONS, ASSISTANT_ACTIONS, ASSISTANT_FAQ, ASSISTANT_COPY, assistantAttention, attentionCountText,
+  ASSISTANT_SECTIONS, ASSISTANT_ACTIONS, ASSISTANT_FAQ, ASSISTANT_COPY, COMING_SOON_ACTIONS, assistantAttention,
+  attentionCountText,
 } from './actions';
 
 /**
@@ -26,16 +27,20 @@ import {
  *     first built by assistant-outbox-relays #1). A done card whose category another Assistant holds too, or only,
  *     also shows a muted "Shared" pill and one line linking to /treasure-map to move it here; it is still done, and
  *     still not counted (assistant-shared-categories #1).
+ * In all four, a card for an action that is not built yet (COMING_SOON_ACTIONS) shows a muted "Coming soon" pill and no
+ * mark, and is never counted (assistant-coming-soon #1).
  */
 
 /**
  * One action's card. The title is the card's link, stretched over the whole card (its ::after), so a click
  * anywhere opens the action's page; the description's NIP links sit above it (ADR 0001 sub-decision 4), and so does
  * a shared card's "Move it here →", which opens /treasure-map.
- * `shared` is 'partly', 'entirely' or nothing (assistant-shared-categories #1).
+ * `shared` is 'partly', 'entirely' or nothing (assistant-shared-categories #1). A `comingSoon` card is never marked or
+ * done, whatever it is passed: it has no marker and shows the muted Coming soon pill (assistant-coming-soon #1).
  */
-function ActionCard({ action, marked, done, shared }) {
-  const isDone = done && !marked;
+function ActionCard({ action, marked: markedIn, done, shared, comingSoon }) {
+  const marked = markedIn && !comingSoon;
+  const isDone = done && !marked && !comingSoon;
   const isShared = isDone && (shared === 'partly' || shared === 'entirely');
   return (
     <div className={`bs-assistant-hub-card${marked ? ' needs-attention' : ''}${isDone ? ' is-done' : ''}`}>
@@ -45,11 +50,13 @@ function ActionCard({ action, marked, done, shared }) {
           <Link to={action.path} className="bs-assistant-hub-card-link">
             {marked && <span className="bs-sr-only">{ASSISTANT_COPY.needsAttentionSrPrefix}</span>}
             {isDone && <span className="bs-sr-only">{isShared ? ASSISTANT_COPY.doneSharedSrPrefix : ASSISTANT_COPY.doneSrPrefix}</span>}
+            {comingSoon && <span className="bs-sr-only">{ASSISTANT_COPY.comingSoonSrPrefix}</span>}
             {action.title}
           </Link>
           {marked && <span className="bs-setup-step-badge" aria-hidden="true">{ASSISTANT_COPY.needsAttention}</span>}
           {isDone && <span className="bs-setup-step-badge is-done" aria-hidden="true">{ASSISTANT_COPY.done}</span>}
           {isShared && <span className="bs-setup-step-badge is-neutral" aria-hidden="true">{ASSISTANT_COPY.shared}</span>}
+          {comingSoon && <span className="bs-setup-step-badge is-neutral" aria-hidden="true">{ASSISTANT_COPY.comingSoon}</span>}
         </div>
         <p className="bs-assistant-hub-card-text"><ActionText parts={action.description} /></p>
         {isShared && (
@@ -131,7 +138,13 @@ export default function AssistantManagementPage() {
             <ul className="bs-assistant-hub-cards">
               {ASSISTANT_ACTIONS.filter((action) => action.section === section.key).map((action) => (
                 <li key={action.key}>
-                  <ActionCard action={action} marked={marked(action)} done={isDone(action)} shared={shared[action.key]} />
+                  <ActionCard
+                    action={action}
+                    marked={marked(action)}
+                    done={isDone(action)}
+                    shared={shared[action.key]}
+                    comingSoon={COMING_SOON_ACTIONS.includes(action.key)}
+                  />
                 </li>
               ))}
             </ul>

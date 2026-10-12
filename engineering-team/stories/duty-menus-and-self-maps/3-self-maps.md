@@ -497,16 +497,31 @@ Map, with a menu that offers everything at one relay, the Brainstorm Assistant k
   lesson)". AC4's check asks each of step 5's obligations to state its level (finding 20), and these two are stated at
   SHOULD.
 
-**ADR 0003 Amendment A1's departures from the story** (ADR 0003, Questions for the owner and Consequences of A1). The ACs are
+**ADR 0003's Amendments A1 and A2: departures from the story** (ADR 0003, Questions for the owner, Consequences of A1
+and Consequences of A2). The ACs are
 not edited: read them as below.
 - **AC3's confirmed duty** ("an entry naming A in the observer's Map plus a matching self-entry in A's Map", where
-  matching means "the same key, or a key that wins for it under § 6") has one exception (ADR 0003 A1-4). A self-entry
-  keyed as the observer's entry, whose element 3 is the empty string, matches by AC3's words but confirms no duty. Readers take it "to claim nothing:
-  it still wins insights among A's self-entries (§ 6), but confirms no duty" (ADR 0003 A1-4's sentence for Treasure
-  Maps § 9.2, Its relay). Nothing changes for a self-Map that follows § 9.2, since no self-entry there has an empty
-  relay.
+  matching means "the same key, or a key that wins for it under § 6") has two exceptions, the second provisional. The
+  first is ADR 0003 A1-4's. A self-entry keyed as the observer's entry, whose element 3 is the empty string, matches by
+  AC3's words but confirms no duty. Readers take it "to claim nothing: it still wins insights among A's self-entries
+  (§ 6), but confirms no duty" (ADR 0003 A1-4's sentence for Treasure Maps § 9.2, Its relay). Nothing changes for a
+  self-Map that follows § 9.2, since no self-entry there has an empty relay.
   - *Confirmed by name.* The rule was in the text of A1 that the owner approved, but ADR 0003 named this departure
     only at A1's revision 3, after the approval. The owner confirmed it by name on 2026-10-11, before review.
+  - *The second exception, provisional (ADR 0003 A2-4; Treasure Maps § 9.2, Ties).* Where § 6 as written picks no
+    single self-entry of A for an insight, as for a bare `39998` and a `39999` key, no self-entry wins it. A
+    self-entry keyed as the observer's entry then confirms nothing for that insight, though AC3's "the same key"
+    confirms it. That self-entry may be one of the two that tie, as in the case the review of story 3 found (its B2):
+    A's self-Map `{* → R0, 39998 → Rc, 39999 → Rd, 39999:c1 → Rd}` and the observer's `[39999:c1, A]`, where
+    `39999:c1` ties with the bare `39998`. It may also be a wider key that both outrank, such as `*` beside A's
+    `39998` and `39999`.
+    - The rule is ADR 0003's own, from before A1 (sub-decision 2, Why a tie claims nothing; Out of scope, where such
+      ties "claim nothing meanwhile"). The spec is right to carry it; only the departure's name was missing.
+    - It holds until story 4 orders the Concept kinds in § 6 (ledger row `2026-10-09-draft-grammar-bare-39999`), and
+      the PO then revises this record.
+    - Whether a self-Map that follows § 9.2 can meet it, as none can meet the first, turns on how story 4 reads § 9.2's
+      "MUST NOT add a self-entry that speaks for none of the insights it wins" (the review's NB3).
+    - *Confirmed by name.* The owner confirmed this departure by name on 2026-10-12, at the review's B2.
 - **AC7's "the rest of the user-signed designation is unchanged"** gives way, at one sentence of Assistant Designation
   § Relationship to NIP-85, to AC7's "no longer contradicts it" (ADR 0003 A1-9). The sentence follows the quoted "Each
   triple delegates" sentence: "A triple whose provider is the event's own author is the exception: it designates no
@@ -565,11 +580,68 @@ Implementer, fix 6 (2026-10-11), after the review of fix 5:
 The last check left five non-blocking kick-backs; all five are closed:
 - Treasure Maps § 9.2 Meaning and Confirmed duties now carry ADR 0003 A1-4's rule for a self-entry whose element 3 is
   the empty string (it claims nothing; it confirms no duty), so § 9.2 no longer says the opposite of Its relay.
+  *Corrected at Implementer round 2 (below): Confirmed duties' second sentence still lacked the condition until that
+  round's "such" (review NB1; ADR 0003 A2-5).*
 - ADR 0003's "Status of A1" and Questions for the owner now say A1 was approved, matching the approval line.
 - The PO block names ADR 0003's amendment as "ADR 0003 A1" throughout, and its AC3 line names the self-entry "keyed as
   the observer's entry".
 - Duty Menus § 2's "its own key included" applies nowhere after ADR 0003 A1-2. It is harmless and owner-approved
   wording, so it stays; ledger row `2026-10-11-duty-menus-spec-fold-forwards` carries it to story 4.
+
+### Implementer, round 2 (2026-10-12): ADR 0003's Amendment A2 and the owner's folds
+
+Role: Implementer, after the review's blockers B1 and B2 and the owner's decisions of 2026-10-12 (B1 option (c), B2
+named, NB1, NB6, NB7, NB11 and NB14 folded). Each quote went in as ADR 0003's A2 words it; a script finds every A2
+quote verbatim, once. No edit adds or removes a line, so the draft line numbers below hold before and after, and match
+ADR 0003's (as of `b25f89ac`).
+
+- **ADR 0003 A2-1 (B1, option (c)):** `treasure-maps.md`:304 (§ 7, three sentences after the acceptance sentence), :84
+  (§ 3, the causes end "or a retracted List that is no copy, § 7"), :393 (§ 9.2 What follows a stop, Lists: "at each
+  relay where it published the List", and the pointer to § 7), :415 and :416 (What the allowance rests on, third and
+  fourth cases).
+- **ADR 0003 A2-2 (NB4):** `treasure-maps.md`:361, Its relay's parenthesis.
+- **ADR 0003 A2-5:** `treasure-maps.md`:80 (NB6, "except as § 9 says"), :95 (NB11, Enumerating), :403 (NB1, "such").
+  Meaning's and Confirmed duties' blank-relay phrases (fix 7) are unchanged; A2-5 makes them ADR 0003's text.
+- **Metadata Sources** (`treasure-maps.md`:5): "its Amendments A1 and A2 (…; a retracted List, § 7)", as A2's
+  Implementation notes word it. `assistant-designation.md` is unchanged, as A2 says.
+
+Judgment calls that ADR 0003 does not word:
+
+- **NB7, `treasure-maps.md`:329 (§ 9, One key per observer).** The first sentence now reads "…serves several people
+  with an algorithm personalized to each person's point of view or settings signs …", in NIP-85's words ("a key per
+  user when the algorithm is personalized to that user's point of view or settings"). The bullet ends with a pointer
+  that reuses § 9.2's phrase and claims nothing new: "For a key that serves several observers, as NIP-85 allows for an
+  algorithm that is not personalized, see § 9.2 and Duty Menus § 14, question 3." Checked, as A2-5 asks, against the
+  three specs that cite the bullet; each still reads true:
+  - Spawning § 4 (`spawning.md`:164, "each Assistant key serves one observer"): a spawned list is made for one
+    observer, behind that observer's Map and support gates (Spawning § 1, principle 3), so its key is personalized.
+  - Trust Determination Methods § 4 (`trust-determination-methods.md`:158, "Each Assistant key serves one owner"): the
+    stored method carries its owner's point of view, so the key that signs it is personalized.
+  - Duty Menus § 2 (`duty-menus.md`:45, Per-customer key): it states NIP-85's personalized case and cites the bullet by
+    name, which the bullet now matches.
+- **NB14, `duty-menus.md`:284 (§ 9, What trusted people do).** The count gains ", counted as Treasure Maps § 9.2 says
+  (Counting Maps)", so a self-entry is not counted as a choice of the key it names. Duty Menus' metadata Sources line is
+  not changed for it: that line's gaps are the review's NB15, which stays in the ledger row.
+- **NB1's second ask.** Fix 7's first bullet overstated. A one-sentence correction now sits under it; the bullet
+  itself is not reworded.
+- **Ledger row `2026-10-12-self-maps-spec-fold-forwards`** gains a dated note: items 1, 4, 6, 7, 11, 14 and 16 are
+  folded (16 by A2-3's marker on the check, in ADR 0003); items 3, 5, 8–10, 12, 13 and 15 stay. The row stays OPEN.
+- **Not the Implementer's, though in the same uncommitted tree:** ADR 0003's Amendment A2, its markers and its Status
+  line (Architect), and the record's A2-4 line under AC3 (PO; its "ADR 0003 A2-4" citation was added by the
+  Architect's script at A2's revision 1, F6).
+
+Implementer, round 2 fix 1 (2026-10-12), after the review of round 2:
+
+- **Ledger row `2026-10-12-self-maps-spec-fold-forwards`:** its 2026-10-12 note also carries ADR 0003's "Not in A2"
+  question: whether Treasure Maps § 5.4 Enumerate drops a retraction that § 7 reads as no copy. No draft edit.
+- **The bullet above** now names the Architect's edit to the PO's A2-4 line.
+- **Left for the PO (kicked back):** the departures heading in the record still names only Amendment A1, though the
+  A2-4 line sits under it.
+- **Left for the Architect (kicked back):** A2-2 markers on A1's two other copies of the Its relay text (A1-1's New
+  text, and A1's Implementation notes for § 9.2 Its relay); the § 3 part of A2-5's marker in Verification, which
+  sits above the sentence it amends; and an approval line once the owner approves A2's wording.
+- **Left for the commit:** in role order, an `adr:` commit (ADR 0003 and the record's hunk), then an `impl:` commit
+  (the drafts, this block's hunk and the ledger row).
 
 ## Linked artifacts
 

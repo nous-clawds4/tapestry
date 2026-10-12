@@ -144,6 +144,8 @@ plan's § Verification amendment (the two Implementation-time re-aims).
 - [ ] **Literal counts in the attention spec.** Derive `tests/brainstorm/assistant-attention.spec.js` B1–B5's counts
       from the hub fixture, as `assistant-profile-check.spec.js:40` does, before the next card is added. Tracked as an
       occurrence on OPEN.md row `2026-09-21-adr-reaim-list-misses-outcome-asserts`.
+      *2026-10-12: moved by hand again, every count five lower (book `assistant-coming-soon`, which left the five
+      Coming soon cards out of every count). Still literal; the hub fixture now has `COUNTED` to derive them from.*
 
 ## 7. Process findings (harness)
 

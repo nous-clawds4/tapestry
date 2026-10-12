@@ -39,7 +39,8 @@ const DM = require('../../test/helpers/dutyMenuFixtures');
 // assistant-duty-menu #1: the Duty Menu is checked too, and mock() adds it pending (no menu found) for the same reason.
 const CHECKED = ['profile', 'identification-tags', 'outbox-relays'];
 const OTHERS_DONE = { 'outbox-relays': { finished: true, done: true, pending: false } };
-const PLACEHOLDERS = X.ACTIONS.length - CHECKED.length;
+// Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted.
+const PLACEHOLDERS = X.COUNTED.length - CHECKED.length;
 const PROFILE_TITLE = "Your Tapestry Assistant's Profile";
 const ID_TITLE = 'Identification Tags';
 
