@@ -22,6 +22,36 @@ whether a bare `39998` names a user's TA. Consequences lists both new protocol r
 bullet, and Assistant Designation's split rule and Sources clause, name both keys that § 4.6 says name no Concept,
 `39999:duty-menu` and `39999:dlist-header` (R3-2).
 
+**Clarifications after acceptance (2026-10-12)** answer the Implementer's three non-blocking kick-backs, KB-1–KB-3,
+each by option (a): it is fixed in this story. Each is a wording fix that changes no rule: it makes a sentence agree
+with a rule approved above. "→" means "replace with"; line numbers are as of `ae888a7e`.
+
+- **KB-1** (AC3, sub-decision 7). Treasure Maps § 10.5, the `30382:tag::<Tag>` row's text (:504) → "…for every
+  profile, its Podcaster Scores in the Profiles category, in every metric, except where this Map says otherwise." The
+  key matches the Profiles category only (§ 4.4); without the words, "its Podcaster Scores" reads as every category's.
+  Sub-decision 7's "the other § 10.5 rows … already read the Profiles category" holds for the rest: :501 and :505 each
+  name one list or Score, and :506's "my supported Tags for profiles" is the Profiles category's set, as § 10.6's "for
+  notes" is kind 1's (V27).
+- **KB-2** (AC1, AC3). Treasure Maps' At a glance (:39), "Cut a key short, or leave a segment empty, and it covers
+  more." → "Cut a key short, or leave a segment empty, and it covers more, except where § 4.4 makes an empty category
+  the Profiles category, and within a Concept key's `d`, which is one segment and never empty (§ 4.5)." On the model
+  these are the only exceptions (V28). The kind and system slots, which may never be empty (§§ 4.4 and 4.7), were
+  outside the bullet before this story and stay so.
+- **KB-3** (AC5, finding 15, sub-decision 9). Kind `39999` is addressable in NIP-01's sense (`30000`–`39999`), and
+  NIP-01's "it SHOULD return just the latest one" is for replaceable events; for addressable ones, "only the latest
+  event MUST be stored by relays, older versions MAY be discarded" (V29). Step 1's "`3039x:tag:10002`, a replaceable
+  kind" (:169) uses NIP-01's term rightly and stays.
+  - Duty Menus § 4 (:87): "one replaceable kind-`39999` event" → "one addressable kind-`39999` event".
+  - § 11 (:289): "Change the offers by republishing the one replaceable item." → "Change the offers by republishing
+    the one addressable item."
+  - § 8.1 (:252): "…: a relay, too, SHOULD return only the latest version at the address, as NIP-01 asks for
+    replaceable events." → "…: a relay, too, SHOULD return only the latest version at the address. NIP-01 asks this
+    for replaceable events, and this spec asks it for menus, which are addressable." The SHOULD itself is unchanged;
+    only its attribution is corrected. The tie clause before it ("as NIP-01 keeps for replaceable events", NIP-01's
+    lowest-id rule) and § 11's NIP-09 quotation stay: each says truly what its NIP says.
+  - Duty Menus' Sources line (:6): "the wording of §§ 2, 4, 5, 6.2, 8 and 13.3" → "the wording of §§ 2, 4, 5, 6.2, 8,
+    11 and 13.3". Treasure Maps' Sources line already names §§ 4.4, 4.5 and 10.5, which KB-1 and KB-2 follow.
+
 ## Context
 
 Story 4 settles in Treasure Maps the three questions that ADR 0002 Amendment A1 read provisionally for Duty Menus:
@@ -654,6 +684,10 @@ Docs-mode. The Implementer makes sub-decisions 1–9 and 11's edits, except the 
 - **`protocols/README.md`** :65, :73, and the **handoff** :3, :14 (11).
 - **Ledger:** the five rows and the three new rows (11).
 - **Story 3's file:** the Implementer's item-1 line, after the PO's `story:` commit (sub-decision 11's order).
+- **Clarifications after acceptance** (KB-1–KB-3, line numbers as of `ae888a7e`): `treasure-maps.md` :39 (KB-2)
+  and :504 (KB-1); `duty-menus.md` :6, :87, :252 and :289 (KB-3). Only these lines. Afterwards,
+  `grep -n replaceable protocols/drafts/duty-menus.md` finds only step 1's `10002` (:169), § 8.1's two NIP-01 clauses
+  and § 11's NIP-09 quotation; none calls the menu replaceable.
 - **Not edited:** BIBLE, Content Categories, Spawning (Open question 3), `protocols/drafts/treasure-map.md`, ADR 0002,
   ADR 0003 (beyond the Architect's items 2 and 3), the epic and the book, and code.
 - **Gates:**
@@ -772,6 +806,21 @@ them from sub-decisions 1–7.
 - **V26 (Consequences; N3).** Story 4's AC6 scope bullet allows "any new row that names a difference from shipped
   code". Of this ADR's three new rows, only the code row does.
 
+**Clarifications after acceptance** (`s4impl/verify/rederive/row105.py` and `kb/check/glance.py`, each run with
+`python3 -I` and the `s4/` path as its argument):
+- **V27 (KB-1).** `30382:tag::T1` matches T1's Profiles-category Scores only (`conf`, `rank`); `30382:tag` and `30382`
+  match D1's and D2's too. `30392:tag::T1`, `30382:tag::T1:conf` and `30382:tag:::conf` each match the Profiles
+  category only, so :501, :505 and :506 agree with § 4.4 as they stand.
+- **V28 (KB-2).** Over the model's keys, 1,528 variants: each key cut short by one segment, or with one category, Tag,
+  metric or Concept `d` emptied, plus a cut inside a Concept `d` that holds a colon. 15 do not cover more: 8 empty a
+  profile key's category before a value (`30382:tag:D1:T1` → `30382:tag::T1`), 6 empty a Concept `d` (`39998:c1` →
+  `39998:`, not a key), and 1 cuts inside a Concept `d` (`39998:a:b` → `39998:a`, another header). None other.
+- **V29 (KB-3).** NIP-01 as fetched on 2026-10-12 (`raw.githubusercontent.com/nostr-protocol/nips/master/01.md`):
+  :97, replaceable kinds `0`, `3` and `10000`–`19999`; :99, addressable kinds `30000`–`39999`, for which "only the
+  latest event MUST be stored by relays, older versions MAY be discarded"; :101, the lowest-id tie rule "in case of
+  replaceable events"; :103, "When answering to `REQ` messages for replaceable events … it SHOULD return just the
+  latest one". So the menu is addressable, and § 8.1's SHOULD is this spec's own.
+
 **Reading checklist** (each AC bullet, where to look, and what the Reviewer finds):
 
 | AC bullet | Where | Finds |
@@ -790,6 +839,7 @@ them from sub-decisions 1–7.
 | AC5 f23, f24 | DM § 2, steps 3–4, § 13.3, § 8.2, § 4 | "Offered — of an insight"; "where the menu gives K a relay (step 3)"; "Not offered as a whole" twice; "Nous' kind 10002 write relays"; "that the relays it asks hold" |
 | AC5 own key, q3 | DM § 2, § 14 | no "its own key included"; "what do such a key's self-entries speak for" |
 | AC6 | metadata, README, handoff, ledger, story 3, ADR 0003 | sub-decision 11, item by item, in the loose-ends order |
+| Clarifications | TM At a glance, § 10.5; DM § 4, § 8.1, § 11, Sources | "except where § 4.4 makes an empty category the Profiles category"; "in the Profiles category, in every metric"; "one addressable kind-`39999` event"; "this spec asks it for menus"; "the one addressable item"; "§§ 2, 4, 5, 6.2, 8, 11 and 13.3" |
 
 **Vocabulary.** No "canonical", "consensus" or "root" in any added line.
 
