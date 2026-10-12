@@ -51,3 +51,22 @@ code; the code books follow the answers.
 "Shipped code that reads these keys"; sub-decision 11; Consequences, Shipped code; Verification V22, V24 and V25);
 `protocols/drafts/treasure-maps.md` §§ 4.5, 4.6 and 6; ledger row `2026-10-12-duty-menu-code-cross-book-notes`; book
 `assistant-self-map`.
+
+**Note, 2026-10-12 (story 4's review, non-blocking 7 and 8).** Two omissions, checked with node against the shipped
+code; the row's fix shape widens to cover them.
+- **`conceptCurator` and per-DList `39999:<d>` entries.** It takes an entry as assigned only when `e.kind === 39998`
+  (`ui/src/utils/treasureMap.js`:229), so it ignores every `39999:<d>` entry.
+  - *Created by story 4:* with `["39998:dlist-header", TA]` and `["39999:c1", B]`, coord `39999:B:c1` gives TA,
+    "catch-all", where Treasure Maps § 6 now gives B (`39999:c1` beats `39998`; before story 4 the two keys tied).
+  - *Older:* with `["39999:c1", B]` alone, it gives the local Assistant, where § 4.5 gives B.
+  - The Older bullet's "(§ 4.5's legacy spelling)" reads as if the bare `39998` were the legacy spelling. It is
+    `39998:dlist-header`, the only spelling `conceptCurator` reads as the blanket entry.
+- **`roleOf`.** `entryRole('concepts', …)` returns "individual" for `39998:`, `39999:`, `39999:dlist-header` and
+  `39999:duty-menu` (`ui/src/pages/treasure-map/editTreasureMap.js`:36), so `individualDuties` counts all four and the
+  override switch removes them. `39999:` and `39999:dlist-header` are created by story 4, beside `39998:`;
+  `39999:duty-menu` is older (§ 4.6).
+- **Fix shape, widened:** `conceptCurator` follows § 6 for every Concept key, `39999:<d>` entries included (assigning
+  from either Concept kind). `roleOf` follows from the `entryOf`/`appliesTo` fix already named. Each with a test.
+
+Pointer: `engineering-team/reviews/duty-menus-and-self-maps/4-treasure-map-key-grammar.md` § Findings, non-blocking 7
+and 8. The row stays OPEN.

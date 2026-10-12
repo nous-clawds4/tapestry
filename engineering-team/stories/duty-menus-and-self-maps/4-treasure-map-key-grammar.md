@@ -1,6 +1,6 @@
 # Story 4: The Treasure Maps key grammar
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Type:** Doc
 
@@ -457,4 +457,4 @@ in as written; none of these changes a rule.
 
 - ADR: [`decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md`](../../decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/duty-menus-and-self-maps/4-treasure-map-key-grammar.md`](../../reviews/duty-menus-and-self-maps/4-treasure-map-key-grammar.md)
