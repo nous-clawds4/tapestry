@@ -8,7 +8,8 @@
 
 Name this instance's public relay, `wss://<public domain>/relay`, wherever the code means "this instance's own relay,
 as outsiders reach it". That covers the Duty Menu's offer and the Outbox Relays suggestions. Docker deployments set
-`BRAINSTORM_RELAY_URL` to the internal address `ws://tapestry:80/relay`, so today both treat the instance as having no
+`BRAINSTORM_RELAY_URL` to the internal address `ws://localhost:7777` (`docker/entrypoint.sh:9`), so today both
+treat the instance as having no
 public relay.
 
 ## Stories

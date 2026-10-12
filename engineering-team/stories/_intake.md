@@ -2905,9 +2905,11 @@ Bug lane.
 
 > I just tried publishing the duty menu for my Assistant, logged into staging as straycat. I see that 39998 and 39999 are indicated as being offered and that are now published. However, it says nothing about Trusted Assertions or Trusted Lists, and those should also be on the Duty Menu. Can you tell me why TAs and TLs have not been included?
 
-**Diagnosis (same session):** `docker-compose.yml:82` sets `RELAY_URL=ws://tapestry:80/relay`, the Docker-internal
+**Diagnosis (same session; corrected at Gate B, 2026-10-12):** the tapestry container's `RELAY_URL` defaults to
+`ws://localhost:7777` (`docker/entrypoint.sh:9`). The first diagnosis cited `docker-compose.yml:82`'s
+`ws://tapestry:80/relay`, which is the nostr-search-api container's setting. Either way it is the internal
 address, which becomes `BRAINSTORM_RELAY_URL`. ADR assistant-duty-menu/0001 sub-decision 2 takes the instance's own
-relay from that setting when its host is public. `tapestry` isn't, so Scores and Lists get no row, and Concepts fall
+relay from that setting when its host is public. `localhost` isn't, so Scores and Lists get no row, and Concepts fall
 back to the DList relay. The menu published on staging (Assistant `8e901369…`) has only `39998` and `39999` at
 `wss://dcosl.brainstorm.world`. Production uses the same compose file. The Outbox Relays page's "this instance's own
 relay" suggestion uses the same rule (`outboxRelays.js` `outboxSuggestions`).

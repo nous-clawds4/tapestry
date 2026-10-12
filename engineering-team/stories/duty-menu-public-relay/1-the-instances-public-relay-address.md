@@ -15,10 +15,13 @@ The owner published their Assistant's Duty Menu on staging as `straycat`. The me
 **The cause.**
 - ADR assistant-duty-menu/0001 sub-decision 2 takes "this instance's own relay at its public address" from
   `BRAINSTORM_RELAY_URL`, when that URL's host is public.
-- Docker deployments set it to the internal address: `docker-compose.yml:82` `RELAY_URL=ws://tapestry:80/relay`,
-  rendered as `BRAINSTORM_RELAY_URL` by `config/brainstorm.conf.template:66`.
-- `tapestry` is not a public host, so the offer finds no own relay. Scores and Lists then get no row, and Concepts take
-  the DList fallback.
+- Docker deployments set it to the internal address. The tapestry container never sets `RELAY_URL`, so
+  `docker/entrypoint.sh:9` defaults it to `ws://localhost:7777`, the relay as the control panel reaches it inside
+  the container. `config/brainstorm.conf.template:66` renders that as `BRAINSTORM_RELAY_URL`.
+  *(Corrected at Gate B, 2026-10-12: the intake diagnosis cited `docker-compose.yml:82`, `ws://tapestry:80/relay`.
+  That line is the nostr-search-api container's setting. See § Deviations.)*
+- `localhost` is not a public host, so the offer finds no own relay. Scores and Lists then get no row, and Concepts
+  take the DList fallback.
 - The Outbox Relays page's first suggestion, "this instance's own relay" (`outboxRelays.js` `outboxSuggestions`), uses
   the same rule and has never appeared on a Docker deployment.
 
@@ -33,8 +36,8 @@ Lists at this instance's public relay, so that the menu tells other clients ever
 
 ## Acceptance criteria
 
-- [ ] **AC-1: the public address on Docker.** Given `BRAINSTORM_RELAY_URL` = `ws://tapestry:80/relay` and
-      `STRFRY_DOMAIN` = `staging.example.org`, this instance's public relay is `wss://staging.example.org/relay`.
+- [ ] **AC-1: the public address on Docker.** Given `BRAINSTORM_RELAY_URL` = `ws://localhost:7777` (the tapestry
+      container's default) or any other non-public relay URL, and `STRFRY_DOMAIN` = `staging.example.org`, this instance's public relay is `wss://staging.example.org/relay`.
   - The Duty Menu offer names it for every Lists and Concepts row, and for the Scores row when the viewer gets Scores.
   - The Outbox Relays suggestions list it first.
 - [ ] **AC-2: a public relay URL still wins.** Given `BRAINSTORM_RELAY_URL` whose host is public, that URL is the
@@ -55,7 +58,7 @@ Lists at this instance's public relay, so that the menu tells other clients ever
   `null`.
   - `dutyMenu.js` `resolveOfferInputs` takes `ownRelay` from it.
   - `outboxRelays.js` `outboxSuggestions` takes its first suggestion from it.
-- **The rejected alternative.** Change `RELAY_URL` in `docker-compose.yml` to the public address. The control panel
+- **The rejected alternative.** Set the tapestry container's `RELAY_URL` to the public address. The control panel
   uses `BRAINSTORM_RELAY_URL` to reach strfry *inside* the container network, and other readers depend on that. This
   fixes the meaning in one place without moving the deploy config.
 - **Blast radius.**
@@ -110,6 +113,11 @@ The full `npm test` runs at book close.
 - Republishing menus automatically. The person presses again; the card shows out of date by itself.
 
 ## Deviations
+
+- **The premise, corrected at Gate B (2026-10-12; review round 1, B1).** The intake diagnosis cited
+  `docker-compose.yml:82`, `RELAY_URL=ws://tapestry:80/relay`. That is the nostr-search-api container's setting. The
+  tapestry container gets `ws://localhost:7777` from `docker/entrypoint.sh:9`. The fix is unchanged, because both
+  are non-public hosts. The Background, AC-1, the code comment and the tests now cite the real value.
 
 - **Implementation, 2026-10-12 (small judgment calls):**
   - **Where the suggestion tests live.** `outboxSuggestions` is tested in `assistant-outbox-relays-page` (G1–G5), so
