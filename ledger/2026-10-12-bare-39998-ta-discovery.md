@@ -28,3 +28,14 @@ Designation. The PO places the row: story 5 of `duty-menus-and-self-maps`, which
 **Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (sub-decision 5;
 sub-decision 11; Verification V25; Open question 3); `protocols/drafts/assistant-designation.md` § Relationship to
 NIP-85 and § Dual-author lookup and precedence; `protocols/drafts/treasure-maps.md` § 4.5.
+
+**Note, 2026-10-12 (story 5, ADR `duty-menus-and-self-maps/0005` sub-decision 10).** The owner placed this row in a
+docs pass after book `duty-menus-and-self-maps` (answer 5(a) to story 5's open question 5). At ADR 0005's gate the
+owner confirmed that one more question rides with it, for that pass: does a bare `39998` ask the Assistant to curate
+a list that has no entry of its own in the Map? Treasure Maps § 10.1 gives it "the items filed under" the person's
+headers, and Spawning § 3.6, under principle 3's two gates, has it spawn the curated Concept of a list among the
+Supported Concepts. But Assistant Designation's blanket entry "names no individual list", and only a per-DList entry
+empowers an assistant to curate (§ Per-DList curation entries; ADR 0005, Consequences, cross-book item 4). An
+Alternate entry for a list is the same question: Treasure Maps §§ 7 and 9 give that Assistant a duty, which
+Assistant Designation, where the first occurrence wins, does not empower. Until the pass decides, a self-Map narrows
+to exact keys for such a list (row `2026-10-12-self-map-upkeep-cross-book-notes`, item 4). The row stays OPEN.

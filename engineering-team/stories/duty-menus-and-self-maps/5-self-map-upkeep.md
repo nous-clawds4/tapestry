@@ -496,7 +496,45 @@ records.
 
 ## Deviations
 
-None.
+**Implementer (2026-10-12).** Judgment calls in carrying ADR 0005 (Accepted, with Open question 1 answered (b))
+into the deliverables. The ADR's quoted text went in as written, and none of these changes a rule or departs from it.
+- **Line numbers.** The ADR's line numbers (as of `7ab2c955`) still matched: no draft, the handoff or a ledger row
+  changed between `7ab2c955` and `6179df3d`. The hunks in `protocols/` sit exactly on the lines its Implementation
+  notes list.
+- **Wrapping.** Trusted Lists wraps at about 100 columns, so its marker bullet and its Sources clause are rewrapped
+  within the lines the ADR names. The handoff's Open questions line is rewrapped and now runs :19–22, one line
+  longer. The other drafts keep one line per paragraph.
+- **Sources clauses.** Sub-decision 10 says "add" for Assistant Designation with no place. The clause goes after the
+  ADR 0004 clause, before "Companion to upstream", as Trusted Lists' does "after that parenthesis".
+- **§ 9.2, What follows a stop.** The ADR's lead ends "(principle 4)." with a period where the old text had a colon.
+  It went in as written.
+- **Ledger notes.** Sub-decision 10 gives each note's substance. They also carry:
+  - in the self-maps note, the owner's answers 1(a)–4(a), and what A2-1 keeps (sub-decision 4). The supersession
+    record says that the close audit "should" list it, as sub-decision 9 does;
+  - in the key-grammar note, that item 4 landed in § 4.3 rather than with the addressable-kinds row, which the item
+    offered;
+  - in the addressable-kinds note, that story 5 changed only § 4.3's citation, so § 4.3's departure stands;
+  - in the bare-`39998` note, a pointer to the new cross-book row's item 4 for the interim narrowing;
+  - in the list-`d`-tags note, the failure path's mechanics from the ADR's Context (`runOneNotePin`,
+    `refreshAllPinnedTags`), B4a's ADR by name, and a pointer to item 19.
+- **New rows.** Both ids carry 2026-10-12, the UTC day they were opened. The cross-book row's body is the ADR's five
+  items verbatim, one indent level up. A preamble says what "sub-decision", "item 5", the book's "its", item 4's
+  "the docs pass" and the section references with no spec refer to, since the row sits outside the ADR. The items use
+  no "Context", so it glosses none. It names the three phrases whose "its" is the book, since the items' other uses
+  of "its" (a self-entry's key, the instance's self-entries, the header's `b`, the list's Concept) do not name it. It
+  gives When curation stops and Revocation (item 4's second use) to Assistant Designation, so that the Treasure Maps
+  gloss for § 9, § 9.2, When it changes and A part A does not publish (the last two are paragraphs of § 9.2) is not
+  read as covering them. The new row for the word's existing uses in Treasure Maps also names its verb form in § 4.1,
+  inside the § 4.1 the ADR lists. That row quotes the word and carries the ADR's id, so it is the only added text that
+  holds it; it is outside `protocols/` and `docs/`, the gate's paths.
+- **N3 and N4.** The Architect folded both into ADR 0005 at acceptance. They bear on the cross-book notes only, so
+  they reach the deliverables through the cross-book row and the bare-`39998` note, as the ADR words them. No draft
+  needed them.
+- **Gates.** The first round ran no `npm test`, by its task. Fix round 1 ran it on the full diff: run
+  `20261012T220452Z-17450-4e48`, PASS, exit 0, 5744 passed, 0 failed, 591 skipped, 304/304 suites. Fix round 2 ran
+  it again: run `20261012T222217Z-28889-b851`, PASS, exit 0, the same counts. Fix round 3 ran it on its final text:
+  run `20261012T224116Z-29343-084a`, PASS, exit 0, the same counts. With no failure, no baseline comparison was
+  needed. No commit, by the task.
 
 ## Linked artifacts
 
