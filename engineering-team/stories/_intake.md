@@ -2894,3 +2894,20 @@ and Q6.
   key matching follows; a BIBLE pointer section when code ships (handoff § 8).
 - **Classification:** feature, Standard. The two hub pages lean Product Team first (prd-seed § 7); the readers and
   publishers go straight to engineering.
+
+## 2026-10-12 — The Duty Menu and Outbox Relays name the internal Docker relay address, so Scores and Lists drop out (bug)
+
+**PICKED UP** 2026-10-12 at intake → book `engineering-team/audits/duty-menu-public-relay/book.md`, epic
+`duty-menu-public-relay`, story 1. **Strictness:** Light (trial) — workflows/light-profile.md (the owner's choice),
+Bug lane.
+
+**Raw report (verbatim, 2026-10-12):**
+
+> I just tried publishing the duty menu for my Assistant, logged into staging as straycat. I see that 39998 and 39999 are indicated as being offered and that are now published. However, it says nothing about Trusted Assertions or Trusted Lists, and those should also be on the Duty Menu. Can you tell me why TAs and TLs have not been included?
+
+**Diagnosis (same session):** `docker-compose.yml:82` sets `RELAY_URL=ws://tapestry:80/relay`, the Docker-internal
+address, which becomes `BRAINSTORM_RELAY_URL`. ADR assistant-duty-menu/0001 sub-decision 2 takes the instance's own
+relay from that setting when its host is public. `tapestry` isn't, so Scores and Lists get no row, and Concepts fall
+back to the DList relay. The menu published on staging (Assistant `8e901369…`) has only `39998` and `39999` at
+`wss://dcosl.brainstorm.world`. Production uses the same compose file. The Outbox Relays page's "this instance's own
+relay" suggestion uses the same rule (`outboxRelays.js` `outboxSuggestions`).
