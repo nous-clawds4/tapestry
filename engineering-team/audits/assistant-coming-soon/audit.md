@@ -125,9 +125,11 @@ its J3 evidence or its Gate B record.
 
 ## 5. Quality state at close
 
-- **Test gate at close** (after the book flip and the epic close-out, step 10): see the line below, recorded when the
-  run finished.
-  - *(filled in at step 10)*
+- **Test gate at close** (after the book flip and the epic close-out, step 10):
+  `20261012T031740Z-16627-0fb3 started 2026-10-12T03:17:40.552Z on b97743b0+dirty — PASS, exit 0, 5753 passed, 0 failed, 582 skipped, 304/304 suites`
+  - `+dirty` is this close's own edits: the audit, the seed, the flips, the folder moves and the repointed paths. They
+    were committed as `04f4eba` while the run went on. One audit paragraph (the OPEN.md sweep note) was added after
+    the run started; it is prose only, and `harness-lint` is clean on the final tree.
 - **Earlier full runs:**
   - `20261012T021106Z-17851-7755`, PASS, 5753 passed, 0 failed, 582 skipped, 304 suites. Its tree was `88fa4da`
     plus the implementation, uncommitted (§7 #3).
