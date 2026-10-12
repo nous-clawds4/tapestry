@@ -222,6 +222,13 @@ From the owner's ask and the facts above; the Architect decides.
     run 38313469618, 2026-10-12. Smoke test Tiers 1–5 clean; Tier 4 used headless Chromium, signed out.
   - The frame's "On staging" bullet stays open until the book's later stories are verified the same way.
 
+**Planned:**
+- **Story 2, turning the self-Map on and off (approved 2026-10-12).** The owner chose at planning that it reaches
+  `staging` by a PR after its Review, as above, and reaches production only together with story 3. Until story 3
+  keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
+  - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
+    production too. No outside client reads self-Maps yet.
+
 ## Shared lines
 
 - **Book `duty-menus-and-self-maps` is open, docs only.** At intake (2026-10-12, `origin/staging` at `8c5973ab`):
@@ -273,6 +280,12 @@ From the owner's ask and the facts above; the Architect decides.
 
     That matches this book's honesty rule. But any story here that edits `selfMap.js` must merge carefully with it,
     in whichever order they land.
+- **Recheck at story 2's planning (2026-10-12, `origin/staging` at `d6dcda0b`, merged into the branch as `19b6dd1`).**
+  - `git merge-tree` is clean, and `protocols/` is unchanged.
+  - **`assistant-duties-settings` ADR 0001 is now Accepted.** Story 2's Background names what it means here: a change
+    on the Assistant Duties tab changes what the self-Map should say.
+  - **Draft ADR `duty-menus-and-self-maps/0005` is still Proposed.** Story 2's "off" follows its sub-decision 2 and
+    retracts nothing.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

@@ -1,6 +1,6 @@
 # Story 2: Turning your Assistant's self-Map on and off
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-12
 **Type:** Feature
 **Epic:** `assistant-self-map`
@@ -225,7 +225,8 @@ No concept changes, and no firmware reinstall. The Architect resolves handles if
 
 ## Open questions
 
-**Answered by the owner, 2026-10-12, at planning.** Each was answered as recommended.
+**Answered by the owner, 2026-10-12, at planning.** Each was answered as recommended. The owner approved the story
+as drafted the same day ("Ready for architecture"), with six ACs kept as one story.
 
 1. **Ship alone, or with story 3?** Story 2 reaches staging by a PR after its Review, so the owner can try on and off
    there. Production waits and goes out with story 3.

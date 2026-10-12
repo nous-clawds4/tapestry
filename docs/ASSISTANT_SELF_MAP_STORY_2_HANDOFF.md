@@ -1,7 +1,8 @@
 # Assistant Self-Map, story 2 — Planning handoff
 
-**Status:** 🔴 OPEN: not picked up. The next session plans story 2 of book `assistant-self-map` (turning the self-Map on
-and off). Flip to ✅ ADDRESSED when story 2's story file is approved.
+**Status:** ✅ ADDRESSED (2026-10-12): story 2 is approved,
+`engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`. The four questions in § 3 were
+settled with the owner at planning, as that story's Open questions record. The body is kept for history.
 
 **Created:** 2026-10-12
 **Provenance:** Written at the end of the session that built and shipped story 1 (Planning through three review rounds,
