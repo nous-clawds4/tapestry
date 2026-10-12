@@ -286,6 +286,17 @@ From the owner's ask and the facts above; the Architect decides.
     on the Assistant Duties tab changes what the self-Map should say.
   - **Draft ADR `duty-menus-and-self-maps/0005` is still Proposed.** Story 2's "off" follows its sub-decision 2 and
     retracts nothing.
+- **Recheck at story 2's Architecture and Test Design (2026-10-12).**
+  - **At Architecture,** `origin/staging` was at `9a7735a`, and the branch merged it as `7b32926`.
+    `assistant-duties-settings` #1 had landed its implementation, including the `readUpkeep` guard in `selfMap.js`. ADR
+    `assistant-self-map/0002` is designed on that code.
+  - **At Test Design,** `origin/staging` was at `72dba9e`, merged as `66e2382`. That story's review asks its Architect
+    to amend how the self-Map reads offer rows that aren't bare kinds. That will change `evaluateSelfMap`'s offer map
+    and `readUpkeep`, which story 2 only calls.
+    - Story 2's tests use the shipped list and pin nothing about compound keys.
+    - W4 puts both Concept kinds at one typed relay, and may need re-aiming if that rule changes (test plan § Shared
+      line).
+  - `protocols/` is unchanged. Draft ADR `duty-menus-and-self-maps/0005` is still Proposed.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

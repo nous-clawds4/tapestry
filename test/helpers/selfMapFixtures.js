@@ -14,6 +14,14 @@
  *
  * Standalone on purpose (it requires no other fixture), so the hub fixtures can read the card's new criteria line from
  * here without a require cycle.
+ *
+ * assistant-self-map #2 (turning the self-Map on and off): the answer gains `selfMapOn` (ADR assistant-self-map/0002
+ * sub-decision 2), and PRESS holds the press's route, codes and words from
+ * engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md § Copy (approved 2026-10-12) and
+ * engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md (accepted
+ * 2026-10-12). Every canned answer carries the choice as on (so story 1's suites keep their status lines: while off, the
+ * state line replaces it), except a check that threw, whose choice is unknown (null). Story 2's suites turn an answer
+ * off with offOf(answer).
  */
 
 // ─── The wire facts ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -64,8 +72,8 @@ const ALERT_CRITERIA = "If your Assistant's self-Map is missing, or says anythin
 const PLANNING_NOTES = null;
 /** The action it follows in CHECKED_ACTIONS (ASSISTANT_ACTIONS order; ADR 0001 sub-decision 9). */
 const CHECKED_AFTER = 'duty-menu';
-/** The answer's fields (ADR 0001 sub-decision 7), exactly. */
-const ANSWER_FIELDS = ['current', 'done', 'duties', 'finished', 'instanceMap', 'mapFound', 'pending', 'published', 'reason', 'shouldSay'];
+/** The answer's fields (ADR 0001 sub-decision 7, with ADR 0002 sub-decision 2's selfMapOn), exactly. */
+const ANSWER_FIELDS = ['current', 'done', 'duties', 'finished', 'instanceMap', 'mapFound', 'pending', 'published', 'reason', 'selfMapOn', 'shouldSay'];
 const LINE_FIELDS = ['category', 'falseClaim', 'key', 'lastLandedAt', 'reason', 'relay', 'status'];
 const STATUSES = ['active', 'offered', 'not-offered', 'elsewhere'];
 /** sub-decision 3's reasons, plus `live-unclaimed` (sub-decision 7). */
@@ -135,6 +143,54 @@ const PAGE_SENTENCES = [
   PAGE.links.dutyMenuLead, PAGE.links.treasureMapLead, PAGE.ownerLineLead, PAGE.publicLine,
 ];
 
+// ─── The press (story 2 AC-2 … AC-6, § Copy; ADR 0002 sub-decisions 5–7) ──────────────────────────────────────────
+const PRESS_SUBJECT = "Your Assistant's self-Map";
+const PRESS = {
+  route: '/api/assistant/self-map',
+  method: 'POST',
+  routeKey: 'POST /api/assistant/self-map',
+  subject: PRESS_SUBJECT,
+  buttons: {
+    turnOn: "Turn on your Assistant's self-Map",
+    update: "Update your Assistant's self-Map now",
+    turnOff: "Turn off your Assistant's self-Map",
+    publishing: 'Publishing…',
+  },
+  state: {
+    on: "Your Assistant's self-Map is on.",
+    off: "Your Assistant's self-Map is off.",
+    offStillClaims: "Your Assistant's self-Map is off, but the version found still claims duties.",
+  },
+  ownerNote: "Turning your Assistant's self-Map on or off changes only its self-entries in this instance's own Treasure Map. Its other entries stay as they are.",
+  /** After the summary, when a Turn off published. */
+  claimsNone: "Your Assistant's self-Map now claims no duties.",
+  /** result.unchanged → result.message, when a press published nothing (ADR 0002 sub-decision 6 step 4). */
+  unchanged: {
+    'nothing-to-claim': "Your Assistant's self-Map is on. Nothing is live to claim yet, so nothing was published.",
+    'already-current': "Your Assistant's self-Map is on, and it already says what is live now, so nothing was published.",
+    'nothing-claimed': "Your Assistant's self-Map is off. It claimed nothing, so nothing was published.",
+  },
+  codes: { notSignedIn: 'not-signed-in', badRequest: 'bad-request', noAssistant: 'no-assistant', notRead: 'not-read' },
+  status: { notSignedIn: 401, badRequest: 400, noAssistant: 403, notRead: 503, failed: 500 },
+  refusals: {
+    'not-signed-in': "Sign in to change your Assistant's self-Map.",
+    'no-assistant': "You don't have a Tapestry Assistant on this instance yet.",
+    'not-read': "Nothing was published: your Assistant's current Treasure Map could not be read, and publishing without it could lose its other entries.",
+  },
+  /** A request that fails or never answers, and a throw (ADR 0002 sub-decision 5). */
+  failed: 'This instance did not answer; nothing was published.',
+  /** The summary when it was saved here and there was no relay at all to send it to. */
+  nothingElse: `${PRESS_SUBJECT} was saved on this instance's relay. There was no other relay to send it to.`,
+  /** The choice file (ADR 0002 sub-decision 1). */
+  choiceFile: 'assistant-self-map.json',
+  choiceEnv: 'TAPESTRY_SELF_MAP_CHOICE_PATH',
+};
+/** Every fixed sentence story 2's § Copy gives the page (the server's summaries and refusals are the route's). */
+const PRESS_PAGE_SENTENCES = [
+  PRESS.buttons.turnOn, PRESS.buttons.update, PRESS.buttons.turnOff,
+  PRESS.state.on, PRESS.state.off, PRESS.state.offStillClaims, PRESS.ownerNote, PRESS.claimsNone,
+];
+
 // ─── Staging's Owner Map, verbatim in shape (book § Facts found at intake; fixture keys stand in for live ones) ────
 /** Fixture keys: the instance TA, the Owner, the other Assistant the Owner's Map names (600f4551… on staging). */
 const TA = 'a1'.repeat(32);
@@ -199,6 +255,7 @@ function action(over = {}) {
     published: published(SHOULD_LIVE.slice().reverse()),
     current: true,
     instanceMap: true,
+    selfMapOn: true,
     ...over,
   };
 }
@@ -231,7 +288,7 @@ const ANSWERS = {
   /** No duties at all: done, with nothing to claim. */
   NO_DUTIES: action({ mapFound: true, duties: [], shouldSay: [], published: null, instanceMap: false }),
   UNFINISHED: action({ finished: false, done: false, pending: false, reason: 'no-relay-answered', published: null, current: null }),
-  CHECK_FAILED: { finished: false, done: false, pending: false, reason: 'check-failed', mapFound: false, duties: [], shouldSay: [], published: null, current: null, instanceMap: false },
+  CHECK_FAILED: { finished: false, done: false, pending: false, reason: 'check-failed', mapFound: false, duties: [], shouldSay: [], published: null, current: null, instanceMap: false, selfMapOn: null },
 };
 
 /**
@@ -239,6 +296,9 @@ const ANSWERS = {
  * default, a finished check that found the self-Map not published, is pending: it marks AND counts the card, as the
  * placeholder did, so a suite that pins counts about another action keeps them.
  */
+/** The same answer with the self-Map turned off (story 2 AC-1). */
+const offOf = (answer) => ({ ...answer, selfMapOn: false });
+
 function withSelfMap(answer, selfMap = ANSWERS.NOT_PUBLISHED) {
   if (!answer || typeof answer !== 'object' || !answer.actions || typeof answer.actions !== 'object') return answer;
   if (Object.prototype.hasOwnProperty.call(answer.actions, KEY)) return answer;
@@ -251,7 +311,7 @@ module.exports = {
   HOUR_MS, OWNER_SCORE_TASKS, ALL_CUSTOMER_SCORE_TASKS, ONE_CUSTOMER_SCORE_TASKS, SYSTEMD_TIMER, scheduleEntry,
   KEY, PATH, TITLE, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER, ANSWER_FIELDS, LINE_FIELDS, STATUSES, REASONS, CHECK_REASONS,
   COUNT_ZERO,
-  CATEGORY_NAMES, PAGE, PAGE_SENTENCES,
+  CATEGORY_NAMES, PAGE, PAGE_SENTENCES, PRESS, PRESS_PAGE_SENTENCES,
   TA, OWNER, OTHER_ASSISTANT, DOCKER_RELAY_URL, DOMAIN, OWN, DOCKER_CONFIG, stagingOwnerMapTags,
-  line, stagingDuties, SHOULD_LIVE, published, action, ANSWERS, withSelfMap,
+  line, stagingDuties, SHOULD_LIVE, published, action, ANSWERS, offOf, withSelfMap,
 };

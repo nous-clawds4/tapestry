@@ -303,6 +303,8 @@ const suites = [
   // assistant-self-map #1: the self-Map check and the Your Assistant's Treasure Map page (ADR assistant-self-map/0001).
   { file: 'assistant-self-map-check.test.js' },
   { file: 'assistant-self-map-page.test.js' },
+  // assistant-self-map #2: turning the self-Map on and off — the merge, the choice, the press (ADR assistant-self-map/0002).
+  { file: 'assistant-self-map-publish.test.js' },
   // assistant-duties-settings #1: the Assistant Duties tab and the offer it sets (ADR assistant-duties-settings/0001).
   { file: 'assistant-duties-settings.test.js' },
   { file: 'my-assistants-page.test.js' },

@@ -36,6 +36,11 @@
  * relay is never live from this instance's strfry, an added duty that is not built is offered and never active, and an
  * Admin's Assistant is offered Scores without their being claimed.
  *
+ * assistant-self-map #2 (ADR assistant-self-map/0002 sub-decisions 2 and 3): the answer carries selfMapOn from the
+ * choice store (injected as readSelfMapChoice; false unless a world names `choice`), checkSelfMap is gatherSelfMap plus
+ * the choice, lookupSelfMap reads every place when forWrite is set, and the relay hints come only from entries whose key
+ * parses (story 1 review R3-N2). V1–V6 pin them; U3's field list and S6's route table are re-aimed.
+ *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
  * sorting keys with compareKeys puts the more specific first; a duties item has a line only for the offered kinds its
@@ -179,6 +184,8 @@ function world(opts = {}) {
     checkSelfMap: opts.checkSelfMap,
     realDutyMenu: Boolean(opts.realDutyMenu),
     duties: opts.duties === undefined ? DM.DEFAULT_DUTIES : opts.duties,
+    // assistant-self-map #2: readSelfMapChoice's answer (true, false or null), or 'throw'.
+    choice: opts.choice === undefined ? false : opts.choice,
   };
 }
 
@@ -189,7 +196,7 @@ function hostOf(x) {
 
 /** The injected dependencies, under the names ADR 0001 gives them. Every one RECORDS its calls. */
 function fakes(w) {
-  const calls = { scanLocal: [], readRelay: [], guard: [], getCustomer: [], checkSelfMap: [], readScheduleEntries: 0, timerExists: [], customerTimer: [] };
+  const calls = { scanLocal: [], readRelay: [], guard: [], getCustomer: [], checkSelfMap: [], readScheduleEntries: 0, timerExists: [], customerTimer: [], readSelfMapChoice: [] };
   const relays = Object.fromEntries(Object.entries(w.relays).map(([u, v]) => [normUrl(u), v]));
   const deps = {
     getAssistantPubkeyFor: async () => w.assistant,
@@ -221,6 +228,12 @@ function fakes(w) {
     customerTimerIntervalMs: (pubkey) => {
       calls.customerTimer.push(lc(pubkey));
       return Object.prototype.hasOwnProperty.call(w.customerTimers, lc(pubkey)) ? w.customerTimers[lc(pubkey)] : null;
+    },
+    // assistant-self-map #2 (ADR 0002 sub-decision 2): the remembered choice, by Assistant pubkey.
+    readSelfMapChoice: (pubkey) => {
+      calls.readSelfMapChoice.push(lc(pubkey));
+      if (w.choice === 'throw') throw new Error('fixture: the choice file is unreadable');
+      return w.choice;
     },
     // The other checks, stubbed: this suite is about the self-Map (their own suites drive the real ones).
     checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
@@ -948,11 +961,13 @@ test('S5 (ADR § Implementation notes 7): src/api/openapi.yaml\'s /api/assistant
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('S6 (ADR sub-decision 10): no new route — the answer rides GET /api/assistant/attention, still PUBLIC_READ; nothing in routeAccess.js names a self-Map route', () => {
+test('S6 (ADR sub-decision 10; re-aimed by assistant-self-map #2, ADR 0002 sub-decision 5): the answer rides GET /api/assistant/attention, still PUBLIC_READ; the only self-Map route in routeAccess.js is story 2\'s POST /api/assistant/self-map, open to a signed-in person', () => {
   const src = codeOnly(safeRead(path.join(REPO, 'src/middleware/routeAccess.js')));
   const wrong = [];
   if (!/['"]GET \/api\/assistant\/attention['"]\s*:\s*PUBLIC_READ/.test(src)) wrong.push('GET /api/assistant/attention stays PUBLIC_READ');
-  if (/self-?map|treasure-map\/publish/i.test(src)) wrong.push('no self-Map route');
+  const named = (src.match(/['"](?:GET|POST|PUT|PATCH|DELETE) \/[^'"]*(?:self-?map|treasure-map\/publish)[^'"]*['"]/gi) || []).map((m) => m.slice(1, -1));
+  if (show(named) !== show([SM.PRESS.routeKey])) wrong.push(`the one self-Map route is ${SM.PRESS.routeKey}, got ${show(named)}`);
+  if (!new RegExp(`['"]${SM.PRESS.routeKey.replace(/\//g, '\\/')}['"]\\s*:\\s*allow\\(\\s*['"]signed-in['"]`).test(src)) wrong.push(`${SM.PRESS.routeKey} is allow('signed-in', …)`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -1213,6 +1228,105 @@ test('AD3 (assistant-duties-settings #1 AC-6; book Decision 6): an Admin who is 
   const wrong = [];
   if (l.status !== 'offered') wrong.push(`the Admin's Scores are offered (got ${show(l)})`);
   if (linesOf(got.action, '30382:rank', 'active').length !== 0) wrong.push('never active without Scores landed');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Story 2: ADR assistant-self-map/0002 sub-decisions 2 and 3 ───────────────────────── */
+
+const NEW_HINT = 'wss://hint-new.example';
+const BAD_HINT = 'wss://bad-hint.example';
+
+test('V1 (story 2 AC-1; ADR 0002 sub-decision 2): the answer carries the remembered choice — selfMapOn is readSelfMapChoice\'s answer for the session\'s own Assistant: true, false, or null when it is unknown or the read throws; an unfinished answer carries it too', async () => {
+  const wrong = [];
+  for (const [choice, want] of [[true, true], [false, false], [null, null], ['throw', null]]) {
+    const got = await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'], choice, quiet: true });
+    const a = mustAnswer(got);
+    if (a.selfMapOn !== want) wrong.push(`choice ${show(choice)}: selfMapOn ${show(want)}, got ${show(a.selfMapOn)}`);
+    if (!got.calls.readSelfMapChoice.includes(TA)) wrong.push(`choice ${show(choice)}: read for the session's Assistant ${TA.slice(0, 8)}…, got ${show(got.calls.readSelfMapChoice)}`);
+  }
+  const u = await answer({ rejectScan: (f) => isViewerMapFilter(f, OWNER), relays: {}, choice: true });
+  const ua = mustAnswer(u);
+  if (ua.finished !== false || ua.selfMapOn !== true) wrong.push(`an unfinished answer carries selfMapOn: want { finished: false, selfMapOn: true }, got ${show({ finished: ua.finished, selfMapOn: ua.selfMapOn })}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V2 (story 2 AC-1; ADR 0002 sub-decision 2): a check that throws answers SELF_MAP_CHECK_FAILED, which carries selfMapOn null — the choice is unknown, not off', async () => {
+  const { selfMap } = freshModules();
+  assert(selfMap.SELF_MAP_CHECK_FAILED && selfMap.SELF_MAP_CHECK_FAILED.selfMapOn === null, `SELF_MAP_CHECK_FAILED.selfMapOn is null, got ${show(selfMap.SELF_MAP_CHECK_FAILED)}`);
+  const got = await answer({ checkSelfMap: async () => { throw new Error('fixture: the check threw'); }, quiet: true });
+  const a = mustAnswer(got);
+  assert(a.reason === 'check-failed' && a.selfMapOn === null, `a thrown check: reason check-failed and selfMapOn null, got ${show({ reason: a.reason, selfMapOn: a.selfMapOn })}`);
+});
+
+test('V3 (story 2 AC-5; ADR 0002 sub-decisions 2 and 3): checkSelfMap is gatherSelfMap plus the choice — gatherSelfMap answers { answer, lookup } with lookup.latest the newest version found; the marks do not move with the choice (story 1\'s marking rules stand)', async () => {
+  const stale = selfMapEv([['30382', TA, OWN], ['39998', TA, OWN], ['30392', OTHER, 'wss://scores.brainstorm.world']]);
+  const w = world({ scoresHoursAgo: null, headers: ['dog-tricks'], extraLocal: [stale] });
+  const { selfMap } = freshModules();
+  const gather = need(selfMap, 'gatherSelfMap', rel(SELF_MAP_MODULE));
+  const { deps } = fakes(w);
+  const g = await gather({ viewer: OWNER, assistantPubkey: TA, forWrite: false }, deps);
+  const wrong = [];
+  if (!g || typeof g !== 'object' || !g.answer || !g.lookup) wrong.push(`{ answer, lookup }, got ${show(g && Object.keys(g))}`);
+  else {
+    if (!g.lookup.latest || g.lookup.latest.id !== stale.id) wrong.push(`lookup.latest is the version found (${stale.id.slice(0, 8)}…), got ${show(g.lookup.latest && g.lookup.latest.id)}`);
+    if (Object.prototype.hasOwnProperty.call(g.answer, 'selfMapOn')) wrong.push('the gathered answer has no selfMapOn: checkSelfMap adds it');
+    const viaCheck = await selfMap.checkSelfMap({ viewer: OWNER, assistantPubkey: TA }, deps);
+    const { selfMapOn, ...rest } = viaCheck || {};
+    if (show(rest) !== show(g.answer)) wrong.push(`checkSelfMap's answer without selfMapOn equals the gathered answer: ${show(rest)} vs ${show(g.answer)}`);
+    if (selfMapOn !== false) wrong.push(`checkSelfMap adds selfMapOn (false here), got ${show(selfMapOn)}`);
+  }
+  for (const choice of [true, false]) {
+    const a = mustAnswer(await answer({ scoresHoursAgo: null, headers: ['dog-tricks'], extraLocal: [stale], choice }));
+    if (a.done !== false || a.pending !== true || a.current !== false) wrong.push(`choice ${choice}: the stale self-Map is pending either way, got ${show({ done: a.done, pending: a.pending, current: a.current })}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V4 (story 2 AC-4; ADR 0002 sub-decision 3, R1): lookupSelfMap with forWrite reads this instance\'s relay and the outside round together, and the newest version across both wins; without forWrite it stays local-first and asks no outside relay', async () => {
+  const older = selfMapEv([['39998', TA, OWN]], TA, NOW_S - 10 * H);
+  const newer = selfMapEv([['39998', TA, OWN], ['30393', OTHER, 'wss://scores.brainstorm.world']], TA, NOW_S - H);
+  const mapTags = [['39998', TA, HINT_A]];
+  const w = world({ mapTags, extraLocal: [older], relays: { [HINT_A]: [newer], [A_WRITE]: [] } });
+  const { selfMap } = freshModules();
+  const mapEvent = w.local.find((e) => e.kind === SM.TREASURE_MAP_KIND && e.pubkey === OWNER);
+  const wrong = [];
+  const strict = fakes(w);
+  const got = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent, offer: [], forWrite: true }, strict.deps);
+  if (!got || got.finished !== true || !got.latest || got.latest.id !== newer.id) wrong.push(`forWrite: the newer outside version wins, got ${show(got && { finished: got.finished, latest: got.latest && got.latest.id })}`);
+  if (!strict.calls.readRelay.some((r) => r.url === normUrl(HINT_A) && isSelfMapFilter(r.filter))) wrong.push('forWrite: the outside round ran although this instance holds a version');
+  const plain = fakes(w);
+  const local = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent, offer: [] }, plain.deps);
+  if (!local || !local.latest || local.latest.id !== older.id) wrong.push(`without forWrite: local-first, the version here counts, got ${show(local && local.latest && local.latest.id)}`);
+  if (plain.calls.readRelay.some((r) => isSelfMapFilter(r.filter))) wrong.push(`without forWrite: no outside relay asked for the self-Map, got ${show(plain.calls.readRelay.map((r) => r.url))}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V5 (story 2 AC-4 "Never blind"; ADR 0002 sub-decision 3, R1): forWrite\'s strict finish — this instance\'s scan failing is instance-unanswered even when outside relays answer; none here and no outside relay answering is no-relay-answered; none here and nothing outside to ask is finished with no version', async () => {
+  const { selfMap } = freshModules();
+  const wrong = [];
+  const mapTags = [['39998', TA, HINT_A]];
+  const failing = world({ mapTags, relays: { [HINT_A]: [], [A_WRITE]: [] }, rejectScan: (f) => isSelfMapFilter(f) });
+  const mapOf = (w) => w.local.find((e) => e.kind === SM.TREASURE_MAP_KIND && e.pubkey === OWNER);
+  const a = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapOf(failing), offer: [], forWrite: true }, fakes(failing).deps);
+  if (!a || a.finished !== false || a.reason !== 'instance-unanswered') wrong.push(`local scan failed: { finished: false, reason: 'instance-unanswered' }, got ${show(a && { finished: a.finished, reason: a.reason })}`);
+  const silent = world({ mapTags, relays: {} });
+  const b = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapOf(silent), offer: [], forWrite: true }, fakes(silent).deps);
+  if (!b || b.finished !== false || b.reason !== 'no-relay-answered') wrong.push(`none here, no outside answer: { finished: false, reason: 'no-relay-answered' }, got ${show(b && { finished: b.finished, reason: b.reason })}`);
+  const alone = world({ mapTags: [], relays: {} });
+  alone.local = alone.local.filter((e) => e.kind !== SM.RELAY_LIST_KIND);
+  const c = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapOf(alone), offer: [], forWrite: true }, fakes(alone).deps);
+  if (!c || c.finished !== true || c.latest !== null) wrong.push(`none here, nothing outside to ask: finished with latest null, got ${show(c && { finished: c.finished, latest: c.latest, reason: c.reason })}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V6 (story 2; story 1 review R3-N2, ADR 0002 sub-decision 3): the relay hints come only from the viewer\'s entries whose key parses — an entry keyed 39998: naming the Assistant is no hint, while a valid one\'s relay is asked', async () => {
+  const mapTags = [['39998', TA, NEW_HINT], ['39998:', TA, BAD_HINT], ['3038x', TA, NEW_HINT]];
+  const got = await answer({ mapTags, relays: { [NEW_HINT]: [], [BAD_HINT]: [], [A_WRITE]: [] } });
+  mustAnswer(got);
+  const asked = got.calls.readRelay.filter((r) => isSelfMapFilter(r.filter)).map((r) => r.url);
+  const wrong = [];
+  if (!asked.includes(normUrl(NEW_HINT))) wrong.push(`the valid entry's relay is asked, got ${show(asked)}`);
+  if (asked.includes(normUrl(BAD_HINT)) || got.calls.guard.includes(hostOf(BAD_HINT))) wrong.push(`the 39998: entry's relay is neither guarded nor asked, got ${show(asked)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

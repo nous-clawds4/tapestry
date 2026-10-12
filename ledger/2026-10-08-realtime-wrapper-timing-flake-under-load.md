@@ -77,3 +77,9 @@ The suite passed alone (24/0). This session's tally is 3 failures in 6 full gate
 same reading as the 03:18 occurrence above. A constant 0.77 s looks less like load than like a systematic edge, such as
 the backoff or poll clock against the 0.8 s floor, when the suite runs inside the full gate. That is worth checking
 before widening the window.
+
+**Occurrence, 2026-10-12** (`assistant-self-map` #2, Test Design).
+- **The failing run:** `20261012T231707Z-29937-406a [s2-phase3-real]`, on `66e23820+dirty`. RW7, "node exits 1": the
+  first restart came at 0.77 s (starts `[0, 0.77, 2.8]` s). The diff touched only test files and their fixtures, and no
+  wrapper code. No other job was running during the gate.
+- **Afterwards:** the suite passed alone (24/0). Again exactly 0.77 s, which supports the systematic-edge reading above.
