@@ -4,7 +4,7 @@
 **Status:** Closed
 **Opened:** 2026-10-12
 **Closed:** 2026-10-12 (on staging since `72c4b7b`, deploy run 657; the owner's Gate B verdict in `f61b7ff`;
-production pending, audit §6 #1)
+in production 2026-10-12 via PR #854, merged as `ccb9b3b`, deploy run 151; audit §6 #1)
 **Strictness:** Light (trial) — workflows/light-profile.md *(chosen by the owner at intake, 2026-10-12; one
 Feature-lane story)*
 

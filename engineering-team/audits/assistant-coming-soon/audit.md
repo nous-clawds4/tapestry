@@ -12,7 +12,8 @@ close. They are interleaved with books `duty-menu-public-relay` and `duty-menus-
     pre-rebase twins (`5cc1592`, `1b0ab5f`, `0d7c32d`) were never pushed (§7 #3).
 - **Staging: deployed.** Deploy run 657 (`3d0b6d4`) succeeded. staging.brainstorm.world serves `index-BcVRd6k3.js`,
   the same entry bundle that this session and the Gate B Reviewer each built from the tree and tested.
-- **Production: not yet.** Production serves `index-XPqw1cb6.js`, the build before this book (§6 #1).
+- **Production: not yet at the close; shipped the same day.** PR #854, merged as `ccb9b3b`, deploy run 151; production
+  serves `index-BcVRd6k3.js` (§6 #1).
 
 **Provenance:** Acceptance-frame. There is no PRD. The owner's ask is quoted verbatim in `book.md`. Four decisions were
 settled at intake: which five cards, not counted in either reading, the page line, and the Light trial. The owner
@@ -144,11 +145,28 @@ its J3 evidence or its Gate B record.
 
 ## 6. Carry-forward register
 
-- [ ] **1. Production.** It ships with the owner's next `staging` → `main` promotion, which needs the owner's explicit
-  yes. Production serves `index-XPqw1cb6.js` today. Another book's promotion PR
-  ([nous-clawds4/tapestry#852](https://github.com/nous-clawds4/tapestry/pull/852)) briefly carried this book's
-  failing tests. It was closed unmerged and replaced by a selective promotion, so nothing of this book reached
-  production (§7 #7).
+- [x] **1. Production.** Shipped 2026-10-12 in PR [nous-clawds4/tapestry#854](https://github.com/nous-clawds4/tapestry/pull/854)
+  (`staging` → `main`, head `92eb023`), merged as `ccb9b3b` at 03:37 UTC on the owner's explicit "promote it to
+  production".
+  - **Before the merge:** the PR's `stack-free` and `main-source-guard` passed on `92eb023`. `check-safe-to-merge.sh`
+    gave SAFE at 03:37:12 (attempt 1/45). The merge was pinned to `92eb023`, so nothing pushed to `staging` meanwhile
+    could ride along.
+  - **Deploy:** run 151 succeeded in about 1m37s. Production serves `index-BcVRd6k3.js`, the same bundle as staging
+    and as the builds this session and the Gate B Reviewer tested.
+  - **Smoke test:** all five tiers clean.
+    - Tier 1: 3×200 at once, and Neo4j ready.
+    - Tier 2: every page and API answers 200; Odell's `get-user-data` 504 with its JSON body, as expected; search
+      returns hits.
+    - Tier 3: the bundle carries the new words. `/assistant`, the five pages, `/assistant/treasure-map` and
+      `/assistant/profile` answer 200 `text/html`. The attention answer is `signedIn:false` anonymously.
+    - Tier 4: `assistant-coming-soon.spec.js` and `assistant-management-page.spec.js` against production's served UI,
+      29 passed, 0 failed, 4 skipped (B8 for pages already built), with every `/api` call mocked. Chrome is not
+      connected in this session.
+    - Tier 5: `/treasure-map`, `/assistant/duty-menu`, `/assistant/outbox-relays`, `/assistant/identification-tags`,
+      `/assistant/trusted-lists`, `/setup` and their APIs answer 200.
+  - Before this, another book's promotion PR
+    ([nous-clawds4/tapestry#852](https://github.com/nous-clawds4/tapestry/pull/852)) had briefly carried this book's
+    failing tests. It was closed unmerged and replaced by a selective promotion (§7 #7).
 - [ ] **2. The ring's colour.** The example's empty circle is dim grey; the hub's is indigo. A hub-only class could
   dim it on the five, with one CS6 assertion. The owner's eye decides; at Gate B they did not ask for it. (§4 #1;
   review non-blocking 2)
