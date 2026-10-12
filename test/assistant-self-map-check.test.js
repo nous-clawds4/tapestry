@@ -1079,6 +1079,84 @@ test('S8 (ADR 0001 A2 item 6): openapi.yaml\'s duties line category is nullable'
   assert(cat && /nullable:\s*true/.test(cat), `the duties lines' category has nullable: true (got ${show(cat)})`);
 });
 
+/* ───────────────────────── Round 3: ADR 0001 Amendment 3 (review round 2) ───────────────────────── */
+
+/** Treasure Maps §§ 4.5–4.6 as ADR duty-menus-and-self-maps/0004 accepted them: four spellings this check never reads. */
+const NON_KEYS = ['39998:', '39999:', '39999:dlist-header', '39999:duty-menu'];
+/** A correct self-Map for staging's Owner shape with Scores live (U29's world): 30382 and 39998 at this instance's relay. */
+const RIGHT_SELF_MAP = () => selfMapEv([['30382', TA, OWN], ['39998', TA, OWN]]);
+const keysShown = (action) => ((action && action.duties) || []).flatMap((i) => [i.key, ...((i.lines || []).map((l) => l.key))]);
+
+test('U39 (AC-2, AC-3, AC-5; ADR 0001 A3 item 1, review R2-B1): one entry keyed 39998:, 39999:, 39999:dlist-header or 39999:duty-menu in the viewer\'s Map changes nothing — a correct self-Map stays current, shouldSay keeps 30382 and 39998, no line is a false claim, and nothing on the page carries the spelling', async () => {
+  const wrong = [];
+  const base = SM.stagingOwnerMapTags(TA, OTHER);
+  const before = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'], extraLocal: [RIGHT_SELF_MAP()] }));
+  if (before.current !== true) wrong.push(`the baseline (staging's Map, Scores live, the right self-Map) is current; got ${show(before.current)}`);
+  for (const k of NON_KEYS) {
+    const a = mustAnswer(await answer({ mapTags: [...base, [k, TA, OWN]], scoresHoursAgo: 1, headers: ['dog-tricks'], extraLocal: [RIGHT_SELF_MAP()] }));
+    if (!sameEntries(a.shouldSay, [{ key: '30382', relay: OWN }, { key: '39998', relay: OWN }])) wrong.push(`${k}: shouldSay stays 30382 and 39998 at ${OWN} (got ${show(a.shouldSay)})`);
+    if (a.current !== true || a.done !== true) wrong.push(`${k}: the self-Map stays current and done (got ${show({ current: a.current, done: a.done })})`);
+    const claims = (a.duties || []).flatMap((i) => (i.lines || []).filter((l) => l.falseClaim).map((l) => `${i.key}>${l.key}`));
+    if (claims.length) wrong.push(`${k}: no line is a false claim (got ${show(claims)})`);
+    if (keysShown(a).includes(k)) wrong.push(`${k}: no item or line carries it (got ${show(keysShown(a))})`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U40 (AC-2; ADR 0001 A3 item 1): such an entry alone gives no duty, and naming another key gives no elsewhere line', async () => {
+  const wrong = [];
+  for (const k of NON_KEYS) {
+    const alone = mustAnswer(await answer({ mapTags: [[k, TA, OWN]], scoresHoursAgo: 1, headers: ['dog-tricks'] }));
+    if (!Array.isArray(alone.duties) || alone.duties.length !== 0) wrong.push(`a Map naming the TA only under ${k}: duties [] (got ${show(alone.duties)})`);
+  }
+  for (const k of ['39998:', '39999:dlist-header']) {
+    const a = mustAnswer(await answer({ mapTags: [['39998', TA, OWN], [k, OTHER, OWN]], scoresHoursAgo: 1, headers: ['dog-tricks'] }));
+    const elsewhere = linesOf(a, '39998', 'elsewhere');
+    if (elsewhere.length) wrong.push(`["39998", TA] with ["${k}", OTHER]: no elsewhere line (got ${show(elsewhere)})`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('L7 (ADR 0001 A3 item 1): parseKey gives null for 39998:, 39999:, 39999:dlist-header and 39999:duty-menu; 39998:dlist-header is the bare 39998, and 39998:duty-menu and 39998:: (d ":") still parse', () => {
+  const parseKey = need(libModule(), 'parseKey', rel(LIB));
+  const wrong = [];
+  for (const k of NON_KEYS) { const got = parseKey(k); if (got !== null) wrong.push(`${k}: null (got ${show(got && got.norm)})`); }
+  const legacy = parseKey('39998:dlist-header');
+  if (!legacy || legacy.norm !== '39998') wrong.push(`39998:dlist-header is the bare 39998 (got ${show(legacy && legacy.norm)})`);
+  for (const k of ['39998:duty-menu', '39998::']) { const got = parseKey(k); if (!got || got.norm !== k) wrong.push(`${k} still parses, as itself (got ${show(got && got.norm)})`); }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('L8 (ADR 0001 A3 items 1 and 2): readSelfEntries — the four spellings are in neither list; element 3 empty or missing is "", a URL is normalized, and an unparseable relay stays as itself', () => {
+  const read = need(libModule(), 'readSelfEntries', rel(LIB));
+  const wrong = [];
+  const keyed = read(selfMapEv([...NON_KEYS.map((k) => [k, TA, OWN]), ...NON_KEYS.map((k) => [k, OTHER, OWN]), ['39998', TA, OWN], ['30392', OTHER, OWN]]), TA);
+  if (!sameEntries(keyed.selfEntries, [{ key: '39998', relay: OWN }])) wrong.push(`selfEntries: only 39998 (got ${show(keyed.selfEntries)})`);
+  if (keyed.otherEntries !== 1) wrong.push(`otherEntries: only the 30392 entry (got ${show(keyed.otherEntries)})`);
+  const relays = read(selfMapEv([['30382', TA, ''], ['39998', TA], ['3038x', TA, 'WSS://Staging.Brainstorm.World/relay/'], ['30392', TA, 'not a url']]), TA);
+  const byKey = Object.fromEntries((relays.selfEntries || []).map((e) => [e.key, e.relay]));
+  const want = { 30382: '', 39998: '', '3038x': OWN, 30392: 'not a url' };
+  for (const [k, r] of Object.entries(want)) if (byKey[k] !== r) wrong.push(`${k}'s relay: ${show(r)} (got ${show(byKey[k])})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U41 (AC-6; ADR 0001 A3 item 2, review R2-N1): a found self-entry with an empty element 3 claims nothing — no false claim, the live 30382 line is live-unclaimed, the self-Map is out of date; an unparseable relay is still a false claim', async () => {
+  const wrong = [];
+  for (const tags of [[['30382', TA, ''], ['39998', TA, OWN]], [['3038x', TA, ''], ['39998', TA, OWN]]]) {
+    const a = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'], extraLocal: [selfMapEv(tags)] }));
+    const label = `found ["${tags[0][0]}", TA, ""]`;
+    const claims = (a.duties || []).flatMap((i) => (i.lines || []).filter((l) => l.falseClaim).map((l) => `${i.key}>${l.key}`));
+    if (claims.length) wrong.push(`${label}: claims nothing, so no false claim (got ${show(claims)})`);
+    const l = lineOf(a, '3038x', '30382');
+    if (!l || l.status !== 'offered' || l.reason !== 'live-unclaimed') wrong.push(`${label}: the live 30382 line is offered, live-unclaimed (got ${show(l)})`);
+    if (a.current !== false) wrong.push(`${label}: out of date (current ${show(a.current)})`);
+  }
+  const bad = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'], extraLocal: [selfMapEv([['30382', TA, 'not a url'], ['39998', TA, OWN]])] }));
+  const b = lineOf(bad, '3038x', '30382');
+  if (!b || b.falseClaim !== true) wrong.push(`found ["30382", TA, "not a url"]: a claim at an unusable relay is a false claim (got ${show(b)})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
 async function run() {
   console.log(`${NL}=== assistant-self-map-check (assistant-self-map #1) ===`);
   let pass = 0, fail = 0, skipped = 0;

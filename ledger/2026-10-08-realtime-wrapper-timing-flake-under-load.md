@@ -67,3 +67,13 @@ suite then passed alone 24/0, three times out of three, and the full rerun `2026
   touched no wrapper code.
 - **Afterwards:** the suite passed alone (24/0), and the quiet full rerun `20261012T194152Z-17351-913e` passed
   (5820/0).
+
+**Occurrences, 2026-10-12** (`assistant-self-map` #1, round 3's Test Design). RW7 failed on two full gates in a row, on
+an otherwise idle machine (load average about 0.6 on 4 CPUs, no other job running):
+- `20261012T203251Z-14185-1edf` and `20261012T203934Z-21396-0d34`, both on `6316cb4d+dirty`;
+- the first restart came at 0.77 s both times, for "node exits 1" and for "node exits 0".
+
+The suite passed alone (24/0). This session's tally is 3 failures in 6 full gates, every one at exactly 0.77 s, the
+same reading as the 03:18 occurrence above. A constant 0.77 s looks less like load than like a systematic edge, such as
+the backoff or poll clock against the 0.8 s floor, when the suite runs inside the full gate. That is worth checking
+before widening the window.

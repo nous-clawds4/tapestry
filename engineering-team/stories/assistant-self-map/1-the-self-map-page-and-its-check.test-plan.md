@@ -3,7 +3,7 @@
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md` (§ Copy and § Deviations as
 amended at Architecture)
 **ADR:** `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (accepted
-2026-10-12; open questions 1–4 answered as recommended; Amendment 1 at Test Design; Amendment 2 from review round 1)
+2026-10-12; open questions 1–4 answered as recommended; Amendment 1 at Test Design; Amendments 2 and 3 from review rounds 1 and 2)
 **Spec followed (read-only):** `protocols/drafts/treasure-maps.md` §§ 5.1–5.2, 6, 8, 9, 9.2; `duty-menus.md` § 6.2 step 1
 **Date:** 2026-10-12 (approved by the owner at the Test Design gate, the same day)
 
@@ -246,3 +246,27 @@ No other test changed state. U35's 47 h case and U36's "another customer" and "n
 against over-correcting. B13 passes on the round-1 build (Chromium: `assistant-self-map.spec.js`, 14 passed), because
 the page draws the false-claim sentence on any line that carries the flag. It is a guard for the page, and U37 is the
 test that fails.
+
+### Round 3 (review round 2's findings, ADR 0001 Amendment 3), 2026-10-12 — approved by the owner at round 3's Test Design gate
+
+| Item | Test | File | Level |
+|---|---|---|---|
+| **A3 item 1** (R2-B1), the four spellings, over the whole check | U39: staging's Owner shape with Scores live and the right self-Map (`30382`, `39998` at R; U29's world) is current. Adding `["39998:", TA]`, `["39999:", TA]`, `["39999:dlist-header", TA]` or `["39999:duty-menu", TA]`, one at a time, changes nothing: `shouldSay` stays `30382` and `39998`, the self-Map stays current and done, no line is a false claim, and no item or line carries the spelling. U40: a Map naming the TA only under one of them gives `duties: []`, and `["39998", TA]` with `["39998:", OTHER]` or `["39999:dlist-header", OTHER]` gives no `elsewhere` line. | check | unit (DI) |
+| **A3 item 1**, the library | L7: `parseKey` gives null for the four. `39998:dlist-header` parses as the bare `39998`, and `39998:duty-menu` and `39998::` parse as themselves. L8: in `readSelfEntries`, the four, naming the author or another key, are in neither list. | check | unit |
+| **A3 item 2** (R2-N1), empty relays | L8: element 3 `""` or missing gives `''`; a URL is normalized; `"not a url"` stays as itself. U41: a found `["30382", TA, ""]` or `["3038x", TA, ""]` gives no false claim; the live `30382` line is `offered`, `live-unclaimed`; and `current` is false. A found `["30382", TA, "not a url"]` gives `falseClaim: true` on the `30382` line. | check | unit, unit (DI) |
+
+**Before the fix**, on `6316cb4d` plus these tests, two full gates,
+`20261012T203251Z-14185-1edf [self-map-round3-phase3]` and `20261012T203934Z-21396-0d34 [self-map-round3-phase3-rerun]`,
+each gave 5819 passed and 6 failed: the 5 new tests (U39, U40, L7, L8, U41), and RW7 in
+`tagging-edges-realtime-wrapper`. That is the known timing flake on ledger row
+`2026-10-08-realtime-wrapper-timing-flake-under-load`, at 0.77 s against 0.8 s both times; the suite passed alone, 24/0,
+and the row records the occurrences. Each new
+test fails for its own reason:
+- the four spellings parse;
+- they give duty and `elsewhere` lines;
+- one of them drops `39998` from `shouldSay` and makes a false claim;
+- `readSelfEntries` counts them and turns `"not a url"` into `''`;
+- an empty relay is flagged as a false claim.
+
+U41's unparseable-relay case passes already: today's `''` differs from the live relay. It guards against
+over-correcting.
