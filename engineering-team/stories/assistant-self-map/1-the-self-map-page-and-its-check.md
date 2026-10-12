@@ -1,6 +1,6 @@
 # Story 1: The self-Map page and its check
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-12
 **Type:** Feature
 **Epic:** `assistant-self-map`
@@ -233,7 +233,8 @@ No concept changes and no firmware reinstall. The Architect resolves handles if 
 
 ## Open questions
 
-**Answered by the owner, 2026-10-12, at planning:**
+**Answered by the owner, 2026-10-12, at planning.** The owner approved the story as drafted the same day ("Ready for
+Architecture"), with seven ACs kept as one story.
 
 1. **The brief gap.** How long can scheduled upkeep fail before a duty stops counting as live?
    - (a) One missed run is a gap: live while the last run finished and landed within about two scheduled intervals.

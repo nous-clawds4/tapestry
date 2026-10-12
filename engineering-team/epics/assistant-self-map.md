@@ -16,8 +16,8 @@ own Map (`/treasure-map`) says what they asked for.
 
 ## Stories
 
-`stories/assistant-self-map/`. None is planned yet. The Product Owner orders them at `/plan-feature`. A first cut, to
-be revised there:
+`stories/assistant-self-map/`. Story 1 is approved (`1-the-self-map-page-and-its-check.md`, 2026-10-12). The rest
+are a first cut, to be revised at `/plan-feature`:
 
 1. The self-Map check and page, read-only. What this instance can truly claim for the viewer's Assistant, the
    self-Map found now, the hub's real mark, and the page with its cross-links.

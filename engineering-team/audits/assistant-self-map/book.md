@@ -59,7 +59,8 @@ books, and last session's lessons (§ Design notes).
 
 ### Acceptance frame
 
-*Proposed from the intake decisions, 2026-10-12. The owner confirms it at story 1's approval.*
+*Proposed from the intake decisions, 2026-10-12; confirmed by the owner, unchanged, at story 1's approval the same
+day.*
 
 - [ ] **A real page.** `/assistant/treasure-map` stops being a placeholder. For the viewer's Assistant it shows:
   - each duty the viewer's Map gives that Assistant, marked **Active**, **Offered but not active** (with the reason)
