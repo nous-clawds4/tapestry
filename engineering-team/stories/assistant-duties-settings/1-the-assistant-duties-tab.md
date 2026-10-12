@@ -1,7 +1,8 @@
 # Story 1: The Assistant Duties tab
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-12
+**Approved:** 2026-10-12, by the owner ("Ready for Architecture"), as drafted
 **Type:** Feature
 **Epic:** `assistant-duties-settings`
 **Book:** `engineering-team/audits/assistant-duties-settings/book.md`
@@ -152,9 +153,11 @@ offers without anyone changing code.
 
 ## Open questions
 
-None open. The seven questions were settled at intake (book § Decisions). At approval, the owner confirms:
-- The one visible change for an Admin who is not a customer (§ Background).
-- The Copy.
+None open. The seven questions were settled at intake (book § Decisions). The owner approved the draft as written
+(2026-10-12), which settled the three points put to them at the gate:
+- An Admin who is not a customer now gets Scores on their Assistant's menu (§ Background).
+- The Copy stands.
+- One story: drag-to-reorder is not split off.
 
 ## Linked artifacts
 

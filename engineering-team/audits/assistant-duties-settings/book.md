@@ -54,7 +54,7 @@ The ask, verbatim (copied from the session transcript, not retyped):
 
 ### Acceptance frame
 
-*Proposed from the intake decisions; confirmed at story 1's approval.*
+*Proposed from the intake decisions; confirmed by the owner at story 1's approval (2026-10-12).*
 
 - [ ] **An Assistant Duties tab.** `/tapestry/settings/assistant-duties` lists the duties this instance offers, and
       the Owner or an Admin can add any Treasure Map key, remove any duty, set each duty's relay, drag them into order,
