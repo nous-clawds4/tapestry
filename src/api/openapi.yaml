@@ -426,7 +426,7 @@ paths:
                                   type: object
                                   properties:
                                     key: { type: string }
-                                    category: { type: string, enum: [scores, lists, concepts] }
+                                    category: { type: string, nullable: true, enum: [scores, lists, concepts], description: 'null for a kind outside the three families' }
                                     relay: { type: string, nullable: true, description: 'the offer''s relay on active and offered lines; null otherwise' }
                                     status: { type: string, enum: [active, offered, not-offered, elsewhere] }
                                     reason: { type: string, nullable: true, enum: [live-unclaimed, not-published-here, older-form, nothing-to-publish, not-landed, not-scheduled, upkeep-stopped, unchecked] }

@@ -100,6 +100,7 @@ function startCustomerTimer(pubkey, customerName, cfg) {
   }
   const state = {
     timer: setInterval(() => triggerCustomerTask(pubkey), intervalMs),
+    intervalMs,
     nextRunAt: new Date(Date.now() + intervalMs).toISOString(),
     lastRunAt: null,
     taskRunning: false,
@@ -135,6 +136,21 @@ function getInFlightCount() {
     if (state && state.taskRunning === true) count++;
   }
   return count;
+}
+
+// ── Running interval ───────────────────────────────────────
+
+/**
+ * The running timer's interval in ms for a customer's main pubkey, or null when no timer runs for them (none started,
+ * disabled, under the 1-hour floor, or a trigger-only state). Live in-process state, like getInFlightCount.
+ *
+ * Consumer: the Your Assistant's Treasure Map check (src/api/assistant/selfMap.js, ADR assistant-self-map/0001
+ * Amendment 2 item 3), which counts it as upkeep for that customer's Scores.
+ */
+function getTimerIntervalMs(pubkey) {
+  const key = String(pubkey || '');
+  const state = customerTimers.get(key) || customerTimers.get(key.toLowerCase());
+  return state && state.timer && Number.isFinite(state.intervalMs) && state.intervalMs > 0 ? state.intervalMs : null;
 }
 
 // ── History from events.jsonl ──────────────────────────────
@@ -340,4 +356,6 @@ module.exports = {
   initCustomerSchedulers,
   // Exported for the deploy-safety status endpoint (ADR deploy-safety-gate/0001):
   getInFlightCount,
+  // Exported for the self-Map check (ADR assistant-self-map/0001 Amendment 2 item 3):
+  getTimerIntervalMs,
 };

@@ -12,7 +12,8 @@
  * - Live (sub-decisions 3 and 6) is read from what has landed at the offer's relay:
  *   - Scores: the newest Assistant-signed 30382 in this instance's strfry (both publishers re-sign every event every
  *     run), against twice the shortest enabled schedule interval among the tasks that re-sign them for this Assistant
- *     (the BullMQ entries, else the bare-metal systemd timer);
+ *     (the BullMQ entries while the queue is on, and a customer's own per-customer timer; else the bare-metal systemd
+ *     timer — Amendment 2);
  *   - Concepts: the Assistant's 39998 headers at their relay (this instance's strfry, or the DList relay with no public
  *     address);
  *   - Lists are never live here: their d tags are not Treasure Maps § 5.1's.
@@ -60,6 +61,8 @@ function defaultDeps() {
     },
     schedulerEnabled: () => require('../../manage/taskQueue/queue/schedulerSwitch').schedulerEnabled(),
     timerExists: (p = SYSTEMD_TIMER) => require('fs').existsSync(p),
+    // The per-customer scheduler's running timer, by the customer's main pubkey (Amendment 2 item 3).
+    customerTimerIntervalMs: (pubkey) => require('../customer-schedule').getTimerIntervalMs(pubkey),
   };
 }
 
@@ -80,15 +83,27 @@ function parseTimeSpan(text) {
   return n > 0 ? n * scale : null;
 }
 
-/** One schedule entry's interval in ms: a cron's gap between its next two fire times, else its interval fields. */
+/** How many upcoming fires a cron entry's interval is read over (Amendment 2 item 2). */
+const CRON_FIRES = 8;
+
+/**
+ * One schedule entry's interval in ms: a cron's shortest gap between consecutive fires among its next CRON_FIRES
+ * (Amendment 2 item 2, so an irregular schedule never stretches the allowance), else its interval fields.
+ */
 function entryInterval(entry, now) {
   const cron = entry && typeof entry.cron === 'string' ? entry.cron.trim() : '';
   if (cron) {
     try {
       const it = require('cron-parser').parseExpression(cron, { currentDate: new Date(now) });
-      const a = it.next().getTime();
-      const b = it.next().getTime();
-      return b > a ? b - a : null;
+      let previous = it.next().getTime();
+      let shortest = null;
+      for (let i = 1; i < CRON_FIRES; i += 1) {
+        const next = it.next().getTime();
+        const gap = next - previous;
+        if (gap > 0 && (shortest === null || gap < shortest)) shortest = gap;
+        previous = next;
+      }
+      return shortest;
     } catch { return null; }
   }
   const minutes = (Number(entry && entry.intervalDays) || 0) * 1440 + (Number(entry && entry.intervalHours) || 0) * 60 + (Number(entry && entry.intervalMinutes) || 0);
@@ -97,13 +112,16 @@ function entryInterval(entry, now) {
 
 /**
  * The shortest enabled interval among the schedules that re-sign this Assistant's Scores, in ms, or null when none
- * does (sub-decision 6). BullMQ entries count while TASK_QUEUE_ENABLED isn't "false" and the kill switch is on; with no
- * matching entry, the bare-metal systemd timer counts when its unit exists.
+ * does (sub-decision 6, Amendment 2 items 1 and 3):
+ * - BullMQ entries count only when TASK_QUEUE_ENABLED is exactly "true" (default "false"), as bin/control-panel.js
+ *   decides whether to start the queue, and the kill switch is on;
+ * - for a customer, their per-customer scheduler's running timer counts too, whatever the flag says;
+ * - with neither, the bare-metal systemd timer counts when its unit exists.
  */
 function scheduleIntervals({ viewer, isOwner }, d) {
   const now = d.now();
   const who = String(viewer || '').toLowerCase();
-  const queueOn = String(d.getConfigFromFile('TASK_QUEUE_ENABLED', 'true')).trim().toLowerCase() !== 'false'
+  const queueOn = d.getConfigFromFile('TASK_QUEUE_ENABLED', 'false') === 'true'
     && attemptSync(() => d.schedulerEnabled() !== false, true);
   const counts = (e) => {
     if (!e || e.enabled !== true) return false;
@@ -114,6 +132,10 @@ function scheduleIntervals({ viewer, isOwner }, d) {
   };
   const entries = queueOn ? attemptSync(() => d.readScheduleEntries(), []) : [];
   const intervals = (Array.isArray(entries) ? entries : []).filter(counts).map((e) => entryInterval(e, now)).filter((x) => x > 0);
+  if (!isOwner) {
+    const timer = attemptSync(() => d.customerTimerIntervalMs(who), null);
+    if (Number.isFinite(timer) && timer > 0) intervals.push(timer);
+  }
   if (intervals.length) return Math.min(...intervals);
   if (attemptSync(() => d.timerExists(SYSTEMD_TIMER), false) === true) {
     return parseTimeSpan(d.getConfigFromFile('BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL', '')) || DEFAULT_TIMER_MS;

@@ -83,7 +83,8 @@ export function statusLine(answer) {
 
 /**
  * A duties line's reason, word for word (§ Copy; Amendment 1 item 7). upkeep-stopped carries its last landing as a
- * date. None for a line with no reason (an active one).
+ * date, and has no line without one: § Copy gives no words for an unknown date (Amendment 2 item 7). None for a line
+ * with no reason (an active one).
  * @param {?Object} line - one line of the answer's duties
  * @returns {?string}
  */
@@ -91,7 +92,7 @@ export function reasonLine(line) {
   if (!line || !line.reason) return null;
   if (line.reason === 'upkeep-stopped') {
     const date = dateOf(line.lastLandedAt);
-    return date ? `${SELF_MAP_COPY.upkeepStoppedLead} ${date}.` : `${SELF_MAP_COPY.upkeepStoppedLead} an unknown date.`;
+    return date ? `${SELF_MAP_COPY.upkeepStoppedLead} ${date}.` : null;
   }
   return SELF_MAP_COPY.reasons[line.reason] || null;
 }

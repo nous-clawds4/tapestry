@@ -40,11 +40,11 @@ const isScoreKind = (k) => k >= 30380 && k <= 30389;
 const isListKind = (k) => k >= 30390 && k <= 30399;
 const isConceptKind = (k) => k === 39998 || k === 39999;
 
-/** The category a kind belongs to, in /treasure-map's names' keys. */
+/** The category a kind belongs to, in /treasure-map's names' keys; null outside the three (Amendment 2 item 6). */
 function categoryOfKind(kind) {
   if (isScoreKind(kind)) return 'scores';
   if (isListKind(kind)) return 'lists';
-  return 'concepts';
+  return isConceptKind(kind) ? 'concepts' : null;
 }
 
 /**
@@ -324,7 +324,8 @@ function buildShouldSay({ groups, assistant, duties, live, offer }) {
 
 /**
  * A found self-Map's self-entries (Amendment 1 item 2): its entries naming the author, each { key, relay } normalized
- * (`39998:` and `39999:` dropped, as readers ignore them), and the count of entries naming any other valid key.
+ * (`39998:` and `39999:` dropped, as readers ignore them), and the count of entries naming any other key. An entry is a
+ * tag whose element 1 parses as a key and whose element 2 is a 64-hex key, as mapGroups reads them (Amendment 2 item 5).
  */
 function readSelfEntries(event, author) {
   const who = String(author || '').toLowerCase();
@@ -333,9 +334,10 @@ function readSelfEntries(event, author) {
   let otherEntries = 0;
   for (const t of event && Array.isArray(event.tags) ? event.tags : []) {
     if (!Array.isArray(t) || typeof t[0] !== 'string' || typeof t[1] !== 'string' || !HEX64.test(t[1])) continue;
-    if (t[1].toLowerCase() !== who) { otherEntries += 1; continue; }
     const parsed = parseKey(t[0]);
-    if (!parsed || t[0] === '39998:' || t[0] === '39999:') continue;
+    if (!parsed) continue;
+    if (t[1].toLowerCase() !== who) { otherEntries += 1; continue; }
+    if (t[0] === '39998:' || t[0] === '39999:') continue;
     const entry = { key: parsed.norm, relay: normalizeRelayUrl(t[2]) || '' };
     const id = `${entry.key}|${entry.relay}`;
     if (seen.has(id)) continue;
@@ -405,7 +407,9 @@ function dutyLines({ groups, assistant, duties, live, shouldSay, found }) {
     }
     const unoffered = won.filter((p) => p.duty && !live.ctx.offer.has(p.probe.kind));
     if (unoffered.length) {
-      lines.push({ key: k.norm, category: categoryOfKind(unoffered[0].probe.kind), relay: null, status: 'not-offered', reason: null, lastLandedAt: null, falseClaim: false });
+      // A part that isn't offered is never live, so any found self-entry winning one is a false claim (Amendment 2 item 4).
+      const falseClaim = unoffered.some((p) => Boolean(winnerOf(claims, p.probe, (c) => c.key)));
+      lines.push({ key: k.norm, category: categoryOfKind(unoffered[0].probe.kind), relay: null, status: 'not-offered', reason: null, lastLandedAt: null, falseClaim });
     }
     const elsewhere = [];
     for (const p of probes) {
