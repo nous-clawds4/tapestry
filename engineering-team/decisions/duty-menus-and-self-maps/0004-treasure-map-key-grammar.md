@@ -1,6 +1,6 @@
 # ADR 0004: The Treasure Maps key grammar — the Concept kinds ordered, `39998:` no key, category `39998` in three List kinds, addressable kinds, and the Profiles category
 
-**Status:** Proposed (revision 2)
+**Status:** Accepted (by the owner, 2026-10-12, with open questions 1–3 answered as recommended)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/4-treasure-map-key-grammar.md`
 
@@ -16,6 +16,11 @@ Lists' families sentence now cite § 4.6 for `39999:dlist-header`, and Trusted L
 Maps. Assistant Designation's blanket gloss no longer calls the entry the bare `39998`, and a new protocol row asks
 whether a bare `39998` names a user's TA. Consequences lists both new protocol rows as departures, which Open question
 3 now covers, and the code row adds the My Assistants duties list.
+
+**At acceptance (2026-10-12)** two non-blocking findings of the third review are fixed. The code row names how
+`classifyEntry`, `treasureMapDuties` and `findDListEntries` read `39999:duty-menu` (R3-1). Duty Menus step 1's last
+bullet, and Assistant Designation's split rule and Sources clause, name both keys that § 4.6 says name no Concept,
+`39999:duty-menu` and `39999:dlist-header` (R3-2).
 
 ## Context
 
@@ -79,7 +84,7 @@ unresolved here. **Firmware reinstall: not required.**
 ## Options considered
 
 The owner's answers fix what most keys match. Seven choices are left, mostly about where each rule lands and how it is
-worded. Choices 3 and 6 are for the owner to ratify (Open questions 1 and 2).
+worded. The owner ratified Choices 3 and 6 on 2026-10-12 (Open questions 1 and 2).
 
 ### Choice 1 — How § 6 states the Concept order
 
@@ -113,7 +118,7 @@ is `dlist-header`, which § 4.6 forbids: its only spelling, `39998:dlist-header`
 `39999:dlist-header` reads two ways, as a Concept key or as the bare `39999` by analogy with the legacy spelling: with
 `[39999:dlist-header, X]` and `[39998, Y]`, the 39999-declared headers go to Y or to X (V18). The owner's answers
 settle none of this.
-- **Option A (chosen, for the owner to ratify).** No key reaches a Concept header whose `d` is empty or `dlist-header`,
+- **Option A (chosen; the owner ratified it).** No key reaches a Concept header whose `d` is empty or `dlist-header`,
   as § 4.6 has it for `39999:duty-menu`; `39999:dlist-header` names no Concept.
 - **Option B.** `*` and the bare kinds reach both.
 
@@ -150,7 +155,7 @@ AC6's Sources bullet asks each spec's Sources line to name this ADR for the sect
 limits these two files to "the sentences AC1 names". Sub-decision 5's sentences state rules of their own (a header
 declared as a kind-39999 item is covered; a `d-tag` is never empty), so they rest on this ADR, and the bullets
 conflict.
-- **Option A (chosen, for the owner to ratify).** One clause in each Sources line. Repo metadata is not spec text, and
+- **Option A (chosen; the owner ratified it).** One clause in each Sources line. Repo metadata is not spec text, and
   Assistant Designation's line already names ADR 0003 section by section.
 - **Option B.** Leave both lines: a departure from the Sources bullet.
 
@@ -255,8 +260,8 @@ What a reader can now tell:
   is for [Treasure Maps](./treasure-maps.md) § 4.5 to say. The provider pubkey…"
 - **`assistant-designation.md` :64,** the per-DList split rule. "…everything after it is the d-tag, which may itself
   contain colons." → "…everything after it is the d-tag, which may itself contain colons and is never empty: a kind
-  and a colon alone (`39998:`, `39999:`) is not a key, and `39999:dlist-header` names no header
-  ([Treasure Maps](./treasure-maps.md) §§ 4.5 and 4.6)."
+  and a colon alone (`39998:`, `39999:`) is not a key, and `39999:dlist-header` and `39999:duty-menu` name no
+  header ([Treasure Maps](./treasure-maps.md) §§ 4.5 and 4.6)."
 - **`trusted-lists.md` :103–106,** the families sentence. "The `39998`/`39999` families — the blanket Tapestry
   Assistant designation and per-DList curation entries — are specified in [assistant-designation.md](./assistant-designation.md);
   for those, readers split the first element at the **first** colon and treat the remainder as an opaque d-tag." →
@@ -350,8 +355,9 @@ two paragraphs below. The other bullets stay.
 - **Step 1, Concept kinds** (:184–187). Delete the block "The Concept kinds, until Treasure Maps settles them …". In
   the examples list, before the `*:<scope>` bullet (:183), add: "a bare `39998` covers every Concept key, `39999` and
   `39999:<d>` included, and a bare `39999` covers the `39999:<d>` keys (§ 4.5);"
-- **Step 1, last bullet** (:188). Append: "Nor has a Map entry keyed `39998:` or `39999:`, which is not a key: readers
-  ignore the entry (Treasure Maps § 4.5)." This answers finding 19.
+- **Step 1, last bullet** (:188). "says so for `39999:duty-menu`" → "says so for `39999:duty-menu` and
+  `39999:dlist-header`". Append: "Nor has a Map entry keyed `39998:` or `39999:`, which is not a key: readers ignore
+  the entry (Treasure Maps § 4.5)." This answers finding 19.
 - **Step 2** (:189). It drops "with step 1's order for the Concept kinds". Sub-decision 9 (finding 13) gives the
   step's whole new text.
 - **Step 4, the meet** (:193). "It is a Treasure Maps § 4.7 key, with two exceptions. The meets of a Map key `39998:`
@@ -456,8 +462,8 @@ After the change, no Duty Menus sentence says that Treasure Maps leaves these qu
     yet published."
   - **`assistant-designation.md` :4** (Choice 6). After "…a triple naming its own author)", add ";
     `duty-menus-and-self-maps` ADR 0004 (§ Relationship to NIP-85 and § Per-DList curation entries: which headers the
-    blanket entry covers, a d-tag that is never empty, and `39999:dlist-header`, as Treasure Maps §§ 4.5 and 4.6
-    say)".
+    blanket entry covers, a d-tag that is never empty, and the keys `39999:dlist-header` and `39999:duty-menu`,
+    which name no header, as Treasure Maps §§ 4.5 and 4.6 say)".
   - **`trusted-lists.md` :4–7** (Choice 6). After "(`event-tagging` ADR 0016)", add "; and `duty-menus-and-self-maps`
     ADR 0004 (§ Treasure-Map advertisement: the `39998`/`39999` families, read as Treasure Maps §§ 4.5 and 4.6
     say)".
@@ -498,16 +504,19 @@ After the change, no Duty Menus sentence says that Treasure Maps leaves these qu
       `classifyEntry` lists `39999:dlist-header` as a per-DList entry, which the My Assistants duties list
       (`treasureMapDuties`) shows as the duty "Curated DList: dlist-header". That list shows no duty for a bare `39999`.
     - **Older.** `conceptCurator` ignores a bare `39998` (§ 4.5's legacy spelling) and falls back to the local
-      Assistant (Case B). The card rule counts `39999:duty-menu` (§ 4.6). `readMenuRows` drops a `duty` row whose relay
-      is not `ws://`/`wss://`, which the spec keeps. `treasureMapDuties` shows no duty for a bare `39998`.
+      Assistant (Case B). The card rule counts `39999:duty-menu` (§ 4.6). `classifyEntry` lists `39999:duty-menu` as a
+      per-DList entry, which `treasureMapDuties` shows as the duty "Curated DList: duty-menu", and `findDListEntries`
+      keeps it. `readMenuRows` drops a `duty` row whose relay is not `ws://`/`wss://`, which the spec keeps.
+      `treasureMapDuties` shows no duty for a bare `39998`.
     - **What already agrees:** a bare `39998` hiding `*` on the Concepts card (1(a)); a bare `39999` not hiding it;
       trimming `30392:tag::` (4(a)); `readMenuRows`, which ignores `39998:`/`39999:` rows and drops an empty-relay row
-      before the duplicate check (finding 17); and `findDListEntries`, which ignores `39998:` and
-      `39999:dlist-header`. No other reader was checked.
+      before the duplicate check (finding 17); and `findDListEntries` in ignoring `39998:` and `39999:dlist-header`
+      (not `39999:duty-menu`, above). No other reader was checked.
     - Book `assistant-self-map`'s "Provisional key grammar" line is now settled.
     - Fix shape: `entryOf` returns null for exactly `39998:` or `39999:`; `appliesTo` leaves out `39999:dlist-header`
-      and `39999:duty-menu`; `conceptCurator` follows § 6 for the bare kinds; `classifyEntry` leaves out
-      `39999:dlist-header`, and `treasureMapDuties` reads the bare kinds as § 4.5 does; each with a test.
+      and `39999:duty-menu`; `conceptCurator` follows § 6 for the bare kinds; `classifyEntry` and
+      `findDListEntries` leave out `39999:dlist-header` and `39999:duty-menu`, and `treasureMapDuties` reads the bare
+      kinds as § 4.5 does; each with a test.
   - **New row `2026-10-12-addressable-kinds-spawning-content-categories`** (type `protocol`), under Open question 3
     (a); under (b) it names Content Categories alone. Titled "Spawning § 3.2 and Content Categories read
     "addressable" as NIP-01 does, and Spawning spawns one List kind for category `39998`, where Treasure Maps § 4.3
@@ -561,7 +570,7 @@ After the change, no Duty Menus sentence says that Treasure Maps leaves these qu
   - an Assistant given `3039x:tag` or `*` is asked for three List kinds in category `39998` (3(a)), where Treasure Maps
     § 8, § 10.10 and § 10.11, and Spawning § 3.2, name only `30397`;
   - a profile kind has no key for one Tag in every category (4(a); § 13 question 2 keeps the question).
-- **For the owner at this gate:** Open questions 1–3. Another option there revises this ADR before implementation.
+- **At this gate** (2026-10-12) the owner answered Open questions 1–3 as recommended, so the ADR stands as written.
 - **Other specs.** Under 3(a), Spawning § 3.2's "event kind k (non-addressable)" row gives a replaceable kind `30393`,
   a key that matches nothing (V16), so an Assistant that follows it publishes a list no Map key reaches. Its *DList
   headers* row spawns `30397` only, so such an Assistant cannot keep a `3039x:tag` or `*` self-entry while
@@ -592,7 +601,9 @@ After the change, no Duty Menus sentence says that Treasure Maps leaves these qu
 
 ## Open questions for the owner
 
-This ADR is written to each recommendation; the gate answers them.
+This ADR is written to each recommendation.
+
+**Answered by the owner, 2026-10-12, at this ADR's gate:** 1 (a), 2 (a), 3 (a), each as recommended.
 
 1. **Which Concept headers no key reaches** (Choice 3). Under 2(a) no key *names* a Concept header whose `d` is empty;
    whether `*`, `39998` and `39999` still *reach* it is open. So is a header whose `d` is the reserved `dlist-header`
@@ -605,13 +616,13 @@ This ADR is written to each recommendation; the gate answers them.
      and Consequences' exact-key claim must leave them out. `39999:dlist-header` still needs a reading; "names no
      Concept" fits (b) too.
    - **Recommended: (a).** It costs only headers that no conforming writer can give a key of their own: § 4.6 forbids
-     the second, and under 2(a) no key names the first.
+     the second, and under 2(a) no key names the first. *Owner: (a).*
 2. **The Sources lines of Assistant Designation and Trusted Lists** (Choice 6). AC6's Sources and scope bullets
    conflict for these two files.
    - (a) One clause in each Sources line (sub-decision 11): a departure from the scope bullet's list.
    - (b) Leave both lines: a departure from the Sources bullet.
    - **Recommended: (a).** It makes both Sources lines true, as Assistant Designation's already is for ADR 0003, at one
-     clause of repo metadata per file and no spec text.
+     clause of repo metadata per file and no spec text. *Owner: (a).*
 3. **The two new protocol rows** (sub-decisions 5, 6 and 11). This story leaves two spec questions outside AC6's scope:
    Spawning § 3.2 and Content Categories read "addressable" as NIP-01 does, and Spawning spawns one List kind of three
    for category `39998`; and whether a bare `39998` entry names a user's TA (Assistant Designation's dual-author
@@ -626,6 +637,7 @@ This ADR is written to each recommendation; the gate answers them.
      (T, `39998`) under its support gate, which this story's ACs do not cover. The TA question asks the owner who a
      user's TA is, not how a sentence reads. Meanwhile § 4.3, with Spawning § 2's deferral to it, points a careful
      reader at one answer, and Assistant Designation is silent on a bare `39998`, as it was before this story.
+     *Owner: (a).*
 
 ## Implementation notes
 
@@ -767,12 +779,12 @@ them from sub-decisions 1–7.
 | AC1 bare kinds | TM § 4.5, § 10.1, § 10.12 | "The bare kind `39999` means…"; § 10.1's `39999` row; "(The bare `39998` and `39999` are in § 10.1.)" |
 | AC1 order | TM § 6 | "Of the two Concept kinds, `39999` beats `39998`"; "Apart from that case"; the third consequence |
 | AC1 colon | TM § 4.5, § 4.7; DM § 5.3 | "is not a key"; `d-tag = 1*OCTET`; DM § 5.3's pointer at § 4.5 |
-| AC1 other specs | AD :38, :64; TL :103–106 | AD: "for [Treasure Maps](./treasure-maps.md) § 4.5 to say", no "bare `39998`", "never empty", "`39999:dlist-header` names no header", "§§ 4.5 and 4.6"; TL: "the bare kinds `39998` and `39999`, specified in [Treasure Maps]", "§§ 4.5 and 4.6 to say", "never empty" |
+| AC1 other specs | AD :38, :64; TL :103–106 | AD: "for [Treasure Maps](./treasure-maps.md) § 4.5 to say", no "bare `39998`", "never empty", "`39999:dlist-header` and `39999:duty-menu` name no header", "§§ 4.5 and 4.6"; TL: "the bare kinds `39998` and `39999`, specified in [Treasure Maps]", "§§ 4.5 and 4.6 to say", "never empty" |
 | AC1 Self-Maps | TM § 3, § 9.2 | no "until this NIP settles"; Ties opens "None arise"; no "A Concept kind and a colon" paragraph |
 | AC1 duty-menu | TM § 4.6 | the `duty-menu` paragraph unchanged; the new `dlist-header` paragraph |
 | AC2 | TM § 4.3, § 12; DM step 1 | the two bullets; "Addressable kinds", naming Content Categories and Spawning; "Category `39998` takes three List kinds"; § 12's "(§ 4.3)"; DM's `3039x:tag:10002` example |
 | AC3 | TM § 4.4, § 10.5, § 13 q2–3 | "The Profiles category" and its three sub-bullets; "in each category of profiles"; "with a value after it" (q2, q3) |
-| AC4 | DM § 5.3, § 6.2 steps 1, 2, 4, § 13.3, § 14 | the gate grep finds nothing; the § 13.3 `39999` row; questions 5–7 struck through with pointers |
+| AC4 | DM § 5.3, § 6.2 steps 1, 2, 4, § 13.3, § 14 | the gate grep finds nothing; step 1's last bullet: "for `39999:duty-menu` and `39999:dlist-header`"; the § 13.3 `39999` row; questions 5–7 struck through with pointers |
 | AC5 f12, f13 | DM step 5, step 2 | "changes nothing under K"; "Outside K, such a key may still take"; "the same one is the most specific" |
 | AC5 f15, f17, f22 | DM § 8.1, § 5.3, § 5.4, § 4, § 5.1 | "SHOULD return only the latest version"; "Ignored rows (§ 5.1 and above) take no part"; "uses the first"; "the first counts"; "names an Assistant" |
 | AC5 f23, f24 | DM § 2, steps 3–4, § 13.3, § 8.2, § 4 | "Offered — of an insight"; "where the menu gives K a relay (step 3)"; "Not offered as a whole" twice; "Nous' kind 10002 write relays"; "that the relays it asks hold" |

@@ -1479,10 +1479,11 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
     paragraph on what the allowance rests on, with its four cases (the third under every answer, the fourth under
     (a)), the third and fourth each saying that a reader that cannot tell takes such a copy as maintained, and the
     sentence after them: for a key that serves several observers, the allowance rests on nothing § 9.2 asks.
-    *(Amended by A2-1 and A2-5: the third and fourth cases each also say "and a List the key retracted as one with no
-    members (§ 7)"; § 3's sentence reads "…publish an insight, except as § 9 says." See Verification for A2.)*
+    *(Amended by A2-1: the third and fourth cases each also say "and a List the key retracted as one with no members
+    (§ 7)". See Verification for A2.)*
   - § 7: the confirmed Alternate sentence. § 3: "A Map entry names who is asked to publish an insight. It does not
     promise that the insight exists." § 2: the Observer line's clause.
+  *(Amended by A2-5: § 3's sentence reads "…publish an insight, except as § 9 says." See Verification for A2.)*
   - *Checks:* the TA's Map `["3038x", TA, R1]`, `["30382:rank", X, R2]`: among self-entries alone, `3038x` → R1 confirms
     the TA's ranks. `s3/m6_age.py` "relay": S1 reads A's v2 at R1; S2 reads A at R1; S3 accepts the old score at R; S4
     moves to B; S5 reads R1. `s3/r1/m6r.py`: Part 1 with A1-12's publisher rule gives B in every scenario whose sends
@@ -2445,6 +2446,8 @@ NB11 and NB14 into this round. At this gate the owner approves A2's wording, in 
 - leaving NB3 and NB10 in the ledger. NB3 turns on what a bare `39999` covers and how § 6 orders it against a bare
   `39998` (Duty Menus § 14 question 5), which story 4 settles. NB10 needs a keep-or-delete decision for curation
   copies, which would be new normative text in Assistant Designation, for story 4's ADR.
+
+*Approved by the owner on 2026-10-12, without the extra reader rule, as Status of A2 says.*
 
 ### Consequences of A2
 
