@@ -39,7 +39,8 @@ function defaultDeps() {
     getConfiguredPublishRelays: () => require('./profilePublish').getConfiguredPublishRelays(),
     readConfiguredRelays: (categories) => require('./profilePublish').readConfiguredRelays(categories),
     getConfigFromFile: (key, fallback) => require('../../utils/config').getConfigFromFile(key, fallback),
-    isPublicHost: (host) => require('./profileDefaults').isPublicHost(host),
+    // This instance's relay at its public address, derived from the domain on Docker (duty-menu-public-relay #1).
+    instanceRelayUrl: (d) => require('./profileDefaults').instanceRelayUrl({ getConfigFromFile: d.getConfigFromFile }),
     lookupNewestReplaceable: (input, d) => require('./attention').lookupNewestReplaceable(input, d),
     outsideOnly: (urls, d) => require('../setup/status').outsideOnly(urls, d),
   };
@@ -92,8 +93,8 @@ function outboxSuggestions(deps = {}) {
     out.push(url);
   };
 
-  const own = normalizeRelayUrl(String(d.getConfigFromFile('BRAINSTORM_RELAY_URL', '') || ''));
-  if (own && d.isPublicHost(new URL(own).hostname)) add(own);
+  const own = d.instanceRelayUrl(d);
+  if (own) add(own);
 
   let configured = [];
   try { configured = d.readConfiguredRelays(SUGGESTION_RELAY_CATEGORIES); } catch { configured = []; }

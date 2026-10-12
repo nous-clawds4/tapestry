@@ -66,7 +66,8 @@ function defaultDeps() {
     readConfiguredRelays: (categories) => require('./profilePublish').readConfiguredRelays(categories),
     getConfiguredPublishRelays: () => require('./profilePublish').getConfiguredPublishRelays(),
     mapDefaultRelays: () => require('../export/nip85/currentMap').defaultRelays(),
-    isPublicHost: (host) => require('./profileDefaults').isPublicHost(host),
+    // This instance's relay at its public address, derived from the domain on Docker (duty-menu-public-relay #1).
+    instanceRelayUrl: (d) => require('./profileDefaults').instanceRelayUrl({ getConfigFromFile: d.getConfigFromFile }),
     isPublicRelayHostWithin: (host) => require('../../utils/relayHostGuard').isPublicRelayHostWithin(host),
     isLocalOnly: () => require('../publish-policy').isPublishLocalOnly(),
     outsideOnly: (urls, d) => require('../setup/status').outsideOnly(urls, d),
@@ -99,8 +100,7 @@ function isPlainlyPrivateRelay(url) {
  */
 async function resolveOfferInputs(viewer, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
-  const configured = normalizeRelayUrl(String(d.getConfigFromFile('BRAINSTORM_RELAY_URL', '') || ''));
-  const ownRelay = configured && d.isPublicHost(new URL(configured).hostname) ? configured : null;
+  const ownRelay = d.instanceRelayUrl(d);
 
   let dlistRelay = null;
   if (!d.isLocalOnly()) {

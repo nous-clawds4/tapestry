@@ -14,6 +14,7 @@
  *                                                                                                        [AC-2 … AC-5]
  *   G — the suggestions, computed by src/api/assistant/outboxRelays.js (outboxSuggestions) and carried in the
  *       attention answer. Stack-free, dependency-injected.                                                [AC-4]
+ *       G6–G8: duty-menu-public-relay #1 — on Docker this instance's relay is derived from STRFRY_DOMAIN.
  *   C — the page's words and pure helpers, ui/src/pages/assistant/outboxRelaysCopy.js, loaded in Node.     [AC-1, AC-2]
  *   D — source sentinels on the page this runner cannot execute (JSX), its route and its styles.           [AC-1 … AC-5]
  *
@@ -199,6 +200,34 @@ test('G5: the suggestions leave out plainly-private relays from Relay Settings t
   const settings = { aPopularGeneralPurposeRelays: ['wss://nos.lol', 'ws://10.0.0.9:7777', 'ws://tapestry-relay'], aDListRelays: ['wss://box.local', 'wss://dcosl.example'] };
   const got = outboxSuggestions(suggestionDeps({ settings }).deps);
   assert(sameJson(got, ['wss://nos.lol', 'wss://dcosl.example']), `want only the public ones, got ${show(got)}`);
+});
+
+/* ───── G — duty-menu-public-relay #1: the instance's public relay address (Light Bug lane; the story's Design note) ───── */
+
+const DOCKER_RELAY = 'ws://tapestry:80/relay';
+
+test('G6: on Docker — BRAINSTORM_RELAY_URL ws://tapestry:80/relay and a public STRFRY_DOMAIN — this instance\'s relay is suggested first as wss://<domain>/relay, in its one spelling, and once even when a Relay Settings list names it too (duty-menu-public-relay AC-1)', () => {
+  const outboxSuggestions = need(outboxModule(), 'outboxSuggestions', 'src/api/assistant/outboxRelays.js');
+  const settings = { aPopularGeneralPurposeRelays: ['wss://nos.lol'], aDListRelays: ['wss://Staging.Example.org/relay/', 'wss://dcosl.example'] };
+  const got = outboxSuggestions(suggestionDeps({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'Staging.Example.ORG' }, settings }).deps);
+  const want = ['wss://staging.example.org/relay', 'wss://nos.lol', 'wss://dcosl.example'];
+  assert(sameJson(got, want), `want ${show(want)}, got ${show(got)}`);
+});
+
+test('G7: with no public address — the Docker relay URL beside a STRFRY_DOMAIN that is localhost:7777, a private IP, a name with no dot, localhost or not set — no own relay is suggested (duty-menu-public-relay AC-3)', () => {
+  const outboxSuggestions = need(outboxModule(), 'outboxSuggestions', 'src/api/assistant/outboxRelays.js');
+  const wrong = [];
+  for (const domain of ['localhost:7777', '10.0.0.5', 'tapestry', 'localhost', '', undefined]) {
+    const got = outboxSuggestions(suggestionDeps({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain }, settings: { aPopularGeneralPurposeRelays: ['wss://nos.lol'] } }).deps);
+    if (!sameJson(got, ['wss://nos.lol'])) wrong.push(`STRFRY_DOMAIN ${show(domain)}: ${show(got)}`);
+  }
+  assert(wrong.length === 0, `no own relay without a public address: ${wrong.join('; ')}`);
+});
+
+test('G8: a public BRAINSTORM_RELAY_URL still wins, in its one spelling, whatever STRFRY_DOMAIN says (duty-menu-public-relay AC-2)', () => {
+  const outboxSuggestions = need(outboxModule(), 'outboxSuggestions', 'src/api/assistant/outboxRelays.js');
+  const got = outboxSuggestions(suggestionDeps({ config: { BRAINSTORM_RELAY_URL: 'wss://Relay.Example.org/', STRFRY_DOMAIN: 'staging.example.org' }, settings: { aPopularGeneralPurposeRelays: ['wss://nos.lol'] } }).deps);
+  assert(sameJson(got, ['wss://relay.example.org', 'wss://nos.lol']), `got ${show(got)}`);
 });
 
 /* ───────────────────────── C — the page's words ───────────────────────── */

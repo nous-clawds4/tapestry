@@ -99,6 +99,22 @@ function describeInstance(options = {}) {
   };
 }
 
+/**
+ * This instance's relay at its public address (duty-menu-public-relay #1), in its one spelling (normalizeRelayUrl):
+ * BRAINSTORM_RELAY_URL when its host is public; else wss://‹domain›/relay when describeInstance finds the instance
+ * public, since nginx serves this instance's relay at /relay; else null. Docker deployments name the relay by its
+ * internal address (ws://tapestry:80/relay), which no stranger can reach, so there the address is derived.
+ * @returns {?string}
+ */
+function instanceRelayUrl(options = {}) {
+  const { normalizeRelayUrl } = require('../../lib/relay-list');
+  const getConfigFromFile = options.deps?.getConfigFromFile ?? options.getConfigFromFile ?? realGetConfigFromFile;
+  const configured = normalizeRelayUrl(String(getConfigFromFile('BRAINSTORM_RELAY_URL', '') || ''));
+  if (configured && isPublicHost(new URL(configured).hostname)) return configured;
+  const instance = describeInstance(options);
+  return instance.isPublic ? normalizeRelayUrl(`wss://${instance.domain}/relay`) : null;
+}
+
 // ─── The person's name ──────────────────────────────────────────────────────────
 
 /** A kind 0's display_name, else its name — whitespace tidied — or '' when it has neither. */
@@ -260,6 +276,7 @@ module.exports = {
   isPublicDomain,
   getInstanceDomain,
   describeInstance,
+  instanceRelayUrl,
   nameFromProfileEvent,
   resolvePersonName,
   getPersonName,

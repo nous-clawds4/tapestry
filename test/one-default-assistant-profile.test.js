@@ -10,7 +10,8 @@
  * Classes (all stack-free — no strfry, no Neo4j, no relay traffic):
  *   I — the instance: the story's "public instance" rule (isPublicDomain), what describeInstance
  *       makes of the configured domain, and index.js's isPubliclyReachable, which the badged
- *       avatar's publishable URL is gated on (OPEN.md row 148).
+ *       avatar's publishable URL is gated on (OPEN.md row 148). I8–I10: instanceRelayUrl, this
+ *       instance's relay at its public address (duty-menu-public-relay #1).
  *   N — the person's name: nameFromProfileEvent and resolvePersonName with injected relays. N9 goes
  *       through the real settings module and a temp settings file ("the instance's profile relays").
  *   D — the one definition: buildDefaultProfile, pure, against the story's table and the owner's
@@ -294,6 +295,58 @@ test('I7: the badged avatar\'s gate (index.js isPubliclyReachable) follows the s
   };
   const wrong = Object.entries(expected).filter(([url, want]) => isPubliclyReachable(url) !== want).map(([url, want]) => `${j(url)} → expected ${want}, got ${isPubliclyReachable(url)}`);
   assert(wrong.length === 0, `AC4: "no value the app itself supplies — … a generated badged avatar — is ever a loopback, private-network or relative URL": ${wrong.join('; ')}`);
+});
+
+/* ───── I — duty-menu-public-relay #1: instanceRelayUrl, this instance's relay at its public address ───── */
+// Story: engineering-team/stories/duty-menu-public-relay/1-the-instances-public-relay-address.md (Design note). Docker
+// deployments name the relay by its internal address, ws://tapestry:80/relay (docker-compose.yml RELAY_URL).
+
+const DOCKER_RELAY = 'ws://tapestry:80/relay';
+const relayOf = (values) => need(getDefaultsModule(), 'instanceRelayUrl')({ deps: { getConfigFromFile: config(values) } });
+
+test('I8: instanceRelayUrl derives wss://<domain>/relay when the relay URL is not public but the instance is — Docker\'s ws://tapestry:80/relay beside a public STRFRY_DOMAIN — in normalizeRelayUrl\'s one spelling: capitals folded, and a fully-qualified trailing dot kept, so outsideOnly still knows it as this instance (duty-menu-public-relay AC-1; edge cases)', () => {
+  const wrong = [];
+  for (const [domain, want] of [
+    ['staging.example.org', 'wss://staging.example.org/relay'],
+    ['Staging.Example.ORG', 'wss://staging.example.org/relay'],
+    ['staging.example.org.', 'wss://staging.example.org./relay'],
+  ]) {
+    const got = relayOf({ BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain });
+    if (got !== want) wrong.push(`STRFRY_DOMAIN ${j(domain)}: want ${j(want)}, got ${j(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('I9: a public BRAINSTORM_RELAY_URL is the public relay, in its one spelling, whatever STRFRY_DOMAIN says — a different public domain, localhost, or none (duty-menu-public-relay AC-2)', () => {
+  const wrong = [];
+  for (const [values, want] of [
+    [{ BRAINSTORM_RELAY_URL: 'wss://Relay.Example.org/', STRFRY_DOMAIN: 'staging.example.org' }, 'wss://relay.example.org'],
+    [{ BRAINSTORM_RELAY_URL: 'wss://staging.brainstorm.world/relay', STRFRY_DOMAIN: 'localhost' }, 'wss://staging.brainstorm.world/relay'],
+    [{ BRAINSTORM_RELAY_URL: 'ws://relay.example.org:7777' }, 'ws://relay.example.org:7777'],
+  ]) {
+    const got = relayOf(values);
+    if (got !== want) wrong.push(`${j(values)}: want ${j(want)}, got ${j(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('I10: no public relay URL and no public domain is no public relay — STRFRY_DOMAIN localhost:7777 (a dev box), a private IP, a name with no dot, localhost, empty, or nothing configured at all (duty-menu-public-relay AC-3; edge cases)', () => {
+  const wrong = [];
+  const cases = [
+    { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost:7777' },
+    { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: '10.0.0.5' },
+    { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: '192.168.1.50' },
+    { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'tapestry' },
+    { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'localhost' },
+    { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: '' },
+    { BRAINSTORM_RELAY_URL: DOCKER_RELAY },
+    {},
+  ];
+  for (const values of cases) {
+    const got = relayOf(values);
+    if (got !== null) wrong.push(`${j(values)}: want null, got ${j(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 /* ───────────────────────── N — the person's name ───────────────────────── */

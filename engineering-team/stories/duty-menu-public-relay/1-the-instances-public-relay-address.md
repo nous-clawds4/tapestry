@@ -111,6 +111,23 @@ The full `npm test` runs at book close.
 
 ## Deviations
 
+- **Implementation, 2026-10-12 (small judgment calls):**
+  - **Where the suggestion tests live.** `outboxSuggestions` is tested in `assistant-outbox-relays-page` (G1–G5), so
+    AC-1's and AC-3's suggestion handles are G6–G8 there, not in `assistant-outbox-check`. Both suites are in the scoped
+    gate.
+  - **A trailing-dot `STRFRY_DOMAIN`** gives `wss://staging.example.org./relay`, `normalizeRelayUrl`'s one spelling,
+    which keeps the dot. `outsideOnly` (unchanged, outside the blast radius) compares hosts as `STRFRY_DOMAIN` writes
+    them, so dropping the dot would let the check read the derived relay as an outside one (AC-4). A relay *named*
+    without the dot under a dotted domain isn't recognized as this instance, before or after this fix.
+  - **The seam.** In `dutyMenu.js` and `outboxRelays.js` the `isPublicHost` seam, used only by the replaced line, is
+    replaced by an `instanceRelayUrl` seam that reads the injected config.
+  - **One handle beyond the list:** W13 checks AC-1 at the publisher (the signed rows name the derived relay).
+  - **Re-aimed, minimally:** `assistant-duty-menu-check` U9, U10, U13, U14, U26, U28, U29 and U32. Their "no public
+    address" configs set a private `BRAINSTORM_RELAY_URL` but kept the fixture's public `STRFRY_DOMAIN`
+    (`tapestry.example`), which is the Docker shape this story fixes. Each now also sets `STRFRY_DOMAIN: 'localhost'`.
+    In U13's private case and U32, this instance is then `localhost` alone, so their own-relay checks name `localhost`,
+    and U32's fixture names it as the Map's own-relay entry.
+
 ## Linked artifacts
 
 - ADR: none (Design note above; Light)

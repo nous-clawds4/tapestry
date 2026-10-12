@@ -24,6 +24,9 @@
  * ADR 0002 Amendment 2: the route table opens the route to a signed-in person (S6; S2 allows routeAccess.js to name it),
  * and an empty send set has its own sentence (W11).
  *
+ * duty-menu-public-relay #1 (Light Bug lane): on Docker the offer's relay is derived from STRFRY_DOMAIN, and that
+ * address is still this instance: never sent to as an outside relay (W12, AC-4), while the signed rows name it (W13).
+ *
  * Everything FAILS against the current code: src/api/assistant/dutyMenuPublish.js and src/utils/relayHostGuard.js do
  * not exist, the route is not registered, and dutyMenu.js exports no write-relay helpers.
  */
@@ -589,6 +592,52 @@ test('W11: saved here, not local-only, and no relay at all to send to — the an
   if (!refused.result || refused.result.message !== wantR || refused.result.message === DM.PUBLISH.nothingElse) wrong.push(`one relay, refused by the guard (the set is not empty before it): want ${show(wantR)}, got ${show(refused.result && refused.result.message)}`);
   const local = await answer({ localOnly: true, inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [], nous: [] });
   if (!local.result || local.result.message !== DM.PUBLISH.localOnly) wrong.push(`local-only, empty set: want ${show(DM.PUBLISH.localOnly)}, got ${show(local.result && local.result.message)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────── duty-menu-public-relay #1: the instance's public relay address (Light Bug lane; the story's Design note) ───────── */
+
+const DOCKER_CONFIG = { BRAINSTORM_RELAY_URL: 'ws://tapestry:80/relay', STRFRY_DOMAIN: 'staging.example.org' };
+const DERIVED = 'wss://staging.example.org/relay';
+const OWN_HOSTS = ['staging.example.org', 'tapestry'];
+
+/**
+ * One press, with the real story-1 functions over this instance's relay (`seed(A)` gives what it holds for the
+ * Assistant A), configured as a Docker deployment: the internal relay URL and a public STRFRY_DOMAIN.
+ */
+async function publishOnDocker(seed) {
+  const sk = nt().generateSecretKey();
+  const store = seed(nt().getPublicKey(sk));
+  const before = store.length;
+  const L = lowLevel({ store });
+  L.getConfigFromFile = (key, dflt) => (Object.prototype.hasOwnProperty.call(DOCKER_CONFIG, key) ? DOCKER_CONFIG[key] : dflt);
+  const { deps, calls } = integratedDeps(L, { sk, store });
+  const res = fakeRes();
+  console.log = () => {}; console.warn = () => {};
+  try { await within(need(publishModule(), 'createPublishDutyMenuHandler', rel(MODULE))(deps)(signedInReq(), res), HANDLER_LIMIT_MS); } finally { restoreConsole(); }
+  return { res, signed: store[before] || null, sent: calls.publishToRelays.flat() };
+}
+
+test('W12: on Docker the derived address is never sent to as an outside relay — not when the Assistant\'s relay list or the found version\'s rows name it, in any spelling, nor as the new rows\' relay — while the other relays they name are sent (duty-menu-public-relay AC-4)', async () => {
+  const got = await publishOnDocker((A) => [
+    { id: hexId(9101), pubkey: A, kind: DM.RELAY_LIST_KIND, created_at: 10, tags: [['r', 'wss://Staging.Example.ORG/relay/'], ['r', A1]], content: '', sig: '0'.repeat(128) },
+    foundMenu(A, { createdAt: 20, rows: [['duty', '30392', DERIVED], ['duty', '30382', OLD1]] }),
+  ]);
+  const wrong = [];
+  if (!got.res.body || got.res.body.success !== true || !got.res.body.result || got.res.body.result.ok !== true) wrong.push(`published: ${show(got.res.body)}`);
+  const own = got.sent.filter((u) => OWN_HOSTS.includes(hostOf(u)));
+  if (own.length) wrong.push(`this instance's relay was sent to as outside: ${show(own)}`);
+  for (const u of [A1, OLD1]) if (!got.sent.includes(u)) wrong.push(`the control ${u} is sent: ${show(got.sent)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('W13: on Docker the signed menu\'s rows name wss://<domain>/relay — Lists and Concepts for a viewer without Scores — and the fan-out never sends to it (duty-menu-public-relay AC-1, AC-4)', async () => {
+  const got = await publishOnDocker(() => []);
+  const wrong = [];
+  const rows = got.signed ? got.signed.tags.filter((t) => t[0] === 'duty').map((t) => ({ tag: 'duty', key: t[1], relay: t[2] })) : null;
+  const want = DM.expectedOffer({ ownRelay: DERIVED });
+  if (!rows || show(rows) !== show(want)) wrong.push(`the signed rows: want ${show(want)}, got ${show(rows)}`);
+  if (got.sent.some((u) => OWN_HOSTS.includes(hostOf(u)))) wrong.push(`the derived relay was sent to: ${show(got.sent)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
