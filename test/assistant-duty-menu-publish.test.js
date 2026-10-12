@@ -24,8 +24,9 @@
  * ADR 0002 Amendment 2: the route table opens the route to a signed-in person (S6; S2 allows routeAccess.js to name it),
  * and an empty send set has its own sentence (W11).
  *
- * duty-menu-public-relay #1 (Light Bug lane): on Docker the offer's relay is derived from STRFRY_DOMAIN, and that
- * address is still this instance: never sent to as an outside relay (W12, AC-4), while the signed rows name it (W13).
+ * duty-menu-public-relay #1 (Light Bug lane): on Docker (BRAINSTORM_RELAY_URL the container-internal ws://localhost:7777,
+ * docker/entrypoint.sh) the offer's relay is derived from STRFRY_DOMAIN, and that address is still this instance: never
+ * sent to as an outside relay (W12, AC-4), while the signed rows name it (W13).
  *
  * Everything FAILS against the current code: src/api/assistant/dutyMenuPublish.js and src/utils/relayHostGuard.js do
  * not exist, the route is not registered, and dutyMenu.js exports no write-relay helpers.
@@ -235,7 +236,6 @@ function lowLevel({ store, relays = {}, viewer = VIEWER }) {
     readConfiguredRelays: () => [],
     getConfiguredPublishRelays: () => [PUB1, OWN],
     mapDefaultRelays: () => [],
-    isPublicHost: (host) => require('../src/api/assistant/profileDefaults').isPublicHost(host),
     isPublicRelayHostWithin: async () => true,
     isLocalOnly: () => false,
     outsideOnly: (urls, d) => status.outsideOnly(urls, d || L),
@@ -597,13 +597,14 @@ test('W11: saved here, not local-only, and no relay at all to send to — the an
 
 /* ───────── duty-menu-public-relay #1: the instance's public relay address (Light Bug lane; the story's Design note) ───────── */
 
-const DOCKER_CONFIG = { BRAINSTORM_RELAY_URL: 'ws://tapestry:80/relay', STRFRY_DOMAIN: 'staging.example.org' };
+const DOCKER_CONFIG = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'staging.example.org' };
 const DERIVED = 'wss://staging.example.org/relay';
-const OWN_HOSTS = ['staging.example.org', 'tapestry'];
+const OWN_HOSTS = ['staging.example.org', 'localhost'];
 
 /**
  * One press, with the real story-1 functions over this instance's relay (`seed(A)` gives what it holds for the
- * Assistant A), configured as a Docker deployment: the internal relay URL and a public STRFRY_DOMAIN.
+ * Assistant A), configured as a Docker deployment: the container-internal relay URL ws://localhost:7777
+ * (docker/entrypoint.sh) and a public STRFRY_DOMAIN.
  */
 async function publishOnDocker(seed) {
   const sk = nt().generateSecretKey();

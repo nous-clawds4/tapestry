@@ -298,21 +298,25 @@ test('I7: the badged avatar\'s gate (index.js isPubliclyReachable) follows the s
 });
 
 /* ───── I — duty-menu-public-relay #1: instanceRelayUrl, this instance's relay at its public address ───── */
-// Story: engineering-team/stories/duty-menu-public-relay/1-the-instances-public-relay-address.md (Design note). Docker
-// deployments name the relay by its internal address, ws://tapestry:80/relay (docker-compose.yml RELAY_URL).
+// Story: engineering-team/stories/duty-menu-public-relay/1-the-instances-public-relay-address.md (Design note). On
+// Docker deployments BRAINSTORM_RELAY_URL is the container-internal ws://localhost:7777 (docker/entrypoint.sh's
+// RELAY_URL default); ws://tapestry:80/relay is another internal address no stranger can reach.
 
-const DOCKER_RELAY = 'ws://tapestry:80/relay';
+const DOCKER_RELAY = 'ws://localhost:7777';
+const OTHER_INTERNAL_RELAY = 'ws://tapestry:80/relay';
 const relayOf = (values) => need(getDefaultsModule(), 'instanceRelayUrl')({ deps: { getConfigFromFile: config(values) } });
 
-test('I8: instanceRelayUrl derives wss://<domain>/relay when the relay URL is not public but the instance is — Docker\'s ws://tapestry:80/relay beside a public STRFRY_DOMAIN — in normalizeRelayUrl\'s one spelling: capitals folded, and a fully-qualified trailing dot kept, so outsideOnly still knows it as this instance (duty-menu-public-relay AC-1; edge cases)', () => {
+test('I8: instanceRelayUrl derives wss://<domain>/relay when the relay URL is not public but the instance is — Docker\'s ws://localhost:7777 (docker/entrypoint.sh), or another internal address such as ws://tapestry:80/relay, beside a public STRFRY_DOMAIN — in normalizeRelayUrl\'s one spelling: capitals folded, and a fully-qualified trailing dot kept, so outsideOnly still knows it as this instance (duty-menu-public-relay AC-1; edge cases)', () => {
   const wrong = [];
-  for (const [domain, want] of [
-    ['staging.example.org', 'wss://staging.example.org/relay'],
-    ['Staging.Example.ORG', 'wss://staging.example.org/relay'],
-    ['staging.example.org.', 'wss://staging.example.org./relay'],
-  ]) {
-    const got = relayOf({ BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain });
-    if (got !== want) wrong.push(`STRFRY_DOMAIN ${j(domain)}: want ${j(want)}, got ${j(got)}`);
+  for (const relayUrl of [DOCKER_RELAY, OTHER_INTERNAL_RELAY]) {
+    for (const [domain, want] of [
+      ['staging.example.org', 'wss://staging.example.org/relay'],
+      ['Staging.Example.ORG', 'wss://staging.example.org/relay'],
+      ['staging.example.org.', 'wss://staging.example.org./relay'],
+    ]) {
+      const got = relayOf({ BRAINSTORM_RELAY_URL: relayUrl, STRFRY_DOMAIN: domain });
+      if (got !== want) wrong.push(`${relayUrl} beside STRFRY_DOMAIN ${j(domain)}: want ${j(want)}, got ${j(got)}`);
+    }
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -340,6 +344,7 @@ test('I10: no public relay URL and no public domain is no public relay — STRFR
     { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'localhost' },
     { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: '' },
     { BRAINSTORM_RELAY_URL: DOCKER_RELAY },
+    { BRAINSTORM_RELAY_URL: OTHER_INTERNAL_RELAY, STRFRY_DOMAIN: '' },
     {},
   ];
   for (const values of cases) {

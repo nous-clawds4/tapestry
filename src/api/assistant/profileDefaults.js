@@ -102,8 +102,9 @@ function describeInstance(options = {}) {
 /**
  * This instance's relay at its public address (duty-menu-public-relay #1), in its one spelling (normalizeRelayUrl):
  * BRAINSTORM_RELAY_URL when its host is public; else wss://‹domain›/relay when describeInstance finds the instance
- * public, since nginx serves this instance's relay at /relay; else null. Docker deployments name the relay by its
- * internal address (ws://tapestry:80/relay), which no stranger can reach, so there the address is derived.
+ * public, since nginx serves this instance's relay at /relay; else null. On Docker deployments BRAINSTORM_RELAY_URL is
+ * the container-internal ws://localhost:7777 (docker/entrypoint.sh's RELAY_URL default), which no stranger can reach,
+ * so there the address is derived.
  * @returns {?string}
  */
 function instanceRelayUrl(options = {}) {

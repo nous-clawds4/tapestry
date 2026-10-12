@@ -204,9 +204,10 @@ test('G5: the suggestions leave out plainly-private relays from Relay Settings t
 
 /* ───── G — duty-menu-public-relay #1: the instance's public relay address (Light Bug lane; the story's Design note) ───── */
 
-const DOCKER_RELAY = 'ws://tapestry:80/relay';
+// On Docker deployments BRAINSTORM_RELAY_URL is the container-internal ws://localhost:7777 (docker/entrypoint.sh).
+const DOCKER_RELAY = 'ws://localhost:7777';
 
-test('G6: on Docker — BRAINSTORM_RELAY_URL ws://tapestry:80/relay and a public STRFRY_DOMAIN — this instance\'s relay is suggested first as wss://<domain>/relay, in its one spelling, and once even when a Relay Settings list names it too (duty-menu-public-relay AC-1)', () => {
+test('G6: on Docker — BRAINSTORM_RELAY_URL ws://localhost:7777 (docker/entrypoint.sh) and a public STRFRY_DOMAIN — this instance\'s relay is suggested first as wss://<domain>/relay, in its one spelling, and once even when a Relay Settings list names it too (duty-menu-public-relay AC-1)', () => {
   const outboxSuggestions = need(outboxModule(), 'outboxSuggestions', 'src/api/assistant/outboxRelays.js');
   const settings = { aPopularGeneralPurposeRelays: ['wss://nos.lol'], aDListRelays: ['wss://Staging.Example.org/relay/', 'wss://dcosl.example'] };
   const got = outboxSuggestions(suggestionDeps({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'Staging.Example.ORG' }, settings }).deps);

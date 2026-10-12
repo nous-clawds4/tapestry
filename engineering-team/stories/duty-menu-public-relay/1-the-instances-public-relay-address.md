@@ -135,6 +135,14 @@ The full `npm test` runs at book close.
     (`tapestry.example`), which is the Docker shape this story fixes. Each now also sets `STRFRY_DOMAIN: 'localhost'`.
     In U13's private case and U32, this instance is then `localhost` alone, so their own-relay checks name `localhost`,
     and U32's fixture names it as the Map's own-relay entry.
+- **Implementation, review round 1 (2026-10-12; B1 and NB6):**
+  - `profileDefaults.js`' comment on `instanceRelayUrl` now cites the container-internal `ws://localhost:7777`
+    (`docker/entrypoint.sh`). No behavior changed.
+  - In the new tests, the Docker relay URL is `ws://localhost:7777` (I8–I10, U38–U41, W12–W13, G6–G8), with titles,
+    comments and own-host lists to match. I8 and U38 keep `ws://tapestry:80/relay` as a second internal address, and
+    I10 keeps it with no domain, so the relay-URL-host fallback stays covered. No test cites `docker-compose.yml` now.
+  - NB6: the publish suite's `lowLevel` fakes drop `isPublicHost`. Nothing calls that seam since this story replaced
+    it.
 
 ## Linked artifacts
 

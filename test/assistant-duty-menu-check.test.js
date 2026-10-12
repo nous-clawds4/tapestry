@@ -41,7 +41,8 @@
  * test/assistant-duty-menu-publish.test.js.
  *
  * duty-menu-public-relay #1 (Light Bug lane; the story's Design note): this instance's public relay is derived from
- * STRFRY_DOMAIN when BRAINSTORM_RELAY_URL is Docker's internal address. U38 (AC-1), U39 (AC-2), U40 (AC-3), U41 (AC-4).
+ * STRFRY_DOMAIN when BRAINSTORM_RELAY_URL is Docker's container-internal ws://localhost:7777 (docker/entrypoint.sh).
+ * U38 (AC-1), U39 (AC-2), U40 (AC-3), U41 (AC-4).
  */
 
 const fs = require('fs');
@@ -1089,16 +1090,21 @@ test('U37: dutyMenu.js exports the publisher\'s write-relay helpers — assistan
 
 /* ───────────────────────── U — duty-menu-public-relay #1: the instance's public relay address ───────────────────────── */
 // Story: engineering-team/stories/duty-menu-public-relay/1-the-instances-public-relay-address.md (Design note: the
-// helper instanceRelayUrl in src/api/assistant/profileDefaults.js). Docker names the relay by its internal address.
+// helper instanceRelayUrl in src/api/assistant/profileDefaults.js). On Docker deployments BRAINSTORM_RELAY_URL is the
+// container-internal ws://localhost:7777 (docker/entrypoint.sh's RELAY_URL default); ws://tapestry:80/relay is another
+// internal address no stranger can reach.
 
-const DOCKER_RELAY = 'ws://tapestry:80/relay';
+const DOCKER_RELAY = 'ws://localhost:7777';
+const OTHER_INTERNAL_RELAY = 'ws://tapestry:80/relay';
 const PUBLIC_DOMAIN = 'staging.example.org';
 const DERIVED = 'wss://staging.example.org/relay';
 
-test('U38: on Docker — BRAINSTORM_RELAY_URL ws://tapestry:80/relay and a public STRFRY_DOMAIN — the offer names wss://<domain>/relay for Scores (when the viewer gets them), Lists and Concepts, in its one spelling; a DList setting naming the same address adds no row (duty-menu-public-relay AC-1)', async () => {
+test('U38: on Docker — BRAINSTORM_RELAY_URL ws://localhost:7777 (docker/entrypoint.sh), or another internal address such as ws://tapestry:80/relay, beside a public STRFRY_DOMAIN — the offer names wss://<domain>/relay for Scores (when the viewer gets them), Lists and Concepts, in its one spelling; a DList setting naming the same address adds no row (duty-menu-public-relay AC-1)', async () => {
   const wrong = [];
   const owner = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
   wrong.push(...offerDiff('the Owner', offerOf(owner), offerAt(DERIVED, { scores: true })));
+  const internal = await answer({ config: { BRAINSTORM_RELAY_URL: OTHER_INTERNAL_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+  wrong.push(...offerDiff('the Owner, beside ws://tapestry:80/relay', offerOf(internal), offerAt(DERIVED, { scores: true })));
   const guest = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'Staging.Example.ORG' } });
   wrong.push(...offerDiff('no Scores, the domain written in capitals', offerOf(guest), offerAt(DERIVED)));
   const same = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN }, settings: { aDListRelays: ['wss://Staging.Example.org/relay/', DLIST] } });
@@ -1133,7 +1139,7 @@ test('U41: the derived address is still this instance — on Docker it is never 
   for (const domain of [PUBLIC_DOMAIN, 'staging.example.org.']) {
     const got = await answer({ local: localFor(domain), config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain } });
     const urls = readUrls(got);
-    const own = urls.filter((u) => ['staging.example.org', 'staging.example.org.', 'tapestry'].includes(hostOf(u)));
+    const own = urls.filter((u) => ['staging.example.org', 'staging.example.org.', 'localhost'].includes(hostOf(u)));
     if (own.length) wrong.push(`STRFRY_DOMAIN ${show(domain)}: this instance's relay was read as outside: ${show(own)}`);
     for (const u of [HINT, A_WRITE, NOUS_WRITE]) if (!urls.includes(normUrl(u))) wrong.push(`STRFRY_DOMAIN ${show(domain)}: the control ${u} is read`);
     if (got.menuScans.length !== 1) wrong.push(`STRFRY_DOMAIN ${show(domain)}: this instance's relay is scanned locally, once (got ${got.menuScans.length})`);
