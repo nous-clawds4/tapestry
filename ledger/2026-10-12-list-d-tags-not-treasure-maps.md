@@ -33,3 +33,20 @@ that `30392` keys need.
 
 **Pointer:** `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md`
 sub-decision 3.
+
+**Note, 2026-10-12 (book `duty-menus-and-self-maps` story 5, ADR `duty-menus-and-self-maps/0005` sub-decision 10).**
+The owner's answer 2(a) gives `["status", "retracted"]` one meaning: the list is no longer maintained at its `d`
+(Trusted Lists § Common wire shape). For the move to Treasure Maps `d` tags:
+- an old `d` gets the marker when this instance stops maintaining a List there;
+- an old `d` kept as an alias stays maintained and unmarked, even with no members;
+- a Treasure Map reader never reads an old `d` (Treasure Maps § 5.1).
+
+For the reference publishers' use of the marker (item 19 of row `2026-10-12-self-maps-spec-fold-forwards`):
+- on a run that succeeds, they use the marker only for a stop: `retractStaleTLs` for a removed pin, and
+  `retractLegacyKind` for the move off `30393`. `runOnePin` publishes a List with no members unmarked;
+- two failure paths depart from 2(a), for the code books (ADR 0005, Context). A note List that fails to publish is
+  marked on the same run, though its pin stands: `runOneNotePin` returns `status: 'error'`, and
+  `refreshAllPinnedTags` keeps only `ok` note `d` tags. Under 2(a) that is a brief gap, so its `d` should stay in
+  `currentNoteDTags`, as `tag-stack-merge-hardening` ADR 0001 (B4a) keeps the pubkey List's. A pin whose tag event is
+  missing from local strfry has both its Lists marked; whether that is a gap or a stop is the code books' call. Until
+  the next run republishes such a List, every reader reads it as no copy (Treasure Maps § 7).

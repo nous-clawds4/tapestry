@@ -52,13 +52,21 @@ The ask, verbatim (copied from the session transcript, not retyped):
 7. **Drag to reorder.** The Owner or Admin sets the order, and the menu lists the duties in that order. *(Chosen
    from: grouped by category / tab order; the owner added dragging.)*
 
+### Decision taken at review round 1 (2026-10-12)
+
+8. **Whole kinds only.** Story 1's review found that Your Assistant's Treasure Map reads offers by kind. A narrower
+   key (`30382:rank`), a family key (`3038x`), `*` or a Concept key with a `d` made it say "not offered" where the Duty
+   Menu said "offered". In one case it also flagged a true self-Map claim as false. The tab now accepts a whole kind
+   (five digits) and nothing narrower or broader. This amends Decision 1: still any kind, including one this instance
+   does not publish. *(Chosen from: whole kinds only / keep any key and teach the self-Map narrower and family keys.)*
+
 ### Acceptance frame
 
 *Proposed from the intake decisions; confirmed by the owner at story 1's approval (2026-10-12).*
 
 - [ ] **An Assistant Duties tab.** `/tapestry/settings/assistant-duties` lists the duties this instance offers, and
-      the Owner or an Admin can add any Treasure Map key, remove any duty, set each duty's relay, drag them into order,
-      and reset to the defaults. No one else can change them.
+      the Owner or an Admin can add any kind (a whole kind, Decision 8), remove any duty, set each duty's relay, drag
+      them into order, and reset to the defaults. No one else can change them.
 - [ ] **Six by default.** A new instance offers today's six, each at this instance's relay, so nothing changes for
       the Owner's Duty Menu until someone edits the list.
 - [ ] **Kept on the server.** The list is no longer written into the code. Changes live in the instance's settings

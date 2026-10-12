@@ -3,8 +3,8 @@
 **Id:** 2026-10-12-key-grammar-review-fold-forwards
 **Type:** protocol
 **Opened:** 2026-10-12 (`duty-menus-and-self-maps` #4 review, non-blocking findings 1–6)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-12 (`duty-menus-and-self-maps` #5, ADR 0005 sub-decisions 8 and 10): items 1–5 landed in the drafts; item 6 resolved by the owner's answer 4(a) (note, story 5).
 
 Story 4 (the Treasure Maps key grammar) passed review. Its non-blocking findings 1–5 are wording and metadata gaps
 that story 4's changes left behind, or made easier to misread. None changes a rule. In each case the normative text
@@ -42,3 +42,10 @@ non-blocking 1–6; ADR `engineering-team/decisions/duty-menus-and-self-maps/000
 (Clarifications after acceptance, KB-2); related rows `2026-10-12-self-maps-spec-fold-forwards` and
 `2026-10-12-addressable-kinds-spawning-content-categories`; book `engineering-team/audits/duty-menus-and-self-maps/book.md`
 frame bullet 6.
+
+**Note, 2026-10-12 (story 5, ADR `duty-menus-and-self-maps/0005`).** The owner's answer 4(a) to story 5's open
+question 4 took items 1–5 into story 5 (ADR 0005 sub-decisions 8 and 10). Item 1 landed in Treasure Maps § 11, How
+many colons?; 2 in Duty Menus § 5.2; 3 in Treasure Maps § 10.5's `30382:tag:::<metric>` row; 4 in Treasure Maps
+§ 4.3, Addressable kinds, rather than with row `2026-10-12-addressable-kinds-spawning-content-categories`; and 5 in
+the ADR 0003 clause of Duty Menus' Sources line. Item 6 was resolved by the same answer: story 5 took the two late
+items as well, and row `2026-10-12-self-maps-spec-fold-forwards` closed with them.

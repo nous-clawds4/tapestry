@@ -15,7 +15,7 @@
  *
  * What an instance offers is no longer fixed here (ADR assistant-duties-settings/0001). It is the instance's Assistant
  * Duties list, `assistantDuties` in the settings (src/config/defaults.json ships the six): entries `{ key, relay? }`,
- * no `relay` meaning This instance's relay. This module holds the one rule for that list: validateDutyList for writes,
+ * each key a whole kind (Amendment 1), no `relay` meaning This instance's relay. This module holds the one rule for that list: validateDutyList for writes,
  * readDutyList for reads, both on keptKey, the key rule readMenuRows uses, so a saved key and a read key cannot drift.
  */
 
@@ -39,8 +39,9 @@ const IGNORED_KEYS = ['39998:', '39999:'];
 
 /** At most this many duties in an Assistant Duties list (ADR assistant-duties-settings/0001 sub-decision 2). */
 const MAX_DUTIES = 200;
-/** A list's key is at most this long, once trimmed. */
-const MAX_KEY_LENGTH = 512;
+
+/** A duty on the Assistant Duties list is a whole kind (ADR assistant-duties-settings/0001 Amendment 1). */
+const WHOLE_KIND = /^\d{5}$/;
 
 /** A key whose kind slot is a Concept slot: This instance's relay falls back to the DList relay for it. */
 const CONCEPT_SLOT = /^3999[89](:|$)/;
@@ -143,16 +144,17 @@ function sameRows(a, b) {
 }
 
 /**
- * A key typed for the Assistant Duties list, trimmed and normalized as readers keep it, or null when readers would
- * drop it or it is longer than MAX_KEY_LENGTH.
+ * A key typed for the Assistant Duties list: a whole kind, five digits, trimmed; else null (ADR
+ * assistant-duties-settings/0001 Amendment 1). Narrower keys (`30382:rank`), family keys (`3038x`), `*` and Concept
+ * keys with a `d` are refused: Your Assistant's Treasure Map reads offers by kind. Every kind accepted is a key
+ * readers keep as itself (keptKey), so the list stays inside the readers' rule.
  * @param {*} input
  * @returns {?string}
  */
 function dutyKeyOf(input) {
   if (typeof input !== 'string') return null;
   const key = input.trim();
-  if (!key || key.length > MAX_KEY_LENGTH) return null;
-  return keptKey(key);
+  return WHOLE_KIND.test(key) ? keptKey(key) : null;
 }
 
 /**
@@ -278,7 +280,6 @@ module.exports = {
   DUTY_MENU_D,
   DUTY_MENU_HEADER,
   MAX_DUTIES,
-  MAX_KEY_LENGTH,
   isDutyMenu,
   keptKey,
   readMenuRows,

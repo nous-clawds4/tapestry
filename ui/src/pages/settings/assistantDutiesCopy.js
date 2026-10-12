@@ -74,12 +74,13 @@ export function removeDuty(list, index) {
 
 /**
  * The list with the entry at `index` given a typed relay, or This instance's relay (no `relay` field) when `relay` is
- * empty. Never changes `list`.
+ * null or undefined. An empty typed relay is kept, so the server refuses it as it does when adding (ADR
+ * assistant-duties-settings/0001 Amendment 1 item 4). Never changes `list`.
  */
 export function setRelay(list, index, relay) {
   return list.map((entry, i) => {
     if (i !== index) return entry;
     const { relay: _old, ...rest } = entry;
-    return relay ? { ...rest, relay } : rest;
+    return relay === null || relay === undefined ? rest : { ...rest, relay };
   });
 }

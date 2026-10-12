@@ -28,9 +28,11 @@ function defaultDeps() {
   };
 }
 
-/** The list the offer uses now: the merged settings' list, cleaned as every reader cleans it. */
+/** The list the offer uses now: the merged settings' list, cleaned as every reader cleans it, the drops logged. */
 function currentDuties(d) {
-  return readDutyList((d.getSettings() || {})[SETTINGS_KEY]).duties;
+  const { duties, dropped } = readDutyList((d.getSettings() || {})[SETTINGS_KEY]);
+  if (dropped > 0) console.warn(`[settings/assistant-duties] ignored ${dropped} assistantDuties entries`);
+  return duties;
 }
 
 function failed(res, err) {

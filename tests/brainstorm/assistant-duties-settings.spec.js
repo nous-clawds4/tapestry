@@ -23,7 +23,13 @@ const AD = require('../../test/helpers/assistantDutiesFixtures');
  *   B8  — changing a duty's relay: Change relay, Another relay, Save → one PUT; Cancel sends nothing.          [AC-4]
  *   B9  — Reset to defaults asks first: dismissed, nothing is sent; accepted, one POST and the six are back.  [AC-4]
  *   B10 — while a change is being saved, the tab's controls are disabled.                                      [AC-4]
- *   B11 — an added key's category is the Duty Menu page's: 3038x:tag is Scores, 30023 has none.               [AC-2]
+ *   B11 — an added kind's category is the Duty Menu page's: 30383 is Scores, 30023 has none.                  [AC-2]
+ *
+ * Round 2 (ADR Amendment 1; review round 1 non-blocking 1 and 2; B3 and B11 re-aimed to whole kinds):
+ *   B12 — an open Change relay belongs to its duty: another row removed or moved meanwhile, Save still writes that
+ *         duty's relay and no other; the panel closes when its own duty is removed.                      [AC-4 as amended]
+ *   B13 — Change relay with Another relay and the field empty sends the empty relay, and the server's refusal
+ *         shows its words; the list stays as it was.                                                   [AC-4 as amended]
  *
  * ── Fixed here (test plan § Points the ADR leaves open) ───────────────────────────────────────────────────────────
  * The duties are one list, each duty one list item (<li>), in order; a row's drag handle carries the label
@@ -205,14 +211,14 @@ test.describe('The Assistant Duties tab (assistant-duties-settings #1)', () => {
     const { log } = await mock(page);
     const main = await open(page);
     await expect(main.getByRole('radio', { name: AD.COPY.thisInstance, exact: true })).toBeChecked();
-    await main.getByLabel(AD.COPY.keyLabel, { exact: true }).fill('39999:my-list');
+    await main.getByLabel(AD.COPY.keyLabel, { exact: true }).fill('30395');
     await main.getByRole('button', { name: AD.COPY.add, exact: true }).click();
     await expect.poll(() => log.puts.length).toBe(1);
     const first = log.puts[0].duties;
-    expect(keys(first)).toEqual([...keys(AD.DEFAULT_DUTIES), '39999:my-list']);
+    expect(keys(first)).toEqual([...keys(AD.DEFAULT_DUTIES), '30395']);
     expect(first[first.length - 1].relay || null, 'This instance\'s relay sends no relay').toBeNull();
     await expect(main.getByText(AD.COPY.saved, { exact: true })).toBeVisible();
-    expect((await rowKeys(page)).slice(-1)).toEqual(['39999:my-list']);
+    expect((await rowKeys(page)).slice(-1)).toEqual(['30395']);
 
     await main.getByLabel(AD.COPY.keyLabel, { exact: true }).fill('30383');
     await main.getByRole('radio', { name: AD.COPY.anotherRelay, exact: true }).check();
@@ -335,11 +341,51 @@ test.describe('The Assistant Duties tab (assistant-duties-settings #1)', () => {
     await expect(main.getByRole('button', { name: AD.COPY.add, exact: true })).toBeEnabled();
   });
 
-  test('B11: an added key\'s category is named as the Duty Menu page names it — 3038x:tag is Scores; 30023 has no category (AC-2)', async ({ page }) => {
-    await mock(page, { duties: [{ key: '3038x:tag' }, { key: '30023' }] });
+  test('B11: an added kind\'s category is named as the Duty Menu page names it — 30383 is Scores; 30023 has no category (AC-2; re-aimed to whole kinds by ADR Amendment 1)', async ({ page }) => {
+    await mock(page, { duties: [{ key: '30383' }, { key: '30023' }] });
     await open(page);
-    expect(squash(await rowOf(page, '3038x:tag').innerText())).toContain('Scores');
+    expect(squash(await rowOf(page, '30383').innerText())).toContain('Scores');
     const other = squash(await rowOf(page, '30023').innerText());
     for (const name of ['Scores', 'Lists', 'Concepts']) expect(other, '30023 has no category').not.toContain(name);
+  });
+  test('B12: an open Change relay belongs to its duty — with another row removed and another moved meanwhile, Save writes that duty\'s relay and no other; removing its own duty closes the panel (AC-4 as amended; ADR Amendment 1 item 3)', async ({ page }) => {
+    const { log } = await mock(page);
+    await open(page);
+    const row = () => rowOf(page, '39999');
+    await row().getByRole('button', { name: AD.COPY.changeRelay, exact: true }).click();
+    await expect(row().getByRole('button', { name: AD.COPY.save, exact: true })).toBeVisible();
+    await rowOf(page, '30393').getByRole('button', { name: AD.COPY.remove, exact: true }).click();
+    await expect.poll(() => log.puts.length).toBe(1);
+    await rowOf(page, '30382').getByRole('button', { name: AD.COPY.moveDown, exact: true }).click();
+    await expect.poll(() => log.puts.length).toBe(2);
+    await expect(row().getByRole('button', { name: AD.COPY.save, exact: true }), 'the panel is still under its own duty').toBeVisible();
+    await row().getByRole('radio', { name: AD.COPY.anotherRelay, exact: true }).check();
+    await row().getByPlaceholder(AD.COPY.relayPlaceholder, { exact: true }).fill(TYPED);
+    await row().getByRole('button', { name: AD.COPY.save, exact: true }).click();
+    await expect.poll(() => log.puts.length).toBe(3);
+    const sent = log.puts[2].duties;
+    expect(sent.find((d) => d.key === '39999')).toEqual({ key: '39999', relay: TYPED });
+    expect(sent.filter((d) => d.relay).map((d) => d.key), 'no other duty gets the relay').toEqual(['39999']);
+
+    await rowOf(page, '30394').getByRole('button', { name: AD.COPY.changeRelay, exact: true }).click();
+    await expect(rowOf(page, '30394').getByRole('button', { name: AD.COPY.save, exact: true })).toBeVisible();
+    await rowOf(page, '30394').getByRole('button', { name: AD.COPY.remove, exact: true }).click();
+    await expect.poll(() => log.puts.length).toBe(4);
+    await expect(page.locator('main').getByRole('button', { name: AD.COPY.save, exact: true }), 'its duty is gone, so is the panel').toHaveCount(0);
+  });
+
+  test('B13: Change relay with Another relay and the field empty sends the empty relay, and the server\'s bad-relay refusal shows its words; the list stays as it was (AC-4 as amended; ADR Amendment 1 item 4)', async ({ page }) => {
+    const { log } = await mock(page, { put: { status: 400, body: { success: false, code: 'bad-relay', index: 0 } } });
+    const main = await open(page);
+    const row = () => rowOf(page, '30382');
+    await row().getByRole('button', { name: AD.COPY.changeRelay, exact: true }).click();
+    await row().getByRole('radio', { name: AD.COPY.anotherRelay, exact: true }).check();
+    await row().getByRole('button', { name: AD.COPY.save, exact: true }).click();
+    await expect.poll(() => log.puts.length).toBe(1);
+    expect(log.puts[0].duties[0], 'the empty relay is sent, not turned into This instance\'s relay').toEqual({ key: '30382', relay: '' });
+    await expect(main.getByText(AD.COPY.refusals['bad-relay'], { exact: true })).toBeVisible();
+    await expect(main.getByText(AD.COPY.saved, { exact: true })).toHaveCount(0);
+    expect(await rowKeys(page)).toEqual(keys(AD.DEFAULT_DUTIES));
+    expect(squash(await row().innerText())).toContain(AD.COPY.thisInstance);
   });
 });
