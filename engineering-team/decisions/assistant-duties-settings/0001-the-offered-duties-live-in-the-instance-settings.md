@@ -418,7 +418,7 @@ We chose **Option A**, with the synchronous public-host rule and the Scores guar
 
 ## Amendment 1: whole kinds only, and three tab fixes (review round 1, 2026-10-12)
 
-**Status:** Proposed (the owner chose whole kinds, book Decision 8, 2026-10-12; this text awaits their approval).
+**Status:** Accepted (by the owner, 2026-10-12, "Ready for Test Design"; whole kinds is book Decision 8).
 
 Story 1's review (`engineering-team/reviews/assistant-duties-settings/1-the-assistant-duties-tab.md`, Blocking 1)
 found that the list accepted every key readers keep. But Your Assistant's Treasure Map builds its offer by kind:
