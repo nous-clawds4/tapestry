@@ -1,6 +1,6 @@
 # ADR 0001: A self-Map check beside the others, with "live" read from what has landed at the Assistant's relay
 
-**Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended); Amendment 1 approved; Amendment 2 approved (review round 1)
+**Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended); Amendment 1 approved; Amendment 2 approved (review round 1); Amendment 3 approved (review round 2)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md`
 
@@ -651,3 +651,77 @@ BIBLE §11's row stays accurate.
   - a `30023` entry's line has a null category;
   - `reasonLine` for `upkeep-stopped` without a date.
 - **A sentinel:** `customer-schedule` exports `getTimerIntervalMs`.
+
+## Amendment 3: the accepted key grammar, and empty relays (review round 2, 2026-10-12)
+
+**Status of A3:** approved by the owner at the Architecture gate of round 3, 2026-10-12, as written.
+
+**Source:** review round 2's R2-B1 (blocking) and R2-N1. During round 2, ADR `duty-menus-and-self-maps/0004` was
+accepted and Treasure Maps §§ 4.4–4.6, 6 and 9.2 changed on staging (`7ab2c955`). This fires the watch item the book
+pre-registered in § Shared lines. Item 1 supersedes sub-decision 2's line "`39998:` and `39999:` are unchecked".
+
+1. **Four spellings are not keys this check reads (R2-B1).**
+   - **The spellings:** `39998:`, `39999:`, `39999:dlist-header` and `39999:duty-menu`, compared after
+     `normalizeMenuKey` (which keeps all four as they are).
+   - **The rules.**
+     - § 4.5: a Concept kind and a colon alone is not a key, and "Readers MUST ignore a Map entry keyed so, a
+       self-entry included, as if it were absent".
+     - § 4.6: `39999:dlist-header` and `39999:duty-menu` name no Concept and ask for nothing. No filter is built for
+       them, and nothing they could match is reachable.
+   - **The rule here.** `parseKey` returns `null` for all four, and every reader in the library already drops a key
+     that doesn't parse. So such an entry:
+     - gives no duty and no line, `elsewhere` included;
+     - matches no insight and blocks no broader key;
+     - is no self-entry, and isn't compared for `current`;
+     - is not counted in `otherEntries`.
+
+     That is also what makes § 9.2 Ties' "none arise" hold here: the only tie between distinct keys was
+     `39999:` against `39999`.
+   - **Why the two § 4.6 keys are dropped too.** They are keys of the grammar, but they name no insight. No reading
+     this check makes would differ if it kept them, except two:
+     - a self-Map that carried one would read out of date, with no line to say why;
+     - the Owner's count of other entries would include an entry that asks for nothing.
+
+     Dropping them keeps one rule in one place.
+   - **What still parses as before:** `39998:dlist-header` (the bare `39998`), `39998:duty-menu` (an ordinary key),
+     and `39998::` (`d` = `:`, which § 6 puts above `39998`).
+2. **A self-entry with an empty element 3 claims nothing (R2-N1).** § 9.2 (Meaning; Its relay) says such a self-entry
+   "claims nothing".
+   - **`readSelfEntries`** keeps three cases apart:
+     - element 3 missing, not a string, or empty after trimming: relay `''`;
+     - a string that `normalizeRelayUrl` normalizes: the normalized URL;
+     - any other string: that string, trimmed. This is a claim at an unusable relay, which never equals a live relay.
+   - **In `dutyLines`,** a winning found self-entry whose relay is `''` makes no `falseClaim` and doesn't count as
+     claimed. So a live part under it reads `live-unclaimed`.
+   - **It still takes part** in § 6, among the self-entries (so it can shadow a broader one), and in `current`. A
+     self-Map carrying one is out of date, and the published panel lists it.
+3. **Files for round 3:** `src/lib/self-map/index.js` only (`parseKey`, `readSelfEntries`, `dutyLines`). The docs are
+   unchanged.
+4. **Not in this amendment.** These stay notes, as the review records them:
+   - the `anyHeader` scan would count a header whose `d` is empty or `dlist-header`, which §§ 4.5 and 4.6 say no key
+     reaches, but no producer of such a header exists;
+   - R2-N2's Profiles-category display is ledger row `2026-10-12-self-map-profiles-category-lines`.
+
+**For the Tester:**
+- **The four spellings in a Map.** Use staging's Owner shape (`39998`, `3038x`, `39999` naming the TA) with Scores live
+  and headers present, and a found self-Map of `30382` and `39998` at R. Add, one at a time, `39998:`, `39999:`,
+  `39999:dlist-header` or `39999:duty-menu` naming the TA. In each case:
+  - `shouldSay` is `30382` and `39998` at R;
+  - `current` is true;
+  - no line has `falseClaim: true`;
+  - no item or line carries the spelling.
+- **Alone, and naming another key.**
+  - A Map naming the TA only under one of the four gives `duties: []`.
+  - `["39998", TA]` with `["39998:", OTHER]` or `["39999:dlist-header", OTHER]` gives no `elsewhere` line.
+- **`parseKey`:** null for the four. A parsed key for `39998:dlist-header` (normalized to `39998`), `39998:duty-menu`
+  and `39998::`.
+- **`readSelfEntries`:**
+  - entries keyed by the four, naming the author or another key, appear in neither list;
+  - relays: element 3 `""` or missing gives `''`, a normalizable URL gives its normal form, and `"not a url"` stays
+    as itself.
+- **An empty relay in a found self-Map,** e.g. `["3038x", TA, ""]` or `["30382", TA, ""]`:
+  - no line has `falseClaim: true`;
+  - the live `30382` line reads `live-unclaimed`, not active;
+  - `current` is false.
+
+  An unparseable relay (`["30382", TA, "not a url"]`) does give `falseClaim: true` on the `30382` line.

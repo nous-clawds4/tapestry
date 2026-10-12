@@ -274,6 +274,6 @@ Architecture"), with seven ACs kept as one story.
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (Amendment 1 at Test Design; Amendment 2 from review round 1)
+- ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (Amendment 1 at Test Design; Amendments 2 and 3 from review rounds 1 and 2)
 - Test plan: `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md`
 - Review: `engineering-team/reviews/assistant-self-map/1-the-self-map-page-and-its-check.md` (rounds 1 and 2, 2026-10-12)
