@@ -5,7 +5,7 @@ amended at Architecture)
 **ADR:** `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (accepted
 2026-10-12; open questions 1–4 answered as recommended)
 **Spec followed (read-only):** `protocols/drafts/treasure-maps.md` §§ 5.1–5.2, 6, 8, 9, 9.2; `duty-menus.md` § 6.2 step 1
-**Date:** 2026-10-12
+**Date:** 2026-10-12 (approved by the owner at the Test Design gate, the same day)
 
 ## Coverage map
 
@@ -56,7 +56,7 @@ adds bare metal's public `BRAINSTORM_RELAY_URL`.
 
 ## Points the ADR leaves open, pinned here
 
-The Architect proposes these as ADR 0001 Amendment 1 (2026-10-12). The owner approves them at this phase's gate.
+The Architect proposed these as ADR 0001 Amendment 1 (2026-10-12), and the owner approved them at this phase's gate.
 
 | # | Point | Pinned as | By |
 |---|---|---|---|

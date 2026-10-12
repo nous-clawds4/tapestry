@@ -204,6 +204,13 @@ From the owner's ask and the facts above; the Architect decides.
 
 **Standard, all five phases** (Decision 5).
 
+**Branch** (the owner, 2026-10-12, at story 1's Test Design gate):
+- This book develops on `feat/assistant-self-map`.
+- Each story reaches `staging` by a PR after its Review passes, through `/cycle-staging`.
+- So the failing tests of Test Design and unreviewed code stay off the shared line. That is fix shape (a) of ledger
+  row `2026-10-07-staging-sessions-push-red-tests`.
+- Intake and Planning documents for story 1 were pushed to `staging` before this choice.
+
 ## Shared lines
 
 - **Book `duty-menus-and-self-maps` is open, docs only.** At intake (2026-10-12, `origin/staging` at `8c5973ab`):

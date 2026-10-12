@@ -523,7 +523,7 @@ large and partly unsettled (story 4), and no Map here uses it. **Deferred.**
 
 ## Amendment 1: clarifications from Test Design (2026-10-12)
 
-**Status of A1:** proposed by the Architect at Test Design, for the owner's approval at the Test Design gate. Each item
+**Status of A1:** approved by the owner at the Test Design gate, 2026-10-12, as written. Each item
 settles a detail this ADR left open and the test plan pins
 (`stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md` § Points the ADR leaves open). None
 changes a decision above.

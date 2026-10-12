@@ -81,3 +81,13 @@ would have avoided both.
 were on `staging` for about 14 minutes: `af217d0` (deploy run 656, 02:08 UTC) until `72c4b7b` (run 657, 02:21). The
 stop hook also had the implementation pushed before J3's verdict; J3 then approved it on its first verdict. Nothing of
 this book reached production.
+
+**Fix shape (a) chosen at the gate, 2026-10-12 (book `assistant-self-map`).** The session was told to develop on
+`staging`, and asked the owner at story 1's Test Design gate how to land the failing tests:
+- (a) a feature branch;
+- hold locally;
+- push to `staging`.
+
+The owner chose (a): `feat/assistant-self-map`, with a PR to `staging` after Review. The phase documents up to
+Architecture had already gone to `staging` (drafts and a proposed ADR, the harmless kind this row names). Asking at the
+first red commit is a cheap habit until the harness tells sessions to do this.
