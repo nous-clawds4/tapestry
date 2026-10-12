@@ -565,7 +565,7 @@ Identifiers are managed via `PUT /api/settings` (owner-only — see below). The 
 | PUT | `/api/settings` | Update settings (deep merge) |
 | DELETE | `/api/settings/<keyPath>` | Reset a key to default |
 | GET | `/api/settings/assistant-duties` | The Assistant Duties list — the duties every assistant here offers on its Duty Menu — as the offer uses it (`{ success, duties }`, entries `{ key, relay? }`; owner/admin). assistant-duties-settings ADR 0001 |
-| PUT | `/api/settings/assistant-duties` | Replace the list (body `{ duties }`): checked by `src/lib/duty-menu` `validateDutyList` and stored normalized under `assistantDuties`; a refusal is 400 `{ code, index }` (`bad-list`, `too-many`, `bad-key`, `duplicate-key`, `bad-relay`, `private-relay`) and writes nothing. `PUT /api/settings` runs the same rule on `assistantDuties` (owner/admin) |
+| PUT | `/api/settings/assistant-duties` | Replace the list (body `{ duties }`): checked by `src/lib/duty-menu` `validateDutyList` and stored normalized under `assistantDuties`; each key is a whole kind (five digits; ADR Amendment 1); a refusal is 400 `{ code, index }` (`bad-list`, `too-many`, `bad-key` — anything but a five-digit kind —, `duplicate-key`, `bad-relay`, `private-relay`) and writes nothing. `PUT /api/settings` runs the same rule on `assistantDuties` (owner/admin) |
 | POST | `/api/settings/assistant-duties/reset` | Drop the saved list so the shipped six apply again (owner/admin) |
 
 ### Profiles
@@ -1381,7 +1381,7 @@ nano "$MP/settings.json"
 
 No restart needed — `getSettings()` re-reads on every request. (Hit on 2026-04-25 while registering the first NIP-05 identifier; documenting so it doesn't bite again.)
 
-The Assistant Duties list, `assistantDuties`, can be edited here too: an array of `{ "key": "<Treasure Map key>" }`, with `"relay": "wss://…"` for a typed relay (no `relay` is this instance's relay). It replaces the shipped six whole; an entry the rule refuses (`src/lib/duty-menu` `readDutyList`) is skipped and logged, never offered. The Settings page's Assistant Duties tab writes the same key (assistant-duties-settings ADR 0001).
+The Assistant Duties list, `assistantDuties`, can be edited here too: an array of `{ "key": "<kind>" }`, a whole kind of five digits such as `"30383"`, with `"relay": "wss://…"` for a typed relay (no `relay` is this instance's relay). It replaces the shipped six whole; an entry the rule refuses (`src/lib/duty-menu` `readDutyList`) is skipped and logged, never offered. The Settings page's Assistant Duties tab writes the same key (assistant-duties-settings ADR 0001).
 
 ### Docker Compatibility Notes
 

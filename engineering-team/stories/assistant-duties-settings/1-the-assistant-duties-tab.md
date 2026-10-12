@@ -177,6 +177,10 @@ None open. The seven questions were settled at intake (book § Decisions). The o
   in `assistantDutiesCopy.js` with the rest.
 - *(Implementation, 2026-10-12)* **The `getCustomer` dependency is gone from `src/api/assistant/dutyMenu.js`.** The offer
   no longer looks the viewer up (ADR sub-decision 3), and nothing else in that module used it.
+- *(Implementation round 2, 2026-10-12)* **One more Tester-side fix.** In R3 of
+  `test/assistant-duties-settings.test.js`, round 2's test design missed re-aiming the duplicate case. Its
+  `30382::` is now refused as `bad-key` before it can be a duplicate, so the case uses `' 30382 '` instead, as L6 does.
+  The fix has its own commit (`3b3b3e0ed`).
 - *(Implementation, 2026-10-12)* **A follow-up ledger row.** `settings.json`'s in-place write, per ADR § Consequences, is
   ledger row `2026-10-12-settings-json-written-in-place`.
 

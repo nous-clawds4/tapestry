@@ -60,7 +60,8 @@ export default function AssistantDuties() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
-  const [editing, setEditing] = useState(null); // { index, mode, relay }
+  // The open relay change, by its duty's key, so it stays with that duty whatever else moves (ADR Amendment 1 item 3).
+  const [editing, setEditing] = useState(null); // { key, mode, relay }
   const [newKey, setNewKey] = useState('');
   const [newMode, setNewMode] = useState('instance');
   const [newRelay, setNewRelay] = useState('');
@@ -88,6 +89,8 @@ export default function AssistantDuties() {
     setBusy(false);
     if (ok && Array.isArray(body.duties)) {
       setDuties(body.duties);
+      // An open relay change whose duty is gone closes with it.
+      setEditing((open) => (open && body.duties.some((d) => d.key === open.key) ? open : null));
       setMessage({ type: 'success', text: COPY.saved });
       return true;
     }
@@ -121,8 +124,11 @@ export default function AssistantDuties() {
   }
 
   async function saveRelay() {
+    const index = duties.findIndex((d) => d.key === editing.key);
+    if (index < 0) { setEditing(null); return; }
+    // An empty Another relay is sent as it is, so the server refuses it as when adding (ADR Amendment 1 item 4).
     const relay = editing.mode === 'another' ? editing.relay : null;
-    if (await save(setRelay(duties, editing.index, relay))) setEditing(null);
+    if (await save(setRelay(duties, index, relay))) setEditing(null);
   }
 
   function drop(to) {
@@ -162,7 +168,7 @@ export default function AssistantDuties() {
         <ol className="settings-duties-list" aria-label={COPY.heading}>
           {duties.map((duty, i) => {
             const category = categoryOf(duty.key);
-            const isEditing = editing && editing.index === i;
+            const isEditing = editing && editing.key === duty.key;
             return (
               <li
                 key={duty.key}
@@ -184,7 +190,7 @@ export default function AssistantDuties() {
                     <button
                       type="button"
                       className="btn-small"
-                      onClick={() => setEditing({ index: i, mode: duty.relay ? 'another' : 'instance', relay: duty.relay || '' })}
+                      onClick={() => setEditing({ key: duty.key, mode: duty.relay ? 'another' : 'instance', relay: duty.relay || '' })}
                       disabled={busy || Boolean(isEditing)}
                     >
                       {COPY.changeRelay}
@@ -195,7 +201,7 @@ export default function AssistantDuties() {
                 {isEditing && (
                   <div className="settings-duties-edit">
                     <RelayChoice
-                      name={`assistant-duties-relay-${i}`}
+                      name={`assistant-duties-relay-${duty.key}`}
                       mode={editing.mode}
                       relay={editing.relay}
                       onMode={(mode) => setEditing({ ...editing, mode })}
