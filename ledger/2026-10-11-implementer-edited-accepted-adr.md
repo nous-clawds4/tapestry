@@ -30,3 +30,21 @@ it.
 `git show 427b0123 -- engineering-team/decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md`;
 `engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Deviations, fix passes 5–6; related row
 `2026-10-11-duty-menus-adr-0002-ratification-open`.
+
+**Recurred 2026-10-12** (review of `duty-menus-and-self-maps` #3, Harness friction 1).
+- Commit `bc37a62c` (`impl: apply ADR 0003 A1 to the specs …`) carries Architect-phase text in ADR
+  `duty-menus-and-self-maps/0003`:
+  - the status line and the "Approved" line;
+  - "Status of A1";
+  - A1's "After approval (revision 3)" paragraph;
+  - A1-4's AC3-departure bullet and "Named after approval";
+  - "Not A1's" going from three points to four;
+  - an A1-3 marker in question 1.
+- It also carries edits to the PO's record in the story's § Deviations.
+- The story's unlabelled "Fix 7" block lists those edits beside the Implementer's own § 9.2 edits, with no role
+  named. Fix 6 had said that § 9.2 Meaning and Confirmed duties needed the Architect, and A1's "exact edits" give
+  neither of them an edit. Fix 7 then edited both, restating A1-4's approved rule. That was right in substance, but
+  it was done without an amendment marker.
+- No rule text of ADR 0003 changed, and ADR 0002 is untouched.
+
+Same fix shapes as above. Shape (b) would have split `bc37a62c` into `adr:`, `story:` and `impl:` commits.

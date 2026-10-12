@@ -169,21 +169,33 @@ its Gate B record. SV18, a test added beyond the Design note's list, is named an
 
 ## 6. Carry-forward register
 
-- [ ] **1. Production.** It ships with the owner's next `staging` → `main` promotion. Production needs its own
-  explicit approval (`/cycle-prod`). **Held 2026-10-11 by the owner's choice, "wait, then promote all".**
-  - **Why it waits.** `staging` carries assistant-duty-menu #2's Phase-3 failing tests (`f6f976c`, 43 failures), so a
-    promotion PR's test check would be red.
-  - **Why not alone.** A selective `promote/*` branch of this book's commits conflicts with assistant-duty-menu #1 in
-    `ui/src/pages/assistant/actions.js`, `src/api/openapi.yaml` and BIBLE §11, checked by a trial cherry-pick onto
-    `origin/main` `36212ac`. It would ship a hand-merged variant that was never run on staging.
-  - **When.** Promote all of `staging` once assistant-duty-menu #2's implementation turns those tests green. The bundle
-    then holds this change, the Duty Menu page and publish button, and the self-maps drafts.
-- [ ] **2. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check:
+- [x] **1. Production.** Shipped 2026-10-12 in PR [nous-clawds4/tapestry#851](https://github.com/nous-clawds4/tapestry/pull/851)
+  (`staging` → `main`), merged as `df457d6` at 00:17 UTC with the owner's explicit yes.
+  - **Before the merge:** the PR's `test / stack-free` passed on its final head `6c0a5d3` (5722 passed, 0 failed on the
+    first head `8a9a420`; green again after one docs-only commit). `check-safe-to-merge.sh` gave SAFE at 00:17:39.
+  - **Deploy:** run 149 succeeded in about 1m51s. Production serves `index-XPqw1cb6.js`, which carries
+    `bs-assistant-hub-card-shared-move`.
+  - **Smoke test:** all five tiers clean.
+    - Tier 1: 3×200, Neo4j ready.
+    - Tier 2: all pages and APIs answer; Odell's `get-user-data` 504 as expected; search returns hits.
+    - Tier 3: the new strings are present and the retired criteria are gone; `/assistant`, `/assistant/duty-menu`,
+      `/assistant/trusted-lists` and `/treasure-map` answer 200 `text/html`; attention answers `signedIn:false`
+      anonymously; the Duty Menu publish route answers 401 unsigned.
+    - Tier 4: SC1–SC7 and TC1–TC5 pass against production's served UI (14/14; every `/api` call mocked). Chrome is
+      not connected in this session.
+    - Tier 5: neighbouring pages and APIs answer 200.
+  - **Why it was held first** (2026-10-11): `staging` carried assistant-duty-menu #2's Phase-3 failing tests, and a
+    selective promotion conflicted with assistant-duty-menu #1. The owner chose to promote all of `staging` once that
+    story's implementation landed (`6ac4aa8`, reviewed PASS in `a431ed6`). The same bundle shipped the Duty Menu page,
+    its publish button and that book's close (`6c0a5d3`).
+- [x] **2. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check:
   - Scores and Lists read **Done** and **Shared**, each with its line, and Concepts reads plain **Done**;
   - the count line and the top-bar pill leave the three out;
   - **Move it here →** opens `/treasure-map`.
 
-  Same kind of gap as `assistant-trusted-content-status` audit §6 #2.
+  Same kind of gap as `assistant-trusted-content-status` audit §6 #2. **Done 2026-10-12:** after the production release,
+  the owner checked `/assistant` signed in and reported that it looks right. That check covers the marks. The catch-up
+  after a Map save is still covered only by SV17 and SV18, so the predecessor's §6 #2 stays open for that part.
 - [ ] **3. Self-entries.** When book `duty-menus-and-self-maps` #3 reaches code, the hub's shared rule and the
   `/treasure-map` cards should learn self-entries together. (§4 #3; ledger
   `2026-10-11-self-entry-reads-as-another-assistant`)

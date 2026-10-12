@@ -1,0 +1,65 @@
+# Story 3's review left non-blocking wording gaps in the Self-Maps text of Treasure Maps and Duty Menus for its fix round or story 4 to fold in
+
+**Id:** 2026-10-12-self-maps-spec-fold-forwards
+**Type:** protocol
+**Opened:** 2026-10-12 (`duty-menus-and-self-maps` #3 review, non-blocking findings 1 and 3–16)
+**Status:** OPEN
+**Done:** —
+
+Story 3 (Self-Maps) was reviewed CHANGES_REQUESTED on two blockers: B1, what a reader does with a retracted List, and
+B2, an unnamed second departure from AC3 under § 9.2 Ties. The review's non-blocking findings below are wording gaps
+and provisional-state interplays. None makes a reader do
+something false today. Story 3's fix round MAY fold any of them in. Items marked *(Architect)* change ADR 0003 text
+and need its amendment. The rest go to story 4 of the epic, which edits both specs anyway. Each item points at the
+review's numbered finding, which holds the evidence.
+
+1. `treasure-maps.md` § 9.2 Confirmed duties, second sentence (:403). It lacks the empty-relay condition that fix 7
+   put in the first sentence. Write "for the insights such a self-entry wins …" (carries ADR 0003 A1-4; review NB1).
+2. *Not a fold-forward.* The AC3 Ties departure is the review's blocker B2, a condition of story 3 itself (the PO's
+   line in the record, and the owner naming it). The number is kept so that the items match the review's.
+3. *(Architect, or story 4 with A1-8)* Under Ties, read literally, the MUST NOT on "a self-entry that speaks for none
+   of the insights it wins" (:387) forbids the bare `39999` self-entry, and with it the {`39998` → Rc, `39999` → Rd}
+   self-Map that ADR 0003 sub-decision 2 calls normal. § 6's "this always picks one winning key" (:270) still stands.
+   Treasure Maps § 13 has no question for the Concept order. Story 4 checks :387 against its § 6 answer, together
+   with row `2026-10-09-draft-grammar-bare-39999` (review NB3).
+4. *(Architect)* Its relay's "the relay A's menu gives the self-entry's key (Duty Menus § 6.2 step 5)" (:361). Step 5
+   gives a relay only for a key the observer chooses (`duty-menus.md`:200–203), so read strictly it would also rule
+   out § 9.2's own nested-row example (:367). Say "the relay step 5 would give that key if the observer chose it, and
+   kept it, for A" (review NB4).
+5. § 9.2 What a self-entry speaks for (:353). "Read as § 9 has an Assistant read an entry" can import § 9's
+   capability limit (:327), and "an Assistant's self-entries" literally includes a key that serves only itself. The
+   example at :372 and the next sentence settle both. Rewording is optional (review NB5).
+6. § 3 (:80). "A Map entry names who is asked to publish an insight" is unscoped for self-entries, unlike principle 2
+   and § 7. Add "except as § 9 says" (review NB6).
+7. § 9 One key per observer (:329). It is unqualified against § 9.2's key that serves several observers (:353, :409).
+   NIP-85 `85.md`:39 requires a key per user only for a personalized algorithm. Qualify the bullet with Duty Menus
+   § 14 question 3 (review NB7).
+8. § 9.2 points the open question "what a key that serves several observers speaks for" at Duty Menus § 14 question 3
+   (`duty-menus.md`:372), which does not pose it. Add a clause there (review NB8).
+9. § 9.2 Private duties (:376), § 13 question 8 (:637) and the handoff's Status line route handoff Q4 to Q8, Duty Menus
+   § 14 question 1 and worksheet W22. None of them asks whether a self-Map may carry private duties in `.content`, and
+   W22 is Closed (`protocols/worksheet.md`:260). Add the question to Q8 (review NB9).
+10. *(Architect, or story 4's ADR; open question)* § 9.2 Concepts (:395). "Curation copies follow Assistant
+    Designation § Curation copies" points at a section with no rule for a stop (`assistant-designation.md`:84, :96–112).
+    Decide what a stopped Assistant does with its curation copies, keep or delete; either answer is new normative text
+    (review NB10).
+11. § 3 Enumerating (:95). The gloss leaves out step 3's write relays, and does not exclude storefront rows. Write
+    "the relays this fallback's three steps give for any of the insights under the key" (review NB11).
+12. § 7 (:306). "Alternates are standbys that are already up to date" (older text) sits beside the new "An Alternate
+    whose duty is confirmed … is ready now". Optional rewording (review NB12).
+13. § 10's lead (:431) and § 5's lead (:214) read every entry as a designation. Add one clause for self-entries
+    (review NB13).
+14. Duty Menus § 9, What trusted people do (`duty-menus.md`:284). Point it at Treasure Maps § 9.2 Counting Maps
+    (review NB14).
+15. Metadata and landing lists (review NB15):
+    - Duty Menus' Sources line (`duty-menus.md`:6) omits § 6.2 step 1's last bullet and § 7.
+    - The handoff's § 5 landing line omits Assistant Designation § Relationship to NIP-85.
+    - `protocols/README.md`'s Treasure Maps row still describes only the grammar. That row is outside story 3's
+      scope (AC8), so it rides here.
+16. *(Architect)* ADR 0003 Verification AC4's third case (ADR :1480–1481) says "No menu", then names "A's menu relay
+    R1". The script it rests on describes "No self-Map". Either wording gives Rw (review NB16).
+
+**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings; story
+`engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`; ADR
+`engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md`; related rows
+`2026-10-09-draft-grammar-bare-39999` and `2026-10-11-duty-menus-spec-fold-forwards`.

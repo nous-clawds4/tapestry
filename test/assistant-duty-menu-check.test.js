@@ -39,6 +39,10 @@
  * publisher shares, with one Nous cache (U37). Re-aimed to AC-5: U15, U16, U17, U19, U20 and U31 now keep the menu off
  * this instance's relay wherever they test outside reads, so they test what they did. The route is
  * test/assistant-duty-menu-publish.test.js.
+ *
+ * duty-menu-public-relay #1 (Light Bug lane; the story's Design note): this instance's public relay is derived from
+ * STRFRY_DOMAIN when BRAINSTORM_RELAY_URL is Docker's container-internal ws://localhost:7777 (docker/entrypoint.sh).
+ * U38 (AC-1), U39 (AC-2), U40 (AC-3), U41 (AC-4).
  */
 
 const fs = require('fs');
@@ -650,7 +654,8 @@ test('U8: a customer lookup that throws leaves Scores out and the offer still an
 test('U9: with no public address for this instance\'s relay (loopback, a private IP, a .local name), Scores and Lists get no row and Concepts take the first public DList relay, skipping private ones (AC-2 "Public relays only"; ADR 0001 R1, sub-decision 2)', async () => {
   const wrong = [];
   for (const url of ['ws://localhost:7777', 'ws://127.0.0.1:7777', 'ws://192.168.1.20/relay', 'wss://tapestry.local/relay']) {
-    const got = await answer({ config: { BRAINSTORM_RELAY_URL: url, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+    // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+    const got = await answer({ config: { BRAINSTORM_RELAY_URL: url, STRFRY_DOMAIN: 'localhost', BRAINSTORM_OWNER_PUBKEY: VIEWER } });
     wrong.push(...offerDiff(url, offerOf(got), offerAt(null, { scores: true, dlistRelay: DLIST })));
   }
   assert(wrong.length === 0, wrong.join('; '));
@@ -658,7 +663,8 @@ test('U9: with no public address for this instance\'s relay (loopback, a private
 
 test('U10: local-only publishing — with no public address the offer is empty (Concepts never go to a DList relay); with one, Concepts stay at this instance\'s relay; no public DList relay at all is an empty offer too (ADR 0001 sub-decision 2)', async () => {
   const wrong = [];
-  const privateOwn = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', BRAINSTORM_OWNER_PUBKEY: VIEWER };
+  // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+  const privateOwn = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost', BRAINSTORM_OWNER_PUBKEY: VIEWER };
   const a = await answer({ localOnly: true, config: privateOwn });
   wrong.push(...offerDiff('local-only, no public address', offerOf(a), []));
   const b = await answer({ localOnly: true, config: { BRAINSTORM_OWNER_PUBKEY: VIEWER } });
@@ -710,14 +716,17 @@ test('U13: this instance\'s own relay is never read as an outside relay — not 
   const own = readUrls(pub).filter((u) => [OWN_DOMAIN, 'localhost'].includes(hostOf(u)));
   if (own.length) wrong.push(`this instance's relay was read as outside: ${show(own)}`);
   if (pub.menuScans.length !== 1 || !readUrls(pub).includes(normUrl(HINT))) wrong.push(`the local scan and the other relays still run: ${show(readUrls(pub))}`);
-  const priv = await answer({ local, config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' } });
+  // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+  // There this instance is localhost alone, and tapestry.example an outside relay like any other.
+  const priv = await answer({ local, config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' } });
   if (!readUrls(priv).includes(normUrl(DLIST))) wrong.push(`the offer's DList relay is asked: ${show(readUrls(priv))}`);
-  if (readUrls(priv).some((u) => hostOf(u) === 'localhost' || hostOf(u) === OWN_DOMAIN)) wrong.push(`own relay read: ${show(readUrls(priv))}`);
+  if (readUrls(priv).some((u) => hostOf(u) === 'localhost')) wrong.push(`own relay read: ${show(readUrls(priv))}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
 test('U14: a relay named inside an event is read only when isPublicRelayHostWithin accepts its host — a refused hint, Assistant write relay or Nous write relay is never read, an accepted one is; a configured relay (the offer\'s DList relay) is read whatever that guard would say (AC-3; ADR 0001 sub-decision 3)', async () => {
-  const got = await answer({ config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' }, refused: [...REFUSED_HOSTS, hostOf(DLIST)] });
+  // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+  const got = await answer({ config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' }, refused: [...REFUSED_HOSTS, hostOf(DLIST)] });
   const urls = readUrls(got);
   const wrong = [];
   const refusedRead = urls.filter((u) => REFUSED_HOSTS.includes(hostOf(u)));
@@ -878,7 +887,8 @@ test('U25: no menu found anywhere — finished, published null, not current, not
 });
 
 test('U26: an empty offer — an empty published menu is current and done; no menu at all is pending, not done (the owner\'s answer 3(b)); a menu that still has rows is out of date (AC-4; ADR 0001 sub-decision 4)', async () => {
-  const emptyOffer = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' };
+  // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+  const emptyOffer = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' };
   const settings = { aDListRelays: [] };
   const wrong = [];
   const a = await answer({ config: emptyOffer, settings, local: [...baseLocal(), menuEv({ rows: [] })] });
@@ -904,7 +914,8 @@ test('U27: a duty-menu check that throws does not take the other answers with it
 /* ───────────────────────── U — ADR 0001 Amendment 1 ───────────────────────── */
 
 test('U28: local-only mode is read through the isLocalOnly seam — injected true leaves Concepts off the DList relay though the environment and config say false; injected false keeps them there though both say true (ADR 0001 Amendment 1 item 2)', async () => {
-  const privateOwn = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' };
+  // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+  const privateOwn = { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' };
   const wrong = [];
   const on = await answer({ localOnly: false, localOnlySeam: true, config: privateOwn });
   wrong.push(...offerDiff('seam true, env and config false', offerOf(on), []));
@@ -915,7 +926,8 @@ test('U28: local-only mode is read through the isLocalOnly seam — injected tru
 
 test('U29: a DList relay spelled wss://Dcosl.example/ in Relay Settings is offered as wss://dcosl.example, and a menu written with that spelling is current — done (ADR 0001 Amendment 1 item 3; AC-4)', async () => {
   const dcosl = 'wss://dcosl.example';
-  const opts = { config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' }, settings: { aDListRelays: ['wss://Dcosl.example/'] } };
+  // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
+  const opts = { config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' }, settings: { aDListRelays: ['wss://Dcosl.example/'] } };
   const want = offerAt(null, { dlistRelay: dcosl });
   const wrong = [];
   const none = await answer(opts);
@@ -963,7 +975,8 @@ test('U32: at most 50 relays named inside events are guarded and read per check 
   const A = Array.from({ length: 20 }, (_, i) => `wss://write-${i}.example`);
   const N = Array.from({ length: 15 }, (_, i) => `wss://nous-${i}.example`);
   // Duplicates and this instance's own relay, none of which may take a place among the 50.
-  const mapTags = [['30382:rank', ASSISTANT, OWN_CONFIGURED], ...H.map((u) => ['30382:rank', ASSISTANT, u]), ['39998', ASSISTANT, 'wss://Hint-5.example/']];
+  // Re-aimed by duty-menu-public-relay #1: with no public address this instance is localhost alone (STRFRY_DOMAIN below).
+  const mapTags = [['30382:rank', ASSISTANT, 'ws://localhost:7777'], ...H.map((u) => ['30382:rank', ASSISTANT, u]), ['39998', ASSISTANT, 'wss://Hint-5.example/']];
   const aTags = [['r', H[3]], ...A.map((u) => ['r', u])];
   const nTags = [...N.slice(0, 10).map((u) => ['r', u, 'write']), ...A.slice(0, 5).map((u) => ['r', u, 'write'])];
   const local = [mapEv(mapTags), relayListEv(ASSISTANT, aTags), relayListEv(NOUS, nTags)];
@@ -971,7 +984,7 @@ test('U32: at most 50 relays named inside events are guarded and read per check 
   assert(distinct.length === 70, `fixture: 70 distinct relays named in events, got ${distinct.length}`);
   const first50 = distinct.slice(0, DM.MAX_EVENT_RELAYS);
   const relays = Object.fromEntries([...distinct, DLIST].map((u) => [u, []]));
-  const got = await answer({ local, relays, config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777' } });
+  const got = await answer({ local, relays, config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' } });
   const guarded = [...new Set(got.calls.guard)];
   const read = readUrls(got);
   const wrong = [];
@@ -987,7 +1000,7 @@ test('U32: at most 50 relays named inside events are guarded and read per check 
   const beyond = distinct.slice(DM.MAX_EVENT_RELAYS).filter((u) => read.includes(normUrl(u)));
   if (beyond.length) wrong.push(`relays past the 50th were read: ${show(beyond.slice(0, 5))}${beyond.length > 5 ? ` and ${beyond.length - 5} more` : ''}`);
   if (!read.includes(normUrl(DLIST))) wrong.push('the offer\'s configured DList relay is read on top of the 50');
-  if (read.some((u) => hostOf(u) === OWN_DOMAIN)) wrong.push('this instance\'s own relay is never read');
+  if (read.some((u) => hostOf(u) === 'localhost')) wrong.push('this instance\'s own relay is never read');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -1072,6 +1085,65 @@ test('U37: dutyMenu.js exports the publisher\'s write-relay helpers — assistan
   const after = calls.scanLocal.filter(isNousListFilter).length + calls.readRelay.filter((c) => isNousListFilter(c.filter)).length;
   if (!nw.includes(normUrl(NOUS_WRITE)) || nw.includes(normUrl(NOUS_READ))) wrong.push(`nousWriteRelays: want Nous' write relays, got ${show(nw)}`);
   if (after !== before) wrong.push('within the hour of the check, nousWriteRelays looked Nous\' list up again: the cache is not shared');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── U — duty-menu-public-relay #1: the instance's public relay address ───────────────────────── */
+// Story: engineering-team/stories/duty-menu-public-relay/1-the-instances-public-relay-address.md (Design note: the
+// helper instanceRelayUrl in src/api/assistant/profileDefaults.js). On Docker deployments BRAINSTORM_RELAY_URL is the
+// container-internal ws://localhost:7777 (docker/entrypoint.sh's RELAY_URL default); ws://tapestry:80/relay is another
+// internal address no stranger can reach.
+
+const DOCKER_RELAY = 'ws://localhost:7777';
+const OTHER_INTERNAL_RELAY = 'ws://tapestry:80/relay';
+const PUBLIC_DOMAIN = 'staging.example.org';
+const DERIVED = 'wss://staging.example.org/relay';
+
+test('U38: on Docker — BRAINSTORM_RELAY_URL ws://localhost:7777 (docker/entrypoint.sh), or another internal address such as ws://tapestry:80/relay, beside a public STRFRY_DOMAIN — the offer names wss://<domain>/relay for Scores (when the viewer gets them), Lists and Concepts, in its one spelling; a DList setting naming the same address adds no row (duty-menu-public-relay AC-1)', async () => {
+  const wrong = [];
+  const owner = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+  wrong.push(...offerDiff('the Owner', offerOf(owner), offerAt(DERIVED, { scores: true })));
+  const internal = await answer({ config: { BRAINSTORM_RELAY_URL: OTHER_INTERNAL_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+  wrong.push(...offerDiff('the Owner, beside ws://tapestry:80/relay', offerOf(internal), offerAt(DERIVED, { scores: true })));
+  const guest = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'Staging.Example.ORG' } });
+  wrong.push(...offerDiff('no Scores, the domain written in capitals', offerOf(guest), offerAt(DERIVED)));
+  const same = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN }, settings: { aDListRelays: ['wss://Staging.Example.org/relay/', DLIST] } });
+  wrong.push(...offerDiff('the DList setting names the same address', offerOf(same), offerAt(DERIVED)));
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U39: a public BRAINSTORM_RELAY_URL still wins, in its one spelling, whatever STRFRY_DOMAIN says (duty-menu-public-relay AC-2)', async () => {
+  const got = await answer({ config: { BRAINSTORM_RELAY_URL: 'wss://Relay.Example.org/', STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+  const wrong = offerDiff('a public relay URL beside another domain', offerOf(got), offerAt('wss://relay.example.org', { scores: true }));
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U40: no public address at all — the Docker relay URL beside a STRFRY_DOMAIN that is localhost:7777, a private IP, a name with no dot, localhost or not set — no Scores or Lists, and Concepts at the DList relay, as before (duty-menu-public-relay AC-3)', async () => {
+  const wrong = [];
+  for (const domain of ['localhost:7777', '10.0.0.5', 'tapestry', 'localhost', '', undefined]) {
+    const got = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+    wrong.push(...offerDiff(`STRFRY_DOMAIN ${show(domain)}`, offerOf(got), offerAt(null, { scores: true, dlistRelay: DLIST })));
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('U41: the derived address is still this instance — on Docker it is never read as an outside relay, whether the offer, a Map hint or the Assistant\'s relay list names it (in another case or with a slash; a trailing-dot domain in its own spelling), while the other hinted relays are read (duty-menu-public-relay AC-4)', async () => {
+  // outsideOnly (unchanged by this story) compares hosts as STRFRY_DOMAIN writes them, so a trailing-dot domain's
+  // relay is named here with its dot.
+  const localFor = (host) => [
+    mapEv([['30382:rank', ASSISTANT, `wss://${host.toUpperCase()}/relay/`], ['39998', ASSISTANT, HINT]]),
+    relayListEv(ASSISTANT, [['r', `wss://${host}/relay`], ['r', A_WRITE]]),
+    relayListEv(NOUS, [['r', NOUS_WRITE, 'write']]),
+  ];
+  const wrong = [];
+  for (const domain of [PUBLIC_DOMAIN, 'staging.example.org.']) {
+    const got = await answer({ local: localFor(domain), config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain } });
+    const urls = readUrls(got);
+    const own = urls.filter((u) => ['staging.example.org', 'staging.example.org.', 'localhost'].includes(hostOf(u)));
+    if (own.length) wrong.push(`STRFRY_DOMAIN ${show(domain)}: this instance's relay was read as outside: ${show(own)}`);
+    for (const u of [HINT, A_WRITE, NOUS_WRITE]) if (!urls.includes(normUrl(u))) wrong.push(`STRFRY_DOMAIN ${show(domain)}: the control ${u} is read`);
+    if (got.menuScans.length !== 1) wrong.push(`STRFRY_DOMAIN ${show(domain)}: this instance's relay is scanned locally, once (got ${got.menuScans.length})`);
+  }
   assert(wrong.length === 0, wrong.join('; '));
 });
 

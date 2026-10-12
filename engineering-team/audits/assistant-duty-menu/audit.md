@@ -144,7 +144,7 @@ The owner approved every amendment at a gate.
   - `attention.js:51`'s "nothing is stored anywhere" line (story 2 NB2);
   - test D6's near-vacuous alternative (story 2 NB6);
   - ADR 0002's latency figure (story 2 NB3).
-- [ ] **Promote to production.** This book and `assistant-shared-categories`, whose production promotion waits on
+- [x] **Promote to production.** Done 2026-10-12: PR #851, merge `df457d65`, deploy run 149, smoke clean. This book and `assistant-shared-categories`, whose production promotion waits on
       this book (`e5e04aea`), ride `staging` together.
 - [ ] **The FAQ** still doesn't mention the Duty Menu. This item is carried from book `assistant-duty-cards` §6.
 

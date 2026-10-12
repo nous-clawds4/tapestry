@@ -1,6 +1,6 @@
 # Epic: assistant-shared-categories — Done, but shared: Scores, Lists and Concepts held by another Assistant
 
-**Status:** Done (book closed 2026-10-11; the folders sit under `done/`; on staging since `397d236`, with the Gate B fixes in `14455d4`; not yet in production)
+**Status:** Done (book closed 2026-10-11; the folders sit under `done/`; on staging since `397d236`, with the Gate B fixes in `14455d4`; in production 2026-10-12 via PR #851, merged as `df457d6`, deploy run 149)
 **Created:** 2026-10-11
 **Book:** `engineering-team/audits/assistant-shared-categories/book.md` (no PRD — acceptance frame; Light trial)
 **Provenance:** the owner's ask of 2026-10-11, quoted verbatim in the book, settled through three questions at

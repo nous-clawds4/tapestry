@@ -3,7 +3,7 @@
 **Slug:** assistant-duty-menu
 **Status:** Closed
 **Opened:** 2026-10-11
-**Closed:** 2026-10-12 (on `staging`: story 1 `b5c732ed`, story 2 `6ac4aa87`, deploy run 641; production not yet promoted)
+**Closed:** 2026-10-12 (on `staging`: story 1 `b5c732ed`, story 2 `6ac4aa87`, deploy run 641; production 2026-10-12: PR #851 merged as `df457d65`, deploy run 149, production smoke clean)
 
 ## Intent anchor
 
