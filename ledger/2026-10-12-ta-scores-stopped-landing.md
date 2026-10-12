@@ -25,6 +25,16 @@ the export.
 isn't written there. Ledger row `2026-09-27-processalltasks-calls-removed-reconciliation` is a known orchestrator
 defect that may or may not be related.
 
+**Likely cause, from the code** (ADR `assistant-self-map/0001` § Context, 2026-10-12; still to be confirmed in the
+container):
+- Docker deployments run no scheduler for the Score pipelines. `processAllTasks` runs from a systemd timer only on bare
+  metal (`systemd/processAllTasks.timer`).
+- The BullMQ fresh-install seeds include no Score task (`src/api/scheduled-tasks/index.js:41-86`).
+- So on staging and production, the Owner's and customers' Scores refresh only if the operator has added a schedule
+  entry for one of:
+  - `processAllTasks`, `updateAllScoresForOwner`, `exportOwnerKind30382`;
+  - `processAllActiveCustomers` or a per-customer task.
+
 **Why it matters now:**
 - The TA's Duty Menu offers `30382` at the staging relay. That is an offer, and § 10 of `duty-menus.md` keeps it apart
   from what is active.

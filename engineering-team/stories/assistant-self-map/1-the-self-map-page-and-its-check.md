@@ -253,6 +253,6 @@ Architecture"), with seven ACs kept as one story.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
