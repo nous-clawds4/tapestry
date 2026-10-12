@@ -1,6 +1,6 @@
 # ADR 0001: The offered duties live in the instance settings, edited from one tab
 
-**Status:** Proposed
+**Status:** Accepted (by the owner, 2026-10-12, "Ready for Test Design", with the three gate points as proposed: order counts in "current", sub-decision 5; the copy additions, sub-decision 7; the synchronous public-host rule for typed relays)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-duties-settings/1-the-assistant-duties-tab.md`
 **Supersedes in part:** ADR `assistant-duty-menu/0001` sub-decision 1 (the K1 rows of `buildOffer`, and its Scores
@@ -262,7 +262,7 @@ We chose **Option A**, with the synchronous public-host rule and the Scores guar
      tab's Saved line says.
 
    `sameRows` has one caller (`evaluateDutyMenu`, `dutyMenu.js:246`). The self-Map's own comparison is untouched.
-   *This changes `assistant-duty-menu` #1 AC-4 ("in any order"), so the owner confirms it at this gate.*
+   *This changes `assistant-duty-menu` #1 AC-4 ("in any order"); the owner confirmed it at this ADR's acceptance.*
 
 6. **The self-Map stays honest** (`src/api/assistant/selfMap.js`, `readUpkeep`). When the `30382` row's relay is not
    this instance's own (`isOwnRelay`, `:150`), `out.scores` is `{ status: 'not-published-here', lastLandedAt: null }`
@@ -311,7 +311,7 @@ We chose **Option A**, with the synchronous public-host rule and the Scores guar
    - **The route.** `ui/src/App.jsx` gains `{ path: 'assistant-duties', handle: { crumb: 'Assistant Duties' } }` among
      the settings children, before `*`.
 
-   **Copy additions** (not in the story; the owner confirms at this gate):
+   **Copy additions** (not in the story; confirmed by the owner at this ADR's acceptance):
    - **Change relay**, **Save**, **Cancel**.
    - The drag handle's label, "Drag to reorder".
    - The `too-many` line, "The list can hold at most 200 duties."
