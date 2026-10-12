@@ -281,7 +281,7 @@ The storefronts under the header (§ 7), read through their authors' kind 0 prof
 - A provider that publishes no storefront is not listed.
 - Candidate signals for the filter:
   - **What trusted people say:** their reactions to storefront menus, and a DList-based list over Duty Menus (§ 3).
-  - **What trusted people do:** how many trusted observers' Treasure Maps name keys linked to a storefront (§ 7). Each of those observers chose an Assistant for their own reasons, so counting it for others raises the usual questions. Do they know it is counted? Can they opt out? Would they endorse this reading of it?
+  - **What trusted people do:** how many trusted observers' Treasure Maps name keys linked to a storefront (§ 7), counted as [Treasure Maps](./treasure-maps.md) § 9.2 says (Counting Maps). Each of those observers chose an Assistant for their own reasons, so counting it for others raises the usual questions. Do they know it is counted? Can they opt out? Would they endorse this reading of it?
   - **Trust in the author:** a weak signal, because NIP-85 service keys are seldom followed.
 - While signals of what people do are scarce, a directory can start from what they say, used as a hint.
 
