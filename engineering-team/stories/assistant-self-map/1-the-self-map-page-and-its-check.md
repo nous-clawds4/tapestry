@@ -276,4 +276,4 @@ Architecture"), with seven ACs kept as one story.
 
 - ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md`
 - Test plan: `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-self-map/1-the-self-map-page-and-its-check.md` (round 1, 2026-10-12)
