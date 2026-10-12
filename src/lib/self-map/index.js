@@ -59,8 +59,16 @@ function conceptReading(slot) {
 }
 
 /**
+ * Spellings that name nothing (Amendment 3 item 1), after normalizeMenuKey: a Concept kind and a colon alone is not a
+ * key, and readers ignore such an entry as if absent (Treasure Maps § 4.5); `39999:dlist-header` and `39999:duty-menu`
+ * name no Concept (§ 4.6).
+ */
+const NAMELESS_KEYS = new Set(['39998:', '39999:', '39999:dlist-header', '39999:duty-menu']);
+
+/**
  * One key, parsed for the engine (sub-decision 1): its normalized form, kind slot, the kinds the slot covers, its
- * later segments, and its scope. null when the kind slot does not parse.
+ * later segments, and its scope. null when the kind slot does not parse, and for the four spellings that name nothing
+ * (NAMELESS_KEYS, Amendment 3 item 1), so every reader here drops them.
  * @param {string} key
  * @returns {?{ norm: string, slot: string, kinds: number[], segs: string[], rank: number,
  *              scope: { type: 'all'|'metric'|'d'|'unchecked', metric?: string, d?: string } }}
@@ -71,12 +79,11 @@ function parseKey(key) {
   const slot = colon < 0 ? key : key.slice(0, colon);
   if (!KIND_SLOT.test(slot)) return null;
   const norm = normalizeMenuKey(key);
+  if (NAMELESS_KEYS.has(norm)) return null;
   if (slot === '39998' || slot === '39999') {
     const { kinds, rank } = conceptReading(slot);
     if (norm === slot) return { norm, slot, kinds, segs: [], rank, scope: { type: 'all' } };
     const d = norm.slice(slot.length + 1);
-    // `39998:` and `39999:` are no key a reader can use yet (§ 9.2, A Concept kind and a colon).
-    if (d === '') return { norm, slot, kinds: [Number(slot)], segs: [''], rank: 3, scope: { type: 'unchecked' } };
     return { norm, slot, kinds: [Number(slot)], segs: [d], rank: 3, scope: { type: 'd', d } };
   }
   const segs = norm.split(':').slice(1);
@@ -323,9 +330,19 @@ function buildShouldSay({ groups, assistant, duties, live, offer }) {
 }
 
 /**
- * A found self-Map's self-entries (Amendment 1 item 2): its entries naming the author, each { key, relay } normalized
- * (`39998:` and `39999:` dropped, as readers ignore them), and the count of entries naming any other key. An entry is a
- * tag whose element 1 parses as a key and whose element 2 is a 64-hex key, as mapGroups reads them (Amendment 2 item 5).
+ * A self-entry's relay (Amendment 3 item 2): '' when element 3 is missing or empty, which claims nothing (§ 9.2); else
+ * the normalized URL; else the string as written (trimmed), a claim at a relay no live part is at.
+ */
+function selfEntryRelay(value) {
+  if (typeof value !== 'string' || value.trim() === '') return '';
+  return normalizeRelayUrl(value) || value.trim();
+}
+
+/**
+ * A found self-Map's self-entries (Amendment 1 item 2): its entries naming the author, each { key, relay } normalized,
+ * and the count of entries naming any other key. An entry is a tag whose element 1 parses as a key and whose element 2
+ * is a 64-hex key, as mapGroups reads them (Amendment 2 item 5), so the four nameless spellings count in neither
+ * (Amendment 3 item 1). Relays are read by selfEntryRelay (Amendment 3 item 2).
  */
 function readSelfEntries(event, author) {
   const who = String(author || '').toLowerCase();
@@ -337,8 +354,7 @@ function readSelfEntries(event, author) {
     const parsed = parseKey(t[0]);
     if (!parsed) continue;
     if (t[1].toLowerCase() !== who) { otherEntries += 1; continue; }
-    if (t[0] === '39998:' || t[0] === '39999:') continue;
-    const entry = { key: parsed.norm, relay: normalizeRelayUrl(t[2]) || '' };
+    const entry = { key: parsed.norm, relay: selfEntryRelay(t[2]) };
     const id = `${entry.key}|${entry.relay}`;
     if (seen.has(id)) continue;
     seen.add(id);
@@ -389,7 +405,8 @@ function dutyLines({ groups, assistant, duties, live, shouldSay, found }) {
         const l = live.get(probeId(probe));
         const fw = winnerOf(claims, probe, (c) => c.key);
         const sw = winnerOf(should, probe, (c) => c.key);
-        if (fw && (!l.live || fw.relay !== l.relay)) falseClaim = true;
+        // A winning self-entry with an empty relay claims nothing, so it is no false claim (Amendment 3 item 2).
+        if (fw && fw.relay !== '' && (!l.live || fw.relay !== l.relay)) falseClaim = true;
         if (!l.live) {
           allLive = false;
           if (reason === null) { reason = l.reason; lastLandedAt = l.lastLandedAt; }
@@ -408,7 +425,7 @@ function dutyLines({ groups, assistant, duties, live, shouldSay, found }) {
     const unoffered = won.filter((p) => p.duty && !live.ctx.offer.has(p.probe.kind));
     if (unoffered.length) {
       // A part that isn't offered is never live, so any found self-entry winning one is a false claim (Amendment 2 item 4).
-      const falseClaim = unoffered.some((p) => Boolean(winnerOf(claims, p.probe, (c) => c.key)));
+      const falseClaim = unoffered.some((p) => { const fw = winnerOf(claims, p.probe, (c) => c.key); return Boolean(fw && fw.relay !== ''); });
       lines.push({ key: k.norm, category: categoryOfKind(unoffered[0].probe.kind), relay: null, status: 'not-offered', reason: null, lastLandedAt: null, falseClaim });
     }
     const elsewhere = [];
