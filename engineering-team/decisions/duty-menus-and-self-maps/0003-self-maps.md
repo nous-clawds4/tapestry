@@ -1,6 +1,6 @@
 # ADR 0003: Self-Maps — a key's own Map reports what is live, and element 3 is a hint resolved per insight at read time
 
-**Status:** Accepted; amended by A1 (2026-10-11); Amendment A2 approved in substance by the owner (option c), 2026-10-12
+**Status:** Accepted; amended by A1 (2026-10-11) and A2 (2026-10-12)
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`
 
@@ -2187,8 +2187,10 @@ Re-derive each case from the drafts as changed, then run `s3a1/a1.py`.
 **Approved in substance** by the owner, 2026-10-12: option (c) for the review's B1, which A2-1 states as a reading rule,
 and the review's B2 named as a provisional departure from AC3, which A2-4 records.
 
-**Status of A2:** approved in substance (option (c)) by the owner, 2026-10-12. The wording of A2-1 to A2-5 is the
-Architect's and is at the owner's gate. The rest of this ADR, with A1, stands as accepted.
+**Status of A2:** approved in substance (option (c)) by the owner, 2026-10-12; its wording (A2-1 to A2-5, revision 1)
+approved by the owner the same day, with the search going on past an unclaimed retraction, the cost for a provider
+that keeps no self-Map, the send-to-each-relay rule, and without the extra reader rule. The rest of this ADR, with A1,
+stands as accepted.
 
 **Revision 1 of A2** (2026-10-12) answers a review of A2's first text (its findings F1 to F6 and SK-1 to SK-3), and
 keeps the owner's (c). A2-1's § 7 sentence ends at "it is no copy": the spec says what the reader does, not what the
