@@ -155,3 +155,255 @@ But one acceptance criterion fails, and I verified it. The story explicitly make
 
 - [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`. Only its `- Review:` link is filled in.*
 - [ ] Completion detection: not performed. The book cannot be complete while story 1 is not Done.
+
+---
+
+## Round 2 (2026-10-12)
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-10-12
+**Diff:** `git diff 72dba9e9a..36e200fcd` (HEAD `36e200fcd`, equal to `origin/staging`). This story's commits:
+- `80625ae4c`, `a6d6e3f88`: ADR 0001 Amendment 1, proposed then accepted. Also the story's Background, AC-3 and AC-4,
+  and the book's Decision 8 and first frame bullet. Docs only.
+- `b11302628`: round 2's failing tests and the test plan's `## Round 2`. Touches only `test/`, `tests/` and the plan.
+- `903c10e98`: the R3 re-aim, one test case. Judged below.
+- `5ee2ae92f`: the implementation. Touches `src/lib/duty-menu/index.js`, `src/api/settings/assistantDutiesApi.js`,
+  `AssistantDuties.jsx`, `assistantDutiesCopy.js`, BIBLE §11 and §15, and the story's Deviations. It touches no test
+  file.
+- `36e200fcd`: the Deviations now cite `903c10e98` (they cited its pre-rebase hash). Docs only.
+
+The range also holds another session's four docs commits for `duty-menus-and-self-maps` #5: `ec8013697`, `984c7cc80`,
+`8287d951b` and `930c54543`. They touch `protocols/`, `ledger/`, `docs/`, and that epic's own story and ADR.
+- They touch nothing under `src/`, `ui/`, `test/` or `tests/`, nor `BIBLE.md`, nor this epic's folders.
+- Their one edit near this story's records is in `protocols/drafts/duty-menus.md`: its Sources line (`:6`) and § 5.2's
+  wording. Line 5, the implementation line this story wrote in round 1, is unchanged.
+
+### Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `36e200fcd`, clean tree (the record's `git.dirty` is `false`), label `reviewer-ads1-r2`.
+  `npm run gate:status -- --label reviewer-ads1-r2`:
+
+  > `20261012T233931Z-5898-8ddb [reviewer-ads1-r2] started 2026-10-12T23:39:31.533Z on 36e200fc — PASS, exit 0, 5866 passed, 0 failed, 582 skipped, 307/307 suites`
+
+  - 5866 is round 1's 5863 plus the three new tests: L10, R7 and AD4.
+  - From the run record:
+    - `assistant-duties-settings` 36/0/0 and `assistant-self-map-check` 65/0/0. These are the test plan's round-2
+      pass + fail counts (25 + 11 and 64 + 1).
+    - `assistant-duty-menu-check` 65/0/0, `assistant-duty-menu-publish` 36/0/0, `assistant-duty-menu-page` 15/0/0 and
+      `admin-action-sweep` 9/0/0, unchanged from round 1.
+- [x] **Playwright, chromium.** I built `ui/` at `36e200fcd` into `tmp/rv-dist` and served it with `vite preview` on
+  :4177. I ran `tests/brainstorm/assistant-duties-settings.spec.js` and `tests/brainstorm/assistant-duty-menu.spec.js`:
+  **31 passed, 0 failed** (B0–B13 and B0–B16). Afterwards I stopped the server and removed `tmp/rv-dist`,
+  `test-results` and `playwright-report`. The tree is clean.
+- [x] `bash scripts/harness-lint.sh`: clean (0 violations), before and after this review.
+- [x] **On staging.**
+  - `deploy-staging.yml` ran green for `5ee2ae92f` and `36e200fcd` (23:28Z).
+  - `https://staging.brainstorm.world/tapestry/settings/assistant-duties` answers 200.
+  - An unauthenticated `GET /api/settings/assistant-duties` answers 401 with the owner/admin refusal.
+  - I could not sign in as the Owner, so I have not seen the tab live.
+- [ ] _Lint, typecheck and build not configured, so skipped._ The UI's `vite build` succeeds.
+
+### Blocking 1, re-derived from commands
+
+The owner chose to narrow the list (book Decision 8), the second of the two routes round 1 left open. Amendment 1
+makes a duty a whole kind and leaves the self-Map unchanged. I re-derived the fix from commands, not from the tests.
+
+- **The rule.** `dutyKeyOf` (`src/lib/duty-menu/index.js:154–158`) trims its input and accepts only `/^\d{5}$/`
+  (`:44`). `checkEntry`, `validateDutyList` and `readDutyList` call it and are byte-identical to `72dba9e9a`.
+- **The tab's PUT** (`createAssistantDutiesHandlers().put`):
+  - **Refused**, each with 400 `bad-key` and nothing written:
+    - narrower, family and Concept keys: `30382:rank`, `3038x`, `3039x`, `*`, `39999:my-list`, `39998:dlist-header`;
+    - trailing colons: `30382:` and `30382::`;
+    - lookalikes: fullwidth `３０３８３`, and `30383` followed by U+200B;
+    - wrong lengths and number forms: `303830`, `3038`, `+3038`, `3.0e4`, `0x7d2`;
+    - `"30383\n:rank"`;
+    - non-strings: a number, an array, an object with `toString`, and `null`;
+    - and `''`.
+  - **Accepted:** `' 30383 '`, `'\t30383\n'` and `30383` followed by a no-break space are each stored as `30383`.
+- **The generic PUT** (`settingsApi.handleUpdateSettings`). I ran it with the real settings module on a scratch
+  `TAPESTRY_SETTINGS_PATH`.
+  - `30382:rank` and `*` answer 400 `bad-key`. `null` and an index-keyed object answer 400 `bad-list`. The file stays
+    `{}` after each.
+  - A `{"__proto__": {"assistantDuties": […]}}` body answers 200 and persists nothing.
+  - `DELETE /api/settings/<keyPath>` only removes, so it cannot make a key.
+- **A hand-edited `settings.json`** with eleven entries: `30382:rank`, `3038x`, `*`, `39999:my-list`, `' 30392 '`,
+  `39998:dlist-header`, fullwidth, zero-width, `30382`, the number `30393` and `30382::`.
+  - The GET answers `[30392, 30382]` and logs `[settings/assistant-duties] ignored 9 assistantDuties entries`.
+  - The offer gives `[30392, 30382]` and logs `[assistant/duty-menu] ignored 9 …`. I built it through the real
+    `resolveOfferInputs` with the real `readAssistantDuties`, then `buildOffer`.
+  - Reset empties the override and answers the six.
+- **Every reader goes through `readDutyList`.** `assistantDuties` has only two readers:
+  - the offer, `src/api/assistant/dutyMenu.js:77` and `:102`, which the Duty Menu check, the publish route
+    (`dutyMenuPublish.js:108`) and the self-Map (`selfMap.js:265–266`) all build from;
+  - the routes' `currentDuties` (`assistantDutiesApi.js:32–36`).
+
+  So no path puts a non-bare key on an offer.
+- **Round 1's `evaluateSelfMap` scenario, now through the real handler.** I drove `handleAssistantAttention` with the
+  self-Map suite's own world (its `fakes`, `realDutyMenu: true`), so the offer came from `resolveOfferInputs` →
+  `buildOffer`.
+
+  | Case | Duty Menu offer | Your Assistant's Treasure Map | `falseClaim` |
+  |---|---|---|---|
+  | P0: the six; Scores live; the self-Map claims `30382:rank` | the six | `30382:rank` active; current | false |
+  | P2: hand-edited `*`, `3038x`, `39999:my-list`, `3039x:tag`, `30382`; Map entries `30382:rank`, `30383:foo` | `[30382]` | `30382:rank` offered / live-unclaimed; `30383:foo` not-offered | false |
+  | P3: `30382` and `30383` listed; Map entry `30383:foo` | `[30382, 30383]` | `30383:foo` offered / not-published-here | false |
+  | P1: hand-edited `30382:rank` in place of `30382`; Scores live; the self-Map claims `30382:rank` | the five, no Scores | `30382:rank` not-offered; not current | true |
+  | P1b: `30382` removed through the tab; otherwise as P1 | the five, no Scores | `30382:rank` not-offered; not current | true |
+
+  - **The two pages agree in every case.**
+  - **P1 is round 1's worse case.** The tab and both PUTs now refuse `30382:rank`, so P1 can only come from a hand edit
+    outside BIBLE §15's documented shape.
+  - **P1 now behaves exactly as removing Scores does (P1b).** Neither page offers Scores. The published claim is then
+    a claim on a part that isn't offered, which `assistant-self-map` ADR 0001 A2 item 4 (owner-ratified) defines as a
+    false claim. The drop is logged at every check.
+  - **The disagreement round 1 found is gone.** What remains is the self-Map's documented behaviour for a removed
+    kind. Blocking 1 is resolved. Non-blocking 1 below concerns AD4's wording.
+- **Readers of other instances' menus are unchanged.**
+  - `keptKey`, `readMenuRows`, `normalizeMenuKey`, `sameRows`, `isDutyMenu` and `KIND_SLOT` are byte-identical to
+    `72dba9e9a`. So is every other library function except `dutyKeyOf`.
+  - Another instance's menu still reads as its rows: `30382:rank`, `3038x`, `*`, `39999:my-list`, `not-offered 30385`,
+    and `39998:dlist-header` as `39998`.
+  - The range has no diff in `src/lib/self-map/` or `src/api/assistant/`.
+- **Whole kinds are kept as themselves.** I checked all 100,000 five-digit strings `k`:
+  - `dutyKeyOf(k) === keptKey(k) === k`;
+  - `readMenuRows` of a row keyed `k` keeps it as `k`.
+
+  There were 0 mismatches. So every key the list accepts reaches readers unchanged, and the self-Map's `/^\d{5}$/`
+  (`src/lib/self-map/index.js:453`) sees every offer row.
+
+### Round 1's findings, each re-derived
+
+| Finding | Now | Evidence |
+|---|---|---|
+| Blocking 1: non-bare keys; the two pages disagree | Resolved by Amendment 1 (book Decision 8) | Above. |
+| NB1: the relay panel is tied to a row index | Fixed | `AssistantDuties.jsx:64`: `editing` holds the duty's `key`. `:127–128`: `saveRelay` finds the duty by key, and closes if it is gone. `:93`: a save whose answer lacks the duty closes the panel. Also `:171`, `:193`, `:204`. Reset still clears `editing` (`:105`). Keys are unique on the list (`validateDutyList` refuses duplicates; `readDutyList` keeps the first), so a key names one row. B12 passes. With `39999`'s panel open, `30393` is removed and `30382` moved; Save writes the typed relay to `39999` only. Removing its own duty closes the panel. With the index-keyed code, the first removal (index 5 → 4) would have taken the panel off `39999`. |
+| NB2: an empty Another relay saved as This instance's relay | Fixed | `setRelay` (`assistantDutiesCopy.js:80–86`) drops the relay only for `null` or `undefined`. `saveRelay` sends `editing.relay` as it is (`AssistantDuties.jsx:130`). The server refuses `''` with `bad-relay` (L6 "an empty relay", and my PUT probe). T3 pins the helper. B13 pins the request sent and the words "A relay must start with wss:// or ws://." |
+| NB3: the routes drop entries silently | Fixed | `assistantDutiesApi.js:32–36` logs `[settings/assistant-duties] ignored N assistantDuties entries` for GET and reset, as Amendment 1 item 5 words it. R7, and my hand-edited probe: 9 dropped, one line. A clean list logs nothing. |
+| NB4: test edits made in the Phase-4 session | Happened once more | `903c10e98`; see below and non-blocking 2. |
+| NB5: `codeOnly`, and A2's raw read | Open, unchanged | Outside Amendment 1's scope. |
+| NB6: typed relays are dialed without the DNS guard | Open, unchanged | Recorded per ADR § Sub-options, as in round 1. |
+| NB7: the drag handle is a `<span>` with no role | Open, unchanged | The keyboard path (Move up / Move down) still meets AC-4. |
+
+### The R3 re-aim (`903c10e98`): a genuine fix, not a weaker judge
+
+- **Why the old case was wrong.** Round 2's test design kept R3's duplicate case as
+  `[{ key: '30382' }, { key: '30382::' }]` → `duplicate-key` at index 1.
+  - Under amended AC-3, `30382::` is "anything that is not five digits". Correct code answers `bad-key` at index 1
+    (`validateDutyList` on it: `{"ok":false,"code":"bad-key","index":1}`).
+  - So the case could pass only against code that broke AC-3.
+  - At `a6d6e3f88` it did pass. The test still failed on its other, new cases, which hid this one in the Tester's red
+    run.
+- **The replacement keeps the case's intent.** `' 30382 '` is a duplicate after the one normalization left: trimming,
+  as in AC-3's "Spaces around the kind are ignored". The assertion is as strong as before: `duplicate-key` at index 1,
+  which is what the code now answers. L2 still pins the trailing-colon forms as refused (`30382:rank::`, `3038x:tag:`,
+  `*:`).
+- **Process.** The edit is logged in Deviations under "Implementation round 2" and was committed 2½ minutes before the
+  implementation. So a test was again edited in the Phase-4 session, as round 1's NB4 noted. It has its own commit and
+  is disclosed, and I verified it myself. Non-blocking 2.
+
+### Spec adherence (round 2)
+
+| AC | Covered by | Result |
+|---|---|---|
+| AC-1 | A1, A2, T4–T6, R6; B1, B2; admin-action-sweep | Met; unchanged since round 1. |
+| AC-2 | D1, R1, L9; B1, and B11 (re-aimed to `30383`) | Met. |
+| AC-3 as amended | L2, L3, L5, L6, L10, R2, R3, R6; B3 (re-aimed to `30395`), B4 | Met. Whole kinds only, trimmed; every refusal holds by the probes above. |
+| AC-4 as amended | T2, T3, T6, R4; B5–B10, B12, B13 | Met. An empty Another relay is refused, and the relay saved is always that duty's own. |
+| AC-5 | D2, O2, O4, S1, L1, L7, R1, R7 | Met. |
+| AC-6 | L9, O1–O3, U6–U8, U23, U24, W13, W14 (re-aimed), E1, E2, AD1–AD4, T7, P1; B5, B10 | Met. Your Assistant's Treasure Map works with every list the tab or either PUT accepts, and a hand-edited list is cleaned before either page reads it (O2, AD4, P0–P3). A listed kind this instance does not publish is offered and never live (AD2, P3). |
+
+- [x] Every acceptance criterion has a passing test.
+- [x] No criterion is silently dropped. Round 1's AC-6 gap is closed by narrowing AC-3, which the owner ratified in
+  book Decision 8.
+- [x] No behavior added that isn't in the story.
+- Copy is unchanged. The refusal for a narrower key stays "That isn't a Treasure Map key.", as Amendment 1 item 2
+  keeps it (non-blocking 4).
+
+### ADR adherence (Amendment 1)
+
+- [x] **Item 1.** `dutyKeyOf` trims the input and answers a five-digit kind through `keptKey` (`index.js:154–158`).
+  `keptKey` and `readMenuRows` are unchanged. `MAX_KEY_LENGTH` is gone from both the constants and the exports.
+- [x] **Item 2.** `validateDutyList` refuses with `bad-key`. `readDutyList` drops the entry, and its callers log the
+  drops. `instanceRelayFor` is unchanged.
+- [x] **Item 3.** `editing` holds the key, `saveRelay` finds the duty by key, and the panel closes when its duty goes.
+- [x] **Item 4.** `setRelay` keeps `''`, the tab sends it, and the server refuses it.
+- [x] **Item 5.** The routes' warn line matches word for word.
+- [x] **Item 6.** Both BIBLE edits match the probes.
+  - BIBLE §15 (`BIBLE.md:1384`) gives the shape `{ "key": "<kind>" }`, a whole kind of five digits, and says a refused
+    entry is skipped and logged.
+  - BIBLE §11's PUT row (`BIBLE.md:568`) says `bad-key` is anything but a five-digit kind. The GET and reset rows are
+    unchanged and still true.
+- [x] **The self-Map library stays unchanged.** The range has no diff in `src/lib/self-map/` or `src/api/assistant/`.
+- [x] No new dependency. Layering is as in round 1.
+
+### Concept-graph integrity, things tests can't catch, house rules
+
+- [x] No concept handle or definition changed, so no firmware reinstall is needed.
+- [x] No secrets, no 64-hex literal added, and no TA pubkey.
+- [x] The one new `console.warn` is Amendment 1 item 5's line. There is no debug output and no commented-out code.
+- [x] Concurrency is as in round 1: last write wins, as the ADR accepts.
+- [x] Security: the narrowed rule is stricter than round 1's, and I probed every write and read path above.
+- [x] Architecture invariants are as in round 1. The list is this instance's own configuration and gates no one's
+  events.
+- [x] No new lint, typecheck or build tooling.
+
+### Findings (round 2)
+
+#### Blocking
+
+None.
+
+#### Non-blocking
+
+1. **`test/assistant-self-map-check.test.js:1220`.** AD4's title overstates what the test judges.
+   - The title says "no true claim is flagged false". But AD4's world publishes no self-Map, so `falseClaim` is false
+     whatever the code does.
+   - With a published self-Map claiming `30382:rank` (P1 above), the line is `not-offered` with `falseClaim: true`.
+     That matches removing `30382` (P1b) and is correct under `assistant-self-map` ADR 0001 A2 item 4.
+   - Optional: reword the title, or add the published-claim variant, pinning that a dropped key reads as a removed
+     kind.
+2. **`903c10e98` (process).** The R3 re-aim is a genuine fix (see above). But it was made in the Phase-4 session
+   again (round 1's NB4).
+   - It is disclosed and in its own commit.
+   - Optional: the Tester's red run could check each case, not only each test. The duplicate case passed at
+     `a6d6e3f88` inside a test that failed on its other cases.
+3. **`test/helpers/assistantDutiesFixtures.js:41`, `:93`.** `MAX_KEY_LENGTH = 512` is still defined and exported, and
+   nothing uses it. Optional: drop it in the Tester's next pass.
+4. **`ui/src/pages/settings/assistantDutiesCopy.js:21`, `:36`.** The copy says "Treasure Map key", but only whole
+   kinds are accepted.
+   - The field's label is "Treasure Map key".
+   - `30382:rank` is refused with "That isn't a Treasure Map key.", though it is one.
+   - The owner kept these words when accepting Amendment 1 (item 2), so this is recorded for the owner, not asked.
+5. **Staging data (a deploy note).** Round 1's code, which accepted any key readers keep, has been on `staging` since
+   `273d44410`.
+   - A narrower or family key that an Owner or Admin saved there meanwhile is now dropped on every read, with no
+     migration (Amendment 1 item 2).
+   - Each drop is logged under `[settings/assistant-duties]` and `[assistant/duty-menu]`.
+   - Optional: look at staging's `assistantDuties` once, or grep its logs for those two prefixes.
+
+#### Harness friction
+
+1. None.
+
+### On PASS (same commit)
+
+- [x] Story `**Status:**` flipped from `Approved` to `Done` in place
+  (`engineering-team/stories/assistant-duties-settings/1-the-assistant-duties-tab.md:3`).
+- [x] **Completion detection: left to the orchestrator, as instructed.** The acceptance frame looks satisfied. Its
+  first four bullets map to AC-1 and AC-3–AC-4, AC-2, AC-5 and AC-6, all met. "On staging" holds as recorded under
+  Quality gates, though I have not seen the tab signed in.
+
+### Verdict (round 2)
+
+Blocking 1 is resolved and verified from commands, not only from the tests:
+- the list holds whole kinds only;
+- every write path refuses anything else;
+- every read path drops anything else, logged;
+- round 1's self-Map scenario, driven through the real `resolveOfferInputs` → `buildOffer` path, shows the two pages
+  agreeing.
+
+Round 1's non-blocking 1–3 are fixed. Every acceptance criterion as amended has a passing test. The code matches ADR
+0001 Amendment 1, and the R3 re-aim is a genuine fix. The gate passes (`20261012T233931Z-5898-8ddb`), and so do the
+browser specs (31/31). The five non-blocking notes need no change before merge.
+
+**PASS**
