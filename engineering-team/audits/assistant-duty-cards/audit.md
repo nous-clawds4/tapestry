@@ -131,7 +131,8 @@ plan's § Verification amendment (the two Implementation-time re-aims).
 ## 6. Carry-forward register
 
 - [x] **Promote to production.** Done 2026-10-11: PR #850, merge `36212acc`, deploy run 148, smoke clean.
-- [ ] **Build the real pages, and a real check, for both cards.**
+- [ ] **Build the real pages, and a real check, for both cards.** *(Duty Menu: done by book `assistant-duty-menu`,
+      closed 2026-10-12. Your Assistant's Treasure Map: still open.)*
   - The later code book named in book `duty-menus-and-self-maps` § "Not in this book" publishes menus and self-Maps.
   - It replaces each placeholder: a page in `ACTION_PAGES`, the key in `CHECKED_ACTIONS`, and an answer from
     `GET /api/assistant/attention`.

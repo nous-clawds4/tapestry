@@ -2843,6 +2843,16 @@ routing change), so the Light Feature lane: Gate A → J1 → J2 → J3 → Gate
 
 ## 2026-10-11 — Duty Menus and Self-Maps in code: publish and read them, and the /treasure-map changes (feature; waits on the specs)
 
+**PICKED UP** (partial) 2026-10-12 → book `engineering-team/audits/assistant-duty-menu/book.md` (closed). What it
+delivered:
+- step 1's Nous constant (`src/lib/nous.js`) and the menu lookup (§ 8.1, local-first);
+- step 2's Duty Menu for each Assistant key, published by the person's button and naming this instance's own relay;
+- the Duty Menu hub page and its real check.
+
+Still open: self-Maps and the Your Assistant's Treasure Map page, the `/treasure-map` changes (step 3), the readers
+and the counting rule (step 4), the § 3 relay reconciliation (ledger `2026-10-11-nip85-home-relay-without-copy`),
+and Q6.
+
 - **Origin:** `docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md` §§ 6–8 (✅ SUPERSEDED: its design is in `protocols/`;
   its code is not built). The book `duty-menus-and-self-maps` ratified the specs and left code to "a separate book,
   opened after this one".

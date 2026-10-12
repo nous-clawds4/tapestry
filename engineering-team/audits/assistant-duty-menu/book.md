@@ -1,9 +1,9 @@
 # Book of Work: Duty Menu — the hub's Duty Menu page, built
 
 **Slug:** assistant-duty-menu
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-11
-**Closed:** —
+**Closed:** 2026-10-12 (on `staging`: story 1 `b5c732ed`, story 2 `6ac4aa87`, deploy run 641; production not yet promoted)
 
 ## Intent anchor
 
@@ -40,19 +40,19 @@ The ask, verbatim (copied from the session transcript, not retyped):
 *Proposed from the intake decisions; confirmed by the owner at story 1's approval (2026-10-11), with the Lists
 commitment in "Honest rows" added there.*
 
-- [ ] **A real Duty Menu page.** `/assistant/duty-menu` stops being a placeholder. It shows the menu this instance
+- [x] **A real Duty Menu page.** `/assistant/duty-menu` stops being a placeholder. It shows the menu this instance
       would publish for the viewer's Assistant (each duty and its relay) beside the menu found for it now, or says
       none is found.
-- [ ] **Honest rows.** The menu offers the duties this instance publishes for that Assistant, each at the relay
+- [x] **Honest rows.** The menu offers the duties this instance publishes for that Assistant, each at the relay
       where those insights really land, and Lists for every Assistant, which the owner commits this instance to
       building (story 1, open question 2; tracked in `_intake.md`, 2026-10-11). Nothing else is listed.
-- [ ] **One-click publish.** A button has the viewer's own Assistant sign and publish its menu, conforming to
+- [x] **One-click publish.** A button has the viewer's own Assistant sign and publish its menu, conforming to
       `protocols/drafts/duty-menus.md` (Nous' `z`, `p` = the Assistant, `d` = `duty-menu`), to the relays § 8.1 names,
       and reports what each relay said.
-- [ ] **A real mark.** The hub's Duty Menu card, its count line and the Assistant Alert show **Done** when a valid,
+- [x] **A real mark.** The hub's Duty Menu card, its count line and the Assistant Alert show **Done** when a valid,
       current menu is found, and **Needs attention** otherwise.
-- [ ] **On staging**, at staging.brainstorm.world/assistant/duty-menu.
-- [ ] **Nothing else changes.** Your Assistant's Treasure Map stays a placeholder; `/treasure-map`, the other hub
+- [x] **On staging**, at staging.brainstorm.world/assistant/duty-menu.
+- [x] **Nothing else changes.** Your Assistant's Treasure Map stays a placeholder; `/treasure-map`, the other hub
       actions and `protocols/` are unchanged.
 
 ## Epics in this book
@@ -89,7 +89,7 @@ re-read `duty-menus.md` for changes to §§ 3–8 and § 11.
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. Every frame bullet traces to a story that passed review in round 1. The one gap is that no signed-in viewer has used the page on staging, because the specs mock sign-in.
 
 ## Close artifacts *(filled by `/close-book`)*
 

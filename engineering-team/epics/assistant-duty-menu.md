@@ -1,6 +1,6 @@
 # Epic: assistant-duty-menu — the hub's Duty Menu page
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-12; the folders sit under `done/`)
 **Created:** 2026-10-11
 **Book:** `engineering-team/audits/assistant-duty-menu/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-11, quoted verbatim in the book and settled through three questions at
