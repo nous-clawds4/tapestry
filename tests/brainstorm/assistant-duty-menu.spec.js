@@ -5,6 +5,7 @@ const P = require('../../test/helpers/profileChecklistFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const DC = require('../../test/helpers/dutyCardsFixtures');
+const CS = require('../../test/helpers/comingSoonFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
 
 /**
@@ -82,8 +83,10 @@ function answerWith(dutyMenu) {
     },
   };
 }
-/** The placeholders once the Duty Menu is checked (Your Assistant's Treasure Map among them). */
-const PLACEHOLDERS = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k)).length;
+/**
+ * The placeholders once the Duty Menu is checked (Your Assistant's Treasure Map among them). Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted.
+ */
+const PLACEHOLDERS = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k) && !CS.KEYS.includes(k)).length;
 
 /**
  * Mock every route. `attention` is an answer object, 'hang', 'error', or a queue of them (the last repeats); `publish`

@@ -54,6 +54,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const X = require('./helpers/identificationTagsFixtures');
 const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
+const CS = require('./helpers/comingSoonFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const LIB_DIR = path.join(REPO, 'src/lib/identification-tags');
@@ -625,7 +626,9 @@ test('C3: the two readings — with no answer a checked action is marked but not
   const attention = mod.assistantAttention;
   const summarize = (await uiUtil()).summarizeAttention;
   const user = { pubkey: 'cc'.repeat(32), classification: 'customer', assistantPubkey: 'c1'.repeat(32) };
-  const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
+  // Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted, so `all` is
+  // every other action, and the placeholders below are the ones still counted (Your Assistant's Treasure Map).
+  const all = mod.ASSISTANT_ACTIONS.map((a) => a.key).filter((k) => !CS.KEYS.includes(k));
   const nine = all.filter((k) => k !== ACTION);
   // The placeholders: every action without a check (re-aimed by assistant-profile-checklist #1, which checks the profile).
   // These answers carry no profile action, so the profile is marked and not counted, like any checked action unanswered.
@@ -777,7 +780,8 @@ test('R1: the publisher still composes the d-tag the library and the server look
 
 test('R2: assistantAttention(user) with no answer still marks every action for a viewer with an assistant and none for anyone else (assistant-management #1 D7 holds)', async () => {
   const mod = await actionsModule();
-  const all = mod.ASSISTANT_ACTIONS.map((a) => a.key);
+  // Re-aimed by assistant-coming-soon #1 (AC-2): every action but the five that say Coming soon.
+  const all = mod.ASSISTANT_ACTIONS.map((a) => a.key).filter((k) => !CS.KEYS.includes(k));
   const withOne = mod.assistantAttention({ pubkey: 'cc'.repeat(32), classification: 'customer', assistantPubkey: 'c1'.repeat(32) });
   assert(sameJson({ hasAssistant: withOne.hasAssistant, needsAttention: withOne.needsAttention, count: withOne.count }, { hasAssistant: true, needsAttention: all, count: all.length }), `got ${show(withOne)}`);
   const without = mod.assistantAttention(null);

@@ -50,6 +50,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const DM = require('./helpers/dutyMenuFixtures');
 const DC = require('./helpers/dutyCardsFixtures');
+const CS = require('./helpers/comingSoonFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const LIB = path.join(REPO, 'src/lib/duty-menu/index.js');
@@ -1190,8 +1191,9 @@ test('C2: CHECKED_ACTIONS gains duty-menu right after outbox-relays, in ASSISTAN
 test('C3: the two readings for the Duty Menu — done: unmarked, in Done, not counted; pending (no menu, out of date, empty offer and no menu): marked and counted; unfinished, check-failed, missing, not answered or checking: marked, never counted; the count line is the marks (AC-4)', async () => {
   const mod = await actionsModule();
   const all = (mod.ASSISTANT_ACTIONS || []).map((a) => a.key);
-  // The placeholders once the Duty Menu is checked: every action without a check, the Duty Menu aside.
-  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k) && k !== DM.KEY).length;
+  // The placeholders once the Duty Menu is checked: every action without a check, the Duty Menu aside. Re-aimed by
+  // assistant-coming-soon #1 (AC-2): less the five that say Coming soon, which are never counted.
+  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k) && k !== DM.KEY && !CS.KEYS.includes(k)).length;
   const cases = [
     ['done', withOthersDone(mod, DM.ANSWERS.DONE), 'done'],
     ['done, empty offer and empty menu', withOthersDone(mod, DM.ANSWERS.EMPTY_DONE), 'done'],
@@ -1233,7 +1235,8 @@ test('C4: Your Assistant\'s Treasure Map stays an always-marked placeholder — 
   }
   const none = mod.assistantAttention(USER, { answered: false, actions: {} });
   const all = (mod.ASSISTANT_ACTIONS || []).map((a) => a.key);
-  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k));
+  // Re-aimed by assistant-coming-soon #1 (AC-2): the counted placeholders, less the five that say Coming soon.
+  const placeholders = all.filter((k) => !(mod.CHECKED_ACTIONS || []).includes(k) && !CS.KEYS.includes(k));
   if (!placeholders.includes(DM.STILL_PLACEHOLDER) || none.alertCount !== placeholders.length) wrong.push(`unanswered: the Alert counts the placeholders only, the Treasure Map among them (${none.alertCount} vs ${show(placeholders)})`);
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -1242,7 +1245,8 @@ test('C5: the hub\'s count line and the Alert drop by one for a viewer whose Dut
   const mod = await actionsModule();
   const done = mod.assistantAttention(USER, withOthersDone(mod, DM.ANSWERS.DONE));
   const pending = mod.assistantAttention(USER, withOthersDone(mod, DM.ANSWERS.NONE));
-  const placeholders = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k));
+  // Re-aimed by assistant-coming-soon #1 (AC-2): the counted placeholders, less the five that say Coming soon.
+  const placeholders = DC.ALL_KEYS.filter((k) => !DC.CHECKED.includes(k) && !CS.KEYS.includes(k));
   const wrong = [];
   if (!sameJson(done.needsAttention, placeholders)) wrong.push(`all done: the marks are the placeholders ${show(placeholders)}, got ${show(done.needsAttention)}`);
   if (done.count !== placeholders.length || done.alertCount !== placeholders.length) wrong.push(`all done: count and Alert ${placeholders.length}, got ${done.count} / ${done.alertCount}`);

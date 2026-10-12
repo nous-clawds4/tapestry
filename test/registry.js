@@ -290,6 +290,7 @@ const suites = [
   { file: 'assistant-profile-check.test.js' },
   { file: 'assistant-trusted-content.test.js' },
   { file: 'assistant-shared-categories.test.js' },
+  { file: 'assistant-coming-soon.test.js' },
   { file: 'assistant-profile-checklist-page.test.js' },
   { file: 'assistant-stamped-avatar-for-everyone.test.js' },
   { file: 'assistant-outbox-check.test.js' },

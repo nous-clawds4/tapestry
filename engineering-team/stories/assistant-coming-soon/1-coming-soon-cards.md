@@ -169,8 +169,92 @@ None open. Settled at intake: which cards (Decision 1), not counted in either re
   - Tests: a new Node suite `test/assistant-coming-soon.test.js` (+ `test/registry.js`), a new browser spec
     `tests/brainstorm/assistant-coming-soon.spec.js`, the hub fixture(s), and the re-aims listed at Gate A.
 
+## Edge cases & not-covered *(J2)*
+
+- **E1 (not derivable from any AC):** the two "Coming soon" words can't drift. The hub's pill word is written out in
+  `actions.js` (its one import), and it must stay equal to the background image panel's,
+  `PROFILE_CHECKLIST_COPY.comingSoon` (J1's note). → Node C2.
+- **E2 (not derivable):** the pill is the panel's pill, as rendered: the same class, text colour and background as the
+  background image panel's on `/assistant/profile`, and neither the amber of Needs attention nor the green of Done. →
+  browser CS6; Node D4.
+- **E3 (not derivable):** a screen reader hears each of the five once, as "Coming soon: <title>". The visible pill is
+  `aria-hidden`, so the word isn't read twice, and the prefix sits inside the link, before the title. → browser CS3;
+  Node D2.
+- **E4 (not derivable):** nonsense on the wire. An answer that carries a key for one of the five, with any value
+  (done, pending, unfinished, `shared: 'entirely'`, or `done: 'yes'`), changes nothing: no mark, no Done, no Shared,
+  and the counts don't move. → Node C4.
+- **E5 (not derivable):** the card is still a link stretched over the whole card. A click on its description, not its
+  title, opens its page. → browser CS6.
+- **E6:** while sign-in is still resolving, the five pills already show and nothing is marked. → browser CS5; the
+  re-aimed hub B4 (no mark or count line until sign-in resolves, then 8).
+- **E7:** the top-bar pill while the answer is on its way is not drawn, before and after (J1's note on AC-2's table).
+  → the re-aimed browser attention B5 (the pill shows only the answered count, now 6).
+- **Error path — the one external dependency, `GET /api/assistant/attention`:** it fails → hub 8, pill 1, the five
+  unmarked (Node C3 "failed"; browser CS2); it is on its way → hub 8 (Node C3 "checking"); it never comes for a
+  visitor → the pills still show (browser CS4). The design touches no other dependency.
+- **Not covered:**
+  - *Phone width.* The pill is the badge the Shared pill already draws in the same title row (D2), at the same size;
+    no new layout. The hub spec's existing 375 px test (B12: nothing scrolls sideways, on the hub and on
+    `/assistant/preferences`, one of the five) runs as regression.
+  - *Live relays and a live stack.* Every route is mocked (browser) or the module is loaded alone (Node), as in the
+    other hub suites. Nothing here reads a relay.
+  - *Other instances' builds.* Coming soon is a build-time list; it is the same for every viewer of one build, and a
+    new build changes it.
+
+## AC→handle lines *(J2)*
+
+- AC-1 → Node C1, C2, D1, D2, D4; browser CS1, CS3, CS4, CS5, CS6; re-aimed assistant-management-page B1 (a pill on
+  each of the five, their screen-reader prefix)
+- AC-2 → Node C3 (the table, row by row), C4; browser CS1, CS2; re-aimed (each now counts every action but the five):
+  - Node: assistant-attention C3, R2; assistant-duty-cards C5, C7; assistant-duty-menu-check C3, C4, C5;
+    assistant-management-page D7; assistant-profile-check C2; assistant-trusted-content C2
+  - browser: assistant-management-page B1, B4; assistant-alert B1, B5, B6; assistant-attention B1–B5;
+    assistant-duty-menu B2; assistant-identification-tags-page B7; assistant-profile-check B1–B4;
+    assistant-shared-categories SC1; assistant-taggings-publish B2; assistant-trusted-content TC2, TC3
+- AC-3 → Node C7 (sentinel), D3; browser CS7; re-aimed assistant-management-page B8 for the five pages
+- AC-4 → Node C5 (sentinel), C6 (sentinel), D3, D5 (sentinel); browser CS1 (the Treasure Map card), CS3, CS4, CS7 (the
+  Treasure Map page); the whole scoped gate and the hub specs as regression
+- E1 → C2 · E2 → CS6, D4 · E3 → CS3, D2 · E4 → C4 · E5 → CS6 · E6 → CS5, hub B4 · E7 → attention B5
+
+Suites: Node `test/assistant-coming-soon.test.js` (C, D classes), registered in `test/registry.js`; browser
+`tests/brainstorm/assistant-coming-soon.spec.js` (CS1–CS7). Cards and words: `test/helpers/comingSoonFixtures.js`. The
+hub fixture `test/helpers/assistantManagementFixtures.js` gains `COUNTED` (every card but the five), which the browser
+re-aims read in place of `ACTIONS` wherever they count; `ACTIONS` still lists every card.
+
+**How each re-aim moved.** Every one encodes "every action without a check is marked and counted", and each now leaves
+the five out, through `comingSoonFixtures.js` (fixed values, so each fails before the work). Nothing was weakened:
+- In the Node suites, each `placeholders` or `all` list is filtered by the five keys.
+- In the browser specs, each `X.ACTIONS.length` used as a count became `X.COUNTED.length`.
+- assistant-attention B1–B5's literal numbers dropped by five.
+- assistant-management-page B1 also expects the five pills and their prefix, and B8 expects "Coming soon." on the five
+  pages, and not "Placeholder page.".
+
+**Fails before the work** (checked 2026-10-12 against `origin/staging` `762d350` plus this story's earlier commits,
+with no code change):
+- **Node, the scoped gate:** `EXIT=1`, 17 failed.
+  - New suite: 7 of 12 fail (C1–C4, D1–D3), each at the missing list, words, card markup or page line, or at the old
+    counts. C5, C6, C7, D4 and D5 pass (sentinels).
+  - Re-aimed: exactly the 10 named at Gate A fail, each on the old count. Every other suite in the gate passes (15
+    suites in all).
+- **Browser, against the base build** (`vite build` of the same tree, served on :7799): 32 failed, 71 passed, 4
+  skipped. The 4 skips are B8 for the four pages already built (skips that were there before).
+  - All 7 new tests fail: CS1–CS5 and CS7 at the old marks, counts, prefix or line; CS6 at the missing pill (the
+    panel's pill on `/assistant/profile` is found).
+  - The 25 re-aimed browser tests fail, each on the old count, prefix or line: alert B1, B5, B6; attention B1–B5;
+    duty-menu B2; identification-tags-page B7; management-page B1, B4 and B8 ×5; profile-check B1–B4;
+    shared-categories SC1; taggings-publish B2; trusted-content TC2, TC3.
+  - Everything else in the ten specs passes.
+
+**How to run**
+- Node (the scoped gate, J3): the command in this file's header.
+- Browser (Gate B evidence), against this tree's built UI. Build with `npx vite build`, then serve with
+  `npx vite preview --port 7799 --strictPort`, both from `ui/`. Then:
+  `BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/assistant-coming-soon.spec.js tests/brainstorm/assistant-management-page.spec.js tests/brainstorm/assistant-alert.spec.js tests/brainstorm/assistant-attention.spec.js tests/brainstorm/assistant-duty-menu.spec.js tests/brainstorm/assistant-identification-tags-page.spec.js tests/brainstorm/assistant-profile-check.spec.js tests/brainstorm/assistant-shared-categories.spec.js tests/brainstorm/assistant-taggings-publish.spec.js tests/brainstorm/assistant-trusted-content.spec.js --project=chromium --reporter=line --output=<scratch dir>`
+  `--reporter=line` and `--output` keep the config's HTML/JSON reports and `test-results/` out of the repo.
+
 ## Linked artifacts
 
 - ADR: — (Light: the Design note above; no irreversibility trigger)
-- Test plan: this file's *Edge cases & not-covered* and *AC→handle lines* (written at J2)
+- Test plan: this file's *Edge cases & not-covered* and *AC→handle lines*; suites `test/assistant-coming-soon.test.js`,
+  `tests/brainstorm/assistant-coming-soon.spec.js`
 - Book: `engineering-team/audits/assistant-coming-soon/book.md`

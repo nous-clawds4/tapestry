@@ -32,6 +32,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const X = require('./helpers/assistantManagementFixtures');
+const CS = require('./helpers/comingSoonFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const ACTIONS_MOD = path.join(REPO, 'ui/src/pages/assistant/actions.js');
@@ -245,7 +246,8 @@ test('D7: every action needs attention for a viewer who has an assistant here, a
   const mod = await actionsModule();
   const attention = need(mod, 'assistantAttention');
   const actions = need(mod, 'ASSISTANT_ACTIONS');
-  const allKeys = actions.map((a) => a.key);
+  // Re-aimed by assistant-coming-soon #1 (AC-2): every action but the five that say Coming soon, which are never marked.
+  const allKeys = actions.map((a) => a.key).filter((k) => !CS.KEYS.includes(k));
   const cases = [
     ['a visitor (no user)', null, false],
     ['a signed-in guest with no assistant', { pubkey: 'ee'.repeat(32), classification: 'guest', assistantPubkey: null }, false],

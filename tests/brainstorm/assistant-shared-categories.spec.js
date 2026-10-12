@@ -45,7 +45,8 @@ const SETUP_DONE = {
   },
 };
 const ID_DONE = { finished: true, done: true, pending: false, taggings: [] };
-const TOTAL = X.ACTIONS.length;
+// Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted.
+const TOTAL = X.COUNTED.length;
 // The actions other than the three and Identification Tags: marked and counted in every answer here.
 const OTHERS = TOTAL - 1 - TC.KEYS.length;
 

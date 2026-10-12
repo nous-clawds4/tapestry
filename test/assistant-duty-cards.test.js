@@ -33,6 +33,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const D = require('./helpers/dutyCardsFixtures');
 const X = require('./helpers/assistantManagementFixtures');
+const CS = require('./helpers/comingSoonFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const ACTIONS_MOD = path.join(REPO, 'ui/src/pages/assistant/actions.js');
@@ -113,7 +114,11 @@ const linkParts = (parts) => (Array.isArray(parts) ? parts.filter((p) => p && ty
 /** The attention answer as the hub hands it to assistantAttention(): summarized, every checked action as given. */
 function answered(actions) { return { answered: true, hasAssistant: true, actions }; }
 const allCheckedDone = () => Object.fromEntries(D.CHECKED.map((k) => [k, { finished: true, done: true, pending: false }]));
-const placeholdersInOrder = () => D.ALL_KEYS.filter((k) => !D.CHECKED.includes(k));
+// Re-aimed by assistant-coming-soon #1 (AC-2): the five that say Coming soon are never marked or counted, so the
+// placeholders the hub marks and counts are the rest (Your Assistant's Treasure Map), and COUNTED_KEYS is every action
+// the hub can mark.
+const COUNTED_KEYS = D.ALL_KEYS.filter((k) => !CS.KEYS.includes(k));
+const placeholdersInOrder = () => COUNTED_KEYS.filter((k) => !D.CHECKED.includes(k));
 
 /* ───────────────────────── C — the data module ───────────────────────── */
 
@@ -211,7 +216,7 @@ test('C7: before the answer arrives, or when it failed, both cards are marked, a
   for (const [label, given] of [['no answer', null], ['not answered', { answered: false, actions: {} }]]) {
     const got = attention(WITH_ASSISTANT, given);
     for (const k of DUTY_KEYS) if (!got.needsAttention.includes(k)) wrong.push(`${label}: ${k} must be marked`);
-    if (got.count !== D.ALL_KEYS.length) wrong.push(`${label}: every action is marked until answered, want ${D.ALL_KEYS.length}, got ${got.count}`);
+    if (got.count !== COUNTED_KEYS.length) wrong.push(`${label}: every action but the five coming soon is marked until answered, want ${COUNTED_KEYS.length}, got ${got.count}`);
     if (got.alertCount !== placeholdersInOrder().length) wrong.push(`${label}: the Alert counts the placeholders only, want ${placeholdersInOrder().length}, got ${got.alertCount}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
