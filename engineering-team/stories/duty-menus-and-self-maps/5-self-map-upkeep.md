@@ -1,6 +1,6 @@
 # Story 5: The rules that keep a self-Map true
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-12
 **Type:** Doc
 
@@ -385,6 +385,11 @@ No firmware reinstall.
 
 These are owner decisions. The story needs each one before approval, and each has a recommended default. If the
 Architect finds a default unsound, the question goes back to the owner rather than falling back to another option.
+
+**Answered by the owner, 2026-10-12, at story approval:** the recommended default for all five: 1 (a), 2 (a), 3 (a),
+4 (a), 5 (a). The owner also confirmed that the book frame's "no canonical or consensus" covers only text the book adds
+or changes. Answer 2 (a) revises ADR 0003 A2-1 (the owner's option (c) for story 3's B1): with a maintained empty List
+unmarked, a marked List is never a copy; this story's ADR records the change.
 
 1. **What does a stopped assistant do with its curation copies?** (Item 10.) Every option applies when curation stops,
    never on a removed self-entry alone (AC1).
