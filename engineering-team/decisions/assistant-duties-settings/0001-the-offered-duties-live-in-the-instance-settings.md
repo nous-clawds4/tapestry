@@ -415,3 +415,56 @@ We chose **Option A**, with the synchronous public-host rule and the Scores guar
 - An atomic write for `settings.json` (see Consequences).
 - The relay-reconciliation item of ledger row `2026-10-12-duty-menu-code-cross-book-notes` (`/treasure-map`'s relay
   fill), which belongs to the later Duty Menus code book.
+
+## Amendment 1: whole kinds only, and three tab fixes (review round 1, 2026-10-12)
+
+**Status:** Proposed (the owner chose whole kinds, book Decision 8, 2026-10-12; this text awaits their approval).
+
+Story 1's review (`engineering-team/reviews/assistant-duties-settings/1-the-assistant-duties-tab.md`, Blocking 1)
+found that the list accepted every key readers keep. But Your Assistant's Treasure Map builds its offer by kind:
+- `evaluateSelfMap` takes only rows keyed `/^\d{5}$/` (`src/lib/self-map/index.js:451–454`);
+- `readUpkeep` finds the Scores and Concepts rows by exact key (`src/api/assistant/selfMap.js:161`).
+
+So a listed `30382:rank`, `3038x`, `*` or `39999:my-list` read as "not offered" there while the Duty Menu offered it.
+With `30382:rank` in place of `30382`, a true Scores claim was also flagged false. The owner chose to narrow the list
+rather than teach the self-Map narrower and broader keys (book Decision 8; story AC-3 amended). Sub-decision 6 stands
+for typed relays. The self-Map library stays unchanged: whole kinds are what it already reads.
+
+1. **A duty is a whole kind.**
+   - **`dutyKeyOf(input)`.** It trims the input and answers it when it is five digits (`/^\d{5}$/`), else null. Every
+     key it accepts is one readers keep, as itself (`keptKey(k) === k`), so the list stays inside the readers' rule.
+     It is just narrower.
+   - **`keptKey` and `readMenuRows` are unchanged.** Reading a published menu still keeps every key § 5.3 keeps.
+   - **`MAX_KEY_LENGTH` is removed.** A five-digit kind needs no bound.
+2. **The two list rules follow.**
+   - **`validateDutyList`** refuses anything else with `bad-key`. The story's words stay: "That isn't a Treasure Map
+     key."
+   - **`readDutyList`** drops it. A hand-edited `settings.json` that still names a narrower or broader key therefore
+     never puts it on a menu, and the drop is logged as before. Nothing is migrated: the shipped six are whole kinds.
+   - **`instanceRelayFor`** needs no change. A Concept kind is `39998` or `39999`.
+3. **The tab's open relay change belongs to its duty.** In `ui/src/pages/settings/AssistantDuties.jsx`:
+   - `editing` holds the duty's `key`, not its index.
+   - `saveRelay` finds the duty by key when it saves.
+   - The panel closes when that duty is no longer on the list.
+4. **An empty Another relay is refused, as when adding.**
+   - `setRelay(list, index, relay)` (`assistantDutiesCopy.js`) puts back This instance's relay only for `null` or
+     `undefined`. Any other value, `''` included, is set as the typed relay.
+   - The tab sends `editing.relay` as it is when **Another relay** is chosen.
+   - The server refuses `''` with `bad-relay`, and the tab shows "A relay must start with wss:// or ws://."
+5. **The routes log drops too.** `src/api/settings/assistantDutiesApi.js` logs `readDutyList`'s `dropped` for GET and
+   reset, with `console.warn('[settings/assistant-duties] ignored N assistantDuties entries')`, as ADR sub-decision 2
+   asks of every caller.
+6. **Docs.**
+   - BIBLE §15's shape becomes `{ "key": "<kind>" }`, five digits.
+   - BIBLE §11's PUT row says `bad-key` is anything but a five-digit kind.
+
+**Tests (Phase 3, round 2, the Tester's).**
+- **Re-aim** every case that lists a narrower, family, `*` or Concept-`d` key as accepted: L2, L3, L5, L7, L8, L9, R2,
+  O2, O3, W14, and browser B3 and B11.
+- **Add:**
+  - such keys refused with `bad-key` (library, PUT and the generic PUT);
+  - such a key in the settings dropped from GET, the offer and so the self-Map, and logged;
+  - the panel following its duty across a remove or a move (browser);
+  - an empty Another relay refused (browser, and `setRelay` in Node);
+  - the routes' drop log.
+- **Remove** `MAX_KEY_LENGTH` from L1.

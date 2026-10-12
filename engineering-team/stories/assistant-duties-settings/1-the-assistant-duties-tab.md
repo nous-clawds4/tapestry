@@ -24,8 +24,10 @@ on the Settings page. The list is kept on the server in the instance's settings,
 already live. A new instance starts with today's six.
 
 The owner settled at intake (book § Decisions):
-- **Any Treasure Map key can be added**, including a duty this instance does not publish yet, with no warning. This
-  knowingly relaxes the closed book's "Honest rows" rule.
+- **Any kind can be added**, including a duty this instance does not publish yet, with no warning. This knowingly
+  relaxes the closed book's "Honest rows" rule. *(Amended at review round 1, 2026-10-12, book Decision 8: a whole
+  kind, five digits such as `30383`. It was "any Treasure Map key". Your Assistant's Treasure Map reads offers by kind,
+  so a narrower key such as `30382:rank` or a family key such as `3038x` made the two pages disagree.)*
 - **One list for every Assistant.** The Owner's, each Admin's and each customer's Assistant offer the same duties.
   Scores is no longer held back from anyone. The only visible change is for an Admin who is not also a customer: their
   Assistant's menu now offers Scores. Inactive customers sign in as guests and cannot open the Assistant pages, today
@@ -68,20 +70,23 @@ offers without anyone changing code.
     and Concepts `39998` and `39999`, in that order, each at **This instance's relay**.
   - With that list, the Owner's Duty Menu offers exactly what it offers today.
 - [ ] **AC-3: adding a duty.**
-  - The Owner or an Admin enters a Treasure Map key and a relay (**This instance's relay** by default, or a typed
-    relay) and adds it. It joins the end of the list and is saved.
-  - The key is kept in the form readers normalize it to (`duty-menus.md` § 5.3), and the tab shows that form.
+  - The Owner or an Admin enters a kind (five digits, such as `30383`) and a relay (**This instance's relay** by
+    default, or a typed relay) and adds it. It joins the end of the list and is saved. Spaces around the kind are
+    ignored.
   - Refused, with the reason shown and nothing saved:
-    - a key readers would drop: a kind slot that is not a Treasure Map kind slot, and `39998:` and `39999:`
-      (§ 5.3);
-    - a key already on the list, after normalization;
+    - anything but a whole kind: a narrower key (`30382:rank`), a family key (`3038x`), `*`, a Concept key with a
+      `d` (`39999:my-list`), or anything that is not five digits *(amended at review round 1, 2026-10-12, book
+      Decision 8; it was "a key readers would drop")*;
+    - a kind already on the list;
     - a typed relay that is not a `wss://` or `ws://` address;
     - a typed relay others cannot reach, such as a local or private address.
 - [ ] **AC-4: removing, changing a relay, reordering, and resetting.**
   - **Removing.** Any duty can be removed, including all of them. An empty list is saved, and every menu then offers
     no duties.
   - **Changing a relay.** A duty's relay can be changed between **This instance's relay** and a typed relay, under
-    AC-3's relay rules.
+    AC-3's relay rules. Choosing **Another relay** with the field left empty is refused, as it is when adding. The
+    relay saved is always that duty's own, whatever else was moved or removed while the change was open *(both
+    added at review round 1, 2026-10-12)*.
   - **Reordering.** The duties can be put in any order by dragging. The same moves can be made from the keyboard
     alone.
   - **Resetting.** **Reset to defaults**, once confirmed, puts back AC-2's six in their order.
