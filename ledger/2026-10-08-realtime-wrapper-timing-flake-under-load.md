@@ -54,3 +54,9 @@ suite then passed alone 24/0, three times out of three, and the full rerun `2026
 - **The failing run:** `20261012T022448Z-19090-8004`. RW7, "node exits 1": the first restart came at 0.77 s, below the
   0.8 s floor (starts at `[0, 0.77, 2.8]` s).
 - **Afterwards:** the suite passed alone (24/0), and the full rerun `20261012T023059Z-20536-2e11` passed (5753/0).
+
+**Occurrence, 2026-10-12** (review of `duty-menus-and-self-maps` #3, round 2).
+- **The failing run:** `20261012T031805Z-5307-95e8 [duty-menus-3-review-r2]`, on `11cc0008`. RW7, "node exits 1": the
+  first restart came at 0.77 s (starts `[0, 0.77, 2.81]` s). The Reviewer's Python model runs were on the same machine.
+- **Afterwards:** the suite passed alone (24/0), and the quiet full rerun `20261012T032424Z-11118-3178` passed
+  (5744/0).

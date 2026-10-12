@@ -1,6 +1,6 @@
 # Story 3: Self-Maps
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-11
 **Type:** Doc
 

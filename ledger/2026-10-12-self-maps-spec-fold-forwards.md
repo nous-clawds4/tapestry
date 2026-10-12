@@ -72,3 +72,22 @@ Consequences of A2 ("Not in A2") rather than from the review: Treasure Maps § 5
 keeps every list of a provider's under the scope, retracted Lists included, and § 3's Enumerating line (:95) points at
 it. Whether it drops a retraction that § 7 (:304) reads as no copy is open, for story 4 or a later docs pass. The row
 stays OPEN.
+
+**Note, 2026-10-12 (story 3, review round 2).** Two more items, numbered as the review's findings:
+19. Trusted Lists and Spawning read two ways on whether a List that is still maintained but has no members carries
+    `["status", "retracted"]`.
+    - Trusted Lists replaces "a list that no longer has members" with the marker event (`trusted-lists.md`:71–73).
+      Spawning gives `status` only "on retirement" (`spawning.md`:28, :160, § 5's Refresh against Retire).
+    - The reference publisher marks only a removed pin or a migration off a kind
+      (`src/api/trustedList/refreshPinnedTags.js`:197–232 against :270–298; `refreshApplicabilityLists.js`:61–73).
+    - Under Treasure Maps § 7 (:304), a reader without self-Maps reads the two forms differently: the marked form as no
+      copy (the next Alternate's List), the unmarked form as A's empty List while it is young enough to accept.
+    - Settle the rule in Trusted Lists or Spawning. If such a List carries no marker, note that ADR 0003 A2's case (e)
+      arises only for a publisher that marks a live empty List (review NB19).
+20. Treasure Maps § 9.2, What the allowance rests on, second case (:414). Make it "until the key has read a change to the
+    observer's Map or supported sets". A re-pin is a change to the supported sets (Pin-based lists, § 8), not to the
+    kind 10040. Until the key restarts the List, a reader that holds the sets takes its old retraction as a maintained
+    List with no members (:304, :405). The same gap already applied to Scores and Concepts. Optionally, say so in the
+    third case (review NB20).
+
+The row stays OPEN.

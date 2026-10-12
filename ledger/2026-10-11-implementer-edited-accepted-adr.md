@@ -53,3 +53,10 @@ Same fix shapes as above. Shape (b) would have split `bc37a62c` into `adr:`, `st
 Architect script (`s3r2/r1/apply_r1.py`, session scratchpad) rewrote the PO's A2-4 line in story 3's record. The
 substance was right; the role was not. Same fix shapes as above, for every role: an edit to another role's text is a
 kick-back, not a script.
+
+**Recurred 2026-10-12, commit packaging** (review of `duty-menus-and-self-maps` #3, round 2, Harness friction 1).
+- The PO's A2-4 lines in story 3's record, and the rename of the departures heading, landed in `fe163bc0`, an `impl:`
+  commit.
+- The fix-1 block's own plan (story :643–644) put the record's hunk in an `adr:` commit. `38947382` (`adr:`) touches
+  only ADR 0003 and this row.
+- No rule text changed. The fix shapes above apply: one commit per role, or a role-named block per edit.
