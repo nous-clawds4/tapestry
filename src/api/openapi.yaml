@@ -337,7 +337,21 @@ paths:
         relays (at most 50 of them), where the newest found counts. It must be a menu by § 6.1, or it is null; `current` says whether the two have the same rows (null when unfinished). The
         action is `done` when a menu was found and it is current, `pending` when a finished check found none or an out
         of date one, and unfinished with `reason: no-relay-answered` when no relay answered, the local relay included;
-        a check that throws answers `reason: check-failed` without failing the others. Without a session it answers
+        a check that throws answers `reason: check-failed` without failing the others. `treasure-map` (assistant-self-map
+        ADR 0001): the assistant's self-Map, its own kind 10040 entries naming itself (treasure-maps.md § 9.2).
+        `duties` lists the duties the viewer's newest Treasure Map (`mapFound`) gives the assistant, one item per Map
+        key with one line per part: `active` (live and claimed), `offered` (with a `reason`), `not-offered`, or
+        `elsewhere` (a more specific key gives it to another Assistant); `falseClaim` marks a part the found self-Map
+        claims that is not live. Live is read from what has landed: Scores when the assistant's newest 30382 in this
+        instance's relay is younger than twice the shortest enabled schedule that re-signs them (`not-scheduled`,
+        `upkeep-stopped` with `lastLandedAt` in seconds, `not-landed` otherwise); Concepts from the assistant's 39998
+        headers at their relay; Lists never yet (`older-form`, `not-published-here`). `shouldSay` is the self-entries
+        the self-Map should hold now (key and relay); `published` is the self-Map found (`selfEntries`, the count of
+        `otherEntries`, `createdAt`, `source`, `eventId`), this instance's relay first, then one outside round, or null;
+        `current` says whether the two match. `instanceMap` is true for the Owner, whose assistant's Map is also this
+        instance's own. Done when finished and current, pending when finished and not; unfinished with
+        `no-relay-answered` when a relay it needed did not answer, or `instance-unanswered` when this instance's own
+        relay could not be read. Without a session it answers
         `{ success: true, signedIn: false }`; with a session but no assistant here, `hasAssistant: false`.
       responses:
         '200':
@@ -362,7 +376,7 @@ paths:
                         done: { type: boolean }
                         pending: { type: boolean }
                         category: { type: string, enum: [scores, lists, concepts], description: 'trusted-assertions, trusted-lists, dlists: the Treasure Map category' }
-                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays; duty-menu: no-relay-answered), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
+                        reason: { type: string, nullable: true, description: 'why the check did not finish (outbox-relays; duty-menu: no-relay-answered; treasure-map: no-relay-answered, instance-unanswered), or check-failed (any action); trusted-assertions, trusted-lists, dlists: why not done' }
                         source: { type: string, nullable: true, description: 'outbox-relays: local or relay; trusted-assertions, trusted-lists, dlists: where the Map was found (local, relay, or null)' }
                         shared: { type: string, nullable: true, enum: [partly, entirely], description: 'trusted-assertions, trusted-lists, dlists: when done, whether another Assistant holds the category beside the viewer''s own (partly) or instead of it (entirely); null otherwise' }
                         createdAt: { type: integer, nullable: true, description: 'outbox-relays: the relay list created_at' }
@@ -381,13 +395,51 @@ paths:
                         published:
                           type: object
                           nullable: true
-                          description: The duty-menu action only — the menu found for the assistant now, or null
+                          description: 'duty-menu: the menu found for the assistant now; treasure-map: the self-Map found; null when none was found'
                           properties:
-                            rows: { type: array, items: { type: object }, description: 'its rows as a reader keeps them, shaped as offer' }
+                            rows: { type: array, items: { type: object }, description: 'duty-menu: its rows as a reader keeps them, shaped as offer' }
+                            selfEntries:
+                              type: array
+                              description: 'treasure-map: the self-Map''s entries naming the assistant, key and relay'
+                              items:
+                                type: object
+                                properties:
+                                  key: { type: string }
+                                  relay: { type: string }
+                            otherEntries: { type: integer, description: 'treasure-map: how many of the event''s entries name other keys or Assistants' }
                             createdAt: { type: integer }
                             source: { type: string, enum: [local, relay] }
                             eventId: { type: string }
-                        current: { type: boolean, nullable: true, description: 'duty-menu: the published menu has the offer''s rows; null when the check did not finish' }
+                        current: { type: boolean, nullable: true, description: 'duty-menu: the published menu has the offer''s rows; treasure-map: the self-Map found says what it should; null when the check did not finish' }
+                        mapFound: { type: boolean, description: 'treasure-map: a Treasure Map was found for the viewer' }
+                        instanceMap: { type: boolean, description: 'treasure-map: the assistant''s Treasure Map is also this instance''s own (the Owner)' }
+                        duties:
+                          type: array
+                          description: 'treasure-map: the duties the viewer''s Treasure Map gives the assistant, one item per Map key'
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string }
+                              lines:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    key: { type: string }
+                                    category: { type: string, enum: [scores, lists, concepts] }
+                                    relay: { type: string, nullable: true, description: 'the offer''s relay on active and offered lines; null otherwise' }
+                                    status: { type: string, enum: [active, offered, not-offered, elsewhere] }
+                                    reason: { type: string, nullable: true, enum: [live-unclaimed, not-published-here, older-form, nothing-to-publish, not-landed, not-scheduled, upkeep-stopped, unchecked] }
+                                    lastLandedAt: { type: integer, nullable: true, description: 'upkeep-stopped: the newest landing, in seconds' }
+                                    falseClaim: { type: boolean }
+                        shouldSay:
+                          type: array
+                          description: 'treasure-map: the self-entries the self-Map should hold now'
+                          items:
+                            type: object
+                            properties:
+                              key: { type: string }
+                              relay: { type: string }
                         hasProfile:
                           type: boolean
                           nullable: true

@@ -90,8 +90,8 @@ export const ASSISTANT_ACTIONS = [
     planningNotes: null,
   },
   // Duty Menu (assistant-duty-cards #1; checked, with its own page, since assistant-duty-menu #1, ADR 0001
-  // sub-decision 6) and Your Assistant's Treasure Map, a placeholder while book duty-menus-and-self-maps ratifies the
-  // protocol behind it (assistant-duty-cards #1, ADR 0001).
+  // sub-decision 6) and Your Assistant's Treasure Map (assistant-duty-cards #1; checked, with its own page, since
+  // assistant-self-map #1, ADR 0001 sub-decision 9).
   {
     key: 'duty-menu',
     section: 'persona',
@@ -107,8 +107,8 @@ export const ASSISTANT_ACTIONS = [
     path: `${ASSISTANT_MANAGEMENT_PATH}/treasure-map`,
     title: "Your Assistant's Treasure Map",
     description: ['Your Assistant keeps its own Treasure Map (kind 10040), naming itself as its own Assistant, to show which duties it is publishing right now. If you move a duty to this Assistant and it is already publishing it, the switch takes effect right away instead of waiting for a first computation.'],
-    alertCriteria: null,
-    planningNotes: 'Your Assistant will tell the world which duties it is actively managing by publishing its own Treasure Map, in which it acts as its own Assistant. The protocol is still being written; this page will be built once it is settled.',
+    alertCriteria: "If your Assistant's self-Map is missing, or says anything other than the duties that are live now.",
+    planningNotes: null,
   },
   {
     key: 'trusted-assertions',
@@ -267,8 +267,12 @@ export const ASSISTANT_ALERT_COPY = {
   button: 'Manage Assistant →',
 };
 
-/** The count line on the page, and the pill's count. */
+/**
+ * The count line on the page, and the pill's count. At zero the hub's line has its own words (assistant-self-map #1
+ * AC-5); the pill draws only above zero.
+ */
 export function attentionCountText(n) {
+  if (n === 0) return 'Nothing needs attention';
   return n === 1 ? '1 action needs attention' : `${n} actions need attention`;
 }
 
@@ -281,16 +285,18 @@ export function plainText(parts) {
  * The actions whose "needs attention" answer is real — computed by GET /api/assistant/attention for the viewer's own
  * assistant (ADR assistant-identification-tags/0001 sub-decision 6; the profile since ADR assistant-profile-checklist/0001,
  * the outbox relays since assistant-outbox-relays #1, Scores, Lists and Concepts since assistant-trusted-content-status
- * #1, the Duty Menu since assistant-duty-menu #1) — as opposed to the placeholders, which count everywhere until their
- * check is built. An action joins this list when its check ships, in ASSISTANT_ACTIONS order.
+ * #1, the Duty Menu since assistant-duty-menu #1, Your Assistant's Treasure Map since assistant-self-map #1) — as opposed
+ * to the placeholders, which count everywhere until their check is built. An action joins this list when its check
+ * ships, in ASSISTANT_ACTIONS order.
  */
-export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'duty-menu', 'trusted-assertions', 'trusted-lists', 'dlists'];
+export const CHECKED_ACTIONS = ['profile', 'identification-tags', 'outbox-relays', 'duty-menu', 'treasure-map', 'trusted-assertions', 'trusted-lists', 'dlists'];
 
 /**
  * The actions that are not built yet and say so (assistant-coming-soon #1, the owner's choice of 2026-10-12): each card
  * shows a muted "Coming soon" pill, for every viewer, and is never marked or counted, as the background image panel on
  * /assistant/profile is listed but never counted. Every other action without a check is a placeholder, marked and counted
- * until its check is built (today Your Assistant's Treasure Map). In ASSISTANT_ACTIONS order.
+ * until its check is built (none since assistant-self-map #1 built Your Assistant's Treasure Map). In ASSISTANT_ACTIONS
+ * order.
  */
 export const COMING_SOON_ACTIONS = ['bounties', 'pins', 'tags', 'notifications-and-alerts', 'preferences'];
 

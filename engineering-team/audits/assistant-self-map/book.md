@@ -235,6 +235,9 @@ From the owner's ask and the facts above; the Architect decides.
   - One item to watch: ADR 0004 would have readers MUST ignore a Map entry keyed `39998:` or `39999:`, as if absent.
     ADR 0001 shows such an entry as an `unchecked` line. No test pins that case. If 0004 is accepted, the Implementer
     drops those entries from the duties, and the Reviewer checks it.
+- **Recheck at Implementation (2026-10-12, `origin/staging` still at `00341d7e`).** `git merge-tree` is clean;
+  `protocols/` is unchanged; ADR 0004 is still Proposed (revision 2), so `39998:`/`39999:` entries stay `unchecked`
+  lines as ADR 0001 says, and the watch item above carries to Review.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

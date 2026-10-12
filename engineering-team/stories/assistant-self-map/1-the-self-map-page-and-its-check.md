@@ -264,6 +264,13 @@ Architecture"), with seven ACs kept as one story.
 - **No List is claimed on this instance** until its Lists take Treasure Maps `d` tags (ADR 0001 open question 2,
   owner: (a); ledger row `2026-10-12-list-d-tags-not-treasure-maps`). This follows AC-2's "live" rule; it is listed
   here because it means no List line is ever **Active** yet.
+- **Implementation judgment calls** (Implementation, 2026-10-12; no word of § Copy changed):
+  - "Not kept up to date: last landed <date>." shows the date as the month written out, the day and the year, in UTC
+    (e.g. "June 7, 2026"), so every viewer reads the same day.
+  - When the check did not finish, the duties and should-say panels show only their explainers: the published panel's
+    reason is the one line, as on the Duty Menu page. Part-read duties could otherwise read as "no duties".
+  - Self-entries (should-say and published) show their category too, read from the key as the Duty Menu page reads it,
+    so they line up with the duties panel.
 
 ## Linked artifacts
 
