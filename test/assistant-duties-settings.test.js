@@ -418,7 +418,9 @@ test('R3: a refused PUT answers 400 { success: false, code, index } with the rul
     ['a bad key', { duties: [{ key: '30382' }, { key: 'abc' }] }, 'bad-key', 1],
     ['a narrower key (Amendment 1)', { duties: [{ key: '30382:rank' }] }, 'bad-key', 0],
     ['a family key (Amendment 1)', { duties: [{ key: '30392' }, { key: '3039x' }] }, 'bad-key', 1],
-    ['a duplicate', { duties: [{ key: '30382' }, { key: '30382::' }] }, 'duplicate-key', 1],
+    // Re-aimed for Amendment 1 (missed in round 2's test design): '30382::' is refused as bad-key before it can be a
+    // duplicate, so the duplicate is the same kind after trimming, as in L6.
+    ['a duplicate', { duties: [{ key: '30382' }, { key: ' 30382 ' }] }, 'duplicate-key', 1],
     ['an https relay', { duties: [{ key: '30382', relay: 'https://typed.example' }] }, 'bad-relay', 0],
     ['a private relay', { duties: [{ key: '30382', relay: 'ws://192.168.0.4' }] }, 'private-relay', 0],
     ['too many', { duties: many }, 'too-many', null],
