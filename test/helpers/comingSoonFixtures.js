@@ -23,16 +23,20 @@ const CARDS = [
 const KEYS = CARDS.map((c) => c.key);
 const PATHS = CARDS.map((c) => c.path);
 
-/** The one hub action without a check that is still marked and counted (story AC-4; the owner kept it at intake). */
-const STILL_PLACEHOLDER = 'treasure-map';
+/**
+ * The one hub action this book left as it was (story AC-4; the owner kept it at intake): Your Assistant's Treasure Map.
+ * Renamed from STILL_PLACEHOLDER by assistant-self-map #1, which built its page and check (ADR 0001 sub-decision 9).
+ */
+const LEFT_ALONE = 'treasure-map';
 
 /** The words (story § Copy). The pill's are the background image panel's, PROFILE_CHECKLIST_COPY.comingSoon. */
 const COPY = {
   pill: 'Coming soon',
   srPrefix: 'Coming soon: ',
   pageLine: 'Coming soon.',
-  // Unchanged, on every other page the placeholder component serves (Your Assistant's Treasure Map's among them).
+  // Unchanged, on every other page the placeholder component serves (Your Assistant's Treasure Map's until
+  // assistant-self-map #1 built its page).
   placeholder: 'Placeholder page.',
 };
 
-module.exports = { HUB, CARDS, KEYS, PATHS, STILL_PLACEHOLDER, COPY };
+module.exports = { HUB, CARDS, KEYS, PATHS, LEFT_ALONE, COPY };

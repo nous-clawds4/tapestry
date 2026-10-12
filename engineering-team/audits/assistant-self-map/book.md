@@ -204,6 +204,13 @@ From the owner's ask and the facts above; the Architect decides.
 
 **Standard, all five phases** (Decision 5).
 
+**Branch** (the owner, 2026-10-12, at story 1's Test Design gate):
+- This book develops on `feat/assistant-self-map`.
+- Each story reaches `staging` by a PR after its Review passes, through `/cycle-staging`.
+- So the failing tests of Test Design and unreviewed code stay off the shared line. That is fix shape (a) of ledger
+  row `2026-10-07-staging-sessions-push-red-tests`.
+- Intake and Planning documents for story 1 were pushed to `staging` before this choice.
+
 ## Shared lines
 
 - **Book `duty-menus-and-self-maps` is open, docs only.** At intake (2026-10-12, `origin/staging` at `8c5973ab`):
@@ -220,6 +227,27 @@ From the owner's ask and the facts above; the Architect decides.
   closed at `92eb023a`.
 - **`/treasure-map`'s cards** (`ui/src/pages/treasure-map/`) and `src/lib/treasureMapCategories.mjs`, for the badges
   and the self-entry reading.
+- **Recheck at Test Design (2026-10-12, `origin/staging` at `00341d7e`).**
+  - `protocols/` is unchanged since this book's intake read.
+  - Story 4 of `duty-menus-and-self-maps` drafted its ADR 0004 (proposed, revision 2). Its 1(a) agrees with ADR
+    `assistant-self-map/0001` sub-decision 4 word for word: a bare `39998` covers every Concept key, and `39999` beats
+    `39998`. So test U19 stands.
+  - One item to watch: ADR 0004 would have readers MUST ignore a Map entry keyed `39998:` or `39999:`, as if absent.
+    ADR 0001 shows such an entry as an `unchecked` line. No test pins that case. If 0004 is accepted, the Implementer
+    drops those entries from the duties, and the Reviewer checks it.
+- **Recheck at Implementation (2026-10-12, `origin/staging` still at `00341d7e`).** `git merge-tree` is clean;
+  `protocols/` is unchanged; ADR 0004 is still Proposed (revision 2), so `39998:`/`39999:` entries stay `unchecked`
+  lines as ADR 0001 says, and the watch item above carries to Review.
+- **Recheck at Review round 2 (2026-10-12, `origin/staging` at `7ab2c955`).**
+  - `git merge-tree` is clean, and staging changed no code.
+  - `duty-menus-and-self-maps` #4 is done and **ADR 0004 is Accepted**. `treasure-maps.md` §§ 4.4–4.6, 6 and 9.2 changed:
+    - `39998:`/`39999:` are not keys, and readers MUST ignore such entries;
+    - `39999:dlist-header` names no Concept;
+    - `39999` beats `39998`, confirming ADR 0001's Concept reading;
+    - § 9.2 Ties now says none arise.
+  - **The watch item above fired.** Story 1's round-2 review requires the drop (R2-B1).
+  - That book's story 5 (the rules that keep a self-Map true, docs) is approved. It bears on this book's stories 2 and 3
+    (turning the self-Map off, and keeping it true): reread it before they are planned.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

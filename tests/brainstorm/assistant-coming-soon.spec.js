@@ -5,6 +5,7 @@ const P = require('../../test/helpers/profileChecklistFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
+const SM = require('../../test/helpers/selfMapFixtures');
 
 /**
  * assistant-coming-soon #1 — Coming soon: what a viewer SEES on the hub and on the five pages.
@@ -50,9 +51,12 @@ const ALL_DONE = {
   actions: {
     'identification-tags': ID_DONE, profile: P.PROFILE_DONE, [O.KEY]: O.OUTBOX.DONE, [DM.KEY]: DM.ANSWERS.DONE,
     ...TC.trio((c) => TC.done(c)),
+    // Re-aimed by assistant-self-map #1: the Treasure Map card is checked now. Pending (its self-Map not published), it
+    // is marked and counted as the placeholder was, so CS1 and CS3–CS6 keep their numbers.
+    [SM.KEY]: SM.ANSWERS.NOT_PUBLISHED,
   },
 };
-const TREASURE_MAP = X.ACTIONS.find((a) => a.path === `${CS.HUB}/${CS.STILL_PLACEHOLDER}`);
+const TREASURE_MAP = X.ACTIONS.find((a) => a.path === `${CS.HUB}/${CS.LEFT_ALONE}`);
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 const squash = (s) => String(s || '').replace(/\s+/g, ' ').trim();
@@ -132,7 +136,7 @@ test.describe('Coming soon (assistant-coming-soon #1)', () => {
     if (process.env.BRAINSTORM_SERVER_ACCESSIBLE !== 'true') test.skip('Brainstorm server not accessible (set BRAINSTORM_SERVER_ACCESSIBLE=true)');
   });
 
-  test('CS1: every check done — the five say Coming soon, with no mark and no Done; Your Assistant\'s Treasure Map is marked; the count line and the pill say 1 (AC-1, AC-2, AC-4)', async ({ page }) => {
+  test('CS1: every other check done — the five say Coming soon, with no mark and no Done; Your Assistant\'s Treasure Map, its self-Map not published (assistant-self-map #1), is marked; the count line and the pill say 1 (AC-1, AC-2, AC-4)', async ({ page }) => {
     await mock(page);
     await open(page, X.HUB);
     for (const c of CS.CARDS) expect(await cardState(page, c.path), c.title).toEqual(COMING_SOON);
@@ -143,13 +147,15 @@ test.describe('Coming soon (assistant-coming-soon #1)', () => {
     expect(await pillCount(page), 'the pill').toBe(1);
   });
 
-  test('CS2: the answer fails — the count line says 8 (the seven checked cards and the Treasure Map card), the pill 1; the five are unmarked, with their pill (AC-2)', async ({ page }) => {
+  // Re-aimed by assistant-self-map #1: the Treasure Map card is the eighth checked card, so no placeholder is left to count.
+  test('CS2: the answer fails — the count line says 8 (the eight checked cards), and no pill shows: nothing is left to count; the five are unmarked, with their pill (AC-2)', async ({ page }) => {
     await mock(page, { attention: { status: 500 } });
     await open(page, X.HUB);
     for (const c of CS.CARDS) expect(await cardState(page, c.path), c.title).toEqual(COMING_SOON);
     expect(await hubCount(page), 'the count line').toBe(8);
     await expect(page.locator('main').first().getByText(X.COPY.needsAttention, { exact: true }), 'eight cards are marked').toHaveCount(8);
-    expect(await pillCount(page), 'the pill counts the Treasure Map card only').toBe(1);
+    await open(page, '/about');
+    await expect(pillOf(page), 'no pill: nothing is counted').toHaveCount(0);
   });
 
   test('CS3: a screen reader hears "Coming soon: <title>" for the five and "Needs attention: …" for the Treasure Map card; the visible pill is hidden from it (AC-1, AC-4)', async ({ page }) => {
@@ -228,7 +234,7 @@ test.describe('Coming soon (assistant-coming-soon #1)', () => {
     await expect.poll(() => new URL(page.url()).pathname, { message: 'a click on the card opens its page' }).toBe(bounties.path);
   });
 
-  test('CS7: the five pages say "Coming soon." and not "Placeholder page.", with the title, description, alert criteria and planning notes unchanged; Your Assistant\'s Treasure Map page still says "Placeholder page." (AC-3, AC-4)', async ({ page }) => {
+  test('CS7: the five pages say "Coming soon." and not "Placeholder page.", with the title, description, alert criteria and planning notes unchanged; Your Assistant\'s Treasure Map page, which this book left alone, says neither since assistant-self-map #1 built it (AC-3, AC-4)', async ({ page }) => {
     await mock(page);
     for (const c of CS.CARDS) {
       const a = X.ACTIONS.find((x) => x.path === c.path);
@@ -241,8 +247,10 @@ test.describe('Coming soon (assistant-coming-soon #1)', () => {
       await expect(main.getByText(X.NOT_YET_DEFINED, { exact: true }), `${c.path}: the alert criteria`).toBeVisible();
       if (a.planningNotes) await expect(main.getByText(a.planningNotes, { exact: true }), `${c.path}: the planning notes`).toBeVisible();
     }
+    // Re-aimed by assistant-self-map #1: that page is built now (tests/brainstorm/assistant-self-map.spec.js pins it).
     const main = await open(page, TREASURE_MAP.path, 800);
-    await expect(main.locator('strong', { hasText: CS.COPY.placeholder }), 'the Treasure Map page is unchanged').toHaveText(CS.COPY.placeholder);
+    await expect(main.getByRole('heading', { level: 1 }), 'the Treasure Map page has its title').toHaveText(TREASURE_MAP.title);
+    await expect(main.getByText(CS.COPY.placeholder, { exact: true }), 'no "Placeholder page."').toHaveCount(0);
     await expect(main.getByText(CS.COPY.pageLine, { exact: true })).toHaveCount(0);
   });
 });

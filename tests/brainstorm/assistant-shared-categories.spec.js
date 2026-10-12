@@ -4,6 +4,7 @@ const P = require('../../test/helpers/profileChecklistFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
+const SM = require('../../test/helpers/selfMapFixtures');
 
 /**
  * assistant-shared-categories #1 — Done, but shared: what a viewer SEES on the hub.
@@ -58,7 +59,9 @@ const OWNERS_TRIO = {
 };
 const answerWith = (trio) => ({
   success: true, signedIn: true, hasAssistant: true,
-  actions: { 'identification-tags': ID_DONE, profile: P.PROFILE_PENDING, [O.KEY]: O.OUTBOX.PENDING, [DM.KEY]: DM.ANSWERS.NONE, ...trio },
+  // Re-aimed by assistant-self-map #1: the Treasure Map card is checked now; pending (not published), it marks and counts
+  // as the placeholder did, so OTHERS still holds.
+  actions: { 'identification-tags': ID_DONE, profile: P.PROFILE_PENDING, [O.KEY]: O.OUTBOX.PENDING, [DM.KEY]: DM.ANSWERS.NONE, [SM.KEY]: SM.ANSWERS.NOT_PUBLISHED, ...trio },
 });
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });

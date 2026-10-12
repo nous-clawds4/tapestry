@@ -23,26 +23,14 @@
  * source does not pack per-entry resolved data into the job template.
  */
 
-const fs = require('fs');
 const taskQueue = require('./index'); // getQueue, getAllQueues — per-task BullMQ queues (ADR 0012)
 const { resolveTaskTimeout } = require('../../../utils/taskTimeout');
 
-const QUEUE_CONFIG_PATH = '/etc/brainstorm-task-queue.json';
 const SCHEDULER_PREFIX = 'sched:';
 
-/**
- * Kill-switch (ADR 0019 Q1). /etc/brainstorm-task-queue.json { "scheduler": false }
- * halts all scheduling. Default true (absent/unreadable → on).
- */
-function schedulerEnabled() {
-  try {
-    if (fs.existsSync(QUEUE_CONFIG_PATH)) {
-      const raw = JSON.parse(fs.readFileSync(QUEUE_CONFIG_PATH, 'utf8'));
-      if (raw && raw.scheduler === false) return false;
-    }
-  } catch (_e) { /* default on */ }
-  return true;
-}
+// The kill switch (ADR 0019 Q1) lives in ./schedulerSwitch so a reader can ask it without loading BullMQ
+// (ADR assistant-self-map/0001 sub-decision 6); this module re-exports it unchanged.
+const { schedulerEnabled } = require('./schedulerSwitch');
 
 /** schedulerId is now per-entry (ADR 0021), not per-task (ADR 0019). */
 function schedulerId(entryId) { return `${SCHEDULER_PREFIX}${entryId}`; }

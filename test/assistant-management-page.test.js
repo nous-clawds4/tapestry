@@ -234,7 +234,7 @@ test('D5: the FAQ is the owner\'s five questions and answers, in order — with 
   assert(wrong.length === 0, `story 1 § Copy (the FAQ): ${wrong.join('; ')}`);
 });
 
-test('D6: the count reads "10 actions need attention", and "1 action needs attention" for one (AC-2; the pill says the same, story 2)', async () => {
+test('D6: the count reads "10 actions need attention", "1 action needs attention" for one, and "Nothing needs attention" at zero (AC-2; the pill says the same, story 2; zero re-aimed by assistant-self-map #1)', async () => {
   const countText = need(await actionsModule(), 'attentionCountText');
   assert(typeof countText === 'function', 'attentionCountText must be a function of n');
   for (const n of [10, 1, 2, 0]) {

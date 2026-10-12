@@ -85,7 +85,7 @@ const pick = (r) => r && { needsAttention: r.needsAttention, done: r.done, share
 
 /* ───────────────────────── C — the data module ───────────────────────── */
 
-test('C1: COMING_SOON_ACTIONS is exactly the five, in ASSISTANT_ACTIONS order — each a real action, none checked — and Your Assistant\'s Treasure Map is in neither list (AC-1, AC-4; Design note)', async () => {
+test('C1: COMING_SOON_ACTIONS is exactly the five, in ASSISTANT_ACTIONS order — each a real action, none checked — and Your Assistant\'s Treasure Map, which this book left alone, is not Coming soon: it is a checked action since assistant-self-map #1 (AC-1, AC-4; Design note)', async () => {
   const mod = await actionsModule();
   const list = mod.COMING_SOON_ACTIONS;
   assert(Array.isArray(list), `actions.js must export COMING_SOON_ACTIONS (an array of keys), got ${show(list)}`);
@@ -98,8 +98,9 @@ test('C1: COMING_SOON_ACTIONS is exactly the five, in ASSISTANT_ACTIONS order �
     if (!keys.includes(k)) wrong.push(`${k} is not an action`);
     if (mod.CHECKED_ACTIONS.includes(k)) wrong.push(`${k} is a checked action too`);
   }
-  if (list.includes(CS.STILL_PLACEHOLDER)) wrong.push(`${CS.STILL_PLACEHOLDER} is left as it is (the owner, at intake)`);
-  if (mod.CHECKED_ACTIONS.includes(CS.STILL_PLACEHOLDER)) wrong.push(`${CS.STILL_PLACEHOLDER} has no check yet`);
+  if (list.includes(CS.LEFT_ALONE)) wrong.push(`${CS.LEFT_ALONE} is left as it is (the owner, at intake)`);
+  // Re-aimed by assistant-self-map #1 (ADR 0001 sub-decision 9): the card this book left alone has its check now.
+  if (!mod.CHECKED_ACTIONS.includes(CS.LEFT_ALONE)) wrong.push(`${CS.LEFT_ALONE} is a checked action since assistant-self-map #1`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -117,15 +118,16 @@ test('C2: the words — ASSISTANT_COPY.comingSoon is the background image panel\
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C3: AC-2\'s table — every check done: the Treasure Map card alone, 1 and 1 (was 6 and 6); failed, not answered, checking or no answer yet: 8 marked (the seven checked and the Treasure Map card), 1 in the pill (was 13 and 6) (AC-2)', async () => {
+test('C3: AC-2\'s table, re-aimed by assistant-self-map #1 (the Treasure Map card is checked now, so no placeholder is left) — every check done: nothing marked, 0 and 0 (was 1 and 1); failed, not answered, checking or no answer yet: 8 marked (the eight checked), 0 in the pill (was 1) (AC-2)', async () => {
   const mod = await actionsModule();
   const summarize = (await uiUtil()).summarizeAttention;
   const { keys, placeholders } = expected(mod);
   const wrong = [];
+  if (placeholders.length !== 0) wrong.push(`no placeholder is left, got ${show(placeholders)}`);
   // Every check done.
   const done = mod.assistantAttention(USER, answered(allCheckedDone(mod)));
   if (show(done.needsAttention) !== show(placeholders)) wrong.push(`every check done: marked want ${show(placeholders)}, got ${show(done.needsAttention)}`);
-  if (done.count !== 1 || done.alertCount !== 1) wrong.push(`every check done: count and pill want 1 and 1, got ${done.count} and ${done.alertCount}`);
+  if (done.count !== 0 || done.alertCount !== 0) wrong.push(`every check done: count and pill want 0 and 0, got ${done.count} and ${done.alertCount}`);
   if (show(done.done) !== show(mod.CHECKED_ACTIONS)) wrong.push(`every check done: Done want ${show(mod.CHECKED_ACTIONS)}, got ${show(done.done)}`);
   // Not in yet, or failed.
   for (const [label, att] of [
@@ -137,7 +139,7 @@ test('C3: AC-2\'s table — every check done: the Treasure Map card alone, 1 and
     const got = att === undefined ? mod.assistantAttention(USER) : mod.assistantAttention(USER, att);
     if (show(got.needsAttention) !== show(keys)) wrong.push(`${label}: marked want ${show(keys)}, got ${show(got.needsAttention)}`);
     if (got.count !== 8) wrong.push(`${label}: the count line want 8, got ${got.count}`);
-    if (got.alertCount !== 1) wrong.push(`${label}: the pill want 1, got ${got.alertCount}`);
+    if (got.alertCount !== 0) wrong.push(`${label}: the pill want 0, got ${got.alertCount}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -166,27 +168,21 @@ test('C4: an answer that says anything about one of the five changes nothing —
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C5 (sentinel): Your Assistant\'s Treasure Map card is still marked and counted in both readings, in every state of the answer, and an answer about it changes nothing (AC-4)', async () => {
+test('C5 (sentinel), re-aimed by assistant-self-map #1: Your Assistant\'s Treasure Map card, which this book left alone, reads as any checked action now — marked and never counted until answered; done: unmarked, Done, not counted; pending: marked and counted (AC-4; ADR assistant-self-map/0001 sub-decision 9)', async () => {
   const mod = await actionsModule();
   const summarize = (await uiUtil()).summarizeAttention;
-  const k = CS.STILL_PLACEHOLDER;
+  const k = CS.LEFT_ALONE;
   const wrong = [];
-  // In these states no checked action is pending, so the pill counts placeholders only: the Treasure Map card among them.
-  for (const [label, att] of [
-    ['no answer', undefined],
-    ['failed', summarize(null)],
-    ['every check done', answered(allCheckedDone(mod))],
-  ]) {
+  for (const [label, att] of [['no answer', undefined], ['failed', summarize(null)]]) {
     const got = att === undefined ? mod.assistantAttention(USER) : mod.assistantAttention(USER, att);
     if (!got.needsAttention.includes(k)) wrong.push(`${label}: ${k} is marked`);
-    if ((got.done || []).includes(k)) wrong.push(`${label}: ${k} is never Done`);
-    if (got.alertCount < 1) wrong.push(`${label}: ${k} is counted in the pill, got ${got.alertCount}`);
+    if ((got.done || []).includes(k)) wrong.push(`${label}: ${k} is not Done`);
+    if (got.alertCount !== 0) wrong.push(`${label}: nothing is counted in the pill, got ${got.alertCount}`);
   }
-  const base = mod.assistantAttention(USER, answered(allCheckedDone(mod)));
-  for (const claim of [{ ...DONE }, { finished: true, done: false, pending: true }]) {
-    const got = mod.assistantAttention(USER, answered({ ...allCheckedDone(mod), [k]: claim }));
-    if (show(pick(got)) !== show(pick(base))) wrong.push(`a claim ${show(claim)} about ${k} changes nothing, want ${show(pick(base))}, got ${show(pick(got))}`);
-  }
+  const done = mod.assistantAttention(USER, answered(allCheckedDone(mod)));
+  if (done.needsAttention.includes(k) || !(done.done || []).includes(k) || done.alertCount !== 0) wrong.push(`done: ${k} unmarked, Done, not counted; got ${show(pick(done))}`);
+  const pending = mod.assistantAttention(USER, answered({ ...allCheckedDone(mod), [k]: { finished: true, done: false, pending: true } }));
+  if (!pending.needsAttention.includes(k) || (pending.done || []).includes(k) || pending.alertCount !== 1) wrong.push(`pending: ${k} marked and counted once; got ${show(pick(pending))}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

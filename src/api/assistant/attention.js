@@ -8,8 +8,8 @@
  * which relays are asked.
  *
  * These actions are checked, side by side: `profile`, `identification-tags`, `outbox-relays`, Scores, Lists and
- * Concepts, and `duty-menu`. A check that throws becomes its action's `check-failed` answer and never takes another
- * action with it (except identification-tags, whose failure still fails the answer, as it always has).
+ * Concepts, `duty-menu`, and `treasure-map`. A check that throws becomes its action's `check-failed` answer and never
+ * takes another action with it (except identification-tags, whose failure still fails the answer, as it always has).
  *
  * `profile` (assistant-profile-checklist #1, ADR 0001): seven items of the Assistant's published profile, computed by
  * ./profileChecklist.js.
@@ -48,11 +48,19 @@
  * check is src/api/assistant/dutyMenu.js; it runs beside the others and is isolated the same way: if it throws, it
  * answers `check-failed`.
  *
+ * `treasure-map` (assistant-self-map ADR 0001): the duties the viewer's own Treasure Map gives their Assistant and which
+ * are live (`duties`), what that Assistant's self-Map should say (`shouldSay`: only live duties, each at the relay the
+ * Duty Menu's offer gives it), the self-Map found now (`published`, this instance's relay first), and whether the two
+ * match (`current`). "Live" is read from what has landed at the offer's relay: the Assistant's newest Scores against
+ * twice the shortest enabled schedule interval, and its Concept headers. Done when current; unfinished with
+ * `no-relay-answered` or `instance-unanswered`. The check is src/api/assistant/selfMap.js (the rules are
+ * src/lib/self-map); it runs beside the others and is isolated the same way: if it throws, it answers `check-failed`.
+ *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored anywhere.
  *
  *   no session          → { success: true, signedIn: false }
  *   no assistant here   → { success: true, signedIn: true, hasAssistant: false, actions: {} }
- *   an assistant        → { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': { … }, 'outbox-relays': { … }, profile: { … }, 'duty-menu': { … }, … } }
+ *   an assistant        → { success: true, signedIn: true, hasAssistant: true, actions: { 'identification-tags': { … }, 'outbox-relays': { … }, profile: { … }, 'duty-menu': { … }, 'treasure-map': { … }, … } }
  *   a throw             → 500 { success: false, error: 'Could not check assistant attention' }
  */
 
@@ -71,6 +79,7 @@ const IDENTIFICATION_TAGS = 'identification-tags';
 const OUTBOX_RELAYS = 'outbox-relays';
 const PROFILE = 'profile';
 const DUTY_MENU = 'duty-menu';
+const TREASURE_MAP = 'treasure-map';
 
 /** What the answer says for the outbox action when its check threw (assistant-outbox-relays ADR 0001 sub-decision 5). */
 const OUTBOX_CHECK_FAILED = Object.freeze({
@@ -98,6 +107,8 @@ function defaultDeps() {
     checkTrustedContent: (input, d) => require('./trustedContent').checkTrustedContent(input, d),
     // The Duty Menu (assistant-duty-menu ADR 0001 sub-decision 7), which tests replace.
     checkDutyMenu: (input, d) => require('./dutyMenu').checkDutyMenu(input, d),
+    // Your Assistant's Treasure Map (assistant-self-map ADR 0001 sub-decision 8), which tests replace.
+    checkSelfMap: (input, d) => require('./selfMap').checkSelfMap(input, d),
   };
 }
 
@@ -312,14 +323,15 @@ async function handleAssistantAttention(req, res, deps = {}) {
     if (!assistantPubkey) return res.json({ success: true, signedIn: true, hasAssistant: false, actions: {} });
     // Side by side; one check's failure is its own (assistant-outbox-relays ADR 0001 sub-decision 5;
     // assistant-profile-checklist ADR 0001 sub-decision 6; assistant-trusted-content-status ADR 0001 sub-decision 6;
-    // assistant-duty-menu ADR 0001 sub-decision 7). A failing identification-tags check still fails the answer, as it
-    // always has.
-    const [identificationTags, outboxRelays, profile, trustedContent, dutyMenu] = await Promise.allSettled([
+    // assistant-duty-menu ADR 0001 sub-decision 7; assistant-self-map ADR 0001 sub-decision 8). A failing
+    // identification-tags check still fails the answer, as it always has.
+    const [identificationTags, outboxRelays, profile, trustedContent, dutyMenu, selfMap] = await Promise.allSettled([
       checkIdentificationTags({ viewer, assistantPubkey }, d),
       Promise.resolve().then(() => d.checkOutboxRelays({ assistantPubkey }, d)),
       Promise.resolve().then(() => d.checkProfile({ assistantPubkey }, d)),
       Promise.resolve().then(() => d.checkTrustedContent({ viewer, assistantPubkey }, d)),
       Promise.resolve().then(() => d.checkDutyMenu({ viewer, assistantPubkey }, d)),
+      Promise.resolve().then(() => d.checkSelfMap({ viewer, assistantPubkey }, d)),
     ]);
     if (identificationTags.status === 'rejected') throw identificationTags.reason;
     if (outboxRelays.status === 'rejected') {
@@ -334,6 +346,10 @@ async function handleAssistantAttention(req, res, deps = {}) {
       const err = dutyMenu.reason;
       console.error('[assistant/attention] the Duty Menu check failed:', err && err.message ? err.message : err);
     }
+    if (selfMap.status === 'rejected') {
+      const err = selfMap.reason;
+      console.error('[assistant/attention] the self-Map check failed:', err && err.message ? err.message : err);
+    }
     return res.json({
       success: true,
       signedIn: true,
@@ -343,6 +359,7 @@ async function handleAssistantAttention(req, res, deps = {}) {
         [OUTBOX_RELAYS]: outboxRelays.status === 'fulfilled' ? outboxRelays.value : { ...OUTBOX_CHECK_FAILED },
         [PROFILE]: profile.status === 'fulfilled' ? profile.value : { ...PROFILE_CHECK_FAILED },
         [DUTY_MENU]: dutyMenu.status === 'fulfilled' ? dutyMenu.value : { ...require('./dutyMenu').DUTY_MENU_CHECK_FAILED },
+        [TREASURE_MAP]: selfMap.status === 'fulfilled' ? selfMap.value : { ...require('./selfMap').SELF_MAP_CHECK_FAILED },
         ...trustedContentActions(trustedContent),
       },
     });
@@ -366,4 +383,5 @@ module.exports = {
   OUTBOX_RELAYS,
   PROFILE,
   DUTY_MENU,
+  TREASURE_MAP,
 };

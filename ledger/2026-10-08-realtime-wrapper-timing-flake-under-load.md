@@ -60,3 +60,20 @@ suite then passed alone 24/0, three times out of three, and the full rerun `2026
   first restart came at 0.77 s (starts `[0, 0.77, 2.81]` s). The Reviewer's Python model runs were on the same machine.
 - **Afterwards:** the suite passed alone (24/0), and the quiet full rerun `20261012T032424Z-11118-3178` passed
   (5744/0).
+
+**Occurrence, 2026-10-12** (`assistant-self-map` #1, round 2's Implementation).
+- **The failing run:** `20261012T193441Z-10055-0a6c [self-map-round2-impl]`, on `c5d4032f+dirty`. RW7, "node exits 1"
+  and "node exits 0": the first restart came at 0.77 s (starts `[0, 0.77, 2.78]` and `[0, 0.77, 2.82]` s). The diff
+  touched no wrapper code.
+- **Afterwards:** the suite passed alone (24/0), and the quiet full rerun `20261012T194152Z-17351-913e` passed
+  (5820/0).
+
+**Occurrences, 2026-10-12** (`assistant-self-map` #1, round 3's Test Design). RW7 failed on two full gates in a row, on
+an otherwise idle machine (load average about 0.6 on 4 CPUs, no other job running):
+- `20261012T203251Z-14185-1edf` and `20261012T203934Z-21396-0d34`, both on `6316cb4d+dirty`;
+- the first restart came at 0.77 s both times, for "node exits 1" and for "node exits 0".
+
+The suite passed alone (24/0). This session's tally is 3 failures in 6 full gates, every one at exactly 0.77 s, the
+same reading as the 03:18 occurrence above. A constant 0.77 s looks less like load than like a systematic edge, such as
+the backoff or poll clock against the 0.8 s floor, when the suite runs inside the full gate. That is worth checking
+before widening the window.

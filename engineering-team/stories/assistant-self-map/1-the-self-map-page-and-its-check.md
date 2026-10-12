@@ -1,6 +1,6 @@
 # Story 1: The self-Map page and its check
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Type:** Feature
 **Epic:** `assistant-self-map`
@@ -264,9 +264,16 @@ Architecture"), with seven ACs kept as one story.
 - **No List is claimed on this instance** until its Lists take Treasure Maps `d` tags (ADR 0001 open question 2,
   owner: (a); ledger row `2026-10-12-list-d-tags-not-treasure-maps`). This follows AC-2's "live" rule; it is listed
   here because it means no List line is ever **Active** yet.
+- **Implementation judgment calls** (Implementation, 2026-10-12; no word of § Copy changed):
+  - "Not kept up to date: last landed <date>." shows the date as the month written out, the day and the year, in UTC
+    (e.g. "June 7, 2026"), so every viewer reads the same day.
+  - When the check did not finish, the duties and should-say panels show only their explainers: the published panel's
+    reason is the one line, as on the Duty Menu page. Part-read duties could otherwise read as "no duties".
+  - Self-entries (should-say and published) show their category too, read from the key as the Duty Menu page reads it,
+    so they line up with the duties panel.
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md`
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/assistant-self-map/0001-a-self-map-check-from-what-has-landed.md` (Amendment 1 at Test Design; Amendments 2 and 3 from review rounds 1 and 2)
+- Test plan: `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.test-plan.md`
+- Review: `engineering-team/reviews/assistant-self-map/1-the-self-map-page-and-its-check.md` (rounds 1–3, 2026-10-12)
