@@ -238,6 +238,16 @@ From the owner's ask and the facts above; the Architect decides.
 - **Recheck at Implementation (2026-10-12, `origin/staging` still at `00341d7e`).** `git merge-tree` is clean;
   `protocols/` is unchanged; ADR 0004 is still Proposed (revision 2), so `39998:`/`39999:` entries stay `unchecked`
   lines as ADR 0001 says, and the watch item above carries to Review.
+- **Recheck at Review round 2 (2026-10-12, `origin/staging` at `7ab2c955`).**
+  - `git merge-tree` is clean, and staging changed no code.
+  - `duty-menus-and-self-maps` #4 is done and **ADR 0004 is Accepted**. `treasure-maps.md` §§ 4.4–4.6, 6 and 9.2 changed:
+    - `39998:`/`39999:` are not keys, and readers MUST ignore such entries;
+    - `39999:dlist-header` names no Concept;
+    - `39999` beats `39998`, confirming ADR 0001's Concept reading;
+    - § 9.2 Ties now says none arise.
+  - **The watch item above fired.** Story 1's round-2 review requires the drop (R2-B1).
+  - That book's story 5 (the rules that keep a self-Map true, docs) is approved. It bears on this book's stories 2 and 3
+    (turning the self-Map off, and keeping it true): reread it before they are planned.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

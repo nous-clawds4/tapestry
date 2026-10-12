@@ -225,3 +225,139 @@ Round 2's order, as in `assistant-outbox-relays` #3:
 4. Then this review runs again.
 
 The story stays **Approved** until a later round passes.
+
+---
+
+# Round 2
+
+**Reviewer:** Claude (acting as Reviewer), again with an independent second reader of the code, who wrote nothing and
+ran no gate. Every finding below was reproduced by the lead Reviewer.
+**Date:** 2026-10-12
+**Diff:** `git diff fe80e27e..7e4cae43`, attributed commit by commit:
+- `50489762`: ADR 0001 Amendment 2, two ledger rows, and the story's ADR link. Docs only.
+- `c5d4032f`: the Tester's round-2 tests, the plan's round-2 record, and Amendment 2 item 3's reworded rationale. It
+  touches no `src/` or `ui/`.
+- `7e4cae43`: the fix, in `selfMap.js`, `customer-schedule/index.js`, `openapi.yaml`, `src/lib/self-map/index.js` and
+  `assistantTreasureMapCopy.js`, plus an occurrence on the RW7 flake row. It touches no `test/` or `tests/`.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `7e4cae43`, clean tree, label `self-map-round2-review`. `npm run gate:status`:
+
+  > `20261012T200901Z-5763-d03d [self-map-round2-review] started 2026-10-12T20:09:01.929Z on 7e4cae43 — PASS, exit 0, 5820 passed, 0 failed, 582 skipped, 306/306 suites`
+
+  `assistant-self-map-check` 56 / 0 / 0 and `assistant-self-map-page` 11 / 0 / 0. These match the Implementer's run on
+  the same commit, `20261012T195520Z-29834-25f1`.
+- [x] **Playwright, chromium.** I rebuilt `ui/` at `7e4cae43` and served it on :4183. `assistant-self-map` (B0–B13),
+  `assistant-management-page`, `assistant-attention`, `assistant-alert`, `assistant-coming-soon` and
+  `assistant-duty-menu`: **76 passed, 0 failed** (4.9 m). I stopped the server afterwards.
+- [x] `bash scripts/harness-lint.sh`: **clean**. `openapi.yaml` parses.
+- [ ] **Shared lines: `origin/staging` moved, and the book's watch item fired.** `git fetch origin staging` moved it
+  from `00341d7e` to `7ab2c955`. `git merge-tree --write-tree HEAD origin/staging` is clean, and staging changed no
+  code. But it changed the spec and decisions:
+  - `duty-menus-and-self-maps` #4 (the key grammar) is implemented and passed review, and **ADR 0004 is Accepted**.
+  - `protocols/drafts/treasure-maps.md` changed in §§ 4.4, 4.5, 4.6, 6 and 9.2.
+  - That book's story 5 (the rules that keep a self-Map true) is approved, as a docs story.
+  - A new ledger row, `2026-10-12-treasure-map-concept-key-readers`, lists shipped readers that take Concept keys
+    otherwise than the accepted grammar. It says "No other reader was checked"; this library is one more.
+
+  The book's § Shared lines pre-registered this case: "If 0004 is accepted, the Implementer drops those entries from
+  the duties, and the Reviewer checks it." See R2-B1.
+
+## Round 1's findings, each re-derived as a fresh claim
+
+| Finding | Re-derived by | Result |
+|---|---|---|
+| **B1**, a claimed not-offered part | Round 1's own reproduction run again: staging's shape plus a found `["3038x", TA, R]` | The `3038x` not-offered line now has `falseClaim: true`, and `current` is false. **Fixed** (`index.js:411`). |
+| **B2**, the queue flag | `scheduleIntervals` with the setting absent, `"true"`, `"True"`, `"1"`, `" true "` and `"false"` | Only `"true"` counts the entry (12 h); every other value gives null. That is `getConfigFromFile(…) === 'true'`, as `bin/control-panel.js:333` reads it. **Fixed.** |
+| **N1**, the cron interval | `0 3 * * 1-5` read on a Thursday 04:00 and a Monday 02:00; `0 */6 * * *`; monthly; every minute; an unparseable expression | 24 h, 24 h, 6 h, 672 h, 1 min and null. **Fixed.** |
+| **N5**, the per-customer timer | `scheduleIntervals` for a customer with and without a timer, with the flag off and the systemd timer at 6 h; for the Owner; with a throwing lookup. The getter read in `customer-schedule/index.js`. | The customer's 24 h timer is used (the systemd timer stays the fallback). With no timer, 6 h. The Owner gets 6 h, never the customer's timer. A throw falls back to 6 h. The getter answers null for a trigger-only state, and the state is restarted by `handleUpdate` and deleted by `stopCustomerTimer`. **Fixed.** |
+| **N2**, `otherEntries` | L6, and a probe with a `p` tag and an unparseable key | Counts 1. **Fixed**, but see R2-B1 for `39998:`/`39999:` entries naming other keys. |
+| **N3**, null category | U38, and the page's fallback: `categories[null]`, then `categoryOf('30023')` gives null | No category is shown. **Fixed.** |
+| **N4**, no date | P5 | No line. **Fixed.** |
+| **N6, N7** | `ledger/2026-10-12-stopped-timer-counts-as-upkeep.md`, `ledger/2026-10-12-live-unclaimed-when-unclaimable.md` | Both rows exist, **OPEN**, as Amendment 2 item 9 says. |
+
+**ADR adherence, Amendment 2:** items 1–7 match the code, and item 8's recorded drift is what was built.
+
+## Findings
+
+### Blocking
+
+1. **R2-B1 — `src/lib/self-map/index.js:173` (`mapGroups`), `:284` (`buildShouldSay`), `:330` (`readSelfEntries`):
+   Concept non-keys still give duties, and that turns a true self-Map false.**
+   - **The rules, now accepted.** § 4.5 says a Concept kind and a colon alone (`39998:`, `39999:`) "is not a key …
+     Readers MUST ignore a Map entry keyed so, a self-entry included, as if it were absent". § 4.6 says
+     `39999:dlist-header` and `39999:duty-menu` name no Concept and ask for nothing. The `duty-menu` rule was already
+     in the spec at intake; round 1 missed it.
+   - **What the code does.** ADR 0001 (line 196, "`39998:` and `39999:` are unchecked") and the library keep such
+     entries as duties.
+   - **Reproduced.** Take staging's Owner shape, `["39998", TA, R]`, `["3038x", TA, R]` and `["39999", TA, R]`, with
+     Scores live and headers present, and a found self-Map of `30382` and `39998` at R, which the spec makes exactly
+     right. Adding any one of `["39999:duty-menu", TA, R]`, `["39999:dlist-header", TA, R]`, `["39998:", TA, R]` or
+     `["39999:", TA, R]`:
+     - `shouldSay` drops the true `39998` claim, to `["30382"]` only, because the phantom duty blocks it;
+     - `current` becomes false, so the card is marked "Needs attention" and the status line says "out of date";
+     - a line is marked `falseClaim: true`, so the page tells the owner that a true self-entry "claims this, but it
+       isn't live".
+     - With `39999:`, `compareKeys('39999:', '39999')` is 0, the only tie between distinct keys, though § 9.2 Ties now
+       says none arise.
+   - **Also.** Without the found self-Map, such an entry shows a duty line (`unchecked` or `not-published-here`), or an
+     `elsewhere` line when it names another key. And `readSelfEntries` counts `39998:`/`39999:` entries naming other
+     keys in `otherEntries`, so with three of them the Owner's line says "Its 3 other entries".
+   - **Why this blocks.** Nothing false is claimed on the wire: every case claims less. But the page and the hub say
+     something false about a correct self-Map. Story 3, which keeps the self-Map true by itself, would remove a true
+     self-entry. The spec's MUST, and the book's pre-registered watch item, both now apply.
+   - **Ask.**
+     - **Architect:** Amendment 3, superseding sub-decision K1's "`39998:` and `39999:` are unchecked" (line 196):
+       - an entry keyed `39998:` or `39999:` is dropped as if absent, from the viewer's Map and from a self-Map, and
+         counts in neither `selfEntries` nor `otherEntries`;
+       - `39999:dlist-header` and `39999:duty-menu` name no Concept: an entry keyed so gives no duty, matches no
+         insight and blocks nothing. The Architect decides whether it still counts as an "other entry".
+     - **Tester:** tests for the four Maps above: `shouldSay` keeps `39998`, `current` is true, no line is a false
+       claim, and no item or `elsewhere` line comes from the non-key. Plus `otherEntries` with these entries naming
+       other keys.
+     - **Implementer:** drop them in `mapGroups` and `readSelfEntries`.
+
+### Non-blocking
+
+1. **R2-N1 — `index.js:392` and `:411`, with `:341`: a self-entry with an empty element 3 is flagged as a false
+   claim.** § 9.2 (Meaning; Its relay) says such a self-entry "claims nothing". It still wins in § 6 among the
+   self-entries, but it confirms nothing.
+   - Reproduced: a found `["3038x", TA, ""]` marks both the `30382` line and the `3038x` not-offered line
+     `falseClaim: true`.
+   - `current` rightly stays false, because it differs from what the self-Map should say. Only the false-claim
+     sentence is wrong.
+   - `readSelfEntries` also turns an unparseable relay into `''`, so the fix has to tell the two apart. An
+     unparseable relay is a claim at an unusable relay; an empty one is no claim.
+   - **Recommendation:** fold this into Amendment 3, since it touches the same lines.
+2. **R2-N2 — `index.js:365` (`dutyLines`, the meet's line key): § 4.4's Profiles category changes how some tag-key
+   lines read.**
+   - A family entry `3039x:tag::⟨X⟩` shows a line keyed `30392:tag::⟨X⟩`. Under the accepted § 4.4, that spelling
+     names only the Profiles category. Duty Menus § 6.2 step 4 says such a meet "has no key".
+   - A more specific `30392:tag:⟨D⟩:⟨X⟩` naming another key shows no `elsewhere` line.
+   - These keys are `unchecked`, so they are never claimed. The issue is display only.
+   - **Recommendation:** a ledger row, `ledger/2026-10-12-self-map-profiles-category-lines.md`, written with this
+     review.
+3. **Notes, not findings.**
+   - `relayFor` refuses a bare `39998` unless `39998` and `39999` share a relay. That is stricter than § 9.2 Ties'
+     example, but `buildOffer` always gives both the same relay.
+   - The `anyHeader` scan would count a header whose `d` is empty or `dlist-header`, which §§ 4.5 and 4.6 say no key
+     reaches. No producer of such a header was found.
+
+### Harness friction
+
+None new. The book's shared-lines recheck, run again before this round, is what caught R2-B1, as it was meant to.
+
+## Verdict
+**CHANGES_REQUESTED**
+
+All of round 1's findings are fixed and re-verified. R2-B1 is new: ADR 0004's acceptance, during this round, made the
+book's pre-registered watch item apply. One non-key in a Map turns a true self-Map into a reported false one.
+
+Round 3's order:
+1. ADR Amendment 3: R2-B1, and R2-N1 if the owner folds it in.
+2. The Tester's failing tests.
+3. The Implementer's fix.
+4. Review round 3, with the shared-lines recheck again.
+
+The story stays **Approved** until a later round passes.
