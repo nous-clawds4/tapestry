@@ -43,6 +43,12 @@ So none of the items below is a defect in either book's deliverable. They are fo
 - *Fix shape:* the intake entry's step 2 reconcile list names `BRAINSTORM_RELAY_URL`, the published menu's rows, and
   the Lists and Concepts settings beside `BRAINSTORM_NIP85_HOME_RELAY` and `aTrustedAssertionRelays`.
 
+- *2026-10-12, from book `duty-menu-public-relay`:* the relay in the first bullet is no longer `BRAINSTORM_RELAY_URL`
+  as written. It is `instanceRelayUrl()` (`src/api/assistant/profileDefaults.js`): `BRAINSTORM_RELAY_URL` when
+  public, otherwise `wss://<public domain>/relay`. On Docker deployments that is `wss://staging.brainstorm.world/relay`
+  or `wss://tapestry.brainstorm.world/relay`. The reconciliation with `/treasure-map`'s Relay Settings source still
+  stands.
+
 **3. The hub's self-entry reading.**
 - Ledger row `2026-10-11-self-entry-reads-as-another-assistant` (`categoryAssistants`;
   `src/api/assistant/trustedContent.js`:68–69) waits on "when the self-maps rule reaches code".
