@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import TopBar from '../../components/TopBar';
 import ActionText from './ActionText';
-import { ASSISTANT_COPY } from './actions';
+import { ASSISTANT_COPY, COMING_SOON_ACTIONS } from './actions';
 import { ASSISTANT_MANAGEMENT_PATH } from '../../config/avatarMenuLinks';
 
 /**
@@ -11,8 +11,11 @@ import { ASSISTANT_MANAGEMENT_PATH } from '../../config/avatarMenuLinks';
  * said so far about the page to come — its alert criteria and planning notes — for the session that builds
  * it. One component serves every action whose page is not built yet; App.jsx routes each such action's address
  * here with its entry from ASSISTANT_ACTIONS. When an action is built, its route points at its own page instead.
+ * An action in COMING_SOON_ACTIONS says "Coming soon." in place of "Placeholder page.", as its card says Coming soon
+ * (assistant-coming-soon #1).
  */
 export default function AssistantActionPage({ action }) {
+  const lead = COMING_SOON_ACTIONS.includes(action.key) ? ASSISTANT_COPY.comingSoonPage : ASSISTANT_COPY.placeholder;
   return (
     <div className="bsp-page">
       <TopBar />
@@ -20,7 +23,7 @@ export default function AssistantActionPage({ action }) {
         <Link to={ASSISTANT_MANAGEMENT_PATH} className="bs-setup-back">{ASSISTANT_COPY.backToHub}</Link>
         <h1 className="bs-setup-title">{action.title}</h1>
         <div className="bs-setup-placeholder">
-          <p><strong>{ASSISTANT_COPY.placeholder}</strong></p>
+          <p><strong>{lead}</strong></p>
           <p><ActionText parts={action.description} /></p>
           <h2 className="bs-assistant-hub-notes-heading">{ASSISTANT_COPY.alertCriteriaHeading}</h2>
           <p>{action.alertCriteria || ASSISTANT_COPY.notYetDefined}</p>
