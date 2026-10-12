@@ -122,6 +122,7 @@ The owner approved every amendment at a gate.
 
 - [ ] **Your Assistant's Treasure Map page** (self-Maps). Its spec landed with book `duty-menus-and-self-maps` story 3
       (`05225a6b`, `bc37a62c`). This is the next page for the hub's persona section, and a new book.
+      *Picked up 2026-10-12 → book `assistant-self-map` (open).*
 - [ ] **Customers' Assistants publish Lists.** This is the commitment behind deviation #1 (`_intake.md`, 2026-10-11).
 - [ ] **Map vs menu relay for Scores.** The 10040 template names `wss://nip85.brainstorm.world`, but nothing copies
       Scores there by default (ledger `2026-10-11-nip85-home-relay-without-copy`).

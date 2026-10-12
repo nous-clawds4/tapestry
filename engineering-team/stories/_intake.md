@@ -2853,6 +2853,21 @@ Still open: self-Maps and the Your Assistant's Treasure Map page, the `/treasure
 and the counting rule (step 4), the § 3 relay reconciliation (ledger `2026-10-11-nip85-home-relay-without-copy`),
 and Q6.
 
+**PICKED UP** (partial) 2026-10-12 → book `engineering-team/audits/assistant-self-map/book.md` (open), epic
+`assistant-self-map`. It takes:
+- step 2's self-Map half: a self-Map for each Assistant key here, turned on by the person and then kept true by the
+  instance;
+- the Your Assistant's Treasure Map page and its real check;
+- from step 3, only the per-card Active and "Standby ready" badges;
+- from step 4, the counting rule in this instance's own counters, and ledger row
+  `2026-10-11-self-entry-reads-as-another-assistant`.
+
+Still open after it:
+- step 3's element-3 fill and the "Make preferred" swap;
+- step 4's read-time fallback in the readers;
+- the § 3 relay reconciliation;
+- Q6.
+
 - **Origin:** `docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md` §§ 6–8 (✅ SUPERSEDED: its design is in `protocols/`;
   its code is not built). The book `duty-menus-and-self-maps` ratified the specs and left code to "a separate book,
   opened after this one".

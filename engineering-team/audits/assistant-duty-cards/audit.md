@@ -137,8 +137,10 @@ plan's § Verification amendment (the two Implementation-time re-aims).
   - It replaces each placeholder: a page in `ACTION_PAGES`, the key in `CHECKED_ACTIONS`, and an answer from
     `GET /api/assistant/attention`.
   - It decides what **Done** means for each card, which also takes the two marks off everyone's count (§4 #2).
+  - *Picked up 2026-10-12 → book `assistant-self-map` (open): the Treasure Map card's page and check; Done is decided there (Decision 2).*
 - [ ] **Where the Assistant's Treasure Map page links.** Today there is no link. The real page may want to show the
       person's own Map beside the Assistant's self-Map; that is for the later book (§4 #4).
+      *Picked up 2026-10-12 → book `assistant-self-map` (open): three pages, cross-linked (Decision 3).*
 - [ ] **The FAQ.** "What tasks can my Tapestry Assistant perform on my behalf?" does not yet mention the Duty Menu or the
       self-Map. Out of this book's scope (story § Out of scope); for the owner once the protocol settles.
 - [ ] **Literal counts in the attention spec.** Derive `tests/brainstorm/assistant-attention.spec.js` B1–B5's counts

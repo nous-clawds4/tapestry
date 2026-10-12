@@ -174,6 +174,7 @@ its J3 evidence or its Gate B record.
   real check, a fully set-up viewer's hub would read "0 actions need attention". The top-bar pill already hides at 0
   (`pickTopBarPill` draws only above 0), but the hub's line has no zero state. Decide it with the Treasure Map card's
   book.
+  *Picked up 2026-10-12 → book `assistant-self-map` (open), § Design notes.*
 - [ ] **4. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check the
   five pills, the count line and the top-bar pill. Same kind of gap as `assistant-shared-categories` audit §6 #2.
 - [ ] **5. Building the five.** Linked, not duplicated: `assistant-management` audit §6 #1–#2 (annotated at this
