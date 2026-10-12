@@ -1,6 +1,6 @@
 # ADR 0003: Self-Maps — a key's own Map reports what is live, and element 3 is a hint resolved per insight at read time
 
-**Status:** Accepted; amended by A1 (2026-10-11)
+**Status:** Accepted; amended by A1 (2026-10-11); Amendment A2 approved in substance by the owner (option c), 2026-10-12
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`
 
@@ -208,6 +208,8 @@ Where a sub-decision depends on an open owner question, it says so.
      self-entries alone; A's other entries take no part, and where § 6 picks no single one of them, no self-entry wins
      it. An insight that no self-entry wins is not reported as active." It means published and maintained, not merely
      assigned (handoff § 5).
+     *(Amended by A2-5: § 9.2's Meaning also says "A self-entry whose element 3 is the empty string claims nothing (Its
+     relay)", A1-4's rule restated.)*
    - **What a self-entry speaks for** (C1; the second sentence under question 1's recommended answer (a)): "A
      self-entry is read as § 9 has an Assistant read an entry: one with a scope key speaks only for insights in the
      supported sets of the observer its key serves (§ 8), and one with an exact key for its one insight. Of those, an
@@ -287,6 +289,8 @@ Where a sub-decision depends on an open owner question, it says so.
      none, is not one of its self-entries' keys."
      *(Amended by A1-1 and A1-4: the menu-relay clause and the last sentence both wait while A moves some or all of the
      insights a self-entry speaks for; readers take a self-entry whose relay is the empty string to claim nothing.)*
+     *(Amended by A2-2: "the relay A's menu gives the self-entry's key" is what Duty Menus § 6.2 step 5 would give that
+     key from A's menu, if the observer chose it, and kept it, for A.)*
      - Why: A's self-entry keyed K and A's menu then agree on K, except during a move, so the fill can take the
        self-entry first, as AC5 words it, with no condition (sub-decision 8). Without the rule, a self-entry can be
        true and still differ from the menu: with the menu `*` → R0, `3038x` → R1 and an observer who gave A's Lists
@@ -466,10 +470,15 @@ Where a sub-decision depends on an open owner question, it says so.
        supported sets). It retracts it by the retraction convention: an empty replacement carrying
        `["status", "retracted"]` ([Trusted Lists](./trusted-lists.md)), with a `created_at` later than the list's last
        version (NIP-01). A List it moved to another relay and still maintains there is not one it stops maintaining."
+       *(Amended by A2-1: the retraction goes "at each relay where it published the List", and the bullet ends "§ 7
+       says when a reader takes a retraction as a List with no members.")*
        - Why "whatever the reason" (C1): a List that left what a self-entry speaks for can still be won by it, and its
          stale copy would count as maintained (sub-decision 5's limit). A retraction is A's current word, so a reader
          that finds it at the self-entry's relay reads the List as withdrawn, not stale content (`s3/r2/m6s.py`, Part
          A).
+         *(Amended by A2-1: a reader that knows the self-entry no longer speaks for the List reads the retraction as
+         no copy; one that takes the self-entry to speak for it reads a List with no members. Neither is stale
+         content.)*
        - § 9's Revocation ("Insights already published stay on relays") gains a pointer to this sentence, so the two do
          not read as contradicting each other.
          *(Amended by A1-6: the pointer asks for "any change to its self-Map that § 9.2 requires", which may be
@@ -518,6 +527,8 @@ Where a sub-decision depends on an open owner question, it says so.
      § 8 allows, takes the self-entry to speak for the insight unless it knows otherwise (C1r): for it a win confirms
      the duty, and the spot-check below guards a switch.
      *(Amended by A1-4: a self-entry whose element 3 is the empty string confirms no duty.)*
+     *(Amended by A2-5: the spec's second sentence reads "for the insights such a self-entry wins", and the first
+     sentence's "whose element 3 is not the empty string (Its relay)" is this ADR's text.)*
    - **A confirmed Alternate** (§ 7, third bullet): "An Alternate whose duty is confirmed (§ 9.2) is a standby that is
      ready now." No new "Backup" term.
    - **Maintained, at its relay.**
@@ -567,6 +578,8 @@ Where a sub-decision depends on an open owner question, it says so.
      self-entries speak for is open (above), so no rule binds what they claim, though readers grant the allowance as
      for any other key. An observer's remedy is its own Map: drop the key, reorder its providers, or give the insight
      to another key."
+     *(Amended by A2-1: the third and fourth cases each add "and a List the key retracted as one with no members
+     (§ 7)", and the fourth no longer says "unless it is a List the key retracted".)*
      - The fourth case holds under question 1's answer (a). Under (b) it goes: a self-entry then speaks for every
        insight it wins in the supported sets, and A narrows before it stops any of them. The third case holds under
        both answers.
@@ -594,6 +607,7 @@ Where a sub-decision depends on an open owner question, it says so.
    - "Element 3 is a relay where the insight can be found: a hint, written when the entry was written (NIP-85 calls it a
      relay hint). It MAY be the empty string, which says that no relay is known; the entry keeps three elements."
    - "A Map entry names who is asked to publish an insight. It does not promise that the insight exists."
+     *(Amended by A2-5: "…publish an insight, except as § 9 says.")*
    - **When the insight is not there** (C7 for "a provider's entry"). "A reader that finds no copy of an insight that
      it accepts (§ 7) at the relay a provider's entry gives, for an entry with the insight's winning key (the empty
      string, a relay that does not answer, one that answers without it, or a copy older than the reader accepts that
@@ -606,6 +620,7 @@ Where a sub-decision depends on an open owner question, it says so.
 
      A copy the reader does not accept does not end the search. If none of these relays gives a copy it accepts, A's
      insight is not found (§ 7)."
+     *(Amended by A2-1: the list of causes ends "or a retracted List that is no copy, § 7".)*
    - **Per insight.** "The reader resolves the insight by its exact key, not the entry's key: under a scope key, A may
      publish part of the insights at another relay (Duty Menus § 6.2 step 4)." In the model, resolving the exact key gives
      the row that wins the insight every time. For the 3,429 insights missed at the entry's relay, resolving the
@@ -629,6 +644,8 @@ Where a sub-decision depends on an open owner question, it says so.
        claims about a key they do not describe.
    - **Enumerating** (§ 5.4): a client MAY also enumerate at the relays this fallback gives for the insights under the
      key, those of A's self-entries and menu rows that win any of them.
+     *(Amended by A2-5: "a client MAY also enumerate at the relays this fallback's three steps give for any of the
+     insights under the key".)*
    - § 5's lead gains: "When R is empty, or does not hold the insight, § 3 says where to look next." Principle 1's
      "which relay" gains the same pointer.
    - **The four carried cases** (AC4), each traced in `s3/m1_fallback.py`:
@@ -659,6 +676,8 @@ Where a sub-decision depends on an open owner question, it says so.
      the relays § 3 looks at next. A reader that follows § 3 runs it for each provider in turn before moving to the
      next. A copy is accepted when it is no older than the reader will accept, or when it counts as maintained (§ 9.2).
      A reader that does not follow § 3 moves on after the entry's relay. They MAY show or compare Alternates."
+     *(Amended by A2-1: after "…or when it counts as maintained (§ 9.2)." come three sentences on a List that carries
+     `["status", "retracted"]`.)*
    - Add: "A client may ask several providers' relays at once. It uses the insight of the first provider, in order,
      whose copy it accepts." Queries may run in parallel, but the order of use is fixed.
    - Why: "Clients use the Preferred provider's insight" (§ 7). An insight A publishes at another relay is still A's.
@@ -1153,6 +1172,8 @@ notes say what changes under another.
   step 5, No menu found included). AC5's words still hold, and AC3's "plus a matching self-entry" gives way for such a
   self-entry (named at A1's revision 3). A1-9 departs from AC7's "the rest of the user-signed designation is
   unchanged" at one sentence of Assistant Designation § Relationship to NIP-85.)*
+  *(Amended by A2-4: AC3's "the same key" also gives way, provisionally, under § 9.2 Ties, until story 4 orders the
+  Concept kinds. The owner named it on 2026-10-12.)*
 - **Publishers carry more:** a self-Map that stays true may need narrower keys than the observer's (96.5% of published
   duties claimable in the model without a single false claim under answer (a); 93.1% under (b)); each self-entry names
   the relay A's menu gives its key; a new duty at another relay means narrowing first; every version needs a later
@@ -1168,6 +1189,8 @@ notes say what changes under another.
   insight its observer gave elsewhere count as maintained for a reader of someone else's Assistant or of a self-Map as a
   point of view; and readers grant the self-entries of a key that serves several observers confirmation and the age
   allowance as any others, though no rule binds what they claim until Duty Menus § 14 question 3 is settled.
+  *(Amended by A2-1: a List the key did retract counts as a List with no members, for a reader without those sets and,
+  under answer (a), for a reader of someone else's Assistant or of a self-Map as a point of view.)*
 - **The live defect's stopgap** becomes non-conforming for external Assistants under question 3's recommended answer.
   The ledger row says so, and the intake entry points at it. This instance's own Assistant keeps its Relay Settings
   fill, and Assistant Designation's Relay hint stays as written: both are the MAY for the service that runs A wherever
@@ -1438,6 +1461,7 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
     retracts nothing; later `created_at`), and per family: Lists
     retracted whenever stopped (empty plus `["status","retracted"]`, later `created_at`), Scores left with the removal
     as the stopped signal, Concepts' header and `b` left in place. § 9's Revocation points at the List rule.
+    *(Amended by A2-1: a List is retracted "at each relay where it published the List". See Verification for A2.)*
   - § 9.2's "Offered and active" names Duty Menus § 10, and Duty Menus § 10 names Treasure Maps § 9.2.
   - *Checks:* menu `3039x` → R0, `3039x:tag` → R1, O's `[3039x, A, R0]`: A's self-Map is `3039x` → R0 and `3039x:tag` →
     R1. With `30396:tag` → R0 added to the menu, it also has `30396:tag` → R0. Menu `3039x` → R0, `30396:tag::⟨T⟩` → R1,
@@ -1455,6 +1479,8 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
     paragraph on what the allowance rests on, with its four cases (the third under every answer, the fourth under
     (a)), the third and fourth each saying that a reader that cannot tell takes such a copy as maintained, and the
     sentence after them: for a key that serves several observers, the allowance rests on nothing § 9.2 asks.
+    *(Amended by A2-1 and A2-5: the third and fourth cases each also say "and a List the key retracted as one with no
+    members (§ 7)"; § 3's sentence reads "…publish an insight, except as § 9 says." See Verification for A2.)*
   - § 7: the confirmed Alternate sentence. § 3: "A Map entry names who is asked to publish an insight. It does not
     promise that the insight exists." § 2: the Observer line's clause.
   - *Checks:* the TA's Map `["3038x", TA, R1]`, `["30382:rank", X, R2]`: among self-entries alone, `3038x` → R1 confirms
@@ -1481,6 +1507,8 @@ For the Reviewer: re-derive each case from the specs as changed, and run the scr
     copy at A's menu relay R1 and a current one at A's write relay Rw: the reader uses Rw. Preferred A, Alternates B
     and C on `3039x`; A does not publish the Profiles list tagged T, B publishes it at S1 (its menu's `3039x:tag` row),
     C at T0: the reader uses B.
+    *(Amended by A2-1 and A2-3: § 7 also carries A2-1's three sentences, and § 3's causes end with a retracted List
+    that is no copy. The third check reads "No self-Map, entry relay empty, …", not "No menu".)*
 - **AC5.**
   - § 3's "Filling element 3" (SHOULD, the self-entry keyed K with no other condition, keys compared by §§ 4.1, 4.4 and
     4.5, no self-entry relay for a K keyed `39998:` or `39999:`, the MAY for a client of the service that runs A to
@@ -1686,6 +1714,9 @@ the last two sentences of sub-decision 3's "Its relay" quote.)*
   > none, is not one of its self-entries' keys. While A moves some or all of the insights a self-entry speaks for to
   > another relay (below), that self-entry may keep the old relay until A publishes the version that names the new
   > one, whatever A's menu now gives its key.
+
+  *(Amended by A2-2: the parenthesis reads "what Duty Menus § 6.2 step 5 would give that key from A's menu, if the
+  observer chose it, and kept it, for A".)*
 - Why:
   - The accepted exception, "save while A moves those insights to that relay", covered only the third sentence, and
     only a move to the relay the menu now gives the key. A partial move of an insisted key's offering rows leaves step
@@ -2024,6 +2055,9 @@ change.
   > the empty string to claim nothing: it still wins insights among A's self-entries (§ 6), but confirms no duty, and
   > § 3 takes no relay from it.
 
+  *(Amended by A2-2: the parenthesis reads "what Duty Menus § 6.2 step 5 would give that key from A's menu, if the
+  observer chose it, and kept it, for A".)*
+
   Its example bullet (:363) stays.
 - **§ 9.2, More than one relay** (:365): replace "so that each self-entry wins only duties A publishes at its relay."
   with "so that every insight a self-entry wins and speaks for is one A publishes at its relay." (A1-3).
@@ -2147,3 +2181,425 @@ Re-derive each case from the drafts as changed, then run `s3a1/a1.py`.
 
   The scratchpad is not durable. If the scripts are gone, rebuild them from A1-1 to A1-8 on revision 2's helpers, as
   "The model scripts" describes them.
+
+## Amendment A2 — the reading of a retracted List, and five items from story 3's review (2026-10-12)
+
+**Approved in substance** by the owner, 2026-10-12: option (c) for the review's B1, which A2-1 states as a reading rule,
+and the review's B2 named as a provisional departure from AC3, which A2-4 records.
+
+**Status of A2:** approved in substance (option (c)) by the owner, 2026-10-12. The wording of A2-1 to A2-5 is the
+Architect's and is at the owner's gate. The rest of this ADR, with A1, stands as accepted.
+
+**Revision 1 of A2** (2026-10-12) answers a review of A2's first text (its findings F1 to F6 and SK-1 to SK-3), and
+keeps the owner's (c). A2-1's § 7 sentence ends at "it is no copy": the spec says what the reader does, not what the
+marker says about the provider (F1, SK-1). § 9.2's retraction goes to each relay where the provider published the
+List, so that a provider that follows § 9.2 leaves § 3 nothing more to find from it, as (c) says (F2). The rationale
+and the Consequences no longer say that a reader that holds A's current self-Map never takes a retraction after a stop
+as claimed (SK-2, F4), no longer list a tie for a List (F4), and name a privately given duty in the cost (SK-3). A2-2's
+gloss reads step 5 from A's menu (F3). A2-5 says how NB7's qualification keeps three citations of § 9 true (F5). The
+PO's line for A2-4 now cites "ADR 0003 A2-4", a citation slip (F6). The new check is `s3r2/r1/a2r1.py`, with output in
+`s3r2/r1/a2r1.out`.
+
+**Why.** Story 3's review found that § 9.2 now has a provider that stops (the service ended, the key was retired)
+retract its Lists while observers' Maps still name it, and that the specs read the retraction two ways (B1): as the
+List's content, an empty List that a reader accepts until the retraction itself is older than it accepts, or as no
+copy, so that the reader moves on to the next Alternate at once. The Lists rule is this ADR's text (sub-decision 4),
+and so is § 7's acceptance sentence (sub-decision 7), so the reading needs an amendment. The owner chose a third
+reading, (c): the provider's self-Map decides. A2-1 states it. The review also asked for two corrections to this ADR's
+text (NB4, NB16) and for AC3's departure under Ties to be named (B2), and the owner folded five one-line findings into
+this round (NB1, NB6, NB7, NB11, NB14), three of which change sentences this ADR words. Every passage above that A2
+supersedes or qualifies carries an "(Amended by A2-n.)" marker. Where any sentence above, A1's included, conflicts with
+A2, A2 governs. A2-n names this amendment's items, here and in those markers; story 3 cites them as "ADR 0003 A2-n".
+
+**How it was checked.** Every draft line A2 cites was re-read at `b25f89ac`, and draft line numbers below are as of
+that commit. `s3r2/a2.py` models one List read from a Map by § 7 and § 3 with § 9.2's reading, under the review's two
+readings and under (c), for five kinds of reader and four retraction ages, with output in `s3r2/a2.out` (N = 4000).
+`s3r2/a2_nb4.py` re-runs the review's NB4 probe draws on revision 2's helpers (`s3/tm4.py`, `s3/sm.py`,
+`s3/r1/sm2.py`, `s3/r2/sm3.py`, unchanged), with output in `s3r2/a2_nb4.out` (N = 3000). The review's probes
+(`rv-s3/coherence/probe/p3_retraction_read.py`, `rv-s3/finalize/p3_aged.out`) are case (a)'s starting point.
+
+**What stays.** The owner's answers 1(a)–4(a), A1 as approved, and every sub-decision except where a marker says
+otherwise. No new wire surface, and no concept changes. The review's NB3 and NB10 stay in ledger row
+`2026-10-12-self-maps-spec-fold-forwards` (Questions for the owner, below), with NB5, NB8, NB9, NB12, NB13 and NB15.
+
+### The rules
+
+**A2-1 — A retracted List is the provider's empty List only where its self-Map still claims it** (review B1, option
+(c)). *(Qualifies: sub-decision 7's § 7 sentence, which gains three sentences after its acceptance sentence;
+sub-decision 6's trigger, whose list of causes gains one; sub-decision 4's Lists bullet, which gains the relays a
+retraction goes to and a pointer, and the "whatever the reason" reason under it; sub-decision 5's third and fourth
+cases of What the allowance rests on, which each gain a clause; the Consequences' Known limits.)*
+- New text, Treasure Maps § 7, second bullet, after "A copy is accepted when it is no older than the reader will
+  accept, or when it counts as maintained (§ 9.2).":
+  > A List that carries `["status", "retracted"]` ([Trusted Lists](./trusted-lists.md#common-wire-shape)) is a copy
+  > only where the provider's self-Map still claims the List: a self-entry in it wins the List, its element 3 is not
+  > the empty string, and the reader takes it to speak for the List (§ 9.2). It is then the List with no members, as
+  > Trusted Lists has it for "a list that no longer has members". Otherwise, as where the reader finds no self-Map of
+  > the provider, it is no copy.
+- New text, Treasure Maps § 3, When the insight is not there, the end of the trigger's list of causes: "or a copy older
+  than the reader accepts that does not count as maintained, § 9.2)" becomes "a copy older than the reader accepts
+  that does not count as maintained, § 9.2, or a retracted List that is no copy, § 7)".
+- New text, Treasure Maps § 9.2, What follows a stop, Lists:
+  - "It retracts it by the retraction convention: an empty replacement …" becomes "It retracts it by the retraction
+    convention, at each relay where it published the List: an empty replacement …";
+  - a last sentence:
+    > § 7 says when a reader takes a retraction as a List with no members.
+- New text, Treasure Maps § 9.2, What the allowance rests on:
+  - third case: "cannot tell, so it takes such a copy as maintained; a reader that holds them does not" becomes "cannot
+    tell, so it takes such a copy as maintained, and a List the key retracted as one with no members (§ 7); a reader
+    that holds them does not";
+  - fourth case: "so it takes a stale copy of such an insight as maintained, unless it is a List the key retracted."
+    becomes "so it takes a stale copy of such an insight as maintained, and a List the key retracted as one with no
+    members (§ 7)."
+- **How Treasure Maps reads the marker.** Trusted Lists gives it two uses: "a list that no longer has members (or is
+  being migrated off a kind)". Treasure Maps reads it by the provider's own word about that List, its self-Map, as the
+  reader finds it:
+  - where a self-entry still claims the List, the reader takes the provider to maintain it, and reads the marker as
+    Trusted Lists' first use: a List with no members, which § 7 then judges as any copy (no older than the reader
+    accepts, or maintained at the self-entry's relay);
+  - where none does, the reader reads the marker as no copy, the owner's "A offers no copy": § 3 looks on, and § 7
+    moves to the next Alternate when § 3 finds nothing from that provider that the reader accepts. That is the reading
+    a retraction after a stop needs, and Trusted Lists' migration off a kind is a stop in § 9.2's terms (a self-Map
+    that follows § 9.2 removes or narrows the self-entry first). The spec says what the reader does, not why the
+    marker is there: a List that the provider still maintains with no members, but that its self-Map does not claim
+    for this reader, is read the same way (Consequences of A2, the cost).
+- **Why § 7.** Every reader judges a copy by § 7's acceptance sentence, including a reader that does not follow § 3,
+  and every reader can meet the marker at the entry's relay. § 3's list of causes gains only a pointer, so that its
+  gloss of "no copy … that it accepts" stays whole. The two clauses keep § 9.2's stated limits exact: a reader that
+  cannot tell that a self-entry no longer speaks for a List takes the retraction as a List with no members. That shows
+  no stale members, but it is not the observer's view either.
+- **Why the self-Map, as the owner chose.** The claim condition is Confirmed duties' own (wins it, element 3 not the
+  empty string, taken to speak for it). § 9.2 already orders the key's acts so that the condition tells the two uses
+  apart: A removes or narrows the self-entry before it stops (MUST), and retracts after the stop (SHOULD). So for a
+  reader that holds A's current self-Map and can tell what its self-entries speak for (What a reader can tell), a
+  conforming A's retraction after a stop is never claimed. Where the List only left what a kept self-entry speaks for
+  (the observer gave it to another key, or dropped it from its supported sets), a reader that cannot tell takes that
+  self-entry to claim it, and reads the retraction as a List with no members (§ 9.2's third and fourth cases; cases
+  (b), (c2) and (c3) below). A retraction of a List that A still maintains is claimed wherever A's self-Map reports
+  that List. Where it does not, the reader reads no copy (Consequences of A2): A keeps no self-Map, or its self-Map
+  says less, as for what A cannot claim truly (§ 9.2, A part A does not publish) or a duty given to A only by a private
+  entry (§ 9.2, Private duties).
+- **Why the search goes on.** The text says only that an unclaimed retraction is no copy. § 3's existing "A copy the
+  reader does not accept does not end the search" then holds, and "If none of these relays gives a copy it accepts,
+  A's insight is not found (§ 7)". So § 3 finds nothing more from A, as the owner's (c) says, where A's other relays
+  hold the same retraction or nothing.
+- **Why the retraction goes to each relay where A published the List** (revision 1). § 9.2 named no relays for the
+  retraction, and nothing keeps A from publishing the List at its write relays as well, where § 3's step 3 looks. A
+  provider that followed § 9.2 could then retract at the self-entry's relay alone and leave its last version at a
+  write relay, and readers that follow § 3 would take that version while it is no older than they accept: in (a) A's
+  last List in place of B's, and in (b) the List of a Tag the observer dropped (the A2 review's F2,
+  `s3r2/sk/residual_conforming.out`). The new clause asks the provider to send the retraction where it sent the List,
+  as Finding a self-Map asks it to send each self-Map version to the relays its earlier versions named. A's other
+  relays then hold the retraction or nothing, and the one gap left is a failed send (Consequences of A2, Residual).
+- **Model** (`s3r2/a2.py`, Part 1). Five readers: F follows § 3, finds self-Maps, and holds the observer's supported
+  sets and Map; N follows § 3 and finds self-Maps but holds neither; X follows § 3 and does not look for self-Maps; Z1
+  and Z2 stop at the entry's relay, Z1 without self-Maps and Z2 with them. Retraction ages are 5, 299, 301 and 30,000,
+  with a reader limit of 300. O's Map is `["3039x:tag", A, R]`, `["3039x:tag", B, S]`, and the List is
+  `30392:tag::⟨T⟩`, unless the case says otherwise. Under (c), every reader gets one answer at every age in every
+  case:
+
+  | Case | F | N | X | Z1 | Z2 |
+  |---|---|---|---|---|---|
+  | (a) A stops: self-entry removed, List retracted at R and at its write relay | B's List | B's List | B's List | B's List | B's List |
+  | (b) O unpins T; A and B keep `3039x:tag` and retract T's lists | not found | A's empty List | not found | not found | A's empty List |
+  | (c1) the fourth case: O gives the List `30396:tag:⟨D1⟩:⟨T2⟩` to B, and A keeps `3039x:tag` → R and retracts it; read through O's Map | B's List | B's List | B's List | B's List | B's List |
+  | (c2) the same, read through P's Map `["3039x:tag", A, R]`, `["3039x:tag", C, U]` | C's List | A's empty List | C's List | C's List | A's empty List |
+  | (c3) the same, A's self-Map read as a point of view | not found | A's empty List | not found | not found | A's empty List |
+  | (d) A moves the List from R to R1 and retracts nothing | A's List at R1 | A's List at R1 | B's List | B's List | B's List |
+  | (e) A still maintains the List; its members are gone, so A publishes the marker at R | A's empty List | A's empty List | B's List | B's List | A's empty List |
+  | (e') as (e), but A keeps no self-Map | B's List | B's List | B's List | B's List | B's List |
+
+  - (d) is the same under all three readings: no marker is read, and X, Z1 and Z2 grant A's old copies no allowance,
+    as before A2.
+  - Under reading 1 (always the List's content), the answer changes with the retraction's age in (a) and (e') for
+    every reader, in (b), (c2) and (c3) for F, X and Z1, and in (e) for X and Z1. Under reading 2 (never a copy), no
+    answer changes with age, but in (e) every reader passes over A's empty List for B's, including F, N and Z2, which
+    hold the self-Map that claims it.
+  - Part 3, 4,000 random Maps of O (1 to 3 providers on the List's key; each provider maintains the List, maintains it
+    with no members, has stopped and retracted it, or has moved it; 799 Maps with T dropped; 80% of providers keep a
+    self-Map). Under (c), no reader's answer changes with the retraction's age, and reader F differs from the first
+    provider that maintains the List in 178 Maps, each one where that provider's List has no members and it keeps no
+    self-Map. Under reading 1, F's answer changes with age in 1,717 Maps (1,562 of them a stopped or T-dropped
+    provider's retraction read as its empty List). Under reading 2, F passes over a provider that maintains a List
+    with no members in 949 (771 of them with a self-Map).
+  - Revision 1 (`s3r2/r1/a2r1.py`) reuses this model with A's List published at R and at its write relay Rw, for
+    cases (a) and (b), with O's entry hint at R or at Rw. With the retraction at both, as the new clause asks, every
+    reader gets the table's answer at every age, save that with the hint at Rw readers N and Z2 in (b) show an empty
+    List at every age: A's at Rw while that retraction is no older than they accept, then A's at R (N) or B's (Z2),
+    as § 9.2's third case has it. With the send to Rw failed, a reader that meets Rw's copy before an answer takes
+    A's last version while it is no older than the reader accepts, then the table's answer (Residual).
+- Not taken:
+  - *Reading 1: the marker is always the List's content* (the literal reading). A provider that stops as § 9.2 asks
+    restarts the clock that § 7's fallback waits on, and readers show its empty List until the retraction is older
+    than they accept (`rv-s3/finalize/p3_aged.out`: retraction ages 5 to 300 give A's empty List, then B's).
+  - *Reading 2: the marker is never a copy.* It is shorter, but it drops Trusted Lists' first use for every reader: a
+    provider that still maintains a List with no members is passed over for the next Alternate (case (e)), though its
+    self-Map says that it maintains the List.
+  - *(c) with "an unclaimed retraction ends the search for that provider"*, the owner's "§ 3 finds nothing more from
+    A" taken as a rule. It needs an exception to § 3's "does not end the search", and its answer turns on which relay
+    a reader asks first: with O's entry hint at a relay that missed the retraction, it also uses A's last version
+    (`s3r2/a2.out`, Part 2).
+  - *(c) with "no self-Map found" read as the List's content.* It is not the owner's choice, and it keeps reading 1's
+    window for readers without self-Maps (X and Z1 in case (e)).
+  - *The rule in § 3's trigger list alone* (the review's other placement). A reader that does not follow § 3 still
+    meets the marker at the entry's relay, and § 7 is where every reader judges a copy.
+  - *A reader rule in place of the send clause* (the A2 review's F2, its other fix): "A reader that has met a
+    provider's retraction of a List that is no copy takes no older version of that List from that provider." It
+    covers a failed send only for a reader that meets the retraction first; with O's entry hint at the relay that
+    missed it, the reader takes A's last version all the same, as under "ends the search" (`s3r2/r1/a2r1.out`, rule
+    NEWER). It adds a memory to § 3's walk across relays, where the send clause asks the provider once, as § 9.2
+    already asks for each self-Map version.
+
+**A2-2 — Its relay reads the menu's relay as what step 5 would give the key** (review NB4). *(Qualifies: sub-decision
+3's Its relay quote, as A1-1 words it.)*
+- New text, Treasure Maps § 9.2, Its relay: "it is also the relay A's menu gives the self-entry's key (Duty Menus § 6.2
+  step 5)" becomes "it is also the relay A's menu gives the self-entry's key (what Duty Menus § 6.2 step 5 would give
+  that key from A's menu, if the observer chose it, and kept it, for A)". The rest of the paragraph, including "a key
+  to which A's menu gives another relay, or none" and "whatever A's menu now gives its key", reads by the same gloss.
+- Why:
+  - Step 5 writes entries "only from keys the observer chooses", and gives a key that is not offered as a whole a relay
+    only "if the observer keeps K for A". Read strictly, a self-entry whose key the observer never chose has no step-5
+    relay, and the sentence's last clause rules it out. That would include § 9.2's own nested-row example (`3039x:tag`
+    → R1 and `30396:tag` → R0, for the observer's `3039x`), and every narrower key that More than one relay and A part
+    A does not publish ask A to write.
+  - This ADR's construction already reads it as A2-2 does ("each with the relay step 5 gives it", sub-decision 3), and
+    the model's `sm3.menu_relay` gives exactly that value.
+  - "From A's menu" (revision 1; the A2 review's F3): step 5 takes a relay from A's self-entry keyed K first, so
+    without it the gloss would give a self-entry its own relay. Duty Menus' No guess words it the same way ("what this
+    step gives K from A's menu").
+  - Model (`s3r2/a2_nb4.py`, the review's probe draws). Of 1,138 build3 self-entries, 737 are keyed with a key the
+    observer did not choose for A: 722 offered as a whole, and 15 not. Read strictly, none of the 737 has a step-5
+    relay. Every one of the 1,138 names what step 5 would give its key from A's menu, if the observer chose it and
+    kept it.
+- Not taken: *leaving it, since the example settles it* (the review: the strict reading makes A say less, never
+  something false). A spec has to read one way on its own words (A1-3's reason), and the gloss is one parenthesis.
+
+**A2-3 — Verification AC4's third case is "No self-Map"** (review NB16). *(Supersedes: the first words of Verification
+AC4's third check.)*
+- New text, this ADR's Verification, AC4, Checks: "No menu, entry relay empty, …" becomes "No self-Map, entry relay
+  empty, …". The rest of the check stays.
+- Why: the check names "A's menu relay R1", which a case with no menu cannot have, and its script describes "No
+  self-Map; entry relay empty; A's menu row names R1 (an old copy)" (`s3/r1/m6r.py`, Part 3). The answer, Rw, holds
+  under both wordings.
+
+**A2-4 — AC3's second departure, under § 9.2 Ties, is named** (review B2). *(Qualifies: the Consequences' departures
+from the approved story.)*
+- No spec text changes. The owner named the departure on 2026-10-12. Where § 6 as written picks no single self-entry
+  of A for an insight, as for a bare `39998` and a `39999` key, no self-entry wins it. A self-entry keyed as the
+  observer's entry then confirms nothing for that insight, though AC3's "the same key" confirms it. The departure is
+  provisional: it holds until story 4 orders the Concept kinds in § 6 (ADR 0002's A1-8; Out of scope).
+- Why: the rule is this ADR's own (sub-decision 2, Why a tie claims nothing; Out of scope, where such ties "claim
+  nothing meanwhile"), and the spec is right to carry it. AC3 is about what a reader concludes from any self-Map it
+  meets, as for A1-4's departure, so the departure needed its name. The review's case is A's self-Map `*` → R0,
+  `39998` → Rc, `39999` → Rd, `39999:c1` → Rd, with the observer's `[39999:c1, A]`
+  (`rv-s3/rederive/probe/p1_tie_ac3.out`).
+- The PO records it under AC3 in story 3's record, beside ADR 0003 A1-4's exception.
+
+**A2-5 — Three of the owner's one-line folds, where they change this ADR's sentences** (review NB1, NB6, NB11).
+*(Qualifies: sub-decision 2's Meaning and sub-decision 5's Confirmed duty, for A1-4's rule; sub-decision 6's "not a
+promise" quote and its Enumerating gloss.)*
+- New text, Treasure Maps § 9.2, Confirmed duties, second sentence (NB1): "An entry is confirmed for the insights a
+  self-entry wins …" becomes "An entry is confirmed for the insights such a self-entry wins …". "Such" points at the
+  first sentence's self-entry, whose element 3 is not the empty string.
+- Recorded, with no edit: § 9.2 Meaning's "A self-entry whose element 3 is the empty string claims nothing (Its
+  relay)" and Confirmed duties' "whose element 3 is not the empty string (Its relay)", as they stand at `b25f89ac`,
+  are this ADR's text from A2 on. They restate A1-4's rule, which A1-4's exact edits put only in Its relay.
+- New text, Treasure Maps § 3 (NB6): "A Map entry names who is asked to publish an insight." becomes "A Map entry names
+  who is asked to publish an insight, except as § 9 says." Principle 2 and § 7 already say so.
+- New text, Treasure Maps § 3, Enumerating (NB11): "A client MAY also enumerate at the relays this fallback gives for
+  the insights under the key: those of A's self-entries and menu rows that win any of them." becomes "A client MAY
+  also enumerate at the relays this fallback's three steps give for any of the insights under the key." The old gloss
+  left out step 3's write relays, and did not leave out storefront rows, as step 2 does.
+- Why here: the three sentences are this ADR's (sub-decisions 2, 5 and 6, with A1-4), so an Implementer edit without
+  an amendment would repeat the review's Harness friction 1. The owner's two other folds, NB7 (§ 9, One key per
+  observer) and NB14 (Duty Menus § 9's pointer to Treasure Maps § 9.2, Counting Maps), change no sentence this ADR
+  words, and the Implementer makes them as logged deviations under the owner's decision.
+- NB7's wording (revision 1; the A2 review's F5). Three specs cite § 9's bullet for "each key serves one observer":
+  Spawning § 4 ("`observer` is implied"), Trust Determination Methods § 4 (Signed by the Assistant) and Duty Menus
+  § 2 (Per-customer key). The qualification keeps the bullet's rule whole for an algorithm personalized to the
+  observer, as NIP-85 words it ("a key per user when the algorithm is personalized to that user's point of view or
+  settings"), and points a key that serves several observers at § 9.2 and Duty Menus § 14, question 3. Spawned lists
+  and Trust Determination Method items are personalized to one observer, and the Per-customer key states NIP-85's
+  personalized case, so the three stay true. The Implementer's deviation names the three as checked. Spawning and
+  Trust Determination Methods are outside this round's files, so a wording that would leave one of them untrue is
+  reworded, not carried into them.
+
+### Questions for the owner
+
+None is open. On 2026-10-12 the owner chose (c) for B1 in substance, named B2's departure, and folded NB1, NB6, NB7,
+NB11 and NB14 into this round. At this gate the owner approves A2's wording, in particular:
+- A2-1's placement in § 7, and its reading that an unclaimed retraction is no copy, so that § 3 looks on, against
+  ending the search there (A2-1, Not taken);
+- A2-1's send clause (revision 1): a provider that stops retracts the List at each relay where it published it.
+  Without it, a provider that follows § 9.2 and had also published the List at a write relay can leave its last
+  version there, and readers that follow § 3 take that version, while it is no older than they accept, in place of the
+  next Alternate's (case (a)) or of nothing (case (b), a Tag the observer dropped). With it, that happens only where a
+  send fails (Consequences of A2, Residual). The owner may also add the reader rule that A2-1 does not take, which
+  covers a failed send for a reader that meets the retraction first (A2-1, Not taken);
+- A2-1's cost: a reader that finds no self-Map of the provider, or where the provider's self-Map does not claim the
+  List for that reader, reads a List the provider maintains with no members as no copy. That includes a List given to
+  the provider only by a private entry, for every reader, the observer's own client included, until Treasure Maps
+  settles private duties in a self-Map (Consequences of A2);
+- leaving NB3 and NB10 in the ledger. NB3 turns on what a bare `39999` covers and how § 6 orders it against a bare
+  `39998` (Duty Menus § 14 question 5), which story 4 settles. NB10 needs a keep-or-delete decision for curation
+  copies, which would be new normative text in Assistant Designation, for story 4's ADR.
+
+### Consequences of A2
+
+- **One reading of the marker.** In each case the review named, and for each kind of reader, the specs give one
+  answer at every retraction age (A2-1, Model). A provider that stops by removing or narrowing its self-entry, so that
+  none wins the List, no longer holds a reader that sees the change on its empty List: the reader moves on as soon as
+  it finds the retraction and nothing else from that provider that it accepts. Where the List only left what a kept
+  self-entry speaks for, a reader that cannot tell is still held (Readers that cannot tell, below).
+- **The cost of the owner's choice.** A reader that finds no self-Map of a provider, because the provider keeps none
+  (the self-Map is a SHOULD) or because the reader does not look, reads every retraction as no copy. So does any
+  reader where the provider's self-Map says less than it maintains: what the key cannot claim truly (A part A does not
+  publish), or a List that no public self-entry claims, such as one given to the key only by a private entry, which
+  § 9.2 keeps out of a self-Map's public tags (Private duties). For a List that the provider still maintains with no
+  members, such a reader moves to the next Alternate, or finds nothing (cases (e) and (e'); 178 of 4,000 random Maps
+  for reader F; for a privately given List, every reader, the observer's own client included, in the A2 review's
+  `s3r2/sk/sk_a2_extra.out`). Neither shows stale members. The remedy is § 9.2's existing "Every Assistant SHOULD keep
+  a self-Map", and a self-Map that claims what the key maintains. A privately given duty has no remedy yet: whether a
+  self-Map may carry it in `.content` is open (Treasure Maps § 9.2, Private duties, and § 13, question 8, which keeps
+  the Map's delegation entries public for now; ledger row `2026-10-12-self-maps-spec-fold-forwards`, item 9).
+- **Readers that cannot tell** (§ 9.2's third and fourth cases) take a retraction as a List with no members: at the
+  self-entry's relay whatever its age, and at another relay while it is no older than they accept. They show an empty
+  List where the observer's view has none (b) or has another key's (c). In (b), with O's entry hint at A's write
+  relay, a reader that stops at the entry's relay shows A's empty List and then, as the retraction ages, B's
+  (`s3r2/r1/a2r1.out`). The spec now says so.
+- **Residual.** A relay where the provider published the List, and where its send of the retraction failed, still
+  holds the provider's last version. A reader that reaches it, as the entry's relay or at any relay § 3 asks, accepts
+  that version while it is no older than the reader accepts, as it would have before § 9.2 asked for retractions, and
+  then moves on (`s3r2/a2.out`, Part 2, and `s3r2/r1/a2r1.out`: B, or not found in (b), once that version is older
+  than the limit). The reader's age limit bounds it, as for the failed send of a self-Map removal that sub-decision
+  4's residual states. A provider that follows § 9.2 reaches it only by a failed send, since it retracts at each relay
+  where it published the List (A2-1, revision 1).
+- **A removal a reader never sees** (§ 9.2's first case). A reader that holds A's self-Map from before the removal
+  still takes the self-entry to claim the List, and reads the retraction as A's empty List (`s3r2/a2.out`, Part 2).
+  The first case already covers it ("keeps its last insights counted as maintained").
+- **Publishers:** one clause. A key sends a List's retraction to each relay where it published the List, under the
+  retraction's own SHOULD (A2-1, revision 1). § 9.2's order (remove or narrow, then stop, then retract) is what makes
+  a retraction after a stop read as no copy. A key that retracts first is read as publishing an empty List until its
+  self-Map changes.
+- **Not in A2.** § 5.4's Enumerate keeps every list of A's under the scope, retractions included. Whether it drops a
+  retraction that is no copy is outside B1, for story 4 or a later docs pass.
+- **Departures from story 3 as approved:** AC3's "the same key", under § 9.2 Ties, provisionally (A2-4), beside ADR
+  0003 A1-4's and A1-9's. A2-1 departs from no AC: AC2's "existing retraction convention" stands, and AC3's maintained
+  copy and AC4's fallback "whatever the cause" both hold.
+- **Story 3's § Deviations.** The PO records A2-4 under AC3. A2-1 changes no reading in the record. The Implementer's
+  block names ADR 0003 A2-1, A2-2 and A2-5 with the lines changed, and the owner's NB7 and NB14 folds.
+- **One place per fact.** § 7 holds the rule, and § 3 and § 9.2 point at it.
+- **New wire surface:** none. A2-1 is a reading rule for Trusted Lists' existing marker, and says where § 9.2's
+  existing retraction is sent.
+- **Firmware reinstall required?** No. No concept definition changes.
+
+### Implementation notes for A2
+
+Docs-mode. These are the exact edits. Line numbers are as of `b25f89ac`. Inside `protocols/`, A2 changes only
+`treasure-maps.md`; `duty-menus.md` changes only for the owner's NB14 fold, and `assistant-designation.md` does not
+change.
+
+**`protocols/drafts/treasure-maps.md`**
+- **Metadata Sources** (:5): "with `duty-menus-and-self-maps` ADR 0003 and its Amendment A1 (Self-Maps, § 9.2; the
+  relay hint and the read-time fallback, § 3)" becomes "with `duty-menus-and-self-maps` ADR 0003 and its Amendments A1
+  and A2 (Self-Maps, § 9.2; the relay hint and the read-time fallback, § 3; a retracted List, § 7)".
+- **§ 3** (:80): A2-5's NB6 sentence.
+- **§ 3, When the insight is not there** (:84): A2-1's end of the list of causes.
+- **§ 3, Enumerating** (:95): A2-5's NB11 sentence.
+- **§ 7, second bullet** (:304): after "…or when it counts as maintained (§ 9.2).", insert A2-1's three sentences,
+  before "A reader that does not follow § 3 moves on after the entry's relay."
+- **§ 9.2, Its relay** (:361): A2-2's parenthesis, in place of "(Duty Menus § 6.2 step 5)".
+- **§ 9.2, What follows a stop, Lists** (:393): A2-1's ", at each relay where it published the List" after "by the
+  retraction convention", and its pointer sentence at the end.
+- **§ 9.2, Confirmed duties** (:403): A2-5's "such".
+- **§ 9.2, What the allowance rests on** (:415, :416): A2-1's two clauses.
+
+**`engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`, § Deviations:** the Implementer adds a block,
+labelled by role, that names ADR 0003 A2-1, A2-2 and A2-5 and the lines changed, and the owner's NB7 and NB14 folds as
+deviations, NB7 with the three citations A2-5 names as checked. The PO's record stays the PO's (A2-4's line under AC3).
+
+**`ledger/2026-10-12-self-maps-spec-fold-forwards.md`:** a dated note of the items this round folded (NB1, NB4, NB6,
+NB7, NB11, NB14, NB16) and of those that stay (NB3, NB5, NB8–NB10, NB12, NB13, NB15). The row stays OPEN.
+
+**Not edited:** ADR 0002; this ADR beyond A2, its markers and the Status line; anything outside the drafts, the story
+and the ledger row.
+
+**Gates:** as in the Implementation notes for A1: the vocabulary gates, links and anchors (§ 7's new
+`trusted-lists.md#common-wire-shape` link resolves), `harness-lint`, the stack-free `npm test`, and `git diff --stat`
+inside `protocols/` touching only the three drafts.
+
+### Verification for A2
+
+Re-derive each case from the drafts as changed, then run the scripts with `python3 -I`, each from its own folder.
+- **A2-1.**
+  - Look in § 7's second bullet for the three sentences after the acceptance sentence: "is a copy only where the
+    provider's self-Map still claims the List", "It is then the List with no members", and "Otherwise, as where the
+    reader finds no self-Map of the provider, it is no copy.", which ends there, with nothing on what the marker says
+    about the provider. § 3's list of causes ends "or a retracted List that is no copy, § 7". § 9.2's Lists bullet
+    retracts "at each relay where it published the List" and ends with the pointer. The third and fourth cases each
+    say "and a List the key retracted as one with no members (§ 7)", and the fourth no longer says "unless it is a
+    List the key retracted".
+  - Checks, each from the spec text. O's Map is `["3039x:tag", A, R]`, `["3039x:tag", B, S]` unless said otherwise,
+    and the reader asks for `30392:tag::⟨T⟩`.
+    - (a) A's service ends. A had published the List at R and at its write relay Rw. It removes its self-entry, stops,
+      and retracts the List at each relay where it published it, R and Rw (§ 9.2, What follows a stop). No self-entry
+      of A wins the List, so the retraction is no copy (§ 7). § 3 runs (its new cause): step 1 gives nothing, step 2
+      gives R again where A's menu is still found (skipped), and step 3 gives Rw's retraction. A's insight is not
+      found, and § 7 moves to B. Every reader gets B's List at every retraction age, B's copy being judged as before.
+      If the send to Rw failed, a reader that follows § 3 takes A's last version from Rw while it is no older than it
+      accepts, then B's (Consequences of A2, Residual).
+    - (b) O unpins T. A and B keep `3039x:tag` and retract T's lists. A reader that holds O's supported sets knows that
+      neither self-entry speaks for T's list, so neither retraction is a copy: not found. A reader without them takes
+      each self-entry to speak for it (What a reader can tell): A's retraction is a List with no members at A's
+      self-entry's relay, so it counts as maintained, and the reader shows A's empty List. A reader with no self-Maps:
+      not found. The third case states the second answer.
+    - (c) The fourth case. O gives `30396:tag:⟨D1⟩:⟨T2⟩` to B; A keeps `3039x:tag` → R and retracts that List. A reader
+      of O's Map asks B, whose exact key wins. A reader of P's Map `["3039x:tag", A, R]`, `["3039x:tag", C, U]`: with
+      O's Map, A's retraction is no copy, so C's List; without it, A's empty List. A's self-Map read as a point of
+      view: not found, or A's empty List. The fourth case states the second answers.
+    - (d) A moves the List from R to R1: it publishes a self-Map naming R1, then stops updating R, and retracts
+      nothing (§ 9.2, When it changes). No marker is read. The copy at R is not maintained, since the self-entry names
+      R1, and § 3's step 1 gives R1: A's List. This is as before A2.
+    - (e) A still maintains the List, and its members are gone, so A replaces it at R with Trusted Lists' marker. A's
+      self-entry `3039x:tag` → R wins it and speaks for it, so the retraction is a List with no members, maintained at
+      R: A's empty List at every age, and § 7 does not move to B. A reader that finds no self-Map of A reads no copy
+      and uses B's List (Consequences of A2).
+  - Run `s3r2/a2.py 4000`. It prints:
+    - Part 1: the named cases (a), (b), (c1) to (c3), (d), (e) and (e'), for readers F, N, X, Z1 and Z2, under C, R1
+      and R2. Under C every line says "one", with the answers in A2-1's table; under R1, (a) is "AGE-DEP" for all five
+      readers.
+    - Part 2: (a') with A's last version at Rw at age 60: C gives A's last version and L1 gives B; with O's entry hint
+      at Rw, both give A's last version; at age 5000, both give B. (a''): A's empty List.
+    - Part 3: 4,000 Maps, 799 with T dropped. Under C, 0 age-dependent results for every reader, and F differs from
+      the truth in 178 Maps, all "an emptied List of a provider with no self-Map passed over". Under R1: F 1,717, N
+      1,096, X 2,366, Z1 1,335 and Z2 636 age-dependent, and F differs in 1,717 (1,562 and 155). Under R2: 0
+      age-dependent, and F differs in 949 (771 and 178).
+    - The output is the same on every run (seeded, and printed in a fixed order).
+  - Run `s3r2/r1/a2r1.py`. For (a) and (b), with O's entry hint at R or at Rw, it prints each reader's answers under
+    C, L1 and NEWER. With the retraction at R and Rw, C gives the table's answers at every age; with the hint at Rw,
+    N and Z2 in (b) show an empty List at every age, A's at Rw, then A's at R (N) or B's (Z2). With the send to Rw
+    failed and the hint at R, C gives A's last version at the youngest age for F, N and X in (a) and for F and X in
+    (b), then the table's answer, where L1 and NEWER give the table's answer at every age; with the hint at Rw, all
+    three give A's last version at the youngest age.
+- **A2-2.**
+  - Look in § 9.2, Its relay, for the parenthesis "(what Duty Menus § 6.2 step 5 would give that key from A's menu, if
+    the observer chose it, and kept it, for A)".
+  - Check: in § 9.2's nested-row example, `3039x:tag` → R1 and `30396:tag` → R0 are the relays step 5 would give those
+    keys from A's menu, though the observer chose only `3039x`.
+  - Run `s3r2/a2_nb4.py 3000`. It prints 1,138 self-entries: 401 keyed as an observer key for A, 737 not (722 offered
+    as a whole, 15 not), and 0 whose relay is not what step 5 would give its key from A's menu (`sm3.menu_relay`).
+- **A2-3.** Look in Verification AC4's checks: the marker after them says that the third check reads "No self-Map".
+  `s3/r1/m6r.py`'s Part 3 comment says "No self-Map", and the reader uses Rw.
+- **A2-4.** The Consequences' departures bullet carries the A2-4 marker, and story 3's record names the Ties exception
+  under AC3, citing "ADR 0003 A2-4" (the PO's line). `rv-s3/rederive/probe/p1_tie_ac3.out` prints "AC3 literal (same key present):
+  confirmed=True; 9.2 Confirmed duties: confirmed=False".
+- **A2-5.** Look in § 3 for "except as § 9 says" after "who is asked to publish an insight", and in Enumerating for
+  "the relays this fallback's three steps give for any of the insights under the key". § 9.2's Confirmed duties says
+  "for the insights such a self-entry wins". Meaning's and Confirmed duties' blank-relay phrases are unchanged. The
+  Implementer's deviation for NB7 names Spawning § 4, Trust Determination Methods § 4 and Duty Menus § 2 as checked,
+  and each still reads true beside § 9's qualified One key per observer.
+
+The scratchpad is not durable. If the scripts are gone, rebuild `a2.py` from A2-1's text (one List; § 7's acceptance
+with the new sentences; § 3's order, skipping relays already asked; § 9.2's maintained copy and What a reader can
+tell), `r1/a2r1.py` from `a2.py` with A's List also published at Rw (retracted there, or a failed send leaving the last
+version), and `a2_nb4.py` from the review's NB4 probe on revision 2's helpers.
