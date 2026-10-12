@@ -42,6 +42,11 @@ failures. Never skip them.
 passed. That review asked for a row because the flake "has no ledger row", and `2026-10-10-rw7-timing-flake` was filed.
 It is closed as a duplicate of this one.
 
+**Recurred 2026-10-12 (`assistant-coming-soon` #1, Gate B review, harness friction 4).** The reviewer's first full
+run, `20261012T024525Z-30740-0316`, failed RW7 alone: the first restart came at 0.76 s, below the 0.8 s floor. The
+suite then passed alone 24/0, three times out of three, and the full rerun `20261012T025139Z-32472-0dfa` passed
+(5753/0). The story's diff touches no server code.
+
 **Pointer:** `engineering-team/reviews/done/treasure-map-edit/3-edit-mode-assign-and-preview.md` § Quality gates and
 § Harness friction 3; `engineering-team/reviews/done/my-assistants/1-the-my-assistants-page.md` § Harness friction 2.
 

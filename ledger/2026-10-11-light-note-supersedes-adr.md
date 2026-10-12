@@ -22,6 +22,13 @@ Reviewer both ratified the Design-note classification, because no listed trigger
 
 It is a harness-definition path, so the change owes a CHANGELOG row.
 
+**Recurred 2026-10-12 (`assistant-coming-soon` #1, Gate B review, harness friction 1).** Its Light Design note narrowed ADR
+`assistant-identification-tags/0001` sub-decision 6 ("a placeholder ... is marked and counted in both") and adopted
+the Option B that ADR `assistant-duty-cards/0001` had rejected, with no pointer on either ADR. On the owner's Gate B
+verdict ("pass with the records note") each ADR gained one line pointing to the story: `> **Amended in part
+(2026-10-12):**` and `> **Note (2026-10-12):**`. The two Light stories on this hub now record the same situation in
+two ways, which strengthens the case for the one-line rule in the fix shape.
+
 **Pointer:** `engineering-team/reviews/done/assistant-shared-categories/1-done-but-shared.md` § Harness friction 1;
 `engineering-team/decisions/done/assistant-trusted-content-status/0001-scores-lists-and-concepts-join-the-one-attention-answer.md`
 (its superseded-in-part line).

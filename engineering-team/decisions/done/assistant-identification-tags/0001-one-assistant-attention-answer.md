@@ -4,6 +4,8 @@
 **Date:** 2026-09-22
 **Story:** `engineering-team/stories/assistant-identification-tags/1-the-one-answer-and-the-hubs-first-real-mark.md`
 
+> **Amended in part (2026-10-12):** sub-decision 6's "a placeholder action (no check yet) is marked and counted in both" now holds only for placeholders outside `COMING_SOON_ACTIONS` (today Your Assistant's Treasure Map). Bounties, Pins, Tags, Notifications and Alerts, and Preferences say Coming soon on the hub and are in neither reading, nor in `done` or `shared`, whatever the answer says for them. The rest of this ADR stands. See assistant-coming-soon #1's Design note (`engineering-team/stories/assistant-coming-soon/1-coming-soon-cards.md`; Light profile, no ADR).
+
 ## Context
 
 Story 1 gives the Identification Tags action its real "needs attention" answer and makes the hub's

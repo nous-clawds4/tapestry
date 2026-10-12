@@ -29,4 +29,8 @@ both flows.
   and that worked: it tied the browser pass to the bundle hash staging serves.
 - The story's "How to run" still hard-codes :7799.
 
+**Recurred 2026-10-12 (`assistant-coming-soon` #1, Gate B review, harness friction 2).** The story's Gate A and "How
+to run" hard-coded :7799, which another process held during the review. The fix shape worked again: the reviewer
+built into its own directory, served it on :7831 and :7832, and named each build by its asset hash.
+
 **Pointer:** `engineering-team/audits/treasure-map-card-details/audit.md` §7 finding 2.
