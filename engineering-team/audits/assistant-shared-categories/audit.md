@@ -188,12 +188,14 @@ its Gate B record. SV18, a test added beyond the Design note's list, is named an
     selective promotion conflicted with assistant-duty-menu #1. The owner chose to promote all of `staging` once that
     story's implementation landed (`6ac4aa8`, reviewed PASS in `a431ed6`). The same bundle shipped the Duty Menu page,
     its publish button and that book's close (`6c0a5d3`).
-- [ ] **2. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check:
+- [x] **2. The signed-in look on staging.** Sign in on staging.brainstorm.world, open `/assistant`, and check:
   - Scores and Lists read **Done** and **Shared**, each with its line, and Concepts reads plain **Done**;
   - the count line and the top-bar pill leave the three out;
   - **Move it here →** opens `/treasure-map`.
 
-  Same kind of gap as `assistant-trusted-content-status` audit §6 #2.
+  Same kind of gap as `assistant-trusted-content-status` audit §6 #2. **Done 2026-10-12:** after the production release,
+  the owner checked `/assistant` signed in and reported that it looks right. That check covers the marks. The catch-up
+  after a Map save is still covered only by SV17 and SV18, so the predecessor's §6 #2 stays open for that part.
 - [ ] **3. Self-entries.** When book `duty-menus-and-self-maps` #3 reaches code, the hub's shared rule and the
   `/treasure-map` cards should learn self-entries together. (§4 #3; ledger
   `2026-10-11-self-entry-reads-as-another-assistant`)
