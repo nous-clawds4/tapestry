@@ -500,6 +500,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md`](../../decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
