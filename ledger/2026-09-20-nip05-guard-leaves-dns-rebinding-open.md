@@ -37,3 +37,12 @@ Worth pairing with the redirect row above, since both live in `guardedFetch`.
 **Pointer:** `src/utils/ssrfGuard.js` (module header, "Known and accepted limit");
 `engineering-team/stories/done/nip05-ssrf-guard/1-shared-pre-fetch-address-guard.md` § Out of scope;
 `engineering-team/stories/_intake.md` lines 77–146, Architect's call item 3.
+
+**Scope grows, 2026-10-11 (assistant-duty-menu #2 review, NB5).** The same resolve-then-connect gap applies to three
+more paths, all through `src/utils/relayHostGuard.js`'s `isPublicRelayHostWithin` (formerly in
+`relayListPublish.js`):
+- the Outbox Relays publisher;
+- the Duty Menu check's reads (`src/api/assistant/dutyMenu.js`);
+- the Duty Menu publisher (`src/api/assistant/dutyMenuPublish.js`).
+
+Each resolves a relay's host and then lets the WebSocket client resolve it again. A fix here should cover them all.

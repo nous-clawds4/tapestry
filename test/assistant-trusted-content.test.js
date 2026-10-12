@@ -22,6 +22,11 @@
  *   S — source sentinels on the server and the documents: read-only, session-only, /setup's Map read reused, no TA
  *       literal; openapi and BIBLE say what is true.                                                         [AC-2]
  *
+ * Re-aimed by assistant-shared-categories #1 (Done, but shared; its Design note names each re-aim): a category the Map
+ * gives to another Assistant, alone or beside the viewer's, is done and carries `shared` ('entirely' / 'partly'), so
+ * U1, U2, U3, U4 and U11 move with that rule and U12's exact shape gains `shared`. Its own suite is
+ * test/assistant-shared-categories.test.js.
+ *
  * Everything here FAILS against the code before this story: src/lib/treasureMapCategories.mjs and
  * src/api/assistant/trustedContent.js do not exist, the attention answer has no Scores/Lists/Concepts, the three cards
  * are placeholders titled Trusted Assertions, Trusted Lists and Decentralized Lists, and the provider re-checks only
@@ -33,6 +38,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const TC = require('./helpers/trustedContentFixtures');
 const AM = require('./helpers/assistantManagementFixtures');
+const DUTY_MENU_ANSWER = require('./helpers/dutyMenuFixtures').ANSWERS.DONE;
 
 const REPO = path.resolve(__dirname, '..');
 const RULE = path.join(REPO, 'src/lib/treasureMapCategories.mjs');
@@ -238,35 +244,35 @@ test('R3: the moved rule reads a Map as the cards always have — first delegate
 
 /* ───────────────────────── U — the server check ───────────────────────── */
 
-test('U1: a Map on this instance\'s relay — Scores to the viewer\'s Assistant only is done; Lists given to nobody is not-assigned; Concepts given only to another Assistant is other-assistants-only; all finished, source local; no outside relay is read (AC-3, AC-4)', async () => {
+test('U1: a Map on this instance\'s relay — Scores to the viewer\'s Assistant only is done; Lists given to nobody is not-assigned; Concepts given only to another Assistant is done, shared entirely (re-aimed by assistant-shared-categories #1); all finished, source local; no outside relay is read (AC-3, AC-4)', async () => {
   const { out, calls } = await check({ local: [mapEv([['30382:rank', ASSISTANT, R], ['30382:followers', ASSISTANT, R], ['39998:dlist-header', OTHER, R]])] });
   const want = {
     'trusted-assertions': TC.done('scores', 'local'),
     'trusted-lists': TC.pending('lists', 'not-assigned', 'local'),
-    dlists: TC.pending('concepts', 'other-assistants-only', 'local'),
+    dlists: TC.shared('concepts', 'entirely', 'local'),
   };
   const wrong = trioDiff('local Map', out, want);
   if (calls.readRelay.length !== 0) wrong.push(`a local hit asks no outside relay; asked ${show(calls.readRelay.map((c) => c.url))}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U2: Mixed is done — the viewer\'s Assistant beside another, in every category and spelling (30382/30392/3039x:tag/39998:dlist-header/39999:<d>) (AC-3)', async () => {
+test('U2: Mixed is done, shared partly (re-aimed by assistant-shared-categories #1) — the viewer\'s Assistant beside another, in every category and spelling (30382/30392/3039x:tag/39998:dlist-header/39999:<d>) (AC-3)', async () => {
   const { out } = await check({ local: [mapEv([
     ['30382:rank', OTHER, R], ['30382:followers', ASSISTANT, R],
     ['30392', OTHER, R], ['3039x:tag:X1', ASSISTANT, R],
     ['39998:dlist-header', OTHER, R], ['39999:restaurants', ASSISTANT, R],
   ])] });
-  const wrong = trioDiff('Mixed', out, byCategory((c) => TC.done(c, 'local')));
+  const wrong = trioDiff('Mixed', out, byCategory((c) => TC.shared(c, 'partly', 'local')));
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U3: the all-duties `*` — `*` to the viewer\'s Assistant and nothing else makes all three done; a bare `3038x` to another Assistant hides it for Scores only; a `*:tag` never counts (AC-3)', async () => {
+test('U3: the all-duties `*` — `*` to the viewer\'s Assistant and nothing else makes all three done; a bare `3038x` to another Assistant hides it for Scores only, which is then done, shared entirely (re-aimed by assistant-shared-categories #1); a `*:tag` never counts (AC-3)', async () => {
   const wrong = [];
   const all = await check({ local: [mapEv([['*', ASSISTANT, R]])] });
   wrong.push(...trioDiff('* only', all.out, byCategory((c) => TC.done(c, 'local'))));
   const hidden = await check({ local: [mapEv([['*', ASSISTANT, R], ['3038x', OTHER, R]])] });
   wrong.push(...trioDiff('* hidden for Scores', hidden.out, {
-    'trusted-assertions': TC.pending('scores', 'other-assistants-only', 'local'),
+    'trusted-assertions': TC.shared('scores', 'entirely', 'local'),
     'trusted-lists': TC.done('lists', 'local'),
     dlists: TC.done('concepts', 'local'),
   }));
@@ -275,10 +281,10 @@ test('U3: the all-duties `*` — `*` to the viewer\'s Assistant and nothing else
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U4: a backup does not count — the viewer\'s Assistant named only after another for every Scores key is other-assistants-only, as the card shows only the first (ADR 0001 sub-decision 2)', async () => {
+test('U4: a backup does not count — the viewer\'s Assistant named only after another for every Scores key is done, shared entirely (re-aimed by assistant-shared-categories #1), as the card shows only the first (ADR 0001 sub-decision 2)', async () => {
   const { out } = await check({ local: [mapEv([['30382:rank', OTHER, R], ['30382:rank', ASSISTANT, R]])] });
   const s = out && out['trusted-assertions'];
-  assert(sameJson(s, TC.pending('scores', 'other-assistants-only', 'local')), `want ${show(TC.pending('scores', 'other-assistants-only', 'local'))}, got ${show(s)}`);
+  assert(sameJson(s, TC.shared('scores', 'entirely', 'local')), `want ${show(TC.shared('scores', 'entirely', 'local'))}, got ${show(s)}`);
 });
 
 test('U5: pubkeys compare case-blind, and an entry with no valid 64-hex delegate counts for nobody (AC-3)', async () => {
@@ -349,13 +355,15 @@ test('U11: evaluateTrustedContent is the table of ADR 0001 sub-decision 4 — pu
       assignments: { scores: [ASSISTANT], lists: [OTHER, ASSISTANT], concepts: [] },
     }, {
       'trusted-assertions': TC.done('scores', 'relay'),
-      'trusted-lists': TC.done('lists', 'relay'),
+      // Re-aimed by assistant-shared-categories #1: the viewer's Assistant beside another is shared, partly.
+      'trusted-lists': TC.shared('lists', 'partly', 'relay'),
       dlists: TC.pending('concepts', 'not-assigned', 'relay'),
     }],
+    // Re-aimed by assistant-shared-categories #1: only other Assistants is done, shared entirely.
     ['others only', {
       lookup: { finished: true, event: map, source: 'local' },
       assignments: { scores: [OTHER], lists: [OTHER, THIRD], concepts: [THIRD] },
-    }, byCategory((c) => TC.pending(c, 'other-assistants-only', 'local'))],
+    }, byCategory((c) => TC.shared(c, 'entirely', 'local'))],
   ];
   for (const [label, input, want] of cases) {
     const got = evaluate({ ...input, assistantPubkey: ASSISTANT });
@@ -365,13 +373,13 @@ test('U11: evaluateTrustedContent is the table of ADR 0001 sub-decision 4 — pu
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U12: the answer carries exactly the three keys, each exactly { category, finished, done, pending, reason, source }, and no viewer or Assistant pubkey (AC-2)', async () => {
+test('U12: the answer carries exactly the three keys, each exactly { category, finished, done, pending, reason, source, shared } (shared since assistant-shared-categories #1), and no viewer or Assistant pubkey (AC-2)', async () => {
   const { out } = await check({ local: [mapEv([['*', ASSISTANT, R], ['30382:rank', OTHER, R]])] });
   const wrong = [];
   if (!out || Object.keys(out).sort().join() !== [...TC.KEYS].sort().join()) wrong.push(`keys: want ${show(TC.KEYS)}, got ${show(out && Object.keys(out))}`);
   for (const key of TC.KEYS) {
     const v = out && out[key];
-    if (!v || Object.keys(v).sort().join() !== ['category', 'done', 'finished', 'pending', 'reason', 'source'].join()) wrong.push(`${key}: fields ${show(v && Object.keys(v))}`);
+    if (!v || Object.keys(v).sort().join() !== ['category', 'done', 'finished', 'pending', 'reason', 'shared', 'source'].join()) wrong.push(`${key}: fields ${show(v && Object.keys(v))}`);
   }
   const text = show(out).toLowerCase();
   for (const [who, pk] of [['viewer', VIEWER], ['assistant', ASSISTANT], ['other', OTHER]]) if (text.includes(pk)) wrong.push(`the answer names the ${who}'s pubkey`);
@@ -409,6 +417,9 @@ function attentionFakes({ assistant = ASSISTANT, trustedContent, local = [], map
     mapDefaultRelays: () => mapRelays.slice(),
     // Another book's check (assistant-profile-checklist ADR 0001), stubbed whether or not it has landed.
     checkProfile: async () => ({ finished: true, done: true, pending: false, items: [] }),
+    // Re-aimed by assistant-duty-menu #1: the duty-menu check (its ADR 0001 sub-decision 7), stubbed whether or not it
+    // has landed: it reads the viewer's Map, two relay lists and outside relays, which this suite must not see.
+    checkDutyMenu: async () => DUTY_MENU_ANSWER,
   };
   if (trustedContent !== 'default') {
     deps.checkTrustedContent = async (input) => {

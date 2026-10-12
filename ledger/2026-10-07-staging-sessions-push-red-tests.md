@@ -46,3 +46,22 @@ Review, because the hook kept asking and the owner had not answered which to pre
 would have avoided both.
 
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.
+
+**Recurrence, 2026-10-11 (assistant-duty-menu #1).** The same pattern recurred, in both directions:
+- This book's Phase-3 failing tests sat on `origin/staging` from `2d67d055` until `b2477a93`, about 40 minutes.
+- Its reviewer found the tip red again from the parallel book `assistant-shared-categories`'s failing tests at
+  `57fbb432`, unrelated to this story (review, harness friction 2).
+
+**Recurred 2026-10-11 (book `assistant-shared-categories` close), with a second consequence.**
+- The session was again told to develop on `staging`, under the same stop hook. Its failing tests (`57fbb43`) sat on
+  `origin/staging` for about 12 minutes before the implementation (`397d236`).
+- Under the Light profile the human stop is Gate B, after implementation. So the implementation was deployed to
+  staging.brainstorm.world before the owner's Gate B verdict, and the verdict's two fixes followed as a second deploy
+  (`14455d4`).
+- Nothing broke, and the owner could see the change live. But a book that wants "no unreviewed code on staging"
+  cannot have it on this setup.
+- The same book's close-time gate (step 10) then ran red for another book. Its run `20261011T221005Z-24508-3380` had
+  43 failures, all in assistant-duty-menu #2's Phase-3 tests (`f6f976c`), pushed to `origin/staging` an hour
+  earlier. So a close on shared `staging` cannot certify a green tree while any other book sits between Test Design
+  and Implementation.
+- Fix shape (a) above, a feature branch shipped through `/cycle-staging` after Gate B, covers all three.

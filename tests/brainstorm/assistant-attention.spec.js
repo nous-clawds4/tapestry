@@ -3,6 +3,7 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 const T = require('../../test/helpers/identificationTagsFixtures');
 const P = require('../../test/helpers/profileChecklistFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
+const DM = require('../../test/helpers/dutyMenuFixtures');
 
 /**
  * assistant-identification-tags #1: the one answer, and the hub's first real mark — the browser class.
@@ -22,6 +23,8 @@ const TC = require('../../test/helpers/trustedContentFixtures');
  *        assistant-trusted-content-status #1, which checks Scores, Lists and Concepts).              [AC-5]
  *   Re-aimed by assistant-outbox-relays #1: these answers carry no outbox-relays key, so the hub marks the Outbox Relays
  *   card (marked until proven done) and the pill does not count it (counted only from a finished, missing answer).
+ *   Re-aimed by assistant-duty-menu #1: the Duty Menu card is checked; every answer carries it pending (no menu found),
+ *   which marks and counts it as the placeholder was, so B1–B3 and B5 keep their counts; B4 (no answer) counts six.
  *   B5 — while the answer is on its way, no pill (setup done); the pill then shows with the
  *        answer's count, never a count that changes under the viewer.                               [AC-5]
  *   B6 — read-only: one GET of /api/assistant/attention per full load, with no parameters, and
@@ -68,8 +71,9 @@ const cardOf = (page, title) => page.locator('.bs-assistant-hub-card').filter({ 
 function withPendingProfile(answer) {
   // Re-aimed by assistant-trusted-content-status #1: Scores, Lists and Concepts are checked too; each answer carries them
   // pending (no Map), which marks and counts them as the placeholders were, so the counts below stay as they were.
-  if (!answer || typeof answer !== 'object' || !answer.actions || answer.actions.profile) return TC.withTrio(answer);
-  return TC.withTrio({ ...answer, actions: { ...answer.actions, profile: P.PROFILE_PENDING } });
+  // Re-aimed by assistant-duty-menu #1: the Duty Menu too, pending (no menu found), for the same reason.
+  if (!answer || typeof answer !== 'object' || !answer.actions || answer.actions.profile) return DM.withDutyMenu(TC.withTrio(answer));
+  return DM.withDutyMenu(TC.withTrio({ ...answer, actions: { ...answer.actions, profile: P.PROFILE_PENDING } }));
 }
 
 /** Mock every route. `attention` is the /api/assistant/attention answer: an object, 'hang', 'error', or { delayMs, body }. */
@@ -192,11 +196,11 @@ test.describe('The one answer, and the hub\'s first real mark (assistant-identif
     expect(await pillCount(page), 'the pill counts a checked action only from a finished, missing answer').toBe(11);
   });
 
-  test('B4: the fetch fails — the hub marks thirteen; the pill counts only the seven placeholders (AC-5; re-aimed by assistant-profile-checklist #1, assistant-outbox-relays #1 and assistant-trusted-content-status #1: the profile, Outbox Relays, Scores, Lists and Concepts are checked too; by assistant-duty-cards #1: two more placeholders)', async ({ page }) => {
+  test('B4: the fetch fails — the hub marks thirteen; the pill counts only the six placeholders (AC-5; re-aimed by assistant-profile-checklist #1, assistant-outbox-relays #1 and assistant-trusted-content-status #1: the profile, Outbox Relays, Scores, Lists and Concepts are checked too; by assistant-duty-cards #1: two more placeholders; by assistant-duty-menu #1: the Duty Menu is checked, one placeholder fewer)', async ({ page }) => {
     await mock(page, { attention: 'error' });
     const hub = await hubState(page);
     expect(hub).toEqual({ marks: 13, count: 13, idMarked: true });
-    expect(await pillCount(page)).toBe(7);
+    expect(await pillCount(page)).toBe(6);
   });
 
   test('B5: while the answer is on its way no pill shows (setup done); it then shows with the answer\'s count, which never changes under the viewer (ADR 0001 sub-decision 8)', async ({ page }) => {

@@ -602,6 +602,9 @@ async function register(app) {
     // Your Assistant signs its NIP-65 relay list (kind 10002) from the Outbox Relays page's draft — another narrow,
     // session-bound route in the same shape; the generic signer is unchanged (assistant-outbox-relays #3, ADR 0003).
     app.post('/api/assistant/outbox-relays/publish', require('./assistant/relayListPublish').handlePublishRelayList);
+    // Your Assistant signs its Duty Menu (kind 39999), built here from this instance's offer; the request names
+    // nothing — another narrow, session-bound route in the same shape (assistant-duty-menu #2, ADR 0002).
+    app.post('/api/assistant/duty-menu/publish', require('./assistant/dutyMenuPublish').handlePublishDutyMenu);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');

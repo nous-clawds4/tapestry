@@ -4,13 +4,14 @@ const { PENDING: ID_TAGS_PENDING, CHECKED_ACTION: IDTAGS } = require('../../test
 const { PROFILE_PENDING } = require('../../test/helpers/profileChecklistFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
+const DM = require('../../test/helpers/dutyMenuFixtures');
 // Every checked action pending — Identification Tags (assistant-identification-tags #1), the profile
-// (assistant-profile-checklist #1), Outbox Relays (assistant-outbox-relays #1), and Scores, Lists and Concepts
-// (assistant-trusted-content-status #1) — so every action is marked AND counted: the hub's count, its marks and the pill
-// all say every action (X.ACTIONS.length). A checked action counts in the pill only from a finished answer that found
-// something.
+// (assistant-profile-checklist #1), Outbox Relays (assistant-outbox-relays #1), Scores, Lists and Concepts
+// (assistant-trusted-content-status #1), and the Duty Menu (assistant-duty-menu #1) — so every action is marked AND
+// counted: the hub's count, its marks and the pill all say every action (X.ACTIONS.length). A checked action counts in
+// the pill only from a finished answer that found something.
 const ATTENTION_BASE = O.attentionWith({ idtags: ID_TAGS_PENDING.actions[IDTAGS], outbox: O.OUTBOX.PENDING });
-const ATTENTION_PENDING = TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } });
+const ATTENTION_PENDING = DM.withDutyMenu(TC.withTrio({ ...ATTENTION_BASE, actions: { ...ATTENTION_BASE.actions, profile: PROFILE_PENDING } }));
 
 /**
  * assistant-management #1: the Assistant Management page, its FAQ and ten placeholder action pages, and the
@@ -372,6 +373,8 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
       if (a.path === '/assistant/profile') test.skip(true, 'no longer a placeholder (assistant-profile-checklist #2)');
       // assistant-outbox-relays #2 builds this action's page; tests/brainstorm/assistant-outbox-relays.spec.js pins it.
       if (a.path === '/assistant/outbox-relays') test.skip(true, 'no longer a placeholder (assistant-outbox-relays #2)');
+      // assistant-duty-menu #1 builds this action's page; tests/brainstorm/assistant-duty-menu.spec.js pins it.
+      if (a.path === DM.PATH) test.skip(true, 'no longer a placeholder (assistant-duty-menu #1)');
       await mock(page, { who: CUSTOMER_USER });
       const main = await open(page, a.path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), `${a.path} is a page`).toHaveCount(0);

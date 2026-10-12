@@ -4,6 +4,8 @@
 **Date:** 2026-10-08
 **Story:** `engineering-team/stories/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.md`
 
+> **Superseded in part (2026-10-11):** "done" now means the Map gives the category to any Assistant, not that the viewer's Assistant is among them, which replaces sub-decision 2's headline. In sub-decision 4 the "only others" row (`other-assistants-only`) is retired, the done row covers any Assistant, and each answer, including sub-decision 6's `check-failed` answer, gains `shared`: `partly` or `entirely` when another Assistant holds the category beside or instead of the viewer's own, else null. The hub counts a shared category as done and marks it Shared. See `engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md` (Design note; book `assistant-shared-categories`). Sub-decision 2's reading of the Map (first delegate per key, hidden `*`, `*:…` ignored) and the rest of this ADR stand.
+
 ## Context
 
 The story renames the hub's first three *Publication of Trusted Content* cards to **Scores**, **Lists** and

@@ -3,7 +3,7 @@
 **Slug:** assistant-duty-cards
 **Status:** Closed
 **Opened:** 2026-10-11
-**Closed:** 2026-10-11 (on `staging`, deployed to staging.brainstorm.world: deploy run 607, commit `e3e436e6`; production pending the owner's next promotion)
+**Closed:** 2026-10-11 (on `staging`, deployed to staging.brainstorm.world: deploy run 607, commit `e3e436e6`; production 2026-10-11: PR #850 merged as `36212acc`, deploy run 148, production smoke clean)
 
 ## Intent anchor
 

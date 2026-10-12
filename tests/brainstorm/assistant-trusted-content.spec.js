@@ -3,6 +3,7 @@ const X = require('../../test/helpers/assistantManagementFixtures');
 const P = require('../../test/helpers/profileChecklistFixtures');
 const TC = require('../../test/helpers/trustedContentFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
+const DM = require('../../test/helpers/dutyMenuFixtures');
 
 /**
  * assistant-trusted-content-status #1 — Scores, Lists and Concepts on the hub: what a viewer SEES.
@@ -44,10 +45,13 @@ const TOTAL = X.ACTIONS.length;
 // and Outbox Relays pending, the rest placeholders), whichever of them a parallel book has made a real check.
 const OTHERS = TOTAL - 1 - TC.KEYS.length;
 
-/** An answer: Identification Tags done, the profile and Outbox Relays (assistant-outbox-relays #1) pending, and the three. */
+/**
+ * An answer: Identification Tags done, the profile and Outbox Relays (assistant-outbox-relays #1) pending, and the three.
+ * Re-aimed by assistant-duty-menu #1: the Duty Menu pending too (no menu found), so OTHERS still marks and counts it.
+ */
 const answerWith = (trio) => ({
   success: true, signedIn: true, hasAssistant: true,
-  actions: { 'identification-tags': ID_DONE, profile: P.PROFILE_PENDING, [O.KEY]: O.OUTBOX.PENDING, ...trio },
+  actions: { 'identification-tags': ID_DONE, profile: P.PROFILE_PENDING, [O.KEY]: O.OUTBOX.PENDING, [DM.KEY]: DM.ANSWERS.NONE, ...trio },
 });
 
 const json = (body, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -129,9 +133,11 @@ test.describe('Scores, Lists and Concepts on the hub (assistant-trusted-content-
     expect(await pillCount(page), 'the pill leaves the three out').toBe(OTHERS);
   });
 
-  test('TC3: one of each — Scores pending (only other Assistants) is marked and counted; Lists unfinished is marked but the pill leaves it out; Concepts done says Done (AC-4, AC-5)', async ({ page }) => {
+  // Re-aimed by assistant-shared-categories #1: "only other Assistants" is done (shared) now, so Scores' pending stand-in
+  // is not-assigned, the finished pending reason that remains.
+  test('TC3: one of each — Scores pending (not assigned) is marked and counted; Lists unfinished is marked but the pill leaves it out; Concepts done says Done (AC-4, AC-5)', async ({ page }) => {
     await mock(page, answerWith({
-      'trusted-assertions': TC.pending('scores', 'other-assistants-only', 'local'),
+      'trusted-assertions': TC.pending('scores', 'not-assigned', 'local'),
       'trusted-lists': TC.unfinished('lists', 'outside-unreachable'),
       dlists: TC.done('concepts'),
     }));

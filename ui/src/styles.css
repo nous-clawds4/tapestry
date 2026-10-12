@@ -8912,6 +8912,15 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   z-index: 1;
   color: #a5b4fc;
 }
+/* Done, but shared: the line under a shared card's description (assistant-shared-categories #1). Faded by colour, not
+   opacity, as .bs-assistant-hub-card-text is; its "Move it here →" is a .bs-assistant-hub-inline-link, above the card. */
+.bs-assistant-hub-card-shared {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(226,232,240,0.6);
+}
+.bs-assistant-hub-card-shared-move { white-space: nowrap; }
 
 /* The placeholder pages */
 .bs-assistant-hub-notes-heading {
@@ -9074,6 +9083,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 @media (max-width: 480px) {
   .bs-outbox-relay { align-items: flex-start; }
 }
+/* The Duty Menu page (assistant-duty-menu #1, ADR 0001 sub-decision 6): the cards and notes above, plus its row lines,
+   each one line of inline text — category, key, relay — so it wraps but never splits into columns. */
+.bs-dutymenu-row { font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.bs-dutymenu-row-category { font-weight: 600; }
+.bs-dutymenu-row-exception { font-style: italic; opacity: 0.8; }
 .bs-topbar-pill:focus-visible {
   outline: 2px solid #a5b4fc;
   outline-offset: 2px;

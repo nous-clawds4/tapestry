@@ -20,6 +20,12 @@
  * Everything FAILS against the current code: ASSISTANT_ACTIONS has eleven entries and neither the duty-menu nor the
  * treasure-map key. Every "nothing else changes" check is paired with a check that the two entries exist, so none
  * of them passes merely because the cards are missing.
+ *
+ * Re-aimed 2026-10-11 by assistant-duty-menu #1 (story AC-4, ADR 0001 sub-decision 6; plan
+ * engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.test-plan.md): the Duty Menu card is
+ * built — a checked action with its own page and its own answer — so the placeholder pins (C3, C5–C7, W1, S1) now hold
+ * for the card that stays one, Your Assistant's Treasure Map (D.PLACEHOLDER_KEYS), and C4 reads the new CHECKED_ACTIONS.
+ * C1, C2, C8, W2 and S2 are unchanged. test/assistant-duty-menu-check.test.js pins the Duty Menu card's new behavior.
  */
 
 const fs = require('fs');
@@ -49,6 +55,8 @@ function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return
 const show = (v) => JSON.stringify(v);
 const rel = (p) => path.relative(REPO, p);
 const DUTY_KEYS = D.CARDS.map((c) => c.key);
+// The book's cards that are still placeholders (re-aimed by assistant-duty-menu #1: the Treasure Map card only).
+const PLACEHOLDER_CARDS = D.CARDS.filter((c) => D.PLACEHOLDER_KEYS.includes(c.key));
 
 /** Source with comments removed (block comments become blank lines, so line numbers stay true). */
 function codeOnly(src) {
@@ -139,11 +147,13 @@ test('C2: each card has its approved section, address, title and description, an
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C3: each card\'s placeholder page has no alert criteria yet ("Not yet defined."), the approved planning notes, and no link — not to /treasure-map, not anywhere (AC-2; story § Copy and § Out of scope)', async () => {
+// Re-aimed by assistant-duty-menu #1: the Duty Menu card's page is built (its criteria: test/assistant-duty-menu-check.test.js C1).
+test('C3: the Treasure Map card\'s placeholder page has no alert criteria yet ("Not yet defined."), the approved planning notes, and no link — not to /treasure-map, not anywhere (AC-2; story § Copy and § Out of scope)', async () => {
   const entries = await dutyEntries();
   const wrong = [];
-  D.CARDS.forEach((want, i) => {
-    const got = entries[i];
+  assert(PLACEHOLDER_CARDS.length === 1 && PLACEHOLDER_CARDS[0].key === 'treasure-map', `the placeholder card is the Treasure Map's, got ${show(PLACEHOLDER_CARDS.map((c) => c.key))}`);
+  PLACEHOLDER_CARDS.forEach((want) => {
+    const got = entries[DUTY_KEYS.indexOf(want.key)];
     if ((got.alertCriteria ?? null) !== null) wrong.push(`${want.key} alertCriteria: want null (the page shows "${X.NOT_YET_DEFINED}"), got ${show(got.alertCriteria)}`);
     if (got.planningNotes !== want.planningNotes) wrong.push(`${want.key} planningNotes: want ${show(want.planningNotes)}, got ${show(got.planningNotes)}`);
     if (got.editLink !== undefined && got.editLink !== null) wrong.push(`${want.key}: no link on its page, got editLink ${show(got.editLink)}`);
@@ -151,13 +161,15 @@ test('C3: each card\'s placeholder page has no alert criteria yet ("Not yet defi
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C4: neither card is a checked action — CHECKED_ACTIONS is unchanged (AC-3; ADR 0001 sub-decision 3)', async () => {
+// Re-aimed by assistant-duty-menu #1 (ADR 0001 sub-decision 6): duty-menu joins CHECKED_ACTIONS after outbox-relays.
+test('C4: the Treasure Map card is not a checked action — CHECKED_ACTIONS is the six checks and duty-menu, right after outbox-relays (AC-3; ADR 0001 sub-decision 3; assistant-duty-menu ADR 0001 sub-decision 6)', async () => {
   await dutyEntries();
   const checked = need(await actionsModule(), 'CHECKED_ACTIONS');
   assert(show(checked) === show(D.CHECKED), `CHECKED_ACTIONS: want ${show(D.CHECKED)}, got ${show(checked)}`);
 });
 
-test('C5: for a viewer with an Assistant whose checked actions are all done, the marks and both counts are exactly the placeholders — the two cards among them — and the Done list is the checked actions only (AC-3)', async () => {
+// Re-aimed by assistant-duty-menu #1: the Duty Menu card is checked, so a done answer leaves it unmarked and in Done.
+test('C5: for a viewer with an Assistant whose checked actions are all done, the marks and both counts are exactly the placeholders — the Treasure Map card among them — and the Done list is the checked actions only (AC-3)', async () => {
   await dutyEntries();
   const got = need(await actionsModule(), 'assistantAttention')(WITH_ASSISTANT, answered(allCheckedDone()));
   const want = placeholdersInOrder();
@@ -166,19 +178,20 @@ test('C5: for a viewer with an Assistant whose checked actions are all done, the
   if (got.count !== want.length) wrong.push(`the count line: want ${want.length}, got ${got.count}`);
   if (got.alertCount !== want.length) wrong.push(`the Assistant Alert: want ${want.length}, got ${got.alertCount}`);
   if (show(got.done) !== show(D.CHECKED)) wrong.push(`done: want ${show(D.CHECKED)}, got ${show(got.done)}`);
-  for (const k of DUTY_KEYS) if ((got.done || []).includes(k)) wrong.push(`${k} must never be Done`);
+  for (const k of D.PLACEHOLDER_KEYS) if ((got.done || []).includes(k)) wrong.push(`${k} must never be Done`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C6: an answer that claims the two cards are done changes nothing — still marked, still counted once each, never Done (AC-3: "always marked … never show Done")', async () => {
+// Re-aimed by assistant-duty-menu #1: only the Treasure Map card is still a placeholder; the Duty Menu card's answer counts.
+test('C6: an answer that claims the Treasure Map card is done changes nothing — still marked, still counted once, never Done (AC-3: "always marked … never show Done")', async () => {
   await dutyEntries();
   const attention = need(await actionsModule(), 'assistantAttention');
   const base = attention(WITH_ASSISTANT, answered(allCheckedDone()));
   const wrong = [];
   for (const claim of [{ finished: true, done: true, pending: false }, { finished: true, done: false, pending: true }]) {
-    const forged = { ...allCheckedDone(), ...Object.fromEntries(DUTY_KEYS.map((k) => [k, claim])) };
+    const forged = { ...allCheckedDone(), ...Object.fromEntries(D.PLACEHOLDER_KEYS.map((k) => [k, claim])) };
     const got = attention(WITH_ASSISTANT, answered(forged));
-    for (const k of DUTY_KEYS) {
+    for (const k of D.PLACEHOLDER_KEYS) {
       if (!got.needsAttention.includes(k)) wrong.push(`${show(claim)}: ${k} must stay marked`);
       if ((got.done || []).includes(k)) wrong.push(`${show(claim)}: ${k} must never be Done`);
     }
@@ -189,7 +202,9 @@ test('C6: an answer that claims the two cards are done changes nothing — still
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('C7: before the answer arrives, or when it failed, both cards are marked and counted in the Assistant Alert, as every placeholder is (AC-3)', async () => {
+// Re-aimed by assistant-duty-menu #1: both cards are still marked; the Alert counts the placeholders only, so the Duty
+// Menu card, now checked, is marked but not counted until a finished answer says it needs attention.
+test('C7: before the answer arrives, or when it failed, both cards are marked, and the Assistant Alert counts the placeholders only — the Treasure Map card among them (AC-3)', async () => {
   await dutyEntries();
   const attention = need(await actionsModule(), 'assistantAttention');
   const wrong = [];
@@ -219,13 +234,14 @@ test('C8: a visitor, or a signed-in viewer with no Assistant here, sees no mark 
 
 /* ───────────────────────── W — routes and deep links, by source ───────────────────────── */
 
-test('W1: both addresses route to the hub\'s placeholder page — neither key has a built page in App.jsx\'s ACTION_PAGES, and every action\'s route is still generated from ASSISTANT_ACTIONS (AC-2; ADR 0001 § Codebase facts)', async () => {
+// Re-aimed by assistant-duty-menu #1: /assistant/duty-menu has its own page (test/assistant-duty-menu-page.test.js D1).
+test('W1: the Treasure Map card\'s address routes to the hub\'s placeholder page — it has no built page in App.jsx\'s ACTION_PAGES, and every action\'s route is still generated from ASSISTANT_ACTIONS (AC-2; ADR 0001 § Codebase facts)', async () => {
   await dutyEntries();
   const app = codeOnly(safeRead(APP));
   const pages = (app.match(/const\s+ACTION_PAGES\s*=\s*\{([\s\S]*?)\};/) || [])[1];
   const wrong = [];
   if (pages === undefined) wrong.push('App.jsx has no `const ACTION_PAGES = { … };`');
-  else for (const k of DUTY_KEYS) if (new RegExp(`(^|[\\s,{])['"]?${k}['"]?\\s*:`).test(pages)) wrong.push(`ACTION_PAGES must not give ${k} a page of its own yet — it is a placeholder`);
+  else for (const k of D.PLACEHOLDER_KEYS) if (new RegExp(`(^|[\\s,{])['"]?${k}['"]?\\s*:`).test(pages)) wrong.push(`ACTION_PAGES must not give ${k} a page of its own yet — it is a placeholder`);
   const placeholder = (app.match(/import\s+(\w+)\s+from\s+['"]\.\/pages\/assistant\/ActionPage(?:\.jsx?)?['"]/) || [])[1];
   if (!placeholder) wrong.push('no default import from ./pages/assistant/ActionPage (the placeholder page)');
   else if (!new RegExp(`ASSISTANT_ACTIONS\\.map\\(\\s*\\(?\\s*(\\w+)\\s*\\)?\\s*=>\\s*\\(\\s*\\{\\s*path:\\s*\\1\\.path\\s*,\\s*element:\\s*ACTION_PAGES\\[\\s*\\1\\.key\\s*\\]\\s*\\?\\?\\s*<${placeholder}\\b[^>]*\\baction=\\{\\s*\\1\\s*\\}`).test(app)) {
@@ -244,14 +260,15 @@ test('W2: opening either address directly reaches the app — the server\'s prob
 
 /* ───────────────────────── S — nothing else changes ───────────────────────── */
 
-test('S1: the hub\'s three sections are unchanged, and the server\'s attention answer has no check for either card (AC-4)', async () => {
+// Re-aimed by assistant-duty-menu #1: the attention answer checks the Duty Menu now (ADR 0001 sub-decision 7).
+test('S1: the hub\'s three sections are unchanged, and the server\'s attention answer has no check for the Treasure Map card (AC-4)', async () => {
   await dutyEntries();
   const sections = need(await actionsModule(), 'ASSISTANT_SECTIONS').map((s) => ({ key: s.key, heading: s.heading }));
   const wrong = [];
   if (show(sections) !== show(X.SECTIONS)) wrong.push(`ASSISTANT_SECTIONS: want ${show(X.SECTIONS)}, got ${show(sections)}`);
   const api = codeOnly(safeRead(ATTENTION_API));
   if (!api) wrong.push(`${rel(ATTENTION_API)} not found`);
-  for (const k of DUTY_KEYS) if (api.includes(`'${k}'`) || api.includes(`"${k}"`)) wrong.push(`${rel(ATTENTION_API)} must not answer ${k}: nothing is checked for it`);
+  for (const k of D.PLACEHOLDER_KEYS) if (api.includes(`'${k}'`) || api.includes(`"${k}"`)) wrong.push(`${rel(ATTENTION_API)} must not answer ${k}: nothing is checked for it`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

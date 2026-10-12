@@ -410,7 +410,11 @@ test('S2: the generic signer is untouched, and no creation path names the new mo
   // are the route registration and the relay-list publish, which shares its key reader (privkeyBytesOf; assistant-
   // outbox-relays ADR 0003 sub-decision 6) and is itself a pressed route, not a creation path. Any creation path that
   // required the module would appear here.
-  assert(sameJson(hits, ['src/api/assistant/relayListPublish.js', 'src/api/index.js']), `only the route registration and the relay-list publish name the module; found ${show(hits)}`);
+  // Re-aimed by assistant-duty-menu #2 (ADR assistant-duty-menu/0002 Amendment 2 item 2): the Duty Menu publish, also a
+  // pressed route, takes the same key reader. It may name the module; nothing else may.
+  const required = ['src/api/assistant/relayListPublish.js', 'src/api/index.js'];
+  const allowed = [...required, 'src/api/assistant/dutyMenuPublish.js'];
+  assert(required.every((f) => hits.includes(f)) && hits.every((f) => allowed.includes(f)), `only the route registration and the relay-list and Duty Menu publishes name the module; found ${show(hits)}`);
   for (const [file, re] of [['src/api/assistant/index.js', /identificationTaggings|identification-tags\/publish/], ['src/utils/customerManager.js', /identificationTaggings/], ['setup/create_nostr_identity.sh', /identification/]]) {
     assert(!re.test(safeRead(path.join(REPO, file))), `${file} must not publish taggings at creation`);
   }

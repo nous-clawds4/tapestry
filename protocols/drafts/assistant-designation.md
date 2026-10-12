@@ -1,7 +1,7 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Sources:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D7, D8); `community-reference` ADRs 0029 (the `b` type registry — the inherit-typed delegation path), 0030 (TA-authored header seeding), 0031 (this spec); `curated-dlist-update` ADR 0001 (the curated header's `pointer` link and curation copies). Companion to upstream **NIP-85** (Trusted Assertions, kind 10040 — Vitor Pamplona), which this spec does not modify.
+> **Sources:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D7, D8); `community-reference` ADRs 0029 (the `b` type registry — the inherit-typed delegation path), 0030 (TA-authored header seeding), 0031 (this spec); `curated-dlist-update` ADR 0001 (the curated header's `pointer` link and curation copies); `duty-menus-and-self-maps` ADR 0003 with Amendment A1 (§ Authorship: a TA's own self-Map; § Relationship to NIP-85: a triple naming its own author). Companion to upstream **NIP-85** (Trusted Assertions, kind 10040 — Vitor Pamplona), which this spec does not modify.
 
 ---
 
@@ -29,7 +29,7 @@ NIP-85's kind `10040` is a **user-signed, replaceable** event (one per author pu
 ["<kind>:<assertionType>", "<providerPubkey>", "<relayURL>"]
 ```
 
-Each triple delegates: "for events of `<kind>` and assertion-type `<assertionType>`, the provider I designate is `<providerPubkey>`, found at `<relayURL>`." The deployed Tapestry use carries `30382:*` rows (kind-30382 Trust Assertions — rank, followers, and so on). This spec adds a row in the `39998` (DList-header) kind:
+Each triple delegates: "for events of `<kind>` and assertion-type `<assertionType>`, the provider I designate is `<providerPubkey>`, found at `<relayURL>`." A triple whose provider is the event's own author is the exception: it designates no one (Authorship, below; [Treasure Maps](./treasure-maps.md) § 9). The deployed Tapestry use carries `30382:*` rows (kind-30382 Trust Assertions — rank, followers, and so on). This spec adds a row in the `39998` (DList-header) kind:
 
 ```
 ["39998:dlist-header", "<TA-pubkey>", "<relayURL>"]
@@ -49,7 +49,7 @@ A reader who understands only NIP-85 (or only the deployed `30382:*` rows) ignor
 
 - **Blanket scope.** One entry designates the TA for *all* the user's concept/DList-header authorship; it names no individual list. Per-list empowerment is a separate entry in the same families — see [Per-DList curation entries](#per-dlist-curation-entries) below — and the two are kept distinguishable by the reserved word `dlist-header`, which no per-DList entry may use as its d-tag.
 - **Revocation and replacement.** The entry is revoked or re-pointed by republishing the (replaceable, user-signed) kind-10040 event — the same revocability posture as the `b` tag. There is **no expiry field**.
-- **Authorship.** The 10040 event is signed by the **user**, so the designation is a user-authorized delegation: the user attests "this pubkey authors my headers on my behalf." A TA cannot designate itself.
+- **Authorship.** The 10040 event is signed by the **user**, so the designation is a user-authorized delegation: the user attests "this pubkey authors my headers on my behalf." A TA cannot designate itself on anyone else's behalf. Its own kind 10040 may name itself, as a self-Map ([Treasure Maps](./treasure-maps.md) § 9.2); such entries report what it publishes and designate no one.
 
 ## Per-DList curation entries
 

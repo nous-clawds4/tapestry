@@ -38,6 +38,8 @@ const API_INDEX = path.join(REPO, 'src/api/index.js');
 const OPENAPI = path.join(REPO, 'src/api/openapi.yaml');
 const BIBLE = path.join(REPO, 'BIBLE.md');
 const GENERIC_SIGNER = path.join(REPO, 'src/api/strfry/commands/publishEvent.js');
+// The DNS guard's shared home since assistant-duty-menu #2 (ADR assistant-duty-menu/0002 sub-decision 6).
+const GUARD_HOME = path.join(REPO, 'src/utils/relayHostGuard.js');
 const REPORT_MOD = path.join(REPO, 'ui/src/utils/taggingPublishReport.js');
 const CLIENT_UTIL = path.join(REPO, 'ui/src/utils/publishAssistantRelayList.js');
 const COPY_MOD = path.join(REPO, 'ui/src/pages/assistant/outboxRelaysCopy.js');
@@ -515,10 +517,16 @@ test('A9: isPublicRelayHostWithin — an IP literal and a private-by-constructio
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('A10: the route\'s default lookup stays off the threadpool — a dns.promises Resolver, never dns.lookup or ssrfGuard.isPublicHostname (ADR 0003 Amendment 2)', () => {
-  const src = codeOnly(safeRead(MODULE));
+// Re-aimed by assistant-duty-menu #2 (ADR assistant-duty-menu/0002 sub-decision 6): the lookup moved, unchanged, to
+// src/utils/relayHostGuard.js, which this route now requires; the Resolver rule is checked where the code lives.
+test('A10: the route\'s default lookup stays off the threadpool — a dns.promises Resolver in the guard\'s home, src/utils/relayHostGuard.js, which the route requires; never dns.lookup or ssrfGuard.isPublicHostname (ADR 0003 Amendment 2; assistant-duty-menu ADR 0002 sub-decision 6)', () => {
+  const route = codeOnly(safeRead(MODULE));
+  const guard = codeOnly(safeRead(GUARD_HOME));
+  const src = `${route}${NL}${guard}`;
   const wrong = [];
-  if (!/\bResolver\b/.test(src)) wrong.push('uses dns.promises Resolver');
+  if (!guard) wrong.push(`${rel(GUARD_HOME)} does not exist`);
+  if (!/require\(\s*['"](?:\.\.\/)+utils\/relayHostGuard(?:\.js)?['"]\s*\)/.test(route)) wrong.push('the route does not require ../../utils/relayHostGuard');
+  if (!/\bResolver\b/.test(guard)) wrong.push('the guard does not use a dns.promises Resolver');
   if (/\.lookup\s*\(|\blookup\s*\(/.test(src)) wrong.push('must not call lookup(');
   if (/ssrfGuard['"]\)\.isPublicHostname|\{[^}]*\bisPublicHostname\b[^}]*\}\s*=\s*require\(['"][^'"]*ssrfGuard/.test(src)) wrong.push('must not take isPublicHostname from ssrfGuard');
   assert(wrong.length === 0, wrong.join('; '));
@@ -567,6 +575,8 @@ test('S2: one signing helper — identificationTaggings.js exports privkeyBytesO
   assert(!/['"][0-9a-f]{64}['"]/i.test(src), 'no 64-hex literal in the module');
 });
 
+// Re-aimed back to strict by assistant-duty-menu #2 (ADR assistant-duty-menu/0002 sub-decision 6): the guard has its own
+// home, so story 1's carve-out for dutyMenu.js is gone.
 test('S3: nothing publishes a relay list at Assistant creation, and the generic signer is untouched — only src/api/index.js requires the new module (AC-2)', () => {
   const offenders = [];
   const walk = (dir) => {
