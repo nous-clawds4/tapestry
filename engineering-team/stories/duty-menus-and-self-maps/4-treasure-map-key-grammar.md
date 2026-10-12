@@ -1,6 +1,6 @@
 # Story 4: The Treasure Maps key grammar
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-12
 **Type:** Doc
 
@@ -274,6 +274,10 @@ The Concept kinds `39998` and `39999`, which are DList headers and items, are na
 Owner decisions this story needs before approval. Each has a recommended default. Where a provisional reading exists,
 the default makes it final. If the Architect finds a default unsound, the question comes back to the owner rather than
 falling back to another option.
+
+**Answered by the owner, 2026-10-12, at story approval:** the recommended default for all five: 1 (a), 2 (a), 3 (a) for
+both parts, 4 (a), 5 (a). The book's acceptance frame gains the story-5 bullet that 5 (a) calls for, and the epic gains
+story 5.
 
 1. **What do the bare Concept kinds cover, and how does § 6 order them?** This is A1-8, and the decision ledger row
    `2026-10-09-draft-grammar-bare-39999` asks for.

@@ -10,7 +10,8 @@ Ratify the design in [`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`](../../d
 - a **Duty Menu**, one DList item per Assistant key under a shared header published by Nous, says what that key offers and the relay for each duty;
 - an Assistant's **own Treasure Map** (a self-Map) says which duties it is actively publishing;
 - the **self-pointing `b`** that the Duty Menu header relies on becomes normative;
-- Treasure Maps settles the key-grammar questions the Duty Menu spec reads provisionally (story 4; owner, 2026-10-11).
+- Treasure Maps settles the key-grammar questions the Duty Menu spec reads provisionally (story 4; owner, 2026-10-11);
+- the rules that keep a self-Map true are settled (story 5; owner, 2026-10-12).
 
 This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` § 3). The deliverables are `protocols/` prose and pointer edits, with no code, and Test Design is skipped for each story. The D2 vocabulary policy applies throughout (`docs/NIP_REORG_DESIGN_HANDOFF.md`).
 
@@ -38,6 +39,7 @@ This is docs-mode work (`engineering-team/workflows/protocol-spec-workflow.md` �
    - the remaining wording items in `duty-menus.md` from ledger row `2026-10-11-duty-menus-spec-fold-forwards`, each with the change asked in story 2's review round 3: findings 12 and 13 (§ 6.2 steps 5 and 2), 15 (§ 8.1), 17 (§ 5.1, § 5.3), 22 (§ 5.1), 23 (§ 2, § 6.2 step 3, § 13.3) and 24 (§ 8.2);
    - so that each wire fact stays in one place (frame bullet 4): the sentences in `assistant-designation.md` and `trusted-lists.md` that say how a Concept key reads agree with Treasure Maps' answers or point at them;
    - the items that sit on the same text: items 3 (NB3), 8 and 15 of ledger row `2026-10-12-self-maps-spec-fold-forwards`, row `2026-10-12-self-maps-record-loose-ends`, and the spec and handoff texts of item 1 of row `2026-10-12-duty-menu-code-cross-book-notes`. Where the Self-Maps row's other items go is the story's open question 5, recorded here at its approval.
+5. *(planned)* The rules that keep a self-Map true. Items 5, 9, 10, 12, 13, 19 and 20 of ledger row `2026-10-12-self-maps-spec-fold-forwards`, and the § 5.4 Enumerate question (ADR 0003 A2's Consequences), each with the change asked in story 3's reviews. Among them: what happens to curation copies when an Assistant stops (item 10; ADR 0003 A2 had placed it with story 4's ADR, and the owner moved it here at story 4's approval), and whether a List that is still maintained but has no members carries the retraction marker (item 19). The row closes with this story. Owner, 2026-10-12 (story 4, answer 5 (a)).
 
 ## Not on this epic's path
 
