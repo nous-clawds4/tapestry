@@ -3,7 +3,7 @@
 **Status:** Approved
 **Created:** 2026-10-12
 **Type:** Feature *(Light lane — workflows/light-profile.md; Gate A approved 2026-10-12 by the owner ("approved, go ahead"); scoped gate (named at Gate A):
-`node -e "const ps=['./test/assistant-coming-soon.test.js','./test/assistant-alert.test.js','./test/assistant-attention.test.js','./test/assistant-duty-cards.test.js','./test/assistant-duty-menu-check.test.js','./test/assistant-duty-menu-page.test.js','./test/assistant-identification-tags-page.test.js','./test/assistant-management-page.test.js','./test/assistant-outbox-check.test.js','./test/assistant-outbox-relays-page.test.js','./test/assistant-profile-check.test.js','./test/assistant-shared-categories.test.js','./test/assistant-trusted-content.test.js','./test/my-assistants-page.test.js'];(async()=>{let f=0;for(const p of ps){const r=await require(p).run();console.log(p,'pass='+r.pass,'fail='+r.fail);f+=r.fail}console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})()"`
+`node -e "const ps=['./test/assistant-coming-soon.test.js','./test/assistant-alert.test.js','./test/assistant-attention.test.js','./test/assistant-duty-cards.test.js','./test/assistant-duty-menu-check.test.js','./test/assistant-duty-menu-page.test.js','./test/assistant-identification-tags-page.test.js','./test/assistant-management-page.test.js','./test/assistant-outbox-check.test.js','./test/assistant-outbox-relays-page.test.js','./test/assistant-profile-check.test.js','./test/assistant-shared-categories.test.js','./test/assistant-trusted-content.test.js','./test/my-assistants-page.test.js','./test/treasure-map-needs-attention.test.js'];(async()=>{let f=0;for(const p of ps){const r=await require(p).run();console.log(p,'pass='+r.pass,'fail='+r.fail);f+=r.fail}console.log('TOTAL_FAIL='+f);process.exit(f?1:0)})()"`
 — the new suite and every suite that loads the hub's actions or its one answer. No guard suite: nothing here signs,
 publishes or touches strfry.)*
 **Epic:** `assistant-coming-soon`
@@ -47,10 +47,13 @@ do.
       | The instance's answer | Count line, today → after | Top-bar pill, today → after |
       |---|---|---|
       | every check done | 6 → **1** | 6 → **1** |
-      | not in yet, or failed | 13 → **8** | 6 → **1** |
+      | failed | 13 → **8** | 6 → **1** |
+      | still on its way | 13 → **8** | not drawn, as today |
 
       The 1 is Your Assistant's Treasure Map card. The 8 is the seven checked cards, marked until their answer says
-      done, plus the Treasure Map card.
+      done, plus the Treasure Map card. While the answer is on its way the top-bar pill is not drawn at all, before
+      and after (ADR assistant-identification-tags/0001 sub-decision 8). *(Row split at J1, 2026-10-12: the judge's
+      non-blocking note.)*
 - [ ] **AC-3: their pages say Coming soon.** Each card still opens its page: `/assistant/bounties`,
       `/assistant/pins`, `/assistant/tags`, `/assistant/notifications-and-alerts` and `/assistant/preferences`. On
       each, the bold first line reads **Coming soon.** in place of **Placeholder page.**. The title, the description,
@@ -102,7 +105,9 @@ None open. Settled at intake: which cards (Decision 1), not counted in either re
   server's answer is unchanged), no auth or trust default, no schema or firmware, no dependency, no cross-repo
   contract, no routing, middleware or headers.
 - **Scoped gate:** the command in this file's header. Baseline on `origin/staging` `762d350` with dependencies
-  installed: the thirteen existing suites, 368 passed, 0 failed. The new suite is written at J2.
+  installed: the thirteen existing suites, 368 passed, 0 failed. The new suite is written at J2. *(Added at J1,
+  2026-10-12: `test/treasure-map-needs-attention.test.js` also loads `actions.js`, so it joins the command; 6 passed,
+  0 failed on the same base. Adding a suite only strengthens the gate.)*
 - **Browser evidence (Gate B, not a judge gate):** the hub specs against this tree's built UI (`vite build`, then
   `vite preview --port 7799` from `ui/`), as assistant-shared-categories #1 did. J2 names the command.
 - **Expected re-aims, not weakenings:** existing pins that encode "every action without a check is marked and
@@ -120,14 +125,15 @@ None open. Settled at intake: which cards (Decision 1), not counted in either re
   `assistant-duty-menu`, `assistant-identification-tags-page`, `assistant-profile-check`,
   `assistant-shared-categories`, `assistant-taggings-publish` and `assistant-trusted-content`. J2 names each handle.
 
-## Design note *(Light profile — provisional here, ratified at Gate B)*
+## Design note *(Light profile — provisional here, ratified at Gate B; approved at J1, 2026-10-12, first verdict)*
 
 - **The list and the words.** `ui/src/pages/assistant/actions.js` exports
   `COMING_SOON_ACTIONS = ['bounties', 'pins', 'tags', 'notifications-and-alerts', 'preferences']`, in
   `ASSISTANT_ACTIONS` order, next to `CHECKED_ACTIONS`. An action is then one of three kinds: checked, coming soon, or
   a counted placeholder (today only `treasure-map`). `ASSISTANT_COPY` gains `comingSoon: 'Coming soon'`,
-  `comingSoonSrPrefix: 'Coming soon: '` and `comingSoonPage: 'Coming soon.'`. The module keeps its one import. Its
-  header comment names this story's § Copy as the source of the new words.
+  `comingSoonSrPrefix: 'Coming soon: '` and `comingSoonPage: 'Coming soon.'`. The module keeps its one import, so the
+  pill's word is written out rather than imported from `PROFILE_CHECKLIST_COPY.comingSoon`; a test pins the two equal.
+  Its header comment names this story's § Copy as the source of the new words.
 - **The one answer.** In `assistantAttention`, an action in `COMING_SOON_ACTIONS` is skipped before anything else: it
   is never in `needsAttention`, `done` or `shared`, and never counted in `count` or `alertCount`, whatever the answer
   says for its key. The returned shape is unchanged. So the hub's count line (`Index.jsx`) and the top-bar pill
