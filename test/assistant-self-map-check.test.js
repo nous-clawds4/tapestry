@@ -34,7 +34,8 @@
  * Duties list (injected as readAssistantDuties; DM.DEFAULT_DUTIES unless a world names `duties`), the same for every
  * Assistant, so U21's inactive customer is offered Scores now. AD1–AD3 pin the self-Map's side: a 30382 row at a typed
  * relay is never live from this instance's strfry, an added duty that is not built is offered and never active, and an
- * Admin's Assistant is offered Scores without their being claimed.
+ * Admin's Assistant is offered Scores without their being claimed. AD4 (ADR Amendment 1): a narrower key hand-edited
+ * into the list reaches neither page, so they agree.
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -1213,6 +1214,24 @@ test('AD3 (assistant-duties-settings #1 AC-6; book Decision 6): an Admin who is 
   const wrong = [];
   if (l.status !== 'offered') wrong.push(`the Admin's Scores are offered (got ${show(l)})`);
   if (linesOf(got.action, '30382:rank', 'active').length !== 0) wrong.push('never active without Scores landed');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('AD4 (assistant-duties-settings #1 ADR Amendment 1; review round 1 Blocking 1): a hand-edited list that names 30382:rank in place of 30382 never puts the narrower key on either page — the Duty Menu offers no 30382 row and the self-Map\'s 30382:rank line is not offered, so the two agree and no true claim is flagged false', async () => {
+  const edited = DM.DEFAULT_DUTIES.map((d) => (d.key === '30382' ? { key: '30382:rank' } : { ...d }));
+  const warn = console.warn;
+  console.warn = () => {};
+  let got;
+  try { got = await answer({ realDutyMenu: true, duties: edited, scoresHoursAgo: 1, mapTags: [['30382:rank', TA, OWN]] }); } finally { console.warn = warn; }
+  const self = mustAnswer(got);
+  const menu = got.body && got.body.actions ? got.body.actions['duty-menu'] : null;
+  const wrong = [];
+  const offerKeys = ((menu && menu.offer) || []).map((r) => r.key);
+  if (!menu || offerKeys.some((k) => /^30382/.test(k))) wrong.push(`the Duty Menu offers no 30382 row (got ${show(offerKeys)})`);
+  if (offerKeys.includes('30382:rank')) wrong.push('the narrower key never reaches the Duty Menu offer');
+  const l = lineOf(self, '30382:rank', '30382:rank') || {};
+  if (l.status !== 'not-offered') wrong.push(`the self-Map's 30382:rank line is not offered, as on the Duty Menu (got ${show(l)})`);
+  if (l.falseClaim) wrong.push('nothing is flagged a false claim');
   assert(wrong.length === 0, wrong.join('; '));
 });
 

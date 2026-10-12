@@ -656,7 +656,8 @@ test('W14 (assistant-duties-settings #1 AC-6): the press publishes exactly the A
   const A = nt().getPublicKey(sk);
   const store = [];
   const TYPED = 'wss://typed-relay.example';
-  const duties = [{ key: '39999' }, { key: '30383', relay: 'wss://Typed-Relay.Example/' }, { key: '30392' }, { key: '3039x:tag' }];
+  // Whole kinds (assistant-duties-settings ADR 0001 Amendment 1): 30395 is a List kind outside the six.
+  const duties = [{ key: '39999' }, { key: '30383', relay: 'wss://Typed-Relay.Example/' }, { key: '30392' }, { key: '30395' }];
   const L = lowLevel({ store, duties });
   const { deps, calls, duty } = integratedDeps(L, { sk, store });
   const handle = need(publishModule(), 'createPublishDutyMenuHandler', rel(MODULE))(deps);
@@ -665,7 +666,7 @@ test('W14 (assistant-duties-settings #1 AC-6): the press publishes exactly the A
   try { await within(handle(signedInReq(), res), HANDLER_LIMIT_MS); } finally { restoreConsole(); }
   const signed = store[0] || null;
   const rows = signed ? signed.tags.filter((t) => t[0] === 'duty').map((t) => t.slice(1)) : null;
-  const want = [['39999', OWN], ['30383', TYPED], ['30392', OWN], ['3039x:tag', OWN]];
+  const want = [['39999', OWN], ['30383', TYPED], ['30392', OWN], ['30395', OWN]];
   const wrong = [];
   if (!rows || show(rows) !== show(want)) wrong.push(`the signed rows, in the list's order: want ${show(want)}, got ${show(rows)}`);
   const sent = calls.publishToRelays.flat();

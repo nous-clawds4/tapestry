@@ -182,3 +182,48 @@ The 56 failures are exactly the intended ones: 34 + 14 + 3 + 4 + 1. The other 30
   - The Duty Menu copy still says "publishes".
 - **Records (S).** `OFFER_KEYS` and the literals remain, and the docs are not updated.
 - **Re-aimed suites.** The current code gates Scores by customer status and compares menus order-blind.
+
+## Round 2 (ADR Amendment 1; review round 1)
+
+The review's Blocking 1 and non-blocking 1–3. The owner chose whole kinds (book Decision 8), so the story's AC-3 and
+AC-4 are amended.
+
+| Change | Tests | File |
+|---|---|---|
+| A duty is a whole kind (five digits, trimmed); everything narrower or broader is refused | L2, L3, L5, L6, L7, L8, L9 (re-aimed); **L10** (new): `30382:rank`, `3038x`, `3039x:tag`, `*`, `39999:my-list`, `39998:dlist-header` refused with `bad-key` and dropped by `readDutyList`, never offered | `test/assistant-duties-settings.test.js` |
+| The routes and the generic PUT refuse them | R3 (narrower and family keys), R6 (narrower key) | same |
+| A hand-edited narrower key is dropped and logged | R1 (GET), O2 (offer) | same |
+| The routes log what they drop | **R7** (new): GET and reset log the count; a clean list logs nothing | same |
+| `MAX_KEY_LENGTH` is removed | L1 | same |
+| An empty typed relay is kept for the server to refuse | T3 (`setRelay(list, i, '')`) | same |
+| The offer's own tests use whole kinds | O3 | same |
+| Both pages agree on a hand-edited narrower key | **AD4** (new): with `30382:rank` in place of `30382`, the Duty Menu offers no `30382` row and the self-Map's line is not offered, with no false claim | `test/assistant-self-map-check.test.js` |
+| The publish over a changed list | W14 (re-aimed: `30395` in place of `3039x:tag`) | `test/assistant-duty-menu-publish.test.js` |
+| The relay panel follows its duty | **B12** (new): another row removed and another moved, Save writes that duty's relay only; removing its own duty closes the panel | `tests/brainstorm/assistant-duties-settings.spec.js` |
+| An empty Another relay is refused | **B13** (new): the empty relay is sent; the `bad-relay` words show; the list is unchanged | same |
+| Whole kinds in the browser | B3 (`30395`), B11 (`30383`) re-aimed | same |
+
+### Fixed here (round 2)
+
+- **R7:** the warning matches `[settings/assistant-duties]`, the count and `assistantDuties`, as Amendment 1 item 5
+  words it.
+- **B12:** the panel stays open across another row's change; Move up/down and Remove stay usable while it is open.
+
+### Verification (round 2)
+
+Confirmed on 2026-10-12 against `a6d6e3f88`, the round-1 implementation with Amendment 1 accepted. The new and
+re-aimed tests fail only where round 2's behaviour is missing.
+
+```
+assistant-duties-settings:   25 passed, 11 failed  (L1, L2, L6, L7, L10, R1, R3, R6, R7, O2, T3)
+assistant-self-map-check:    64 passed, 1 failed   (AD4)
+assistant-duty-menu-check:   65 passed;  assistant-duty-menu-publish: 36 passed (W14 re-aimed, passes);  assistant-duty-menu-page: 15 passed
+tests/brainstorm/assistant-duties-settings.spec.js (chromium, vite preview): 12 passed, 2 failed (B12, B13)
+```
+
+Why they fail:
+- the current code accepts and offers every key readers keep;
+- the GET, the reset and the generic PUT keep narrower keys;
+- the routes log nothing;
+- `setRelay` turns `''` into This instance's relay;
+- the relay panel is tied to a row index.

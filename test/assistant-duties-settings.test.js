@@ -39,6 +39,11 @@
  *     { success: false }.
  *   - The tab's helpers never change the list they are given.
  *
+ * Round 2 (ADR Amendment 1, book Decision 8; review round 1 Blocking 1 and non-blocking 1–3): a duty is a whole
+ * kind (five digits). L1 drops MAX_KEY_LENGTH; L2, L3, L5, L6, L7, L8, L9, R1, R3, R6, O2, O3 and T3 are re-aimed; L10
+ * (narrower and broader keys refused and dropped) and R7 (the routes log drops) are new. The browser half adds B12 and
+ * B13 (the relay panel follows its duty; an empty Another relay is refused).
+ *
  * Everything FAILS against the current code: the library has none of the rule's functions, buildOffer ignores a list,
  * defaults.json has no assistantDuties, the routes, the tab and its words do not exist, and the generic PUT stores any
  * assistantDuties unchecked.
@@ -129,43 +134,43 @@ const sixKeys = AD.DEFAULT_DUTIES.map((d) => d.key);
 
 /* ───────────────────────── L — the one rule (ADR sub-decision 2, 3) ───────────────────────── */
 
-test('L1: the library exports the rule — keptKey, dutyKeyOf, isPublicRelayUrl, validateDutyList, readDutyList, instanceRelayFor — and MAX_DUTIES 200 and MAX_KEY_LENGTH 512; it no longer exports OFFER_KEYS (ADR sub-decision 2; AC-5 "no longer fixed in code")', () => {
+test('L1: the library exports the rule — keptKey, dutyKeyOf, isPublicRelayUrl, validateDutyList, readDutyList, instanceRelayFor — and MAX_DUTIES 200; it exports neither OFFER_KEYS nor (since Amendment 1) MAX_KEY_LENGTH (ADR sub-decision 2; Amendment 1 item 1; AC-5 "no longer fixed in code")', () => {
   const lib = libModule();
   const wrong = [];
   for (const name of ['keptKey', 'dutyKeyOf', 'isPublicRelayUrl', 'validateDutyList', 'readDutyList', 'instanceRelayFor']) if (typeof lib[name] !== 'function') wrong.push(`no ${name}()`);
   if (lib.MAX_DUTIES !== AD.MAX_DUTIES) wrong.push(`MAX_DUTIES: want ${AD.MAX_DUTIES}, got ${show(lib.MAX_DUTIES)}`);
-  if (lib.MAX_KEY_LENGTH !== AD.MAX_KEY_LENGTH) wrong.push(`MAX_KEY_LENGTH: want ${AD.MAX_KEY_LENGTH}, got ${show(lib.MAX_KEY_LENGTH)}`);
   if (Object.prototype.hasOwnProperty.call(lib, 'OFFER_KEYS')) wrong.push('OFFER_KEYS is still exported');
+  if (Object.prototype.hasOwnProperty.call(lib, 'MAX_KEY_LENGTH')) wrong.push('MAX_KEY_LENGTH is still exported (Amendment 1 item 1 removes it)');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L2: dutyKeyOf keeps a key readers keep, in the form they normalize it to, trimmed — and refuses (null) anything readers drop, a key over 512 characters, and a non-string (AC-3; duty-menus.md § 5.3)', () => {
+test('L2, re-aimed by Amendment 1: dutyKeyOf keeps a whole kind — five digits, trimmed — and refuses (null) everything else: a narrower key, a family key, *, a Concept key with a d or 39998:dlist-header, a key readers drop, and a non-string (AC-3 as amended; book Decision 8)', () => {
   const dutyKeyOf = need(libModule(), 'dutyKeyOf', 'src/lib/duty-menu');
-  const kept = [
-    ['30382', '30382'], [' 30392 ', '30392'], ['30382:rank::', '30382:rank'], ['3038x:tag:', '3038x:tag'], ['3039x', '3039x'],
-    ['39998:dlist-header', '39998'], ['39999:my-list', '39999:my-list'], ['39998', '39998'], ['*', '*'], ['30023', '30023'],
-  ];
-  const refused = ['', '   ', 'abc', '3038', '303820', '3038X', '39998:', '39999:', 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu', `39999:${'a'.repeat(AD.MAX_KEY_LENGTH)}`, null, undefined, 30382, {}, ['30382']];
+  const kept = [['30382', '30382'], [' 30392 ', '30392'], ['30383', '30383'], ['30023', '30023'], ['39998', '39998'], ['39999', '39999'], ['\t31234\n', '31234']];
+  const refused = ['30382:rank', '30382:rank::', '3038x', '3038x:tag:', '3039x', '*', '*:', '39999:my-list', '39998:dlist-header', '39998:', '39999:',
+    '', '   ', 'abc', '3038', '303820', '3038X', '3o382', 'naddr1qqxnzd3cxqmrzv3exgmr2wfeqgsxu', null, undefined, 30382, {}, ['30382']];
   const wrong = [];
   for (const [input, want] of kept) { const got = dutyKeyOf(input); if (got !== want) wrong.push(`${show(input)}: want ${show(want)}, got ${show(got)}`); }
   for (const input of refused) { const got = dutyKeyOf(input); if (got !== null) wrong.push(`${show(input)} must be refused (null), got ${show(got)}`); }
-  const atLimit = `39999:${'a'.repeat(AD.MAX_KEY_LENGTH - 6)}`;
-  if (dutyKeyOf(atLimit) !== atLimit) wrong.push('a key of exactly 512 characters is kept');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L3: one rule — for every key in a battery, keptKey and dutyKeyOf (on the trimmed key) answer exactly what readMenuRows keeps for a duty row with that key, or null when it drops the row (ADR sub-decision 2: "a saved key and a read key cannot drift")', () => {
+test('L3, re-aimed by Amendment 1: the list stays inside the readers\' rule — every key dutyKeyOf accepts is one readMenuRows keeps as itself, and keptKey still answers exactly what readMenuRows keeps for any key (ADR sub-decision 2; Amendment 1 item 1)', () => {
   const lib = libModule();
   const keptKey = need(lib, 'keptKey', 'src/lib/duty-menu');
   const dutyKeyOf = need(lib, 'dutyKeyOf', 'src/lib/duty-menu');
   const battery = ['30382', '30382:rank', '30382:rank::', '3038x', '3038x:tag:', '3039x:tag:dog::', '30392', '30399', '30023', '*', '*:', '*::',
-    '39998', '39998:', '39998:dlist-header', '39998:my-list', '39999', '39999:', '39999:my-list', '39999::', '39999:a:b:', 'x', '3038', '3038x9', '30382x', ':30382', 'naddr1abc'];
+    '39998', '39998:', '39998:dlist-header', '39998:my-list', '39999', '39999:', '39999:my-list', '39999::', '39999:a:b:', 'x', '3038', '3038x9', '30382x', ':30382', 'naddr1abc', ' 30383 '];
   const wrong = [];
   for (const k of battery) {
     const rows = lib.readMenuRows({ tags: [['duty', k, 'wss://reader.example']] });
-    const want = rows.length === 1 ? rows[0].key : null;
-    if (keptKey(k) !== want) wrong.push(`keptKey(${show(k)}): readers keep ${show(want)}, got ${show(keptKey(k))}`);
-    if (dutyKeyOf(k) !== want) wrong.push(`dutyKeyOf(${show(k)}): readers keep ${show(want)}, got ${show(dutyKeyOf(k))}`);
+    const read = rows.length === 1 ? rows[0].key : null;
+    if (keptKey(k) !== read) wrong.push(`keptKey(${show(k)}): readers keep ${show(read)}, got ${show(keptKey(k))}`);
+    const listed = dutyKeyOf(k);
+    if (listed !== null) {
+      const back = lib.readMenuRows({ tags: [['duty', listed, 'wss://reader.example']] });
+      if (!(back.length === 1 && back[0].key === listed)) wrong.push(`dutyKeyOf(${show(k)}) = ${show(listed)}, which readers do not keep as itself`);
+    }
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -185,7 +190,7 @@ test('L4: isPublicRelayUrl is the public-host rule on a relay\'s hostname — pu
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L5: validateDutyList accepts a good list and answers it normalized — keys in readers\' form, typed relays in their one spelling, This instance\'s relay as no relay field, other fields dropped, order kept; the six defaults and an empty list are fine (AC-2, AC-3, AC-4)', () => {
+test('L5 (re-aimed by Amendment 1: whole kinds): validateDutyList accepts a good list and answers it normalized — kinds trimmed, typed relays in their one spelling, This instance\'s relay as no relay field, other fields dropped, order kept; the six defaults and an empty list are fine (AC-2, AC-3, AC-4)', () => {
   const validateDutyList = need(libModule(), 'validateDutyList', 'src/lib/duty-menu');
   const wrong = [];
   const six = validateDutyList(AD.copyOf(AD.DEFAULT_DUTIES));
@@ -193,21 +198,21 @@ test('L5: validateDutyList accepts a good list and answers it normalized — key
   const empty = validateDutyList([]);
   if (!(empty && empty.ok === true && show(empty.duties) === '[]')) wrong.push(`[]: want ok with [], got ${show(empty)}`);
   const input = [
-    { key: ' 39999:my-list ' },
+    { key: ' 39999 ' },
     { key: '30383', relay: 'wss://Typed.Example/' },
-    { key: '30382:rank::', relay: null, name: 'ignored', extra: 1 },
-    { key: '39998:dlist-header' },
+    { key: '30382', relay: null, name: 'ignored', extra: 1 },
+    { key: '30395' },
   ];
-  const want = [{ key: '39999:my-list' }, { key: '30383', relay: TYPED }, { key: '30382:rank' }, { key: '39998' }];
+  const want = [{ key: '39999' }, { key: '30383', relay: TYPED }, { key: '30382' }, { key: '30395' }];
   const got = validateDutyList(input);
   if (!(got && got.ok === true && show(got.duties) === show(want))) wrong.push(`a mixed list: want ok with ${show(want)}, got ${show(got)}`);
-  if (input[0].key !== ' 39999:my-list ') wrong.push('the input is not changed');
+  if (input[0].key !== ' 39999 ') wrong.push('the input is not changed');
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L6: validateDutyList refuses with a code and the entry\'s index — bad-list (not an array: index null; an entry not an object), too-many (201 entries), bad-key, duplicate-key (after normalization, at the later entry), bad-relay (not ws(s)://, or empty), private-relay — and a bad key beats a bad relay in one entry (ADR sub-decision 2)', () => {
+test('L6: validateDutyList refuses with a code and the entry\'s index — bad-list (not an array: index null; an entry not an object), too-many (201 entries), bad-key, duplicate-key (after trimming, at the later entry; re-aimed by Amendment 1), bad-relay (not ws(s)://, or empty), private-relay — and a bad key beats a bad relay in one entry (ADR sub-decision 2)', () => {
   const validateDutyList = need(libModule(), 'validateDutyList', 'src/lib/duty-menu');
-  const many = Array.from({ length: AD.MAX_DUTIES + 1 }, (_, i) => ({ key: `39999:list-${i}` }));
+  const many = Array.from({ length: AD.MAX_DUTIES + 1 }, (_, i) => ({ key: String(30000 + i) }));
   const cases = [
     ['not an array', { key: '30382' }, 'bad-list', null],
     ['null', null, 'bad-list', null],
@@ -217,7 +222,8 @@ test('L6: validateDutyList refuses with a code and the entry\'s index — bad-li
     ['a bad key', [{ key: '30382' }, { key: '30392' }, { key: 'not a key' }], 'bad-key', 2],
     ['a missing key', [{ relay: TYPED }], 'bad-key', 0],
     ['39998:', [{ key: '39998:' }], 'bad-key', 0],
-    ['a duplicate after normalization', [{ key: '30382:rank' }, { key: '30392' }, { key: '30382:rank::' }], 'duplicate-key', 2],
+    ['a duplicate after trimming', [{ key: '30382' }, { key: '30392' }, { key: ' 30382 ' }], 'duplicate-key', 2],
+    ['a narrower key (Amendment 1)', [{ key: '30382' }, { key: '30382:rank' }], 'bad-key', 1],
     ['an https relay', [{ key: '30382', relay: 'https://typed.example' }], 'bad-relay', 0],
     ['an empty relay', [{ key: '30382', relay: '' }], 'bad-relay', 0],
     ['a relay that is not a string', [{ key: '30382', relay: 7 }], 'bad-relay', 0],
@@ -238,18 +244,18 @@ test('L6: validateDutyList refuses with a code and the entry\'s index — bad-li
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L7: readDutyList (for reads) drops what validateDutyList would refuse instead of refusing — bad entries, private and malformed relays, later duplicates — keeps the rest normalized and in order, and counts the drops; anything but an array is an empty list (ADR sub-decision 2; AC-5 "a hand edit can\'t put a bad row on a menu")', () => {
+test('L7 (re-aimed by Amendment 1): readDutyList (for reads) drops what validateDutyList would refuse instead of refusing — bad and narrower or broader keys, private and malformed relays, later duplicates — keeps the rest normalized and in order, and counts the drops; anything but an array is an empty list (ADR sub-decision 2; AC-5 "a hand edit can\'t put a bad row on a menu")', () => {
   const readDutyList = need(libModule(), 'readDutyList', 'src/lib/duty-menu');
   const wrong = [];
   const input = [
-    { key: '30382' }, { key: 'bad key' }, { key: '30382::' }, 'junk', null,
+    { key: '30382' }, { key: 'bad key' }, { key: '30382:rank' }, 'junk', null,
     { key: '30392', relay: 'ws://10.0.0.1' }, { key: '39999', relay: 'wss://X.example/' }, { key: '30393', relay: 'ftp://x.example' },
-    { key: ' 3039x:tag: ' },
+    { key: ' 3039x:tag: ' }, { key: ' 30395 ' }, { key: '30382' },
   ];
   const got = readDutyList(input);
-  const want = [{ key: '30382' }, { key: '39999', relay: 'wss://x.example' }, { key: '3039x:tag' }];
+  const want = [{ key: '30382' }, { key: '39999', relay: 'wss://x.example' }, { key: '30395' }];
   if (!got || show(got.duties) !== show(want)) wrong.push(`duties: want ${show(want)}, got ${show(got && got.duties)}`);
-  if (!got || got.dropped !== 6) wrong.push(`dropped: want 6, got ${show(got && got.dropped)}`);
+  if (!got || got.dropped !== 8) wrong.push(`dropped: want 8, got ${show(got && got.dropped)}`);
   for (const notList of [undefined, null, {}, 'x', 7]) {
     const r = readDutyList(notList);
     if (!r || show(r.duties) !== '[]') wrong.push(`${show(notList)}: want no duties, got ${show(r)}`);
@@ -259,15 +265,15 @@ test('L7: readDutyList (for reads) drops what validateDutyList would refuse inst
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L8: instanceRelayFor gives This instance\'s relay by category — a 39998 or 39999 slot: ownRelay, else dlistRelay; any other key: ownRelay or null — each in its one spelling (ADR sub-decision 3)', () => {
+test('L8: instanceRelayFor gives This instance\'s relay by category — a 39998 or 39999 kind: ownRelay, else dlistRelay; any other kind: ownRelay or null — each in its one spelling (ADR sub-decision 3; re-aimed by Amendment 1 to whole kinds)', () => {
   const instanceRelayFor = need(libModule(), 'instanceRelayFor', 'src/lib/duty-menu');
   const both = { ownRelay: OWN_CONFIGURED, dlistRelay: 'wss://Dlist.Example/' };
   const noOwn = { ownRelay: null, dlistRelay: 'wss://Dlist.Example/' };
   const none = { ownRelay: null, dlistRelay: null };
   const cases = [
-    ['30382', both, OWN], ['30392', both, OWN], ['39998', both, OWN], ['39999:my-list', both, OWN], ['*', both, OWN], ['3038x:tag', both, OWN], ['30023', both, OWN],
-    ['39998', noOwn, DLIST], ['39999', noOwn, DLIST], ['39999:my-list', noOwn, DLIST],
-    ['30382', noOwn, null], ['30392', noOwn, null], ['*', noOwn, null], ['30023', noOwn, null],
+    ['30382', both, OWN], ['30392', both, OWN], ['39998', both, OWN], ['39999', both, OWN], ['30023', both, OWN],
+    ['39998', noOwn, DLIST], ['39999', noOwn, DLIST],
+    ['30382', noOwn, null], ['30392', noOwn, null], ['30023', noOwn, null],
     ['39998', none, null], ['30382', none, null],
   ];
   const wrong = [];
@@ -277,12 +283,12 @@ test('L8: instanceRelayFor gives This instance\'s relay by category — a 39998 
 
 test('L9: buildOffer({ ownRelay, dlistRelay, duties }) gives one duty row per entry, in the list\'s order — a typed relay as given, else This instance\'s relay by category; an entry with no relay left out; no duties (or none given) is an empty offer, never the six (AC-5, AC-6; ADR sub-decision 3)', () => {
   const buildOffer = need(libModule(), 'buildOffer', 'src/lib/duty-menu');
-  const list = [{ key: '39999:my-list' }, { key: '30383', relay: TYPED }, { key: '*' }, { key: '30023' }, { key: '39998' }];
+  const list = [{ key: '39999' }, { key: '30383', relay: TYPED }, { key: '30023' }, { key: '39998' }];
   const cases = [
     ['a public address', { ownRelay: OWN, dlistRelay: DLIST },
-      [['39999:my-list', OWN], ['30383', TYPED], ['*', OWN], ['30023', OWN], ['39998', OWN]]],
+      [['39999', OWN], ['30383', TYPED], ['30023', OWN], ['39998', OWN]]],
     ['no public address', { ownRelay: null, dlistRelay: DLIST },
-      [['39999:my-list', DLIST], ['30383', TYPED], ['39998', DLIST]]],
+      [['39999', DLIST], ['30383', TYPED], ['39998', DLIST]]],
     ['no relay at all', { ownRelay: null, dlistRelay: null }, [['30383', TYPED]]],
   ];
   const wrong = [];
@@ -295,6 +301,22 @@ test('L9: buildOffer({ ownRelay, dlistRelay, duties }) gives one duty row per en
   for (const [label, input] of [['duties []', { ownRelay: OWN, dlistRelay: DLIST, duties: [] }], ['no duties given', { ownRelay: OWN, dlistRelay: DLIST }]]) {
     const got = buildOffer(input);
     if (show(got) !== '[]') wrong.push(`${label}: want [], got ${show(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('L10 (Amendment 1; book Decision 8): a narrower key, a family key, *, a Concept key with a d and 39998:dlist-header are each refused by validateDutyList with bad-key at their index, and dropped by readDutyList, so none can reach an offer', () => {
+  const lib = libModule();
+  const validateDutyList = need(lib, 'validateDutyList', 'src/lib/duty-menu');
+  const readDutyList = need(lib, 'readDutyList', 'src/lib/duty-menu');
+  const wrong = [];
+  for (const key of ['30382:rank', '3038x', '3039x:tag', '*', '39999:my-list', '39998:dlist-header']) {
+    const v = validateDutyList([{ key: '30392' }, { key }]);
+    if (!(v && v.ok === false && v.code === 'bad-key' && v.index === 1)) wrong.push(`${key}: want { ok: false, code: bad-key, index: 1 }, got ${show(v)}`);
+    const r = readDutyList([{ key: '30392' }, { key }]);
+    if (!(r && show(r.duties) === show([{ key: '30392' }]) && r.dropped === 1)) wrong.push(`${key}: readDutyList keeps only 30392 and drops 1, got ${show(r)}`);
+    const offer = lib.buildOffer({ ownRelay: OWN, dlistRelay: DLIST, duties: r ? r.duties : [] });
+    if ((offer || []).some((row) => row.key === key)) wrong.push(`${key} reached the offer`);
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -369,8 +391,8 @@ test('R1: GET answers { success: true, duties } — the list the offer uses: the
   const savedList = [{ key: '39999' }, { key: '30383', relay: TYPED }];
   const saved = await call(handlers(fakeStore({ overrides: { [AD.SETTINGS_KEY]: savedList } }).deps).get, ownerReq());
   if (!(saved.body && show(saved.body.duties) === show(savedList))) wrong.push(`saved: want ${show(savedList)}, got ${show(saved.body)}`);
-  const edited = await call(handlers(fakeStore({ overrides: { [AD.SETTINGS_KEY]: [{ key: 'oops' }, { key: '30392', relay: 'ws://10.0.0.2' }, { key: '39998' }] } }).deps).get, ownerReq());
-  if (!(edited.body && show(edited.body.duties) === show([{ key: '39998' }]))) wrong.push(`hand-edited: want [{key:39998}], got ${show(edited.body)}`);
+  const edited = await call(handlers(fakeStore({ overrides: { [AD.SETTINGS_KEY]: [{ key: 'oops' }, { key: '30392', relay: 'ws://10.0.0.2' }, { key: '30382:rank' }, { key: '39998' }] } }).deps).get, ownerReq());
+  if (!(edited.body && show(edited.body.duties) === show([{ key: '39998' }]))) wrong.push(`hand-edited (a narrower key among them, Amendment 1): want [{key:39998}], got ${show(edited.body)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -391,9 +413,11 @@ test('R2: PUT { duties } saves the whole list, normalized, under assistantDuties
 });
 
 test('R3: a refused PUT answers 400 { success: false, code, index } with the rule\'s code and writes nothing — a bad key, a duplicate, a relay that is not ws(s)://, a private relay, too many, a body with no list (AC-3 "nothing saved"; ADR sub-decision 4)', async () => {
-  const many = Array.from({ length: AD.MAX_DUTIES + 1 }, (_, i) => ({ key: `39999:l${i}` }));
+  const many = Array.from({ length: AD.MAX_DUTIES + 1 }, (_, i) => ({ key: String(30000 + i) }));
   const cases = [
     ['a bad key', { duties: [{ key: '30382' }, { key: 'abc' }] }, 'bad-key', 1],
+    ['a narrower key (Amendment 1)', { duties: [{ key: '30382:rank' }] }, 'bad-key', 0],
+    ['a family key (Amendment 1)', { duties: [{ key: '30392' }, { key: '3039x' }] }, 'bad-key', 1],
     ['a duplicate', { duties: [{ key: '30382' }, { key: '30382::' }] }, 'duplicate-key', 1],
     ['an https relay', { duties: [{ key: '30382', relay: 'https://typed.example' }] }, 'bad-relay', 0],
     ['a private relay', { duties: [{ key: '30382', relay: 'ws://192.168.0.4' }] }, 'private-relay', 0],
@@ -448,15 +472,41 @@ test('R6: no backdoor — the generic PUT /api/settings runs the same rule on as
     if (show(afterBad) !== show([{ key: '39999' }])) wrong.push(`a refused patch leaves the file alone, got ${show(afterBad)}`);
     const priv = inChild(script({ [AD.SETTINGS_KEY]: [{ key: '30382', relay: 'ws://localhost:7777' }] }), env);
     if (!(priv.status === 400 && priv.body && priv.body.code === 'private-relay')) wrong.push(`a private relay: want 400 private-relay, got ${show(priv)}`);
-    const good = inChild(script({ [AD.SETTINGS_KEY]: [{ key: ' 30382:rank:: ' }, { key: '30383', relay: 'wss://Typed.Example/' }] }), env);
+    const narrower = inChild(script({ [AD.SETTINGS_KEY]: [{ key: '30382:rank' }] }), env);
+    if (!(narrower.status === 400 && narrower.body && narrower.body.code === 'bad-key' && narrower.body.index === 0)) wrong.push(`a narrower key (Amendment 1): want 400 bad-key index 0, got ${show(narrower)}`);
+    const good = inChild(script({ [AD.SETTINGS_KEY]: [{ key: ' 30382 ' }, { key: '30383', relay: 'wss://Typed.Example/' }] }), env);
     const afterGood = JSON.parse(safeRead(t.file))[AD.SETTINGS_KEY];
-    const want = [{ key: '30382:rank' }, { key: '30383', relay: TYPED }];
+    const want = [{ key: '30382' }, { key: '30383', relay: TYPED }];
     if (!(good.status === 200 && good.body && good.body.success === true)) wrong.push(`a good list is accepted, got ${show(good)}`);
     if (show(afterGood) !== show(want)) wrong.push(`stored normalized: want ${show(want)}, got ${show(afterGood)}`);
     const other = inChild(script({ trustedLists: { membershipMethod: 'count' } }), env);
     if (!(other.status === 200 && other.body && other.body.success === true)) wrong.push(`a patch without assistantDuties still works, got ${show(other)}`);
     assert(wrong.length === 0, wrong.join('; '));
   } finally { t.cleanup(); }
+});
+
+test('R7 (Amendment 1 item 5): GET and reset log the entries they drop from a hand-edited list — "[settings/assistant-duties] ignored N assistantDuties entries" — and log nothing for a clean list', async () => {
+  const edited = [{ key: 'oops' }, { key: '30382:rank' }, { key: '39998' }];
+  const wrong = [];
+  for (const name of ['get', 'reset']) {
+    // For reset, the shipped defaults themselves carry the bad entries, so the list read back after the reset has them.
+    const s = fakeStore({ overrides: name === 'get' ? { [AD.SETTINGS_KEY]: edited } : {} });
+    if (name === 'reset') s.store.defaults[AD.SETTINGS_KEY] = AD.copyOf(edited);
+    const warned = [];
+    const warn = console.warn;
+    console.warn = (...a) => { warned.push(a.join(' ')); };
+    let res;
+    try { res = await call(handlers(s.deps)[name], ownerReq()); } finally { console.warn = warn; }
+    if (!(res.body && show(res.body.duties) === show([{ key: '39998' }]))) wrong.push(`${name}: the cleaned list, got ${show(res.body)}`);
+    if (!warned.some((w) => /\[settings\/assistant-duties\]/.test(w) && /\b2\b/.test(w) && /assistantDuties/.test(w))) wrong.push(`${name}: a warning names the 2 ignored assistantDuties entries, got ${show(warned)}`);
+  }
+  const clean = fakeStore();
+  const warned = [];
+  const warn = console.warn;
+  console.warn = (...a) => { warned.push(a.join(' ')); };
+  try { await call(handlers(clean.deps).get, ownerReq()); } finally { console.warn = warn; }
+  if (warned.length) wrong.push(`a clean list logs nothing, got ${show(warned)}`);
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 /* ───────────────────────── A — access (AC-1) ───────────────────────── */
@@ -520,10 +570,10 @@ test('O1: resolveOfferInputs answers { ownRelay, dlistRelay, duties } — duties
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('O2: a hand-edited list — bad keys, a private relay, a later duplicate — reaches the offer cleaned, in order, and the server logs how many entries it ignored; a list that is missing gives an empty offer, never the six (AC-5; ADR sub-decision 2 and § Implementation notes)', async () => {
+test('O2 (re-aimed by Amendment 1): a hand-edited list — a bad key, a narrower key, a private relay — reaches the offer cleaned, in order, and the server logs how many entries it ignored; a list that is missing gives an empty offer, never the six (AC-5; ADR sub-decision 2 and § Implementation notes)', async () => {
   const lib = libModule();
   const wrong = [];
-  const edited = await inputsFor({ duties: [{ key: '30392' }, { key: 'oops' }, { key: '30392::' }, { key: '30382', relay: 'ws://127.0.0.1' }, { key: '39998' }] });
+  const edited = await inputsFor({ duties: [{ key: '30392' }, { key: 'oops' }, { key: '30382:rank' }, { key: '30382', relay: 'ws://127.0.0.1' }, { key: '39998' }] });
   if (show(edited.inputs && edited.inputs.duties) !== show([{ key: '30392' }, { key: '39998' }])) wrong.push(`cleaned: got ${show(edited.inputs && edited.inputs.duties)}`);
   if (!edited.calls.warn.some((w) => /\b3\b/.test(w) && /assistantDuties/.test(w))) wrong.push(`a warning names the 3 ignored assistantDuties entries, got ${show(edited.calls.warn)}`);
   const offer = lib.buildOffer(edited.inputs || {});
@@ -536,15 +586,15 @@ test('O2: a hand-edited list — bad keys, a private relay, a later duplicate �
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('O3: through resolveOfferInputs and buildOffer, an added Concept key, a typed relay, `*` and a kind outside the three categories are offered in the list\'s order — and with no public address the Concept key moves to the DList relay, the typed relay stays, the others are left out (AC-6; ADR sub-decision 3)', async () => {
+test('O3 (re-aimed by Amendment 1): through resolveOfferInputs and buildOffer, a Concept kind, a typed relay and a kind outside the three categories are offered in the list\'s order — and with no public address the Concept kind moves to the DList relay, the typed relay stays, the other is left out (AC-6; ADR sub-decision 3)', async () => {
   const lib = libModule();
-  const list = [{ key: '39999:my-list' }, { key: '30383', relay: 'wss://Typed.Example/' }, { key: '*' }, { key: '30023' }];
+  const list = [{ key: '39999' }, { key: '30383', relay: 'wss://Typed.Example/' }, { key: '30023' }];
   const pub = await inputsFor({ duties: list });
   const priv = await inputsFor({ duties: list, config: { BRAINSTORM_RELAY_URL: 'ws://localhost:7777', STRFRY_DOMAIN: 'localhost' } });
   const view = (inputs) => (lib.buildOffer(inputs || {}) || []).map((r) => [r.key, r.relay]);
   const wrong = [];
-  const wantPub = [['39999:my-list', OWN], ['30383', TYPED], ['*', OWN], ['30023', OWN]];
-  const wantPriv = [['39999:my-list', DLIST], ['30383', TYPED]];
+  const wantPub = [['39999', OWN], ['30383', TYPED], ['30023', OWN]];
+  const wantPriv = [['39999', DLIST], ['30383', TYPED]];
   if (show(view(pub.inputs)) !== show(wantPub)) wrong.push(`a public address: want ${show(wantPub)}, got ${show(view(pub.inputs))}`);
   if (show(view(priv.inputs)) !== show(wantPriv)) wrong.push(`no public address: want ${show(wantPriv)}, got ${show(view(priv.inputs))}`);
   assert(wrong.length === 0, wrong.join('; '));
@@ -591,7 +641,7 @@ test('T2: refusalLine turns each refusal code into its words, and anything else 
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('T3: the helpers build the next list without changing the one given — moveDuty(list, from, to) moves one entry (out of range: the same entries), addDuty appends, removeDuty(list, i) removes one, setRelay(list, i, relay) sets a typed relay and setRelay(list, i, null) puts back This instance\'s relay (no relay field) (AC-3, AC-4; ADR sub-decision 7)', async () => {
+test('T3: the helpers build the next list without changing the one given — moveDuty(list, from, to) moves one entry (out of range: the same entries), addDuty appends, removeDuty(list, i) removes one, setRelay(list, i, relay) sets a typed relay, \'\' included (Amendment 1 item 4), and setRelay(list, i, null or undefined) puts back This instance\'s relay (no relay field) (AC-3, AC-4; ADR sub-decision 7)', async () => {
   const mod = await copyModule();
   const wrong = [];
   for (const name of ['moveDuty', 'addDuty', 'removeDuty', 'setRelay']) if (typeof mod[name] !== 'function') wrong.push(`no ${name}()`);
@@ -618,6 +668,11 @@ test('T3: the helpers build the next list without changing the one given — mov
   if (!(Array.isArray(typed) && typed[0].relay === TYPED && typed[0].key === '30382')) wrong.push(`setRelay(list, 0, typed): got ${show(typed)}`);
   const back = mod.setRelay(frozen, 2, null);
   if (!(Array.isArray(back) && back[2].key === '39998' && !Object.prototype.hasOwnProperty.call(back[2], 'relay'))) wrong.push(`setRelay(list, 2, null) leaves no relay field: got ${show(back)}`);
+  const undef = mod.setRelay(frozen, 2, undefined);
+  if (!(Array.isArray(undef) && !Object.prototype.hasOwnProperty.call(undef[2], 'relay'))) wrong.push(`setRelay(list, 2, undefined) leaves no relay field: got ${show(undef)}`);
+  // Amendment 1 item 4: an empty typed relay is sent as it is, so the server refuses it as when adding.
+  const empty = mod.setRelay(frozen, 0, '');
+  if (!(Array.isArray(empty) && empty[0].relay === '')) wrong.push(`setRelay(list, 0, '') keeps relay '' for the server to refuse: got ${show(empty)}`);
   if (show(frozen) !== before) wrong.push(`the list given is never changed: ${show(frozen)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
