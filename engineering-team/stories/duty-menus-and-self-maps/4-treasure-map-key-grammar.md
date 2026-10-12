@@ -416,6 +416,36 @@ epic's story-5 entry and Goal bullet, as story 3's approval did for story 4.
 
 ## Deviations
 
+**ADR 0004's questions (recorded by the PO, 2026-10-12).** The owner accepted ADR 0004 on 2026-10-12 with the
+recommended answer to each of its three questions (its "Open questions for the owner", not this story's above):
+- 1 (a): no key reaches a Concept header whose `d` is empty or `dlist-header`, and `39999:dlist-header` names no
+  Concept;
+- 2 (a): one metadata clause in each of Assistant Designation's and Trusted Lists' Sources lines;
+- 3 (a): a new `protocol` ledger row for each of the two spec questions outside this story's scope
+  (`2026-10-12-addressable-kinds-spawning-content-categories`, `2026-10-12-bare-39998-ta-discovery`), for the PO to
+  place in story 5 or a later docs pass.
+
+2 (a) and 3 (a) are the two departures from AC6's scope bullet that ADR 0004 names (Consequences), so the owner
+approved both with these answers. AC6 is not edited, and ADR 0004 names no other departure.
+
+**Implementer (2026-10-12).** Judgment calls in carrying ADR 0004 into the deliverables. The ADR's quoted text went
+in as written; none of these changes a rule.
+- **Line numbers.** The ADR's line numbers (as of `b13bb6b5`) still matched the four drafts, the README and the
+  handoff, which had not changed since. In story 3's file the "Implementer, round 2 fix 1" block had moved from :633
+  to :647 with the PO's revision, and the item-1 line sits under it.
+- **Wrapping.** Trusted Lists wraps at about 100 columns, so its Sources clause and its families sentence are wrapped
+  within the lines the ADR names (:4–7, :103–106). The other files keep one line per paragraph or wrap as before.
+- **Duty Menus § 8.2.** "After the filter" is read as the same paragraph: the new sentence follows the filter's.
+- **Ledger notes.** Sub-decision 11 gives each note's substance. The notes also name the section where each finding
+  of row `2026-10-11-duty-menus-spec-fold-forwards` landed, and rows `2026-10-09-draft-grammar-bare-39999` and
+  `2026-10-12-duty-menu-code-cross-book-notes` point at the new code row. The code row adds V22's Case A and Case B
+  and the Dictionary entry page's file (Context); the two `protocol` rows name the owner's answer 3(a).
+- **The loose-ends row.** Flipped DONE after checking that items 2–4 are in the working tree: ADR 0003's AC3 markers
+  in Verification and A2's approval line (the Architect's), and story 3's AC3 gloss (the PO's).
+- **Commits.** None made in this phase. The item-1 line and the loose-ends row's note say that items 2 and 3 went in
+  with ADR 0004's `adr:` commit and item 4 in a `story:` commit. Both hold once the commits land in that order: `adr:`
+  (ADR 0003 and ADR 0004), `story:` (stories 3 and 4, the PO's text), then `impl:`.
+
 ## Linked artifacts
 
 - ADR: [`decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md`](../../decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md)
