@@ -255,7 +255,8 @@ with no code change):
   `BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:7799 npx playwright test tests/brainstorm/assistant-coming-soon.spec.js tests/brainstorm/assistant-management-page.spec.js tests/brainstorm/assistant-alert.spec.js tests/brainstorm/assistant-attention.spec.js tests/brainstorm/assistant-duty-menu.spec.js tests/brainstorm/assistant-identification-tags-page.spec.js tests/brainstorm/assistant-profile-check.spec.js tests/brainstorm/assistant-shared-categories.spec.js tests/brainstorm/assistant-taggings-publish.spec.js tests/brainstorm/assistant-trusted-content.spec.js --project=chromium --reporter=line --output=<scratch dir>`
   `--reporter=line` and `--output` keep the config's HTML/JSON reports and `test-results/` out of the repo.
 
-## Implementation *(J3 evidence, 2026-10-12)*
+## Implementation *(J3 evidence, 2026-10-12; approved at J3 the same day, first verdict: the judge re-ran the scoped gate
+at `3d0b6d4`, EXIT=0, 386 passed, and the fails-before on `88fa4da`)*
 
 - **Files:** code `72c4b7b`: `ui/src/pages/assistant/actions.js`, `ui/src/pages/assistant/Index.jsx` and
   `ui/src/pages/assistant/ActionPage.jsx`, all inside the Design note's blast radius. No deviation from the Design note.
