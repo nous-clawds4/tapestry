@@ -12,10 +12,16 @@
  * Keys are normalized as the Treasure Map rule's entryOf does (src/lib/treasureMapCategories.mjs), re-implemented here
  * because that rule is an ES module; test/assistant-duty-menu-check.test.js L7 pins the two to agree. Relays are
  * compared in their one spelling (normalizeRelayUrl).
+ *
+ * What an instance offers is no longer fixed here (ADR assistant-duties-settings/0001). It is the instance's Assistant
+ * Duties list, `assistantDuties` in the settings (src/config/defaults.json ships the six): entries `{ key, relay? }`,
+ * no `relay` meaning This instance's relay. This module holds the one rule for that list: validateDutyList for writes,
+ * readDutyList for reads, both on keptKey, the key rule readMenuRows uses, so a saved key and a read key cannot drift.
  */
 
 const { NOUS_PUBKEY } = require('../nous');
 const { normalizeRelayUrl } = require('../relay-list');
+const { isPublicAddress, hasPrivateHostSuffix } = require('../../utils/ssrfGuard');
 
 const DUTY_MENU_KIND = 39999;
 const DUTY_MENU_D = 'duty-menu';
@@ -31,8 +37,13 @@ const CONCEPT_HEADER_Z = /^39998:[0-9a-f]{64}:concept-header$/i;
 /** The keys § 5.3 tells readers to ignore, until Treasure Maps settles what they mean. */
 const IGNORED_KEYS = ['39998:', '39999:'];
 
-/** What this instance offers, by category, in the offer's order (ADR 0001 K1: the kinds actually built). */
-const OFFER_KEYS = { scores: ['30382'], lists: ['30392', '30393', '30394'], concepts: ['39998', '39999'] };
+/** At most this many duties in an Assistant Duties list (ADR assistant-duties-settings/0001 sub-decision 2). */
+const MAX_DUTIES = 200;
+/** A list's key is at most this long, once trimmed. */
+const MAX_KEY_LENGTH = 512;
+
+/** A key whose kind slot is a Concept slot: This instance's relay falls back to the DList relay for it. */
+const CONCEPT_SLOT = /^3999[89](:|$)/;
 
 function tagsOf(event) {
   return event && typeof event === 'object' && Array.isArray(event.tags) ? event.tags.filter(Array.isArray) : [];
@@ -79,6 +90,19 @@ function normalizeMenuKey(key) {
 }
 
 /**
+ * The key a reader keeps for a row (§ 5.3), normalized, or null when it drops the row: not a string, `39998:` or
+ * `39999:`, or a kind slot that does not parse. readMenuRows and the Assistant Duties list share it.
+ * @param {*} key
+ * @returns {?string}
+ */
+function keptKey(key) {
+  if (typeof key !== 'string' || IGNORED_KEYS.includes(key)) return null;
+  const colon = key.indexOf(':');
+  if (!KIND_SLOT.test(colon < 0 ? key : key.slice(0, colon))) return null;
+  return normalizeMenuKey(key);
+}
+
+/**
  * The rows a reader keeps, in order (§§ 5.1–5.3): `{ tag: 'duty'|'not-offered', key, relay }`, the key normalized and
  * a duty row's relay in its one spelling; a not-offered row's relay is null. Dropped: a duty row whose relay is
  * missing, empty or not a ws:// or wss:// address; a key whose kind slot does not parse; the keys `39998:` and
@@ -91,16 +115,13 @@ function readMenuRows(event) {
   const seen = new Set();
   for (const t of tagsOf(event)) {
     if (t[0] !== 'duty' && t[0] !== 'not-offered') continue;
-    const key = t[1];
-    if (typeof key !== 'string' || IGNORED_KEYS.includes(key)) continue;
-    const colon = key.indexOf(':');
-    if (!KIND_SLOT.test(colon < 0 ? key : key.slice(0, colon))) continue;
+    const norm = keptKey(t[1]);
+    if (norm === null) continue;
     let relay = null;
     if (t[0] === 'duty') {
       relay = normalizeRelayUrl(t[2]);
       if (!relay) continue;
     }
-    const norm = normalizeMenuKey(key);
     if (seen.has(norm)) continue;
     seen.add(norm);
     rows.push({ tag: t[0], key: norm, relay });
@@ -111,32 +132,129 @@ function readMenuRows(event) {
 const rowId = (r) => `${r && r.tag}|${r && r.key}|${r && r.tag === 'duty' ? r.relay : ''}`;
 
 /**
- * Do two lists hold the same rows? Compared as sets of tag, key and relay, so order never counts (AC-4).
+ * Do two lists hold the same rows, in the same order? Tag, key and relay at every position (ADR
+ * assistant-duties-settings/0001 sub-decision 5: the order the Owner sets is the menu's, so a reorder needs a publish).
  * @returns {boolean}
  */
 function sameRows(a, b) {
-  const x = new Set((Array.isArray(a) ? a : []).map(rowId));
-  const y = new Set((Array.isArray(b) ? b : []).map(rowId));
-  if (x.size !== y.size) return false;
-  for (const id of x) if (!y.has(id)) return false;
-  return true;
+  const x = Array.isArray(a) ? a : [];
+  const y = Array.isArray(b) ? b : [];
+  return x.length === y.length && x.every((row, i) => rowId(row) === rowId(y[i]));
 }
 
 /**
- * What this instance offers for one Assistant (ADR 0001 R1 and K1): `30382` when `scores`, at ownRelay; the three List
- * kinds at ownRelay; `39998` and `39999` at ownRelay, else dlistRelay. Both relays in their one spelling; a row whose
- * relay is null is left out. Scores, then Lists, then Concepts; duty rows only.
- * @param {{ ownRelay: ?string, dlistRelay: ?string, scores: boolean }} input
+ * A key typed for the Assistant Duties list, trimmed and normalized as readers keep it, or null when readers would
+ * drop it or it is longer than MAX_KEY_LENGTH.
+ * @param {*} input
+ * @returns {?string}
+ */
+function dutyKeyOf(input) {
+  if (typeof input !== 'string') return null;
+  const key = input.trim();
+  if (!key || key.length > MAX_KEY_LENGTH) return null;
+  return keptKey(key);
+}
+
+/**
+ * Could others reach this relay? The public-host rule (src/api/assistant/profileDefaults.js isPublicHost, composed from
+ * the SSRF guard's classifiers) on its hostname: an IP literal must be a public address; a name must not be private by
+ * construction. No DNS. The URL parser gives IPv4 literals dotted and IPv6 literals bracketed.
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isPublicRelayUrl(url) {
+  let host;
+  try { host = new URL(String(url)).hostname.toLowerCase().replace(/\.$/, ''); } catch { return false; }
+  if (!host) return false;
+  const literal = /^\[.*\]$/.test(host) || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  return literal ? isPublicAddress(host) : !hasPrivateHostSuffix(host);
+}
+
+/** One entry of a list: { duty } when it is good, else { code } — the first of bad-list, bad-key, bad-relay, private-relay. */
+function checkEntry(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return { code: 'bad-list' };
+  const key = dutyKeyOf(entry.key);
+  if (key === null) return { code: 'bad-key' };
+  if (entry.relay === undefined || entry.relay === null) return { duty: { key } };
+  const relay = typeof entry.relay === 'string' ? normalizeRelayUrl(entry.relay) : null;
+  if (!relay) return { key, code: 'bad-relay' };
+  if (!isPublicRelayUrl(relay)) return { key, code: 'private-relay' };
+  return { duty: { key, relay } };
+}
+
+/**
+ * An Assistant Duties list, checked for a write (ADR assistant-duties-settings/0001 sub-decision 2). `{ ok: true,
+ * duties }` normalized: keys as readers keep them, typed relays in their one spelling, This instance's relay (a missing
+ * or null `relay`) as no `relay` field, other fields dropped, order kept. Otherwise `{ ok: false, code, index }`, in this
+ * order: bad-list (not an array, index null; an entry not an object), too-many (index null), bad-key, duplicate-key
+ * (the later entry), bad-relay, private-relay.
+ * @param {*} input
+ * @returns {{ ok: true, duties: Array<{ key: string, relay?: string }> } | { ok: false, code: string, index: ?number }}
+ */
+function validateDutyList(input) {
+  if (!Array.isArray(input)) return { ok: false, code: 'bad-list', index: null };
+  if (input.length > MAX_DUTIES) return { ok: false, code: 'too-many', index: null };
+  const duties = [];
+  const seen = new Set();
+  for (let i = 0; i < input.length; i += 1) {
+    const r = checkEntry(input[i]);
+    if (r.code === 'bad-list' || r.code === 'bad-key') return { ok: false, code: r.code, index: i };
+    const key = r.duty ? r.duty.key : r.key;
+    if (seen.has(key)) return { ok: false, code: 'duplicate-key', index: i };
+    if (r.code) return { ok: false, code: r.code, index: i };
+    seen.add(key);
+    duties.push(r.duty);
+  }
+  return { ok: true, duties };
+}
+
+/**
+ * An Assistant Duties list as read from the settings, which may have been edited by hand: what validateDutyList would
+ * refuse is dropped instead, the first entry per key wins, and at most MAX_DUTIES are kept. Not an array is no duties.
+ * @param {*} input
+ * @returns {{ duties: Array<{ key: string, relay?: string }>, dropped: number }}
+ */
+function readDutyList(input) {
+  if (!Array.isArray(input)) return { duties: [], dropped: 0 };
+  const duties = [];
+  const seen = new Set();
+  let dropped = 0;
+  for (const entry of input) {
+    const r = checkEntry(entry);
+    if (r.code || seen.has(r.duty.key) || duties.length >= MAX_DUTIES) { dropped += 1; continue; }
+    seen.add(r.duty.key);
+    duties.push(r.duty);
+  }
+  return { duties, dropped };
+}
+
+/**
+ * This instance's relay for a key (ADR assistant-duties-settings/0001 sub-decision 3, extending assistant-duty-menu
+ * R1): a Concept slot (39998 or 39999) gives ownRelay, else dlistRelay; any other key gives ownRelay. Each in its one
+ * spelling; null when there is none.
+ * @param {string} key
+ * @param {{ ownRelay: ?string, dlistRelay: ?string }} input
+ * @returns {?string}
+ */
+function instanceRelayFor(key, { ownRelay = null, dlistRelay = null } = {}) {
+  const own = normalizeRelayUrl(ownRelay);
+  return CONCEPT_SLOT.test(String(key)) ? own || normalizeRelayUrl(dlistRelay) : own;
+}
+
+/**
+ * What this instance offers for an Assistant (ADR assistant-duties-settings/0001 sub-decision 3): one duty row per entry
+ * of the Assistant Duties list, in its order, at the entry's typed relay or else This instance's relay for its key. A
+ * row whose relay comes out null is left out. No list is no offer. The same for every Assistant.
+ * @param {{ ownRelay: ?string, dlistRelay: ?string, duties: Array<{ key: string, relay?: string }> }} input
  * @returns {Array<{ tag: 'duty', key: string, relay: string }>}
  */
-function buildOffer({ ownRelay = null, dlistRelay = null, scores = false } = {}) {
-  const own = normalizeRelayUrl(ownRelay);
-  const conceptRelay = own || normalizeRelayUrl(dlistRelay);
+function buildOffer({ ownRelay = null, dlistRelay = null, duties = [] } = {}) {
   const rows = [];
-  const add = (keys, relay) => { if (relay) for (const key of keys) rows.push({ tag: 'duty', key, relay }); };
-  if (scores) add(OFFER_KEYS.scores, own);
-  add(OFFER_KEYS.lists, own);
-  add(OFFER_KEYS.concepts, conceptRelay);
+  for (const d of Array.isArray(duties) ? duties : []) {
+    if (!d || typeof d.key !== 'string') continue;
+    const relay = d.relay ? normalizeRelayUrl(d.relay) : instanceRelayFor(d.key, { ownRelay, dlistRelay });
+    if (relay) rows.push({ tag: 'duty', key: d.key, relay });
+  }
   return rows;
 }
 
@@ -159,10 +277,18 @@ module.exports = {
   DUTY_MENU_KIND,
   DUTY_MENU_D,
   DUTY_MENU_HEADER,
+  MAX_DUTIES,
+  MAX_KEY_LENGTH,
   isDutyMenu,
+  keptKey,
   readMenuRows,
   normalizeMenuKey,
   sameRows,
+  dutyKeyOf,
+  isPublicRelayUrl,
+  validateDutyList,
+  readDutyList,
+  instanceRelayFor,
   buildOffer,
   buildMenuTags,
 };

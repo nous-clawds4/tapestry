@@ -1,6 +1,7 @@
 # ADR 0001: A self-Map check beside the others, with "live" read from what has landed at the Assistant's relay
 
 **Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended); Amendment 1 approved; Amendment 2 approved (review round 1); Amendment 3 approved (review round 2)
+**Note (2026-10-12):** the offer this check reads is now the instance's Assistant Duties list (ADR `assistant-duties-settings/0001`): it may name a duty this instance does not publish, which is offered and never live, and a `30382` row at a typed relay is never read as live from this instance's strfry (that ADR's sub-decision 6).
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md`
 

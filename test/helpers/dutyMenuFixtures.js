@@ -13,6 +13,12 @@
  * engineering-team/decisions/assistant-duty-menu/0001-a-duty-menu-check-beside-the-others.md (accepted 2026-10-11, R1
  * and K1), following protocols/drafts/duty-menus.md §§ 4, 5, 6.1 and 8.1. Change a word there first, then here.
  *
+ * assistant-duties-settings #1 (story engineering-team/stories/assistant-duties-settings/1-the-assistant-duties-tab.md,
+ * approved 2026-10-12; ADR engineering-team/decisions/assistant-duties-settings/0001-the-offered-duties-live-in-the-instance-settings.md,
+ * accepted 2026-10-12) re-aims the offer: it is the instance's Assistant Duties list (DEFAULT_DUTIES until someone
+ * changes it), in list order, the same for every Assistant (no Scores condition); "current" counts order; and the
+ * page's two offer sentences say "offers".
+ *
  * Standalone on purpose (it requires no other fixture), so dutyCardsFixtures.js can read the Duty Menu card's new
  * alert criteria from here without a require cycle.
  */
@@ -46,23 +52,32 @@ const PLANNING_NOTES = null;
  */
 const CHECKED_AFTER = 'outbox-relays';
 
-// ─── The offer (story AC-2 as amended; ADR 0001 R1 and K1) ──────────────────────────────────────────────────────────
-/** K1: the kinds actually built, by category, in the offer's order: Scores, Lists, Concepts. */
+// ─── The offer (assistant-duties-settings #1 AC-2, AC-6; ADR assistant-duties-settings/0001 sub-decisions 1, 3) ─────
+/**
+ * The six duties a new instance offers (story AC-2), in order, each at This instance's relay (no `relay`): the shipped
+ * `assistantDuties` of src/config/defaults.json. Frozen, so no suite can bend the oracle.
+ */
+const DEFAULT_DUTIES = Object.freeze(['30382', '30392', '30393', '30394', '39998', '39999'].map((key) => Object.freeze({ key })));
+/** The same six by category (the closed book's K1 grouping), for the suites that read a category's keys. */
 const OFFER_KEYS = { scores: ['30382'], lists: ['30392', '30393', '30394'], concepts: ['39998', '39999'] };
 /** The Treasure Map's category names (story § Copy: /treasure-map's). */
 const CATEGORY_NAMES = { scores: 'Scores', lists: 'Lists', concepts: 'Concepts' };
 
+/** Is a key's kind slot a Concept slot (39998 or 39999)? ADR assistant-duties-settings/0001 sub-decision 3. */
+const isConceptSlot = (key) => /^3999[89](:|$)/.test(String(key));
 /**
- * The offer ADR 0001 sub-decision 1 says buildOffer gives: 30382 when `scores`, at ownRelay; the three List kinds at
- * ownRelay; 39998 and 39999 at ownRelay, else dlistRelay; a row whose relay is null left out; Scores, Lists, Concepts.
- * The suites' oracle — written from the ADR, not from the code.
+ * The offer ADR assistant-duties-settings/0001 sub-decision 3 says buildOffer gives: one duty row per entry of
+ * `duties`, in list order; its relay is the entry's typed relay, else This instance's relay for its category (a Concept
+ * slot: ownRelay, else dlistRelay; any other key: ownRelay); a row whose relay comes out null is left out. The same for
+ * every Assistant: the closed book's `scores` input is gone, and is ignored here if a caller still passes it. Relays
+ * must already be in their one spelling. The suites' oracle — written from the ADR, not from the code.
  */
-function expectedOffer({ ownRelay = null, dlistRelay = null, scores = false } = {}) {
+function expectedOffer({ ownRelay = null, dlistRelay = null, duties = DEFAULT_DUTIES } = {}) {
   const rows = [];
-  const add = (key, relay) => { if (relay) rows.push({ tag: 'duty', key, relay }); };
-  if (scores) for (const k of OFFER_KEYS.scores) add(k, ownRelay);
-  for (const k of OFFER_KEYS.lists) add(k, ownRelay);
-  for (const k of OFFER_KEYS.concepts) add(k, ownRelay || dlistRelay);
+  for (const d of duties) {
+    const relay = d.relay || (isConceptSlot(d.key) ? (ownRelay || dlistRelay) : ownRelay);
+    if (relay) rows.push({ tag: 'duty', key: d.key, relay });
+  }
   return rows;
 }
 
@@ -70,8 +85,9 @@ function expectedOffer({ ownRelay = null, dlistRelay = null, scores = false } = 
 const PAGE = {
   signedOutLine: "Sign in to see your Assistant's Duty Menu.",
   offerHeading: 'What your Assistant offers',
-  offerExplainer: 'Duties this instance publishes for your Assistant, and the relay where each is published.',
-  offerEmpty: 'This instance publishes no duties for your Assistant yet.',
+  // assistant-duties-settings #1 § Copy: "publishes" became "offers" (the list may name a duty not built here).
+  offerExplainer: 'Duties this instance offers for your Assistant, and the relay where each is published.',
+  offerEmpty: 'This instance offers no duties for your Assistant.',
   notOffered: 'not offered',
   publishedHeading: "Your Assistant's published Duty Menu",
   checking: 'Checking…',
@@ -129,15 +145,15 @@ const PAGE_SENTENCES = [
 
 // ─── Canned answers of GET /api/assistant/attention for this action (ADR 0001 sub-decision 4) ───────────────────────
 const OWN = 'wss://tapestry.example/relay';
-const OFFER = expectedOffer({ ownRelay: OWN, scores: true });
-const shuffled = (rows) => rows.slice().reverse();
+const OFFER = expectedOffer({ ownRelay: OWN });
 
 /** The duty-menu action, with every field the answer carries; `over` adjusts it. */
 function action(over = {}) {
   return {
     finished: true, done: true, pending: false, reason: null,
     offer: OFFER.slice(),
-    published: { rows: shuffled(OFFER), createdAt: 1_760_000_000, source: 'local', eventId: 'd'.repeat(64) },
+    // In the offer's order: since assistant-duties-settings #1 (ADR 0001 sub-decision 5) "current" counts order.
+    published: { rows: OFFER.slice(), createdAt: 1_760_000_000, source: 'local', eventId: 'd'.repeat(64) },
     current: true,
     ...over,
   };
@@ -168,7 +184,7 @@ module.exports = {
   NOUS_PUBKEY, DUTY_MENU_KIND, DUTY_MENU_D, DUTY_MENU_HEADER, menuFilter, RELAY_LIST_KIND, TREASURE_MAP_KIND,
   RELAY_BUDGET_MS, MAX_EVENT_RELAYS, NOUS_CACHE_MS,
   KEY, PATH, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER,
-  OFFER_KEYS, CATEGORY_NAMES, expectedOffer,
+  DEFAULT_DUTIES, OFFER_KEYS, CATEGORY_NAMES, isConceptSlot, expectedOffer,
   PAGE, PAGE_SENTENCES, PUBLISH, PUBLISH_SENTENCES,
   OWN, OFFER, STALE_ROWS, action, ANSWERS, withDutyMenu,
 };

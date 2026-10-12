@@ -48,6 +48,9 @@ const SM = require('../../test/helpers/selfMapFixtures');
  * ── Prerequisites ────────────────────────────────────────────────────────
  *   BRAINSTORM_BASE_URL → an origin serving the BUILT UI under test (see tests/brainstorm/assistant-management-page.spec.js).
  *
+ * assistant-duties-settings #1 (§ Copy; ADR assistant-duties-settings/0001 sub-decision 8) re-aims B5 and B10 through
+ * test/helpers/dutyMenuFixtures.js: the offer panel's two sentences say "offers" now.
+ *
  * These FAIL against the build before this story: /assistant/duty-menu is the placeholder page, and the hub's Duty Menu
  * card is always marked and counted.
  */
@@ -344,7 +347,7 @@ test.describe('The Duty Menu card and page (assistant-duty-menu #1)', () => {
     await expectNoStatusLine(page, 'request failed');
   });
 
-  test('B10: an empty offer — the offer panel says this instance publishes no duties yet (AC-5)', async ({ page }) => {
+  test('B10: an empty offer — the offer panel says this instance offers no duties (AC-5; re-aimed by assistant-duties-settings #1 § Copy)', async ({ page }) => {
     await mock(page, { attention: answerWith(DM.ANSWERS.EMPTY_DONE) });
     const main = await open(page);
     await expect(offerPanel(page).getByText(DM.PAGE.offerEmpty, { exact: true })).toBeVisible();

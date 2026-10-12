@@ -159,8 +159,24 @@ None open. The seven questions were settled at intake (book § Decisions). The o
 - The Copy stands.
 - One story: drag-to-reorder is not split off.
 
+## Deviations
+
+- *(Implementation, 2026-10-12)* **Two Tester-side fixes to the Phase-3 tests.** Both were test defects, not changed
+  expectations.
+  - **U24 in `test/assistant-duty-menu-check.test.js`.** Its "a row more" variant appended a second `30382`. Once the
+    six include `30382`, that is a duplicate key readers merge away (§ 5.3), so the variant now appends `30383`.
+  - **A2 in `test/assistant-duties-settings.test.js`.** It now reads `src/api/index.js` raw. Its `codeOnly` helper took
+    the `/*` in the string `'/api/settings/*'` for a comment opener and blanked the lines after it.
+- *(Implementation, 2026-10-12)* **Two words the story's § Copy does not give.** The tab shows them while its first read
+  is out, or when that read fails: "Loading…" and "Could not load the duties: this instance did not answer.". They live
+  in `assistantDutiesCopy.js` with the rest.
+- *(Implementation, 2026-10-12)* **The `getCustomer` dependency is gone from `src/api/assistant/dutyMenu.js`.** The offer
+  no longer looks the viewer up (ADR sub-decision 3), and nothing else in that module used it.
+- *(Implementation, 2026-10-12)* **A follow-up ledger row.** `settings.json`'s in-place write, per ADR § Consequences, is
+  ledger row `2026-10-12-settings-json-written-in-place`.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-duties-settings/0001-the-offered-duties-live-in-the-instance-settings.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-duties-settings/1-the-assistant-duties-tab.test-plan.md`
 - Review: (filled in after Review phase)

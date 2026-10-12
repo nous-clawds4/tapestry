@@ -1,6 +1,7 @@
 # ADR 0001: A Duty Menu check beside the others, with an offer built from what this instance publishes
 
 **Status:** Accepted (by the owner, 2026-10-11, choosing R1 and K1)
+**Partly superseded by ADR `assistant-duties-settings/0001`** (2026-10-12): the K1 rows and the Scores condition of sub-decision 1, and sub-decision 4's order-blind "current". The offer is now the instance's Assistant Duties list, the same for every Assistant.
 **Date:** 2026-10-11
 **Story:** `engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md`
 

@@ -11,14 +11,16 @@
  * The words were approved with the stories; change them there first:
  * engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md § Copy, and
  * engineering-team/stories/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.md § Copy (the button, the
- * report and the empty-menu line).
+ * report and the empty-menu line), and the two offer sentences in
+ * engineering-team/stories/assistant-duties-settings/1-the-assistant-duties-tab.md § Copy ("offers": the Assistant
+ * Duties list may name a duty this instance does not publish).
  */
 
 export const DUTY_MENU_COPY = {
   signedOutLine: "Sign in to see your Assistant's Duty Menu.",
   offerHeading: 'What your Assistant offers',
-  offerExplainer: 'Duties this instance publishes for your Assistant, and the relay where each is published.',
-  offerEmpty: 'This instance publishes no duties for your Assistant yet.',
+  offerExplainer: 'Duties this instance offers for your Assistant, and the relay where each is published.',
+  offerEmpty: 'This instance offers no duties for your Assistant.',
   notOffered: 'not offered',
   publishedHeading: "Your Assistant's published Duty Menu",
   checking: 'Checking…',
