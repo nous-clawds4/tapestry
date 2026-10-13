@@ -28,6 +28,11 @@
  *   words' one home. These FAIL until the helper, the two pure helpers and the page's buttons exist.
  * Round 2 (ADR 0002 Amendment 1): Q3's off-or-unknown cases with an unfinished check now show Turn off (item 4); D9 pins
  * the Owner's note to the session (item 5).
+ *
+ * assistant-self-map #3 (one name for your Assistant's Treasure Map; story 3 § Copy, no ADR): the fixtures' words are
+ * re-aimed to § Copy, so P1, P2, Q1 and Q2 now check the new lines.
+ *   N — no line says "self-Map" or "self-entries" (N1, N2), and only words change: the copy module's keys, kinds and
+ *       exports are as before (N3).                                                                [AC-1, AC-4]
  */
 
 const fs = require('fs');
@@ -372,6 +377,66 @@ test('D9 (ADR 0002 A1 item 5): the Owner\'s note reads the session — the page 
   if (!/user\.classification\s*===\s*['"]owner['"]/.test(src)) wrong.push("no user.classification === 'owner'");
   const noteLine = src.split(NL).find((l) => /ownerNote/.test(l)) || '';
   if (/instanceMap/.test(noteLine)) wrong.push(`the note's line still reads instanceMap: ${noteLine.trim()}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── N — one name for your Assistant's Treasure Map (assistant-self-map #3) ───────────────────────── */
+
+/** The old name and its parts, as a person would read them (story 3 AC-1). */
+const OLD_NAME = /self-map|self-entr/i;
+/** The copy module's shape before story 3 (stories 1 and 2): each key path and the kind of value at it (story 3 AC-4). */
+const COPY_SHAPE = [
+  'signedOutLine:string', 'dutiesHeading:string', 'dutiesExplainer:string', 'statusWords.active:string', 'statusWords.offered:string',
+  'statusWords.not-offered:string', 'reasons.live-unclaimed:string', 'reasons.not-published-here:string', 'reasons.nothing-to-publish:string',
+  'reasons.not-landed:string', 'reasons.older-form:string', 'reasons.not-scheduled:string', 'reasons.unchecked:string', 'upkeepStoppedLead:string',
+  'elsewhere:string', 'falseClaim:string', 'noDuties:string', 'yourTreasureMap:string', 'shouldHeading:string', 'shouldExplainer:string',
+  'shouldEmpty:string', 'publishedHeading:string', 'checking:string', 'none:string', 'couldNotCheck.no-relay-answered:string',
+  'couldNotCheck.request-failed:string', 'status.upToDate:string', 'status.notPublished:string', 'status.outOfDate:string',
+  'links.dutyMenuLead:string', 'links.dutyMenu:string', 'links.treasureMapLead:string', 'links.treasureMap:string', 'ownerLine:function',
+  'publicLine:string', 'categories.scores:string', 'categories.lists:string', 'categories.concepts:string', 'press.turnOn:string',
+  'press.update:string', 'press.turnOff:string', 'press.publishing:string', 'press.subject:string', 'press.claimsNone:string',
+  'press.requestFailed:string', 'state.on:string', 'state.off:string', 'state.offStillClaims:string', 'ownerNote:string',
+];
+const COPY_EXPORTS = ['SELF_MAP_COPY', 'couldNotCheckLine', 'reasonLine', 'selfMapButtons', 'selfMapStateLine', 'statusLine'];
+
+test('N1 (story 3 AC-1): no word the copy module gives the page says "self-Map" or "self-entries" — every sentence, the Owner\'s line with its count, and every line the helpers return', async () => {
+  const mod = await copyModule();
+  const words = mod.SELF_MAP_COPY || {};
+  const lines = [...stringsOf(words)];
+  if (typeof words.ownerLine === 'function') lines.push(words.ownerLine(3));
+  const helpers = [
+    ...[SM.ANSWERS.DONE, SM.ANSWERS.NO_DUTIES, SM.ANSWERS.NOT_PUBLISHED, SM.ANSWERS.STALE, SM.ANSWERS.UNFINISHED].map((a) => (typeof mod.statusLine === 'function' ? mod.statusLine(a) : null)),
+    ...[SM.ANSWERS.DONE, SM.offOf(SM.ANSWERS.STALE), SM.offOf(SM.ANSWERS.NOT_PUBLISHED)].map((a) => (typeof mod.selfMapStateLine === 'function' ? mod.selfMapStateLine(a) : null)),
+    ...SM.REASONS.map((reason) => (typeof mod.reasonLine === 'function' ? mod.reasonLine({ reason, lastLandedAt: 1780868418 }) : null)),
+    ...['no-relay-answered', 'instance-unanswered', 'check-failed'].map((r) => (typeof mod.couldNotCheckLine === 'function' ? mod.couldNotCheckLine(r) : null)),
+  ].filter((x) => typeof x === 'string');
+  const old = [...lines, ...helpers].filter((x) => OLD_NAME.test(x));
+  assert(old.length === 0, `still says the old name (story 3 § Copy gives each line's new words): ${[...new Set(old)].map(show).join('; ')}`);
+});
+
+test('N2 (story 3 AC-1): the page itself writes no "self-Map" a person could read — outside its comments, AssistantTreasureMap.jsx and the copy module carry no "self-Map" or "self-entries" at all', () => {
+  const wrong = [];
+  for (const file of [PAGE, COPY_MOD]) {
+    const src = codeOnly(safeRead(file));
+    if (!src) { wrong.push(`${rel(file)} does not exist`); continue; }
+    const hits = src.split(NL).map((l, i) => [i + 1, l]).filter(([, l]) => OLD_NAME.test(l));
+    for (const [n, l] of hits) wrong.push(`${rel(file)}:${n}: ${l.trim().slice(0, 140)}`);
+  }
+  assert(wrong.length === 0, `the old name outside comments: ${wrong.join(' | ')}`);
+});
+
+test('N3 (story 3 AC-4): only words change — the copy module keeps every key, every kind of value and every export it had before story 3', async () => {
+  const mod = await copyModule();
+  const paths = [];
+  const walk = (o, at) => { for (const [k, v] of Object.entries(o)) { const q = at ? `${at}.${k}` : k; if (v && typeof v === 'object') walk(v, q); else paths.push(`${q}:${typeof v}`); } };
+  walk(mod.SELF_MAP_COPY || {}, '');
+  const wrong = [];
+  const missing = COPY_SHAPE.filter((x) => !paths.includes(x));
+  const added = paths.filter((x) => !COPY_SHAPE.includes(x));
+  if (missing.length) wrong.push(`missing: ${missing.join(', ')}`);
+  if (added.length) wrong.push(`added: ${added.join(', ')}`);
+  const exportsNow = Object.keys(mod).sort();
+  if (show(exportsNow) !== show(COPY_EXPORTS)) wrong.push(`exports: want ${show(COPY_EXPORTS)}, got ${show(exportsNow)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 

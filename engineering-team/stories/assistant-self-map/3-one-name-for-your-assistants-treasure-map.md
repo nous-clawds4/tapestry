@@ -126,5 +126,5 @@ nothing under the hood moves.
 ## Linked artifacts
 
 - ADR: none (see Open questions)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-self-map/3-one-name-for-your-assistants-treasure-map.test-plan.md`
 - Review: (filled in after Review phase)

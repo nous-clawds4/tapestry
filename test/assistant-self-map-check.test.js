@@ -52,6 +52,8 @@
  * Round 5 (ADR 0002 Amendment 4): V19 pins that forWrite says where the base is (onThisRelay, published.source).
  * Round 6 (review round 5): V20 an older version here with latest outside (R5-N5); V21 the copy and the outside holding
  * the same version reads relay, not copy (R5-N2).
+ * assistant-self-map #3 (one name; story 3 § Copy, no ADR): C1 now checks the re-aimed criteria line, and N5 that nothing
+ * the hub module gives a person says "self-Map" (AC-3).
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -859,6 +861,18 @@ test('C1 (AC-5; ADR sub-decision 9): the card keeps its key, address, section, t
     if (entry.planningNotes !== SM.PLANNING_NOTES) wrong.push(`planningNotes null, got ${show(entry.planningNotes)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('N5 (assistant-self-map #3 AC-3): nothing the hub module gives a person says "self-Map" — no card\'s title, words, criteria or notes, and nothing else it exports; the Treasure Map card\'s criteria are story 3\'s (C1)', async () => {
+  const OLD_NAME = /self-map|self-entr/i;
+  const mod = await actionsModule();
+  const found = [];
+  const walk = (v, at, seen = new Set()) => {
+    if (typeof v === 'string') { if (OLD_NAME.test(v)) found.push(`${at}: ${show(v)}`); return; }
+    if (v && typeof v === 'object' && !seen.has(v)) { seen.add(v); for (const [k, x] of Object.entries(v)) walk(x, `${at}.${k}`, seen); }
+  };
+  for (const [name, value] of Object.entries(mod)) walk(value, name);
+  assert(found.length === 0, `the old name on the hub (story 3 § Copy, the hub table): ${found.join(' | ')}`);
 });
 
 test('C2 (AC-5): treasure-map joins CHECKED_ACTIONS right after duty-menu, and is not Coming soon', async () => {

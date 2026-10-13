@@ -68,7 +68,8 @@ function scheduleEntry(taskId, { hours = 0, days = 0, minutes = 0, cron = '', en
 const KEY = 'treasure-map';
 const PATH = '/assistant/treasure-map';
 const TITLE = "Your Assistant's Treasure Map";
-const ALERT_CRITERIA = "If your Assistant's self-Map is missing, or says anything other than the duties that are live now.";
+// Re-aimed by assistant-self-map #3 (§ Copy, the hub table): one name, your Assistant's Treasure Map.
+const ALERT_CRITERIA = "If your Assistant's Treasure Map doesn't list exactly the duties that are live now.";
 const PLANNING_NOTES = null;
 /** The action it follows in CHECKED_ACTIONS (ASSISTANT_ACTIONS order; ADR 0001 sub-decision 9). */
 const CHECKED_AFTER = 'duty-menu';
@@ -84,6 +85,8 @@ const CHECK_REASONS = ['no-relay-answered', 'instance-unanswered', 'check-failed
 const COUNT_ZERO = 'Nothing needs attention';
 
 // ─── The page's words (story § Copy, with the three reasons added at Architecture) ───────────────────────────────────
+// Re-aimed by assistant-self-map #3 (§ Copy, the page table): every "self-Map" line now says "Treasure Map", and what the
+// map holds for the Assistant is "listed". Story 1's and story 2's § Copy keep the words as they were approved.
 const CATEGORY_NAMES = { scores: 'Scores', lists: 'Lists', concepts: 'Concepts' };
 const PAGE = {
   signedOutLine: "Sign in to see your Assistant's Treasure Map.",
@@ -91,35 +94,35 @@ const PAGE = {
   dutiesExplainer: 'The duties your Treasure Map gives your Assistant, and which of them are live now.',
   statusWords: { active: 'Active', offered: 'Offered but not active', 'not-offered': 'Not offered' },
   reasons: {
-    'live-unclaimed': "Live, but your Assistant's self-Map doesn't say so yet.",
+    'live-unclaimed': "Live, but your Assistant's Treasure Map doesn't list it yet.",
     'not-published-here': "This instance doesn't publish these for your Assistant yet.",
     'nothing-to-publish': 'Nothing to publish yet.',
     'not-landed': 'Not published yet.',
     'upkeep-stopped': 'Not kept up to date: last landed <date>.',
     'older-form': "This instance publishes these in an older form that Treasure Map readers can't find yet.",
     'not-scheduled': 'Not kept up to date: no upkeep is scheduled on this instance.',
-    unchecked: "This instance can't check this key yet, so it isn't claimed.",
+    unchecked: "This instance can't check this key yet, so it isn't listed.",
   },
   /** The upkeep-stopped line without its date, for "is it there" checks. */
   upkeepStoppedLead: 'Not kept up to date: last landed',
   elsewhere: 'Your Treasure Map gives this to another Assistant.',
-  falseClaim: "Your Assistant's self-Map claims this, but it isn't live.",
+  falseClaim: "Your Assistant's Treasure Map lists this, but it isn't live.",
   noDuties: 'Your Treasure Map gives your Assistant no duties.',
   yourTreasureMap: 'your Treasure Map',
-  shouldHeading: "What your Assistant's self-Map should say",
+  shouldHeading: "What your Assistant's Treasure Map should list",
   shouldExplainer: 'Only the duties that are live now, each at the relay where it is published.',
-  shouldEmpty: 'Nothing to claim yet.',
-  publishedHeading: "Your Assistant's published self-Map",
+  shouldEmpty: 'Nothing to list yet.',
+  publishedHeading: "Your Assistant's published Treasure Map",
   checking: 'Checking…',
-  none: 'No self-Map was found for your Assistant.',
+  none: "Your Assistant's Treasure Map lists none of its duties.",
   couldNotCheck: {
-    'no-relay-answered': "No relay answered, so your Assistant's self-Map could not be checked.",
+    'no-relay-answered': "No relay answered, so your Assistant's Treasure Map could not be checked.",
     'request-failed': 'Could not check: this instance did not answer.',
   },
   status: {
-    upToDate: "Your Assistant's self-Map is up to date.",
-    notPublished: 'Your Assistant has not published a self-Map yet.',
-    outOfDate: "Your Assistant's self-Map is out of date: it differs from the duties that are live now.",
+    upToDate: "Your Assistant's Treasure Map is up to date.",
+    notPublished: "Your Assistant's Treasure Map doesn't list its live duties yet.",
+    outOfDate: "Your Assistant's Treasure Map is out of date: it differs from the duties that are live now.",
   },
   links: {
     dutyMenuLead: 'What your Assistant offers:',
@@ -127,9 +130,9 @@ const PAGE = {
     treasureMapLead: 'The duties you give your Assistants:',
     treasureMap: 'your Treasure Map',
   },
-  ownerLine: (n) => `Your Assistant's Treasure Map is also this instance's own Treasure Map. Its ${n} other entries are this instance's choices, not part of the self-Map, and this page never changes them.`,
+  ownerLine: (n) => `Your Assistant's Treasure Map is also this instance's own Treasure Map. Its ${n} other entries are this instance's choices, not your Assistant's own duties, and this page never changes them.`,
   ownerLineLead: "Your Assistant's Treasure Map is also this instance's own Treasure Map.",
-  publicLine: "Your Assistant's self-Map is public. Anyone can read which duties it reports as live.",
+  publicLine: "Your Assistant's Treasure Map is public. Anyone can read which duties it lists as live.",
 };
 /** Every fixed sentence § Copy gives this page (not the hub's shared words), for "is it there" and "is it retyped" checks. */
 const PAGE_SENTENCES = [
@@ -144,36 +147,38 @@ const PAGE_SENTENCES = [
 ];
 
 // ─── The press (story 2 AC-2 … AC-6, § Copy; ADR 0002 sub-decisions 5–7) ──────────────────────────────────────────
-const PRESS_SUBJECT = "Your Assistant's self-Map";
+// Re-aimed by assistant-self-map #3 (§ Copy, the page and press tables): the subject, the buttons, the state lines, the
+// Owner's note, the report's last line, the unchanged messages and the not-signed-in refusal say "Treasure Map".
+const PRESS_SUBJECT = "Your Assistant's Treasure Map";
 const PRESS = {
   route: '/api/assistant/self-map',
   method: 'POST',
   routeKey: 'POST /api/assistant/self-map',
   subject: PRESS_SUBJECT,
   buttons: {
-    turnOn: "Turn on your Assistant's self-Map",
-    update: "Update your Assistant's self-Map now",
-    turnOff: "Turn off your Assistant's self-Map",
+    turnOn: "List your Assistant's live duties in its Treasure Map",
+    update: "Update your Assistant's Treasure Map now",
+    turnOff: "Remove your Assistant's duties from its Treasure Map",
     publishing: 'Publishing…',
   },
   state: {
-    on: "Your Assistant's self-Map is on.",
-    off: "Your Assistant's self-Map is off.",
-    offStillClaims: "Your Assistant's self-Map is off, but the version found still claims duties.",
+    on: "Your Assistant's Treasure Map is set to list its live duties.",
+    off: "Your Assistant's Treasure Map is set to list none of its duties.",
+    offStillClaims: "Your Assistant's Treasure Map is set to list none of its duties, but the version found still lists some.",
   },
-  ownerNote: "Turning your Assistant's self-Map on or off changes only its self-entries in this instance's own Treasure Map. Its other entries stay as they are.",
+  ownerNote: "Listing or removing your Assistant's duties changes only those entries in this instance's own Treasure Map. Its other entries stay as they are.",
   /** After the summary, when a Turn off published. */
-  claimsNone: "Your Assistant's self-Map now claims no duties.",
+  claimsNone: "Your Assistant's Treasure Map now lists none of its duties.",
   /** result.unchanged → result.message, when a press published nothing (ADR 0002 sub-decision 6 step 4). */
   unchanged: {
-    'nothing-to-claim': "Your Assistant's self-Map is on. Nothing is live to claim yet, so nothing was published.",
-    'already-current': "Your Assistant's self-Map is on, and it already says what is live now, so nothing was published.",
-    'nothing-claimed': "Your Assistant's self-Map is off. It claimed nothing, so nothing was published.",
+    'nothing-to-claim': "Your Assistant's Treasure Map is set to list its live duties. None is live yet, so nothing was published.",
+    'already-current': "Your Assistant's Treasure Map is set to list its live duties, and it already lists what is live now, so nothing was published.",
+    'nothing-claimed': "Your Assistant's Treasure Map is set to list none of its duties. It listed none, so nothing was published.",
   },
   codes: { notSignedIn: 'not-signed-in', badRequest: 'bad-request', noAssistant: 'no-assistant', notRead: 'not-read' },
   status: { notSignedIn: 401, badRequest: 400, noAssistant: 403, notRead: 503, failed: 500 },
   refusals: {
-    'not-signed-in': "Sign in to change your Assistant's self-Map.",
+    'not-signed-in': "Sign in to change your Assistant's Treasure Map.",
     'no-assistant': "You don't have a Tapestry Assistant on this instance yet.",
     'not-read': "Nothing was published: your Assistant's current Treasure Map could not be read, and publishing without it could lose its other entries.",
   },
