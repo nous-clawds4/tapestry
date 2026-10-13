@@ -2957,6 +2957,11 @@ people who are neither customers nor the owner's side are refused (the customer-
 `author-scoped-inspection/0001` ("customers public (`get-customers`)"), so this is a recorded decision, not an
 accident; but the operator's 2026-10-13 framing assumed customers were private.
 
+**Added at Implementation (2026-10-13).** It is not only those two endpoints: the app shell's `AssistantRosterProvider`
+(`ui/src/App.jsx`, around every page) fetches `/api/assistant/roster` on **every page load**, signed in or not. Every
+visitor's browser therefore receives the customers' account and Assistant pubkeys on every page. Narrowing the roster
+means changing that shared provider, or what it asks for, as well as the two endpoints.
+
 **The question for the owner.** Keep customer identities public, or narrow `get-customers` (and the roster's
 customer rows) to the owner's side and the customer themselves? Consumers to check before narrowing: the
 scheduled-tasks panel's customer picker (ADR `task-queue-scheduler/0021`), the roster's "Mine" resolution, and any
