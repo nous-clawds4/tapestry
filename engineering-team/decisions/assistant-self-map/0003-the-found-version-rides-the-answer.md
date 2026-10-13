@@ -1,10 +1,12 @@
 # ADR 0003: The found version rides the answer the page already reads, behind one toggle
 
-**Status:** Accepted (by the owner, 2026-10-13, "approved — go ahead with the tests", as proposed)
+**Status:** Accepted (by the owner, 2026-10-13, "approved — go ahead with the tests", as proposed); Amendment 1
+approved (at Test Design, 2026-10-13: "Allow one exception")
 **Date:** 2026-10-13
 **Story:** `engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.md`
 **Extends:** ADR `assistant-self-map/0001` sub-decisions 5 and 7: `published` gains `event`. Nothing else in 0001 or
-0002 changes.
+0002 changes. Amendment 1 makes one exception to ADR `assistant-identification-tags/0001`'s rule that the attention
+answer carries no viewer or assistant pubkey.
 
 ## Context
 
@@ -205,6 +207,52 @@ with no new request. We trade a few kilobytes on the hub's one request for that.
 7. **Shared lines.** Before Implementation, re-check `origin/staging` for edits to `selfMap.js`, `attention.js` and the
    page (book § Shared lines) and record the recheck in the book. Only `staging` carries this page, so there is no
    other branch to port to.
+
+## Amendment 1: the raw event is the one field that may carry a pubkey (2026-10-13)
+
+**Status of A1:** approved by the owner at Test Design, 2026-10-13. The owner was offered this amendment, or Option C
+(a separate route that fetches the event on demand), and chose this one ("Allow one exception").
+
+**What Test Design found.** The full Node gate on the failing tests (run `20261013T232017Z-18826-ea76`) failed
+`assistant-attention` U16 as well as the expected suites. U16 pins a rule from ADR
+`assistant-identification-tags/0001` (§ Implementation notes, "The answer carries no viewer or assistant pubkey, as
+`/api/setup/status` carries none"), restated in that book's story 1, dev note 3. Its rows name their signer and target
+as the words `person` and `assistant`, never as pubkeys. This ADR missed the rule. A raw kind 10040 carries its
+author, the Assistant, as `pubkey`, and its self-entries name the Assistant in their element 2. For the Owner, its
+other entries name other Assistants. So `published.event` can't be whole (story 4 AC-2) and pubkey-free at once.
+
+**The decision.**
+
+1. **One named exception.** `actions['treasure-map'].published.event` may carry any pubkey the found version holds,
+   because it is that version, whole. Nothing else in the attention answer changes. Every other field, in this
+   action and in every other, stays free of the viewer's and the Assistant's pubkeys, as ADR
+   `assistant-identification-tags/0001` says.
+2. **Why the rule allows it.** The rule is a convention: it follows `/api/setup/status`'s shape. It isn't a secrecy
+   rule:
+   - The answer is session-shaped, for the viewer's own Assistant only (that ADR's AC-2, unchanged).
+   - The page already holds both pubkeys from sign-in (`user.pubkey`, `user.assistantPubkey`), as that story's dev
+     note 3 says.
+   - The event is public on relays.
+
+   That ADR already lets the answer carry public identifiers: its definitions' `address` names a canonical author.
+3. **What it costs.** A reader can no longer assume the whole answer is pubkey-free. The exception is named in the
+   places a reader looks:
+   - `openapi.yaml`'s `event` description;
+   - `attention.js`'s header, beside the `treasure-map` paragraph;
+   - the re-aimed U16, which names this amendment.
+
+**Changes to this ADR's Implementation notes.**
+
+- **Item 5 (docs).**
+  - `openapi.yaml`'s `event` description gains: "It carries the Assistant's pubkey and any other the version holds:
+    the one exception to this answer's no-pubkey rule (assistant-self-map ADR 0003 Amendment 1)."
+  - `src/api/assistant/attention.js`'s header gains one sentence in its `treasure-map` paragraph: `published.event` is
+    the found version itself, and the one field of the answer that may carry a pubkey (ADR 0003 Amendment 1).
+- **Item 6 (for the Tester).**
+  - `test/assistant-attention.test.js` U16 is re-aimed. It drops `actions['treasure-map'].published.event`, when
+    present, before checking that the answer carries neither the viewer's nor the Assistant's pubkey.
+  - The check suite gains a test (R7) that the exception is narrow: with a found version, the real answer, without
+    `published.event`, carries neither pubkey, and `published.event` itself is present.
 
 ## Out of scope
 
