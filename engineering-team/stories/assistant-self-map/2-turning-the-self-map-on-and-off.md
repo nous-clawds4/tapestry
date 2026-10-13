@@ -270,4 +270,4 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 
 - ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md`
 - Test plan: `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`
