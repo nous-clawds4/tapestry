@@ -528,3 +528,205 @@ Architect, who settles the whole class with the owner (Amendment 3), then the Te
 - [ ] Completion detection. *Not applicable this round.*
 - [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
       and its `- Review:` link already points here.*
+
+# Round 4
+
+**Reviewer:** Claude (acting as Reviewer), with a second, independent reader (no write access to the repo, no
+`npm test`; its scripts used temp store paths only). Every claim below was re-derived from commands, and I reproduced
+the reader's findings, by my own scripts or by rerunning its own, before recording them. The optional independent
+check of the review's own claims (workflow 5) was not applied: this is not a docs-mode story, and every finding is
+reproduced by a script.
+**Date:** 2026-10-13
+**Diff:** `git diff 888249f c29586a`, attributed commit by commit:
+- `ca670b1`, `a615c39`: ADR 0002 Amendment 3, proposed, then accepted; the settings-null ledger row; the story's ADR link.
+  Docs only.
+- `8003eef`: the Tester's round 4 tests (K6–K9, R16–R20, C7, C8, C10–C12, S6, V17, V18; C1 re-aimed; `pressDeps` fakes
+  the copy store) and the plan's Round 4 section. It touches no `src/` or `ui/`.
+- `c29586a`: the fix in `selfMapChoice.js`, `selfMap.js` and `selfMapPublish.js`; a comment in `dutyMenu.js`;
+  `openapi.yaml`; BIBLE §11 and §15; the story's round 4 Deviations; the book's shared-line note. It touches no `test/`
+  or `tests/`.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `c29586a`, clean tree, quiet machine. `npm run gate:status`:
+
+  > `20261013T124340Z-5751-1b9c [s2-r4-review] started 2026-10-13T12:43:40.862Z on c29586a7 — PASS, exit 0, 5971 passed, 0 failed, 582 skipped, 308/308 suites`
+
+  It matches the Implementer's `20261013T055714Z-14295-0834` (PASS, 5971/0).
+- [x] **Playwright, chromium.** `ui/` is unchanged since `1249d7f`. I built it at `c29586a` and served it with
+  `vite preview` on :4184, launched through node and stopped by its pid (the port then freed). `assistant-self-map` and
+  the nine hub specs: **120 passed, 5 skipped** (their own skip conditions), 5.7 m.
+- [x] `bash scripts/harness-lint.sh`: **clean**.
+- [x] **Shared lines.** `origin/staging` is still at `9679668`, merged at `8fb3161`.
+- [x] **No test wrote to the data volume:** `/var/lib/brainstorm/assistant-self-map.json` does not exist after the runs.
+- [x] _Lint, typecheck, build: not configured — skipped._
+
+## Round 3's findings, each re-derived as a fresh claim
+
+| Finding | Re-derived by | Result |
+|---|---|---|
+| **R3-B1**, one answering relay standing in for a silent one | `<scratch>/repro/r4-copy.js`, round 3's world on the real press, with and without a copy; R17 | With a copy, the press reads the full version from it and never builds from nothing. In this world the copy already says what should be said, so the press answers "already current" (but see R4-B2). Without a copy (a first press), it still builds from nothing: Amendment 3 item 2's first named limit, which the owner accepted with "Stay strict". **Fixed for every Assistant pressed here before the loss.** |
+| **R3-B2**, the first press's cost | Amendment 3 item 3 | Stated in full, and the owner's "Stay strict" is recorded. First presses keep R9–R15, which pass unchanged. **Settled.** |
+| **R3-N1**, a settings read that throws | C11 (both presses, with and without a copy); `ledger/2026-10-13-settings-null-override-throws.md` | 500 with nothing written; the row is OPEN. **Pinned.** |
+| **R3-N2**, "outside configured" | `openapi.yaml:803`, `BIBLE.md:531`, `selfMap.js:33` and `:284`, `dutyMenu.js:118` | All say "outside configured". **Fixed.** |
+| **R3-N3**, the long line | S6; `awk` over the press description | The description wraps. But the strictOutsideRound comment now has a 152-character line, `selfMap.js:287` (R4-N5). |
+
+**ADR adherence, Amendment 3.** The code follows items 1–5 to the letter, in the ADR's order:
+1. check the copy;
+2. the strict read with `stored`;
+3. verify the base;
+4. keep the version found;
+5. the publish policy and the choice;
+6. step 3;
+7. sign and check;
+8. keep the signed version;
+9. import;
+10. fan out.
+
+The reader walked the same order. It also found:
+- the store writes atomically, mode 0600, under the shared lock;
+- `writeSelfMapChoice` is byte-for-byte as before on a file without `lastSigned`;
+- the hub's read is unchanged (V18).
+
+My six mutants of the round 4 code:
+
+| Mutant | Caught by |
+|---|---|
+| no signed-copy write | C7, C10, C12 |
+| the found-copy write moved after the choice | C7, C10 |
+| `stored` not passed by `gatherSelfMap` | R16, R17, R18 |
+| `checkedCopy` without the signature check | **nothing** (R4-N2) |
+| `stored` ignored by `lookupSelfMap` | R16, R17, R18, V17 |
+| the store without the newer-only rule | K7 |
+
+The two blocking findings below are in Amendment 3's rule, not in a deviation from it.
+
+## Findings
+
+### Blocking
+
+Both have one root. Step 3, "nothing to change" (`selfMapPublish.js:208–210`), compares the target with the base,
+wherever the base came from. Since Amendment 3, the base can be the copy (`selfMap.js:262`), which may sit on no relay
+at all, or on none of this instance's. Then the press answers "nothing to change" while this instance's relay, and
+everyone who reads it, still holds the older version or none. Amendment 3 item 1 step 3 called a copy that a failed
+import never stored "harmless" (ADR line 779). It missed this consequence of step 3.
+
+1. **R4-B1 — a failed local import leaves a copy that exists nowhere, and every retry then reports "nothing to do".**
+   - **The order:** the signed version is kept as the copy before the import (`selfMapPublish.js:228`, then `:234`).
+   - **Press 1:** the import fails, so the press answers `ok: false, stage: local`, as C2 expects. But the copy now holds
+     the unstored version.
+   - **Every later press with the same target:** the base is the copy, its self-entries equal the target, and the press
+     answers `already-current`, or `nothing-claimed` for Turn off, publishing nothing.
+   - **What the person sees:**
+     - this instance's relay keeps the old version;
+     - story 1's check says out of date, with Update now enabled;
+     - for Turn off, "the version found still claims duties", with Turn off shown;
+     - each press then says it changed nothing.
+   - **What it breaks:** AC-2 ("so no claim can be stuck"), AC-3's read-back and AC-5. The only way out is toggling.
+   - **Reproduced** by me with `node <scratch>/repro/r4-import-fails.js <repo>`:
+     - `press 1 (import fails): {"ok":false,"stage":"local","published":false}`, with the copy holding the self-entry;
+     - `press 2 (import works): {"ok":true,"published":false,"unchanged":"already-current"}`;
+     - `relay self-entries: []`, and story 1's read `[]`.
+
+     The reader got the same for both presses (`<scratch>/reader4/f1-failed-import-then-retry.js`, rerun by me: Turn
+     off answers `nothing-claimed` twice while the relay still claims), and with the real store at a temp path
+     (`f1b-failed-import-real-store.js`).
+2. **R4-B2 — after a strfry wipe, when the copy's self-entries are already the target, Update now says "already
+   current" and puts nothing back on this instance's relay.**
+   - This is the case Amendment 3 was written for. Story 1's check finds no self-Map (`published: null`, out of date),
+     and every press answers `already-current`.
+   - Before round 4, the same world with the outside silent answered an honest 503. The sub-case where an outside relay
+     answers with the newest version, the press says already current, and nothing is re-stored here, already existed.
+     It has the same root.
+   - **Reproduced** by me with `node <scratch>/repro/r4-wipe-same-target.js <repo>`:
+     - `story 1's read after the wipe: {"finished":true,"published":null}`;
+     - `Update now: {"ok":true,"published":false,"unchanged":"already-current"}`;
+     - `this instance's relay holds A's 10040 afterwards: false`.
+
+     The reader got the same (`<scratch>/reader4/f2-wipe-then-same-target.js`), with the outside silent and with it
+     answering.
+
+**Asked change.** The rule is the ADR's, so it goes back through the phases.
+- **Architecture (Amendment 4).** "Nothing to change" should require that this instance's relay holds the base. For
+  example, the base's id is in this instance's scan, which `lookupSelfMap` could report beside `latest`. Otherwise the
+  press builds, signs and stores a new version (or re-stores the base as it is) and fans out, so this instance's relay
+  and its readers converge.
+  - That one rule closes R4-B1 and R4-B2, and the older outside-newer sub-case too.
+  - Moving the signed-copy write after the import would close only R4-B1. It would also contradict C7 and Amendment 3
+    step 3's clean 500.
+  - Correct item 1 step 3's "harmless".
+- **Test Design.** At least:
+  - a failed import, then a retry, for Turn on and Turn off;
+  - a wipe where the copy already says the target;
+  - an outside version newer than this instance's, already saying the target.
+
+  Each should end with this instance's relay holding a version whose self-entries are the target (or none, for Turn
+  off), and the report saying it was published.
+- **Implementation**, as the amendment decides.
+
+### Non-blocking
+
+1. **R4-N1 — a stored copy that fails the press's check is never replaced.**
+   - `writeSelfMapCopy` compares a newer event against the raw stored entry (`selfMapChoice.js:170`), but the press
+     reads such an entry as no copy.
+   - So a stored `{}`, or an entry with a huge `created_at`, silently blocks every later copy write, even after a
+     publish. So does a damaged copy of this instance's own version, with the same id and `created_at` but a broken
+     signature.
+   - The safety net is then off for that Assistant, and a press after a wipe falls back to the first-press rules.
+   - It needs disk damage or a hand edit.
+   - **Reproduced** with the reader's `<scratch>/reader4/s-store.js`, rerun by me:
+     - S3: `stored entry {}: … replaced=false`, and the same for `created_at: 9999999999`;
+     - S5: the damaged copy stays, and after a wipe the press answers 503.
+
+   **Fold into Amendment 4:** let a press replace a copy that failed its check.
+2. **R4-N2 — R20 doesn't pin the copy's check.**
+   - With `checkedCopy`'s signature check removed, every test passes (my mutant M4). The base check refuses a tampered
+     base anyway, and `mine` drops another Assistant's copy.
+   - A world that tells them apart: a tampered copy newer than a valid version here. The real code builds on this
+     instance's version, and the mutant answers 503 on every press. The reader's
+     `<scratch>/reader4/m1-checkedcopy-verify-mutant.js`, rerun by me, gives:
+     - `real: … 200 published=true`;
+     - `mutant: … 503 "not-read"`.
+
+   **Fold into the next Test Design.**
+3. **R4-N3 — K9 doesn't pin the shared lock.**
+   - The store's work is synchronous inside one `.then`, so a copy write without the lock passes it. The reader's
+     `m2-lock-mutant.js`, rerun by me: `lost writes: 0 … (K9 would PASS)`.
+   - A nit: the lock is there, and it is read-only reviewable.
+4. **R4-N4 — a `lastSigned` that isn't an object is untested.** It makes every press that finds a version answer 500
+   before the choice, until the file is fixed. That is the same posture as a choice file that isn't the shape, and the
+   story's Deviations record it.
+   - Its log line says "the choice file cannot be read" (`selfMapChoice.js:93`), which misleads.
+   - **Reproduced** by the reader's `s-store.js` S4, rerun by me.
+
+   **Fold:** a K case, and a log line that names `lastSigned`.
+5. **R4-N5 — nits.**
+   - `selfMap.js:287` is 152 characters inside a comment wrapped near 120.
+   - The copy, folded into `here`, is reported as `published.source: 'local'` (`selfMap.js:318`) even when it sits on no
+     relay. That is part of R4-B1's root.
+   - The story's round 4 Deviation, "The press goes on under the first-press rules" (line 290), is true only when this
+     instance's relay also holds nothing.
+
+### Harness friction
+
+None new. This round's gate passed on the first run.
+
+## Verdict
+
+**CHANGES_REQUESTED**
+
+Round 4 closes round 3's blocking finding as Amendment 3 intended. With a copy, the press never builds from nothing, and
+never builds over an older restore. The code follows the amendment to the letter. The gate passes (5971 / 0), and the
+browser specs pass (120 / 0, 5 skipped).
+
+But the copy also became a base the press trusts for "nothing to change", and it may sit on no relay. A failed local
+import (R4-B1), or a wipe where the copy already says what should be said (R4-B2), leaves the press answering "already
+current" or "nothing claimed" on every retry. Meanwhile this instance's relay, story 1's check and every reader keep the
+old version, or none. The rule is in Amendment 3 item 1 and step 3, so the fix goes to the Architect (Amendment 4), then
+the Tester, then the Implementer. R4-N1, R4-N2 and R4-N4 can ride the same round.
+
+## On PASS (same commit)
+
+- [ ] Completion detection. *Not applicable this round.*
+- [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
+      and its `- Review:` link already points here.*
