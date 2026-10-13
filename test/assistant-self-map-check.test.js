@@ -44,6 +44,9 @@
  * Round 2 (ADR 0002 Amendment 1): V7–V12 pin forWrite's discovery rule and the relay-list lookup's `finished`; V5's
  * "nothing outside to ask" case is re-aimed to a lookup with no outside relay to ask (`publishRelays`), since an
  * unanswered lookup no longer finishes.
+ * Round 3 (ADR 0002 Amendment 2): V13–V16 pin that a relay list found nowhere needs every publish relay's answer, on
+ * lookupSelfMap, assistantWriteRelayLookup and lookupNewestReplaceable (whose default path stays as it is); V8 now also
+ * pins that a write relay the DNS guard refuses is never connected to (review round 2 R2-N1).
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -1373,10 +1376,15 @@ test('V7 (A1 item 1.1): forWrite with nothing here and a relay-list lookup that 
   assert(got && got.finished === false && got.reason === 'no-relay-answered', `want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
 });
 
-test('V8 (A1 item 1.2): forWrite with nothing here, whose only write relay the DNS guard refuses, is unfinished — a guarded-out write relay has not answered, though a hint answers', async () => {
+test('V8 (A1 item 1.2; A2 item 5, review round 2 R2-N1): forWrite with nothing here, whose only write relay the DNS guard refuses, is unfinished — a guarded-out write relay has not answered, though a hint answers; and it is never connected to (the guard comes before the read)', async () => {
   const w = world({ mapTags: [['39998', TA, HINT_A]], relays: { [A_WRITE]: [], [HINT_A]: [] }, refused: [hostOf(A_WRITE)] });
-  const { got } = await strictRead(w);
-  assert(got && got.finished === false && got.reason === 'no-relay-answered', `want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
+  const { got, calls } = await strictRead(w);
+  const wrong = [];
+  if (!got || got.finished !== false || got.reason !== 'no-relay-answered') wrong.push(`want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
+  const touched = calls.readRelay.filter((r) => hostOf(r.url) === hostOf(A_WRITE)).map((r) => r.url);
+  if (touched.length) wrong.push(`no read of the write relay the DNS guard refused, got ${show(touched)}`);
+  if (!calls.guard.includes(hostOf(A_WRITE))) wrong.push(`the write relay passes the guard first, got ${show(calls.guard)}`);
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 test('V9 (A1 item 1.2): forWrite with nothing here, the write relays silent and an outside offer relay answering is unfinished — the offer relay does not stand in for them', async () => {
@@ -1430,6 +1438,68 @@ test('V12 (A1 item 1, the code): dutyMenu.js exports assistantWriteRelayLookup �
     if (show(norm) !== show({ finished: want.finished, relays: want.relays.map(normUrl) })) wrong.push(`${label}: want ${show(want)}, got ${show(got)}`);
     const plain = await duty.assistantWriteRelays({ assistantPubkey: TA }, deps);
     if (show((plain || []).map(normUrl)) !== show(want.relays.map(normUrl))) wrong.push(`${label}: assistantWriteRelays answers ${show(want.relays)}, got ${show(plain)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Story 2, round 3: ADR 0002 Amendment 2 item 1 ───────────────────────── */
+
+const PUB2 = 'wss://pub-two.example';             // a second profile publish relay (round 3)
+const TWO_PUBLISH = [PUB1, PUB2, SM.DOCKER_RELAY_URL];
+
+test('V13 (A2 item 1, review round 2 R2-B1): forWrite with nothing here and no relay list here — one publish relay answering without the list while the other is silent is unfinished with no-relay-answered, though the write relay holds a version and the hints and the offer are this instance\'s own', async () => {
+  const held = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const w = noRelayList(world({ mapTags: [['39998', TA, OWN]], relays: { [PUB1]: [], [A_WRITE]: [held] }, publishRelays: TWO_PUBLISH }));
+  const { got } = await strictRead(w);
+  assert(got && got.finished === false && got.reason === 'no-relay-answered', `want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
+});
+
+test('V14 (A2 item 1, the finished cases): forWrite with nothing here and no relay list here — every publish relay answering without the list finishes with none when the hints and the offer are this instance\'s own; a list on the one publish relay that answered, the other silent, is still found and its write relay read', async () => {
+  const wrong = [];
+  const every = noRelayList(world({ mapTags: [['39998', TA, OWN]], relays: { [PUB1]: [], [PUB2]: [] }, publishRelays: TWO_PUBLISH }));
+  const a = (await strictRead(every)).got;
+  if (!a || a.finished !== true || a.latest !== null) wrong.push(`every publish relay answered "nowhere": finished with none, got ${brief(a)}`);
+  const held = selfMapEv([['39998', TA, OWN]], TA, NOW_S - H);
+  const found = noRelayList(world({ mapTags: [['39998', TA, OWN]], relays: { [PUB1]: [relayListEv(TA, [['r', A_WRITE, 'write']])], [A_WRITE]: [held] }, publishRelays: TWO_PUBLISH }));
+  const b = (await strictRead(found)).got;
+  if (!b || b.finished !== true || !b.latest || b.latest.id !== held.id) wrong.push(`the list found on the one that answered: finished with the write relay's version, got ${brief(b)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V15 (A2 item 1, the code): assistantWriteRelayLookup takes an optional everyRelay — the list found nowhere with one publish relay silent is { finished: false, relays: [] } with it; without it, and through assistantWriteRelays, the answers are as before', async () => {
+  freshModules();
+  const duty = require(DUTY_MODULE);
+  const { deps } = fakes(noRelayList(world({ relays: { [PUB1]: [] }, publishRelays: TWO_PUBLISH })));
+  const pick = (r) => show(r && { finished: r.finished, relays: (r.relays || []).map(normUrl) });
+  const wrong = [];
+  const strict = await duty.assistantWriteRelayLookup({ assistantPubkey: TA, everyRelay: true }, deps);
+  if (pick(strict) !== show({ finished: false, relays: [] })) wrong.push(`with everyRelay: { finished: false, relays: [] }, got ${show(strict)}`);
+  const plain = await duty.assistantWriteRelayLookup({ assistantPubkey: TA }, deps);
+  if (pick(plain) !== show({ finished: true, relays: [] })) wrong.push(`without it: { finished: true, relays: [] }, as before, got ${show(plain)}`);
+  const list = await duty.assistantWriteRelays({ assistantPubkey: TA }, deps);
+  if (show(list) !== show([])) wrong.push(`assistantWriteRelays: [], as before, got ${show(list)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V16 (A2 item 1, the code): lookupNewestReplaceable takes an optional everyRelay — with it, nothing held and one of two relays silent is { finished: false, reason: outside-unreachable }; both answering empty is { finished: true, event: null }; a list on the one that answered is found. Without it (absent or false), the first case is { finished: true, event: null }, as today', async () => {
+  freshModules();
+  const attention = require(ATTENTION_MODULE);
+  const list = relayListEv(TA, [['r', A_WRITE, 'write']]);
+  const pick = (r) => show(r && { finished: r.finished, reason: r.reason, event: r.event && typeof r.event === 'object' ? r.event.id : r.event });
+  const cases = [
+    ['everyRelay, one of two silent', { [PUB1]: [] }, true, { finished: false, reason: 'outside-unreachable' }],
+    ['everyRelay, both answering empty', { [PUB1]: [], [PUB2]: [] }, true, { finished: true, event: null }],
+    ['everyRelay, the list on the one that answered', { [PUB1]: [list] }, true, { finished: true, event: list.id }],
+    ['no flag, one of two silent', { [PUB1]: [] }, undefined, { finished: true, event: null }],
+    ['everyRelay false, one of two silent', { [PUB1]: [] }, false, { finished: true, event: null }],
+  ];
+  const wrong = [];
+  for (const [label, relays, everyRelay, want] of cases) {
+    const { deps } = fakes(noRelayList(world({ relays })));
+    const input = { kind: SM.RELAY_LIST_KIND, author: TA, relays: [PUB1, PUB2] };
+    if (everyRelay !== undefined) input.everyRelay = everyRelay;
+    const got = await attention.lookupNewestReplaceable(input, deps);
+    if (pick(got) !== pick(want)) wrong.push(`${label}: want ${pick(want)}, got ${pick(got)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
 });

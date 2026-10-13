@@ -46,6 +46,10 @@
  * finished cases); E11–E14 that "nothing to change" leaves nothing stale; C5–C6 that isLocalOnly is read before the
  * choice and what a 500 after it means. The world gains `publishRelays` (where the relay list is looked up) and
  * `noRelayList` (no copy of the Assistant's 10002 here).
+ *
+ * Round 3 (ADR 0002 Amendment 2, review round 2): R14 pins that a relay list found nowhere, while a publish relay is
+ * unheard, is not "no write relays" (R2-B1); R15 that every publish relay answering "nowhere" still finishes; R10 now
+ * also pins that the press never connects to a relay the DNS guard refused (R2-N1).
  */
 
 const fs = require('fs');
@@ -1093,9 +1097,11 @@ test('R9 (A1 item 1.1): nothing on this instance\'s relay and the Assistant\'s r
   }
 });
 
-test('R10 (A1 item 1.2): nothing on this instance\'s relay and the only write relay is refused by the DNS guard — a guarded-out write relay has not answered: 503 not-read, though the hints answer', async () => {
+test('R10 (A1 item 1.2; A2 item 5, review round 2 R2-N1): nothing on this instance\'s relay and the only write relay is refused by the DNS guard — a guarded-out write relay has not answered: 503 not-read, though the hints answer; and the press never connects to it (the guard comes before the read)', async () => {
   const got = await press({ base: null, notPublic: [hostOf(A_WRITE)], relays: { [A_WRITE]: [], [DCOSL]: [], [NIP85]: [] } }, { on: true });
   mustRefuseRead(got, 'the write relay guarded out');
+  const touched = got.calls.readRelay.filter((r) => hostOf(r.url) === hostOf(A_WRITE)).map((r) => r.url);
+  assert(touched.length === 0, `no read of the write relay the DNS guard refused, got ${show(touched)}`);
 });
 
 test('R11 (A1 item 1.2): nothing on this instance\'s relay, the write relays silent, and an owner-set typed offer relay answering empty — the offer relay does not stand in for the write relays: 503 not-read', async () => {
@@ -1167,6 +1173,26 @@ test('C6 (A1 item 3): a throw after the choice is remembered (the signer) answer
   assert(got.res.statusCode === SM.PRESS.status.failed && got.body && got.body.error === SM.PRESS.failed, `want 500 with the approved words, got ${got.res.statusCode} ${show(got.body)}`);
   assert(show(got.calls.writeChoice) === show([[w.A, true, NOW_S]]), `the choice written once, got ${show(got.calls.writeChoice)}`);
   assert(got.calls.importEvent.length === 0 && got.calls.publishToRelays.length === 0, 'nothing written here or sent');
+});
+
+/* ───────────────────────── Round 3: ADR 0002 Amendment 2 (review round 2) ───────────────────────── */
+
+const PUB2 = 'wss://pub-two.example';                 // a second profile publish relay (Round 3)
+
+test('R14 (A2 item 1, review round 2 R2-B1): nothing on this instance\'s relay and no relay list here; of the two profile publish relays one answers without the list and the other is silent, while the write relay holds the full version — a list found nowhere with a relay unheard is not "no write relays": 503 not-read for either press, nothing changed', async () => {
+  for (const on of [true, false]) {
+    const key = newAssistant();
+    const full = version(key, instanceMapTags(key.A), { content: PRIVATE_CONTENT });
+    const got = await press({ key, base: null, noRelayList: true, mapTags: OWN_HINTS(key.A), publishRelays: [PUB1, PUB2, SM.DOCKER_RELAY_URL], relays: { [PUB1]: [], [A_WRITE]: [full] } }, { on });
+    mustRefuseRead(got, `on: ${on}, the list found nowhere while ${PUB2} is silent`);
+  }
+});
+
+test('R15 (A2 item 1, the finished case): nothing on this instance\'s relay and no relay list here; every profile publish relay answers and none holds the list, the hints and the offer this instance\'s own — finished: Turn on publishes the self-entries alone', async () => {
+  const key = newAssistant();
+  const got = await press({ key, base: null, noRelayList: true, mapTags: OWN_HINTS(key.A), publishRelays: [PUB1, PUB2, SM.DOCKER_RELAY_URL], relays: { [PUB1]: [], [PUB2]: [] } }, { on: true });
+  mustPublish(got, 'every publish relay answered "nowhere"');
+  assert(show(got.signed.tags) === show([['39998', key.A, OWN]]), `the self-entry alone, got ${show(got.signed.tags)}`);
 });
 
 async function run() {

@@ -206,3 +206,47 @@ chose to fold in.
   - publish 62/62, check 77/77, page 19/19;
   - the Duty Menu check 65/65 and publish 36/36 (the `assistantWriteRelays` refactor's guard);
   - this browser spec, 25/25.
+
+## Round 3: ADR 0002 Amendment 2 (review round 2)
+
+**Date:** 2026-10-13. These tests were added for review round 2's R2-B1 (a relay list found nowhere while a publish
+relay is unheard read as "no write relays") and R2-N1 (no test pinned "guard before connect" on the press's read).
+R2-N2 is a records change, which the Reviewer checks. R2-N3 and R2-N4 were left out by Amendment 2 item 6.
+
+| Amendment item | Tests | File |
+|---|---|---|
+| **1. A relay list found nowhere needs every relay's answer** | R14: nothing here, no list here, one publish relay answering without the list and the other silent, the write relay holding the full version → 503 not-read for both Turn on and Turn off, with nothing changed. R15: every publish relay answering without the list, the hints and the offer this instance's own → finished, and Turn on publishes the self-entry alone | publish |
+| | V13: R14's world directly on `lookupSelfMap` (`forWrite`) → `no-relay-answered`. V14: every publish relay answering "nowhere" → finished with none; a list on the one relay that answered, the other silent, is still found and its write relay's version is the base | check |
+| | V15: `assistantWriteRelayLookup` with `everyRelay` → `{ finished: false, relays: [] }` for the list found nowhere with one relay silent; without the flag, it and `assistantWriteRelays` answer as before | check |
+| | V16: `lookupNewestReplaceable` directly. With `everyRelay`: one of two silent → `outside-unreachable`; both empty → `{ finished: true, event: null }`; a list on the one that answered → found. Without it, absent or `false`: one of two silent → `{ finished: true, event: null }`, as today | check |
+| **5. Guard before connect (R2-N1)** | R10 and V8 also assert that the write relay the DNS guard refused appears in no relay read; V8 also asserts it went through the guard | publish, check |
+
+**What fails, and why it should.**
+- **R14, V13:** the strict read finishes with no version, because one empty answer finishes the lookup.
+- **V15, V16:** `everyRelay` is ignored.
+
+R15, V14, R10 and V8 pass already. They guard against an over-strict fix, and against a read that connects before the
+guard.
+
+**World options.** Both suites name a second profile publish relay, `PUB2` (`wss://pub-two.example`). The check suite
+names `TWO_PUBLISH` (`PUB1`, `PUB2`, this instance's relay). No helper changed.
+
+**Verification, 2026-10-13, on `aecb47b` with these tests:**
+- **The Node gate:** `20261013T035809Z-10560-24b8 [s2-r3-phase3] — FAIL, exit 1, 5950 passed, 4 failed, 582 skipped,
+  308/308 suites; failed: assistant-self-map-check, assistant-self-map-publish`. The four failures are exactly R14 (200
+  published instead of 503), V13 (`{"finished":true,"latest":null}`), V15 (`{"finished":true,"relays":[]}` with the
+  flag) and V16 (`{"finished":true,"event":null}` with the flag).
+- **R2-N1's assertions catch the regression.** I checked against a mutant of `selfMap.js` in a scratch worktree, whose
+  `readGuarded` reads first and checks the guard after. V8 and R10 both fail on it: "no read of the write relay the DNS
+  guard refused, got [\"wss://a-write.example\"]".
+- **The tests can pass.** I checked against a throwaway prototype of Amendment 2 in the same worktree. It was never
+  committed and has been deleted. It was three edits:
+  - `everyRelay` in `lookupNewestReplaceable`;
+  - its pass-through in `assistantWriteRelayLookup`;
+  - `everyRelay: true` at the strict read's call.
+
+  The results:
+  - self-map check 81/81, publish 64/64, page 19/19;
+  - the default path's guards unchanged: Duty Menu check 65/65 and publish 36/36, outbox check 29/29, Outbox Relays
+    page 21/21, relay-list publish 32 (1 skipped), taggings publish 19 (1 skipped), attention 38 (1 skipped). Each skip
+    is the same on the current code.
