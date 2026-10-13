@@ -83,3 +83,11 @@ before widening the window.
   first restart came at 0.77 s (starts `[0, 0.77, 2.8]` s). The diff touched only test files and their fixtures, and no
   wrapper code. No other job was running during the gate.
 - **Afterwards:** the suite passed alone (24/0). Again exactly 0.77 s, which supports the systematic-edge reading above.
+
+**Occurrence, 2026-10-13** (`assistant-self-map` #2, round 2's Implementation).
+- **The failing run:** `20261013T022412Z-18280-09e7 [s2-r2-impl]`, on `0d0c848e+dirty`. RW7, "node exits 1" and
+  "node exits 0": the first restart came at 0.70 s (starts `[0, 0.7, 2.74]` s).
+  - The first reading not at 0.77 s on this row's 2026-10-12/13 run of occurrences.
+  - It came straight after a 6-minute Playwright run on the same machine.
+  - The diff touched no wrapper code.
+- **Afterwards:** the suite passed alone (24/0). The quiet full rerun is recorded in story 2's round 2 Implementation.

@@ -110,18 +110,32 @@ function writeRelays(event) {
 }
 
 /**
- * The Assistant's write relays, from its newest kind 10002: this instance's relay first, then the relays this instance
- * publishes Assistant profiles to. § 8.1's second place for a reader, and the first for the publisher (ADR 0002
- * sub-decision 5).
+ * The Assistant's relay-list lookup, saying whether it finished (ADR assistant-self-map/0002 Amendment 1 item 1): its
+ * newest kind 10002, from this instance's relay first, then the relays this instance publishes Assistant profiles to.
+ * It finished when the list was read (or found to be nowhere), or when there was no outside relay to look on
+ * (`no-outside-relays`, a real answer). It did not when this instance's scan failed, no outside relay answered, or the
+ * configured relays could not be read. `relays` are the list's write relays when it finished, else none.
+ * @param {{ assistantPubkey: string }} input
+ * @returns {Promise<{ finished: boolean, relays: string[] }>}
+ */
+async function assistantWriteRelayLookup({ assistantPubkey }, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
+  let relays = [];
+  let configuredRead = true;
+  try { relays = d.outsideOnly(d.getConfiguredPublishRelays(), d); } catch { relays = []; configuredRead = false; }
+  const lookup = await d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: assistantPubkey, relays }, d);
+  if (lookup && lookup.finished === true) return { finished: true, relays: writeRelays(lookup.event) };
+  return { finished: configuredRead && !!lookup && lookup.reason === 'no-outside-relays', relays: [] };
+}
+
+/**
+ * The Assistant's write relays, from its newest kind 10002 (assistantWriteRelayLookup), or none when the lookup did not
+ * finish. § 8.1's second place for a reader, and the first for the publisher (ADR 0002 sub-decision 5).
  * @param {{ assistantPubkey: string }} input
  * @returns {Promise<string[]>}
  */
-async function assistantWriteRelays({ assistantPubkey }, deps = {}) {
-  const d = { ...defaultDeps(), ...deps };
-  let relays = [];
-  try { relays = d.outsideOnly(d.getConfiguredPublishRelays(), d); } catch { relays = []; }
-  const lookup = await d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: assistantPubkey, relays }, d);
-  return lookup && lookup.finished === true ? writeRelays(lookup.event) : [];
+async function assistantWriteRelays(input, deps = {}) {
+  return (await assistantWriteRelayLookup(input, deps)).relays;
 }
 
 /**
@@ -244,6 +258,7 @@ module.exports = {
   lookupPublishedMenu,
   evaluateDutyMenu,
   assistantWriteRelays,
+  assistantWriteRelayLookup,
   nousWriteRelays,
   resetNousCache,
   DUTY_MENU_CHECK_FAILED,

@@ -25,9 +25,11 @@
  *   review R3-N2).
  * - The remembered choice (assistant-self-map #2, ADR 0002 sub-decision 2): the answer carries `selfMapOn`, the choice
  *   file's word for the viewer's own Assistant (true, false, or null when it cannot be read). It moves no mark.
- * - For a press (ADR 0002 sub-decision 3): gatherSelfMap with `forWrite` reads every place at once, this instance's relay
- *   and the outside round, and the newest version wins. It does not finish when this instance's scan fails, or when the
- *   relay holds no version and no outside relay answers, so the press never builds over nothing.
+ * - For a press (ADR 0002 sub-decision 3, Amendment 1 item 1): gatherSelfMap with `forWrite` reads every place at once,
+ *   this instance's relay and the outside round, and the newest version wins. It does not finish when this instance's
+ *   scan fails; and, when this instance holds no version, unless the Assistant's relay-list lookup finished and one of
+ *   its write relays answered (or, having none, one of the other outside relays did, or there were none to ask). A relay
+ *   the DNS guard refuses has not answered. So the press never builds over nothing.
  *
  * Read-only: strfry is only scanned, outside relays are only read, the schedule and choice files are only read, nothing
  * is stored. The press that signs and stores is ADR 0002's own module (sub-decisions 5 and 6).
@@ -229,8 +231,9 @@ function mapHints(mapEvent, assistantPubkey) {
  * merge; `published` its self-entries, or null when there is none.
  *
  * With `forWrite` (ADR 0002 sub-decision 3, R1), this instance's relay and the outside round are both read and the
- * newest version across them wins. It is unfinished with `instance-unanswered` when this instance's scan fails, and with
- * `no-relay-answered` when this instance holds no version, there are outside relays to ask, and none answers.
+ * newest version across them wins (strictOutsideRound). It is unfinished with `instance-unanswered` when this instance's
+ * scan fails, and with `no-relay-answered` when this instance holds no version and the outside round cannot show there
+ * is none (Amendment 1 item 1).
  * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object }
  *                  | { finished: false, reason: 'no-relay-answered'|'instance-unanswered' }>}
  */
@@ -249,8 +252,11 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
   const local = await Promise.resolve().then(() => d.scanLocal(filter))
     .then((events) => ({ ok: true, events: Array.isArray(events) ? events : [] }), () => ({ ok: false, events: [] }));
   const here = newest(local.events.filter(mine));
-  if (forWrite && !local.ok) return { finished: false, reason: 'instance-unanswered' };
-  if (here && !forWrite) return found(here, 'local');
+  if (forWrite) {
+    if (!local.ok) return { finished: false, reason: 'instance-unanswered' };
+    return strictOutsideRound({ who, here, mapEvent, offer, filter, mine, found }, d);
+  }
+  if (here) return found(here, 'local');
 
   const { assistantWriteRelays } = require('./dutyMenu');
   const writes = await attempt(() => assistantWriteRelays({ assistantPubkey: who }, d), []);
@@ -262,14 +268,47 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
 
   const answers = await Promise.all(relays.map((url) => readWithinBudget(url, filter, d)));
   const answered = answers.filter((a) => a && a.status === 'ok');
-  const outside = answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine);
-  if (forWrite) {
-    if (!here && relays.length > 0 && answered.length === 0) return { finished: false, reason: 'no-relay-answered' };
-    const latest = newest(here ? [here, ...outside] : outside);
-    return found(latest, latest && latest === here ? 'local' : 'relay');
-  }
   if (!local.ok && answered.length === 0) return { finished: false, reason: 'no-relay-answered' };
-  return found(newest(outside), 'relay');
+  return found(newest(answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine)), 'relay');
+}
+
+/**
+ * A press's outside round (ADR 0002 sub-decision 3 with Amendment 1 item 1), once this instance's scan succeeded. It
+ * reads, together: the Assistant's write relays (W, from a relay-list lookup that must have finished when nothing is
+ * here), the viewer's Map hints and the offer's outside relays (O). Event-named relays (W and the hints) are read only
+ * when the DNS guard finds them public; one it refuses, for whatever reason, has not answered. With a version here, the
+ * outside is best-effort and the newest wins. With none, the read finishes only when the lookup finished and: one relay
+ * of W answered, when W is not empty; else one relay of O answered, or O is empty too.
+ */
+async function strictOutsideRound({ who, here, mapEvent, offer, filter, mine, found }, d) {
+  const { readWithinBudget, newest } = shared();
+  const unanswered = { finished: false, reason: 'no-relay-answered' };
+  let lookup = null;
+  try { lookup = await require('./dutyMenu').assistantWriteRelayLookup({ assistantPubkey: who }, d); } catch { lookup = null; }
+  const discovered = !!lookup && lookup.finished === true;
+  if (!here && !discovered) return unanswered;
+
+  const outside = (urls) => statusLib().outsideOnly(urls.map(normalizeRelayUrl).filter(Boolean), d);
+  const writes = outside(discovered && Array.isArray(lookup.relays) ? lookup.relays : []).slice(0, MAX_RELAYS);
+  const hints = outside(mapHints(mapEvent, who)).filter((url) => !writes.includes(url)).slice(0, Math.max(0, MAX_RELAYS - writes.length));
+  const offered = outside((Array.isArray(offer) ? offer : []).map((row) => row && row.relay).filter(Boolean))
+    .filter((url) => !writes.includes(url) && !hints.includes(url));
+
+  const isPublic = (url) => attempt(async () => (await d.isPublicRelayHostWithin(new URL(url).hostname)) === true, false);
+  const readGuarded = async (url) => ((await isPublic(url)) ? readWithinBudget(url, filter, d) : null);
+  const [fromWrites, fromHints, fromOffer] = await Promise.all([
+    Promise.all(writes.map(readGuarded)),
+    Promise.all(hints.map(readGuarded)),
+    Promise.all(offered.map((url) => readWithinBudget(url, filter, d))),
+  ]);
+  const ok = (answers) => answers.filter((a) => a && a.status === 'ok');
+  if (!here) {
+    if (writes.length > 0 && ok(fromWrites).length === 0) return unanswered;
+    if (writes.length === 0 && hints.length + offered.length > 0 && ok([...fromHints, ...fromOffer]).length === 0) return unanswered;
+  }
+  const events = ok([...fromWrites, ...fromHints, ...fromOffer]).flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine);
+  const latest = newest(here ? [here, ...events] : events);
+  return found(latest, latest && latest === here ? 'local' : 'relay');
 }
 
 /** An unfinished answer, with every field (Amendment 1 item 6's shape). */

@@ -30,13 +30,16 @@ import { SELF_MAP_COPY, couldNotCheckLine, reasonLine, selfMapButtons, selfMapSt
  * the buttons selfMapButtons says to show: Turn on while off, Update now and Turn off while on, and Turn off whenever
  * self-entries are still found. A press is one request through setAssistantSelfMap, which carries only on or off: the
  * server signs as the viewer's own Assistant. Its report is drawn as the Duty Menu page draws its own, and the answer
- * is asked for again after every accepted press, since the remembered choice changes even when nothing is published.
- * While off, the state line takes the status line's place.
+ * is asked for again after every press but a refusal, since the remembered choice can change even when nothing is
+ * published (ADR 0002 Amendment 1 item 3). The Owner's note reads the session (Amendment 1 item 5). While off, the state
+ * line takes the status line's place.
  */
 
 const TONE_ICON = { success: '✅ ', warning: '⚠️ ', info: 'ℹ️ ', error: '❌ ' };
 
 const ACTION_KEY = 'treasure-map';
+/** The press's refusals: nothing changed, so the answer is not asked for again (ADR 0002 Amendment 1 item 3). */
+const REFUSALS = ['not-signed-in', 'bad-request', 'no-assistant', 'not-read'];
 const ACTION = ASSISTANT_ACTIONS.find((a) => a.key === ACTION_KEY);
 const DUTY_MENU = ASSISTANT_ACTIONS.find((a) => a.key === 'duty-menu');
 const DUTY_MENU_PATH = DUTY_MENU ? DUTY_MENU.path : `${ASSISTANT_MANAGEMENT_PATH}/duty-menu`;
@@ -148,13 +151,14 @@ export default function AssistantTreasureMapPage() {
     setResult(null);
     setNotice(null);
     setPressing(which);
-    let accepted = false;
+    // Ask again after every press but a refusal: a 500, or a request that never answered, may have changed the choice.
+    let changedNothing = false;
     try {
       const data = await setAssistantSelfMap(on);
       if (data.success !== true) {
+        changedNothing = REFUSALS.includes(data.code);
         setNotice(data.error || SELF_MAP_COPY.press.requestFailed);
       } else {
-        accepted = true;
         const row = data.result || {};
         if (row.ok === true && row.published === false) setResult({ info: row.message || '' });
         else setResult({ report: describeServerPublish({ name: SELF_MAP_COPY.press.subject, row }), off: row.ok === true && row.published === true && row.on === false });
@@ -163,9 +167,7 @@ export default function AssistantTreasureMapPage() {
       setNotice(SELF_MAP_COPY.press.requestFailed);
     }
     setPressing(null);
-    // The choice may have changed even when nothing was published, so ask again after every accepted press. A refusal
-    // changed nothing.
-    if (accepted) attention.refresh();
+    if (!changedNothing) attention.refresh();
   }
   const label = (which, words) => (pressing === which ? SELF_MAP_COPY.press.publishing : words);
   const ownerLine = finished && answer.instanceMap === true && published && Number.isFinite(published.otherEntries)
@@ -252,7 +254,7 @@ export default function AssistantTreasureMapPage() {
                 {line && <p className="bs-outbox-note">{line}</p>}
                 {selfEntries.length > 0 && <Entries entries={selfEntries} />}
                 {stateLine && <p className="bs-outbox-note">{stateLine}</p>}
-                {anyButton && answer.instanceMap === true && <p className="bs-outbox-note">{SELF_MAP_COPY.ownerNote}</p>}
+                {anyButton && user.classification === 'owner' && <p className="bs-outbox-note">{SELF_MAP_COPY.ownerNote}</p>}
                 {anyButton && (
                   <div className="bs-idtags-actions bs-selfmap-actions">
                     {buttons.turnOn && (

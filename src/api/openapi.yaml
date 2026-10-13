@@ -797,7 +797,9 @@ paths:
         Assistant, choose an entry or pick a relay. Refused first: no session (401 not-signed-in), a body whose `on` is
         not a boolean (400 bad-request), no Assistant on this instance (403 no-assistant). One press at a time per
         Assistant. The press reads this instance's relay and the outside relays together for the Assistant's kind 10040
-        (and, to turn on, the whole self-Map check); when a read does not finish, or the version found is not the
+        (and, to turn on, the whole self-Map check); with no version on this instance's relay, the read finishes only when
+        the Assistant's relay-list lookup finished and one of its write relays answered (or, having none, one of the other
+        outside relays did, or there were none to ask). When a read does not finish, or the version found is not the
         Assistant's own validly signed one, it answers 503 not-read and changes nothing. It then remembers the choice
         (assistant-self-map.json on the data volume), and publishes nothing when the self-entries found are already the
         target. Otherwise it signs a new kind 10040 whose self-entries are exactly what the self-Map should say (none,
@@ -859,7 +861,7 @@ paths:
         '503':
           description: The Assistant's current Treasure Map could not be read (code not-read); nothing changed
         '500':
-          description: The press could not run; nothing was published
+          description: The press could not run; nothing was published, though the choice may have been remembered
   /api/auth/sign-up-new-customer:
     post:
       tags: [Auth]

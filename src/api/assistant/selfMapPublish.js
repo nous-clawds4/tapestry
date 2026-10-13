@@ -15,8 +15,9 @@
  *     for `off` only the Assistant's kind 10040. If a read does not finish, or the version found is not the Assistant's
  *     own validly signed kind 10040, it answers 503 not-read and changes nothing.
  *  2. Remembers the choice (selfMapChoice.js), before anything is published, so an accepted press holds even if a relay
- *     refuses.
- *  3. Publishes nothing when the self-entries found already are the target (what the self-Map should say, or none).
+ *     refuses. The publish policy is read just before, so nothing that fails on configuration follows the write.
+ *  3. Publishes nothing when the self-entries found already are the target (what the self-Map should say, or none) and,
+ *     for a target that is not empty, no expiration or other owned tag sits beside them (ADR 0002 Amendment 1 item 2).
  *  4. Otherwise builds the next version with the library's merge (buildSelfMapEvent): only the self-entries change;
  *     every other tag and the content stay as found, an expiration going only beside a self-entry. It signs it and
  *     checks the result, kept tags and content included, before anything is written. A removal retracts nothing (ADR
@@ -108,7 +109,6 @@ function defaultDeps() {
     },
     resolveOfferInputs: (viewer) => require('./dutyMenu').resolveOfferInputs(viewer),
     assistantWriteRelays: (input) => require('./dutyMenu').assistantWriteRelays(input),
-    getConfiguredPublishRelays: () => require('./profilePublish').getConfiguredPublishRelays(),
     getConfigFromFile: (key, fallback) => require('../../utils/config').getConfigFromFile(key, fallback),
     outsideOnly: (urls, d) => require('../setup/status').outsideOnly(urls, d),
   };
@@ -171,14 +171,19 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
     if (!verified) return notRead();
   }
 
-  // 2. Remember the choice, before anything is published.
+  // 2. Remember the choice, before anything is published. The publish policy is read first, so nothing that can fail on
+  // configuration runs after the write (Amendment 1 item 3).
+  const localOnly = Boolean(d.isLocalOnly());
   const nowSeconds = Math.floor(d.now() / 1000);
   await d.writeSelfMapChoice(A, on, nowSeconds);
 
-  // 3. Nothing to change.
+  // 3. Nothing to change: the self-entries found are the target, and, when the target is not empty, nothing stale sits
+  // beside them, no expiration and no other owned tag (Amendment 1 item 2).
   const found = latest ? readSelfEntries(latest, A).selfEntries : [];
-  const localOnly = Boolean(d.isLocalOnly());
-  if (sameSelfEntries(target, found)) {
+  const baseTags = latest && Array.isArray(latest.tags) ? latest.tags : [];
+  const stale = target.length > 0
+    && (baseTags.some((t) => Array.isArray(t) && t[0] === 'expiration') || baseTags.filter((t) => ownsTag(t, A)).length !== found.length);
+  if (sameSelfEntries(target, found) && !stale) {
     const unchanged = on ? (target.length > 0 ? 'already-current' : 'nothing-to-claim') : 'nothing-claimed';
     return { result: { ok: true, on, published: false, unchanged, message: UNCHANGED[unchanged], localOnly, relays: { total: 0, success: 0, results: [] } } };
   }

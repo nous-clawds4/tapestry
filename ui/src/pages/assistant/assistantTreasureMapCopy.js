@@ -148,14 +148,15 @@ export function selfMapStateLine(answer) {
 }
 
 /**
- * Which buttons the page shows (story 2 AC-2; ADR 0002 sub-decision 7). Off or unknown: Turn on, and Turn off only when
- * a finished check found self-entries, so no claim is stuck. On: Update now, enabled unless the self-Map is up to date,
- * and Turn off. No answer yet: none.
+ * Which buttons the page shows (story 2 AC-2; ADR 0002 sub-decision 7 with Amendment 1 item 4). Off or unknown: Turn on,
+ * and Turn off when a finished check found self-entries or the check did not finish (the self-Map found is then
+ * unknown), so no claim is stuck. On: Update now, enabled unless the self-Map is up to date, and Turn off. No answer yet:
+ * none.
  * @param {?Object} answer
  * @returns {{ turnOn: boolean, update: { shown: boolean, enabled: boolean }, turnOff: boolean }}
  */
 export function selfMapButtons(answer) {
   if (!answer || typeof answer !== 'object') return { turnOn: false, update: { shown: false, enabled: false }, turnOff: false };
   if (answer.selfMapOn === true) return { turnOn: false, update: { shown: true, enabled: answer.current !== true }, turnOff: true };
-  return { turnOn: true, update: { shown: false, enabled: false }, turnOff: foundSelfEntries(answer) > 0 };
+  return { turnOn: true, update: { shown: false, enabled: false }, turnOff: answer.finished !== true || foundSelfEntries(answer) > 0 };
 }

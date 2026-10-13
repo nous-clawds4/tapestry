@@ -270,6 +270,16 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
   - **The viewer's Map for a Turn off** (relay hints only) is read through `status.lookupNewest`, with its own small
     dependency set in `selfMapPublish.js`'s defaults, since that read needs no other part of the check.
 
+- **Round 2 Implementation, 2026-10-13 (small judgment calls within ADR 0002 Amendment 1):**
+  - **The relay-list lookup.** When reading the configured publish relays throws, the lookup reports "did not
+    finish", even if no outside relay was left to ask: a throw is never "nowhere to look". `assistantWriteRelays` still
+    answers exactly as before.
+  - **The 50-relay cap.** The strict read keeps the cap across write relays and hints together, as the hub's read
+    does; offer relays are owner-set and uncapped, as before.
+  - **The refusals.** The page treats four codes as refusals and doesn't refresh after them: `not-signed-in`,
+    `bad-request`, `no-assistant` and `not-read`. Anything else refreshes, a 500 or a request that never answered
+    included.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md` (Amendment 1 from review round 1)
