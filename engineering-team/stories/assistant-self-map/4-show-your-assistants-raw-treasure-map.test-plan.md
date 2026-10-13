@@ -126,7 +126,9 @@ BRAINSTORM_BASE_URL=http://localhost:4184 BRAINSTORM_SERVER_ACCESSIBLE=true PLAY
   - The 17th was `assistant-attention` U16. The canned answer's new `event` names its author, and the attention
     answer must carry no pubkey (ADR `assistant-identification-tags/0001`). ADR 0003 had missed that rule.
   - The owner chose the exception (ADR 0003 Amendment 1) over an on-demand route. U16 was re-aimed and R7 added.
-- **The Node gate after Amendment 1:** GATE_A1_PLACEHOLDER
+- **The Node gate after Amendment 1:** `20261013T233925Z-6247-7699 [s4-phase3-a1] — FAIL, exit 1, 6018 passed, 17 failed,
+  582 skipped, 309/309 suites; failed: assistant-self-map-check, assistant-self-map-page`. The 17 are exactly the
+  check suite's R1–R7 and the page suite's ten below. Every other suite passes, `assistant-attention` included.
 - **The suites, alone:**
   - check: 87 passed, 7 failed. The seven are R1–R7:
     - R1–R4: "published.event is the found version itself … got undefined";
