@@ -49,6 +49,7 @@
  * pins that a write relay the DNS guard refuses is never connected to (review round 2 R2-N1).
  * Round 4 (ADR 0002 Amendment 3): V17 pins that forWrite takes the press's copy (`stored`) as a version here and the
  * newest across this instance's relay, the copy and the outside wins; V18 that without forWrite it is ignored.
+ * Round 5 (ADR 0002 Amendment 4): V19 pins that forWrite says where the base is (onThisRelay, published.source).
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -1540,6 +1541,25 @@ test('V18 (A3 item 1): without forWrite, `stored` is ignored — the hub\'s read
   const copy = selfMapEv([['39998', TA, OWN]], TA, NOW_S - H);
   const got = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapEventOf(w), offer: [], stored: copy }, fakes(w).deps);
   assert(got && got.finished === true && got.latest === null, `without forWrite: finished with none, got ${brief(got)}`);
+});
+
+/* ───────────────────────── Story 2, round 5: ADR 0002 Amendment 4 item 1 ───────────────────────── */
+
+test('V19 (A4 item 1): forWrite says where the base is — onThisRelay and published.source: only here (true, local); only in the copy (false, copy); only outside (false, relay); the same id here and in the copy (true, local)', async () => {
+  const wrong = [];
+  const view = (r) => show(r && { finished: r.finished, onThisRelay: r.onThisRelay, source: r.published && r.published.source });
+  const v = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const cases = [
+    ['only here', world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [] }, extraLocal: [v] }), null, { finished: true, onThisRelay: true, source: 'local' }],
+    ['only in the copy', noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: {} })), v, { finished: true, onThisRelay: false, source: 'copy' }],
+    ['only outside', world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [v] } }), null, { finished: true, onThisRelay: false, source: 'relay' }],
+    ['the same id here and in the copy', world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [] }, extraLocal: [v] }), JSON.parse(JSON.stringify(v)), { finished: true, onThisRelay: true, source: 'local' }],
+  ];
+  for (const [label, w, stored, want] of cases) {
+    const got = (await strictReadStored(w, stored)).got;
+    if (view(got) !== show(want)) wrong.push(`${label}: want ${show(want)}, got ${view(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 async function run() {

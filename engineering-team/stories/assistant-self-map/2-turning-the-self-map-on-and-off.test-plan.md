@@ -310,3 +310,57 @@ trusted, a settings throw that slips through, and the hub's read changing.
 - **Two test defects found against the prototype and fixed:**
   - C7 and C12 picked the viewer's Map, also a kind 10040, as "the version found". They now filter by the Assistant.
   - C1's order check is re-aimed, as above.
+
+## Round 5: ADR 0002 Amendment 4 (review round 4)
+
+**Date:** 2026-10-13. These tests were added for review round 4's R4-B1 and R4-B2 ("nothing to change" over a base no
+relay of this instance holds), and the older outside-newer case of the same root. They also cover R4-N1 (a copy that
+fails the check is never replaced), R4-N2 (R20 didn't pin the copy's check), R4-N4 (the `lastSigned` log) and the
+records. R4-N3 (K9 and the lock) stays a nit, as the review left it.
+
+| Amendment item | Tests | File |
+|---|---|---|
+| **1. "Nothing to change" only over this instance's own version** | R21: a local import that fails, then a retry, for Turn on and Turn off. The second press publishes, and this instance's relay holds the target (none for Turn off). R22: after a wipe, with a copy already at the target, Update now publishes, and this instance's relay holds the target with the copy's other tags and content. The outside is silent, or answers without it. R23: an outside version newer than this instance's and at the target; the press publishes, and this instance's relay converges | publish |
+| | V19: `onThisRelay` and `published.source` in four cases: only here (true, `local`); only in the copy (false, `copy`); only outside (false, `relay`); the same id here and in the copy (true, `local`) | check |
+| | Guards, unchanged: E3, E4, E7, E14 and C8 answer "nothing to change" over a base this instance's relay holds | publish |
+| **2. A copy that fails the check is replaced** | C13: this instance's own version with a broken signature (same id) as the copy is replaced in the same press by the version found, and the first copy write passes `replace: true`. K10: a malformed stored entry (`{}`, no id, another key's) reads as no copy, and the next write replaces it, even with an older event. K11: `replace: true` overwrites a newer stored copy, and without it the newer one stays | publish |
+| **3. The log names `lastSigned`** | K12: a `lastSigned` that isn't an object reads as no copy. The log says "the self-Map copy (lastSigned) cannot be read", not "the choice file". A copy write refuses and leaves the file as it is, and a choice write keeps it | publish |
+| **4. The records** | S7: openapi's press description and the BIBLE §11 row say "this instance's relay holds that version" | publish |
+| **5. R4-N2** | R24: a tampered copy newer than a valid version here is left out. The press builds on this instance's version and publishes, and does not refuse | publish |
+
+**The fake store** in `pressDeps` mirrors item 2. A malformed entry reads as no copy, `replace: true` keeps the event,
+and each write records its options.
+
+**What fails, and why it should.**
+- **R21, R22, R23:** the press answers `already-current`, or `nothing-claimed`, over a base no relay of this instance
+  holds.
+- **V19:** no `onThisRelay`, and `source` is `local` for the copy.
+- **C13:** the damaged copy is never replaced.
+- **K10, K11:** a malformed entry is read, and there is no `replace`.
+- **K12:** the log blames the choice file.
+- **S7:** the records don't say it.
+
+R24 passes already. It guards against the copy's check being dropped: with `verifyEvent` removed from `checkedCopy` in
+a scratch worktree, R24 fails with 503 where it wants a publish.
+
+**Verification, 2026-10-13, on `e95071a` with these tests:**
+- **The Node gate:** `20261013T132911Z-10277-4771 [s2-r5-phase3] — FAIL, exit 1, 5972 passed, 9 failed, 582 skipped,
+  308/308 suites; failed: assistant-self-map-check, assistant-self-map-publish`. The nine are exactly V19, R21–R23,
+  C13, K10–K12 and S7.
+- **The tests can pass.** I checked against a throwaway prototype of Amendment 4 in a scratch worktree. It was never
+  committed and has been deleted. It made these edits:
+  - `onThisRelay` and `source` in `lookupSelfMap`;
+  - step 3's condition;
+  - `replace` on the first copy write after a failed check;
+  - the store's malformed-entry rule, `replace`, and the log line;
+  - the two records.
+
+  The results:
+  - self-map check 84/84, publish 88/88, page 19/19;
+  - Duty Menu check 65/65 and publish 36/36, outbox check 29/29, relay-list publish 32 (1 skipped), taggings publish 19
+    (1 skipped), attention 38 (1 skipped). The skips are the same as on the current code.
+- **Review round 4's reproductions against the prototype:**
+  - `r4-import-fails.js`: the retry publishes, and the relay holds the target;
+  - `r4-wipe-same-target.js`: Update now publishes, and the relay holds the version.
+- **One test defect, found before the run and fixed:** K12 first asserted only that the log contained "lastSigned",
+  which today's message already does. It now asserts the new wording, and that the choice file isn't blamed.
