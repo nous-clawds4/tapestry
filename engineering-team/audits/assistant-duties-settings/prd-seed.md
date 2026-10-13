@@ -93,7 +93,8 @@ Promoted from the build audit §6:
 - **Typed relays without a DNS check,** set by Admins too.
 - **The drag handle's accessibility.**
 - **Atomic writes of the settings file**, which affects every setting.
-- **A signed-in run-through on staging** before promotion.
+- ~~**A signed-in run-through on staging** before promotion.~~ Done on production 2026-10-13 by the Owner: reorder,
+  republish and reset work (audit §5). Add, Remove and Change relay not yet tried signed in.
 
 ## 7. What product must validate
 
