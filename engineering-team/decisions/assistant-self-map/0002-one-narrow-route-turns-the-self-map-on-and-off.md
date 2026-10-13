@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 approved (review round 3)
+follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 approved (review round 3); Amendment 4 proposed (review round 4)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -776,7 +776,8 @@ signed. It is the whole signed event, and the copy keeps it as it is.
    before the local import (step 5). A failure answers 500. Nothing has been stored or sent, though the choice may have
    been remembered, as openapi's 500 says.
 
-   The copy then may hold a version that a failed import never stored anywhere. That is harmless: the merge changes
+   *(Corrected by Amendment 4 item 1: step 3 must not trust such a copy.)* The copy then may hold a version that a
+   failed import never stored anywhere. That is harmless: the merge changes
    only self-entries, so it carries the same other tags and content as its base. Its `created_at` is later, and a
    later press dates its version after it.
 
@@ -906,4 +907,134 @@ service of AC-4 ("Never blind", "Nothing else is lost"). BIBLE §15 names it.
 - `assistant-self-map.json` grows by one event per Assistant pressed. That is a few kilobytes each.
 - Locally authored state, this instance's own Treasure Map entries and private content, no longer lives only in strfry
   and on outside relays (BIBLE §30).
+- **Firmware reinstall required?** No.
+
+## Amendment 4: "nothing to change" only when this instance's relay holds the version (2026-10-13)
+
+**Status of A4:** proposed.
+
+The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`, its Round 4. Item 1
+answers R4-B1 and R4-B2. Item 2 answers R4-N1, item 3 R4-N4, and item 4 R4-N5. Item 5 carries R4-N2 into the tests.
+
+### 1. The press publishes nothing only over a version this instance's relay holds (R4-B1, R4-B2)
+
+**What was wrong.** Step 3 ("nothing to change", `selfMapPublish.js:204–213`) compared the target with the base,
+wherever the base came from. Amendment 3 made the copy a base (`selfMap.js:262`), and the copy can sit on no relay at
+all:
+- **After a failed local import (R4-B1).** The copy is the version that import never stored.
+- **After a strfry wipe (R4-B2).** The copy is the last version, and this instance's relay holds none.
+
+In both cases every later press answered `already-current`, `nothing-to-claim` or `nothing-claimed`, while this
+instance's relay and its readers kept the older version or none.
+
+Round 1's sub-case had the same root, though Amendment 3 didn't add it: an outside relay holds a newer version than
+this instance's, already at the target, and nothing is ever stored here. Amendment 3 item 1 step 3's "That is harmless"
+(line 779) was false as written. It missed this consequence of step 3.
+
+**The rule now.**
+- **The read says where the base is.** With `forWrite`, `lookupSelfMap`'s finished answer carries `onThisRelay`. It is
+  true when `latest`'s id is among the Assistant's kind 10040s that this instance's scan returned in the same read;
+  otherwise false, and false when there is no `latest`.
+- **`published.source` says it honestly:** `'local'` when on this instance's relay, `'copy'` when only the copy holds
+  it, `'relay'` otherwise. The same id held both here and in the copy is `'local'`.
+- **Step 3 publishes nothing only when this instance's relay holds the base.** That means:
+  - `latest` is null, or `onThisRelay` is true;
+  - and the conditions before still hold: the self-entries found are the target, and nothing stale sits beside a
+    target that isn't empty.
+
+  Otherwise the press goes on as for any change: it builds, signs, checks, keeps the copy, stores the version on this
+  instance's relay first, and fans out. Its report is a publish, in the existing words.
+- **Both presses follow it.** Turn off over a base that isn't on this relay publishes a version with no self-entries,
+  so this instance's relay stops claiming. Turn on with nothing to claim does the same over such a base, and the
+  instance's own Map entries and content go back on its relay.
+
+**Why this and not the others.**
+- **Moving the signed-copy write after the import** would close only R4-B1. R4-B2 and the outside-newer case would stay
+  open, and it would undo Amendment 3's clean 500 when the copy can't be written.
+- **Re-storing the base as it is,** importing that event instead of signing a new one, would need a second store path,
+  its own fan-out, and its own report words. Signing a new version reuses the one path every publish takes. Its
+  `created_at` is later than the base's, as § 9.2 When it changes asks.
+
+**The cost.** A press whose base isn't on this instance's relay always signs and sends a version, even when its
+self-entries are already the target. That happens only after a failed import, a wipe, or an outside relay holding the
+newest version. In each case it is what makes this instance's relay right again.
+
+**The code.**
+- **`src/api/assistant/selfMap.js`.** `lookupSelfMap`'s `forWrite` path keeps the ids of the local scan's events for
+  the Assistant. Its finished answer adds `onThisRelay` and sets `published.source` as above. The path without
+  `forWrite` is unchanged.
+- **`src/api/assistant/selfMapPublish.js`.** Step 3's condition gains `(!latest || lookup.onThisRelay === true)`.
+  `gatherSelfMap` already returns the lookup as it is.
+
+### 2. A copy that fails the press's check can be replaced (R4-N1)
+
+`writeSelfMapCopy` compared a newer event against the raw stored entry (`selfMapChoice.js:170`), while the press read
+an entry that failed its check as no copy. So a malformed or damaged entry blocked every later write, and the safety net
+was off for that Assistant.
+- **The store reads a malformed entry as no copy, for reading and for writing.** A malformed entry is one that isn't
+  an object with kind 10040, that key's pubkey, an integer `created_at` and a string `id`. The next write replaces it.
+- **`writeSelfMapCopy(assistantPubkey, event, { replace })`.** With `replace: true` it keeps `event` whatever the
+  stored entry is. Its refusals are as before.
+- **The press passes `replace: true`** on its first copy write of a press when a copy was stored but failed the press's
+  check: a broken signature, or another author. After that write the copy is valid again.
+
+A validly signed copy with a far-future `created_at` is the Assistant's own event. It isn't replaced, and it would win
+wherever readers look too.
+
+### 3. The store's log names `lastSigned` (R4-N4)
+
+When `lastSigned` is there but isn't an object, `readSelfMapCopy` logs "the self-Map copy (lastSigned) cannot be read",
+not "the choice file cannot be read". The behaviour is unchanged:
+- reading gives no copy;
+- a copy write refuses and leaves the file as it is;
+- a choice write keeps it.
+
+A press that finds a version then answers 500 before the choice until the file is fixed, as with a choice file that
+isn't the shape.
+
+### 4. The records and the nits (R4-N5)
+
+- **openapi's press description and the BIBLE §11 row.** "publishes nothing when the self-entries found are already the
+  target" gains "and this instance's relay holds that version".
+- **`selfMap.js:287`** is rewrapped near 120 characters.
+- **The story's round 4 Deviation** ("The press goes on under the first-press rules") takes a correction from the
+  Implementer: it holds only when this instance's relay also holds nothing.
+- **Amendment 3 item 1 step 3's "harmless"** gets a pointer to this item.
+
+### 5. Tests (the Tester's lane, Phase 3)
+
+- **The press** (`test/assistant-self-map-publish.test.js`):
+  - **A failed import, then a retry,** for Turn on and Turn off. The second press publishes, this instance's relay
+    holds a version whose self-entries are the target (none for Turn off), and the report is a publish.
+  - **A wipe, with a copy whose self-entries are already the target.** Update now publishes. This instance's relay
+    holds a version with the target's self-entries and the copy's other tags and content.
+  - **An outside version newer than this instance's, already at the target.** The press publishes, and this instance's
+    relay converges.
+  - **The unchanged answers still stand when this instance's relay holds the base.** E3, E4, E7 and E14 pass as they
+    are.
+  - **R4-N2:** a tampered copy newer than a valid version here. The press builds on this instance's version and
+    publishes; it doesn't answer 503.
+  - **A stored copy that fails the check** (a broken signature on this instance's own version, same id): the version
+    found replaces it in the same press.
+- **The store** (K-tests):
+  - a malformed stored entry (`{}`, or a missing `id`) reads as no copy, and the next write replaces it;
+  - `replace: true` overwrites a newer stored entry;
+  - a `lastSigned` that isn't an object gives no copy on read, with a log line naming `lastSigned`. A copy write refuses
+    and leaves the file as it is, and a choice write keeps it.
+- **The read** (`test/assistant-self-map-check.test.js`): `onThisRelay` and `published.source` in four cases:
+  - the base only here;
+  - only in the copy;
+  - only outside;
+  - the same id here and in the copy, which is `'local'`.
+
+### Story deviations (A4)
+
+None to the acceptance criteria or the approved words. AC-2 ("so no claim can be stuck"), AC-3's read-back and AC-5 are
+met in the cases review round 4 found.
+
+### Consequences (A4)
+
+- "Nothing to change" now means this instance's relay already holds the version that says it. A press over a base held
+  only in the copy, or only outside, stores a new version here and fans it out.
+- A damaged or malformed copy no longer turns the safety net off.
 - **Firmware reinstall required?** No.
