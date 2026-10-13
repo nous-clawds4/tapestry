@@ -294,7 +294,14 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 - **Round 5 Implementation, 2026-10-13 (small judgment calls within ADR 0002 Amendment 4):**
   - **`replace` and a failed write.** The press passes `replace: true` only on its first copy write after a failed
     check. If that write throws, the press answers 500 as for any copy write. The next press sees the same failed copy
-    and passes `replace` again.
+    and passes `replace` again. *(Corrected in round 6: the press's default wiring dropped the option, so it never
+    reached the store on the live route until round 6, review round 5 R5-B1.)*
+
+- **Round 6 Implementation, 2026-10-13 (review round 5's asks; no ADR change):**
+  - **Where the outside answer goes.** The strict outside round now says whether an outside relay returned the newest
+    version's id. The lookup uses that only to choose `source`, then drops it, so the answer's shape doesn't change.
+  - **The failed-copy log line** now says the copy "is not used, and the next copy kept replaces it", naming
+    Amendment 4 item 2's replacement. No test pins its words.
 
 ## Linked artifacts
 

@@ -14,9 +14,10 @@
  *  1. Reads what it needs, strictly (selfMap.js gatherSelfMap / lookupSelfMap with forWrite): for `on` the whole check,
  *     for `off` only the Assistant's kind 10040. The copy of the newest version a press has seen or signed
  *     (selfMapChoice.js readSelfMapCopy, ADR 0002 Amendment 3), once it checks as the Assistant's own validly signed
- *     kind 10040, counts as a version here. If a read does not finish, or the version found is not the Assistant's own
- *     validly signed kind 10040, it answers 503 not-read and changes nothing. The version found then becomes the copy
- *     when it is newer.
+ *     kind 10040, counts as a version here; one that fails is not used, and the press's first copy write replaces it
+ *     (Amendment 4 item 2). If a read does not finish, or the version found is not the Assistant's own validly signed
+ *     kind 10040, it answers 503 not-read and changes nothing. The version found then becomes the copy when it is
+ *     newer, or in place of a copy that failed.
  *  2. Remembers the choice (selfMapChoice.js), before anything is published, so an accepted press holds even if a relay
  *     refuses. The publish policy is read just before, so nothing that fails on configuration follows the write.
  *  3. Publishes nothing when the self-entries found already are the target (what the self-Map should say, or none),
@@ -100,7 +101,7 @@ function defaultDeps() {
     writeSelfMapChoice: (pubkey, on, nowSeconds) => require('./selfMapChoice').writeSelfMapChoice(pubkey, on, nowSeconds),
     // The copy of the newest version a press has seen or signed (ADR 0002 Amendment 3 item 1).
     readSelfMapCopy: (pubkey) => require('./selfMapChoice').readSelfMapCopy(pubkey),
-    writeSelfMapCopy: (pubkey, event) => require('./selfMapChoice').writeSelfMapCopy(pubkey, event),
+    writeSelfMapCopy: (pubkey, event, options) => require('./selfMapChoice').writeSelfMapCopy(pubkey, event, options),
     // Story 1's reads: the whole check, the self-Map lookup, the viewer's Map, the offer, the write relays.
     gatherSelfMap: (input) => require('./selfMap').gatherSelfMap(input),
     lookupSelfMap: (input) => require('./selfMap').lookupSelfMap(input),
@@ -158,7 +159,7 @@ async function checkedCopy(A, d) {
   if (!copy) return { copy: null, failed: false };
   let ok = false;
   try { ok = copy.kind === SELF_MAP_KIND && String(copy.pubkey || '').toLowerCase() === A && d.verifyEvent(copy) === true; } catch { ok = false; }
-  if (!ok) console.warn("[assistant/self-map] the kept copy is not this Assistant's validly signed kind 10040; it is left out");
+  if (!ok) console.warn("[assistant/self-map] the kept copy is not this Assistant's validly signed kind 10040; it is not used, and the next copy kept replaces it");
   return ok ? { copy, failed: false } : { copy: null, failed: true };
 }
 
@@ -171,7 +172,7 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
   const A = String(assistantPubkey || '').toLowerCase();
 
   // 1. Read, strictly. Turning on needs what the self-Map should say; turning off needs only the current version. The
-  // copy counts as a version here once it checks as the Assistant's own (Amendment 3 item 1); one that fails is left out.
+  // copy counts as a version here once it checks as the Assistant's own (Amendment 3 item 1); one that fails is not used.
   const { copy: stored, failed: copyFailed } = await checkedCopy(A, d);
   // A copy that failed its check is replaced by this press's first copy write, whatever it holds (Amendment 4 item 2).
   let replaceCopy = copyFailed;
@@ -213,7 +214,8 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
 
   // 3. Nothing to change: the self-entries found are the target, and, when the target is not empty, nothing stale sits
   // beside them, no expiration and no other owned tag (Amendment 1 item 2); and this instance's relay holds that version
-  // (Amendment 4 item 1). A base held only in the copy, or only outside, is stored here anew and sent out.
+  // (Amendment 4 item 1). Over a base held only in the copy, or only outside, a new version is signed, stored here and
+  // sent out.
   const found = latest ? readSelfEntries(latest, A).selfEntries : [];
   const baseTags = latest && Array.isArray(latest.tags) ? latest.tags : [];
   const stale = target.length > 0

@@ -21,6 +21,8 @@
  * - readSelfMapCopy / writeSelfMapCopy: the copy, which lets a press after a strfry wipe or an older restore build on
  *   the newest version it knew rather than on nothing. The write keeps the newer of the stored event and the given one,
  *   under the same lock and the same atomic write; `lastSigned` is optional, and every write keeps the rest of the file.
+ *   An entry that is not well formed is no copy, read or written; and with `replace` the write keeps the given event
+ *   whatever is stored, which the press asks for when the stored copy failed its check (ADR 0002 Amendment 4 item 2).
  */
 
 const fs = require('fs');
@@ -96,11 +98,19 @@ const storedCopy = (copies, key) => (Object.prototype.hasOwnProperty.call(copies
  * @returns {?Object} null when none is kept, or the file cannot be read
  */
 function readSelfMapCopy(assistantPubkey) {
+  const why = (err) => (err && err.message ? err.message : err);
+  let store;
+  try {
+    store = readStore();
+  } catch (err) {
+    console.warn(`[assistant/self-map] the choice file cannot be read: ${why(err)}`);
+    return null;
+  }
   let copies;
   try {
-    copies = copiesOf(readStore());
+    copies = copiesOf(store);
   } catch (err) {
-    console.warn(`[assistant/self-map] the self-Map copy (lastSigned) cannot be read: ${err && err.message ? err.message : err}`);
+    console.warn(`[assistant/self-map] the self-Map copy (lastSigned) cannot be read: ${why(err)}`);
     return null;
   }
   return storedCopy(copies, String(assistantPubkey || '').toLowerCase());

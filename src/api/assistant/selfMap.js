@@ -25,7 +25,7 @@
  *   review R3-N2).
  * - The remembered choice (assistant-self-map #2, ADR 0002 sub-decision 2): the answer carries `selfMapOn`, the choice
  *   file's word for the viewer's own Assistant (true, false, or null when it cannot be read). It moves no mark.
- * - For a press (ADR 0002 sub-decision 3, Amendments 1–3): gatherSelfMap with `forWrite` reads every place at once,
+ * - For a press (ADR 0002 sub-decision 3, Amendments 1–4): gatherSelfMap with `forWrite` reads every place at once,
  *   this instance's relay, the press's copy (`stored`) and the outside round, and the newest version wins. It does not
  *   finish when this instance's scan fails; and, when neither this instance's relay nor the copy holds a version (an
  *   Assistant's first press here), unless the Assistant's relay-list lookup finished and one of its write relays
@@ -236,8 +236,8 @@ function mapHints(mapEvent, assistantPubkey) {
  * With `forWrite` (ADR 0002 sub-decision 3, R1), this instance's relay and the outside round are both read and the
  * newest version across them wins (strictOutsideRound). `stored`, the press's checked copy (Amendment 3 item 1), counts
  * as a version here; without `forWrite` it is ignored. A finished `forWrite` answer also says where `latest` is
- * (Amendment 4 item 1): `onThisRelay` when this instance's scan returned it, and `published.source` 'local', 'copy' or
- * 'relay'. It is unfinished with `instance-unanswered` when this instance's scan fails, and with `no-relay-answered`
+ * (Amendment 4 item 1): `onThisRelay` when this instance's scan returned it, and `published.source` 'local', 'copy' (only
+ * the copy holds it: neither this instance's scan nor an outside relay returned it) or 'relay'. It is unfinished with `instance-unanswered` when this instance's scan fails, and with `no-relay-answered`
  * when neither this instance nor the copy holds a version and the outside round cannot show there is none (Amendment 1
  * item 1).
  * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object, onThisRelay?: boolean }
@@ -262,15 +262,15 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
     if (!local.ok) return { finished: false, reason: 'instance-unanswered' };
     // The press's copy counts as a version here (Amendment 3 item 1): after a wipe or an older restore, it is the base.
     const hereOrCopy = newest([here, stored].filter(mine));
-    const answer = await strictOutsideRound({ who, here: hereOrCopy, mapEvent, offer, filter, mine, found }, d);
+    const { heldOutside, ...answer } = await strictOutsideRound({ who, here: hereOrCopy, mapEvent, offer, filter, mine, found }, d);
     // Where the base is (Amendment 4 item 1): the press publishes nothing only over a version this instance's relay
-    // holds. The same id here and in the copy is here.
+    // holds. The same id here and in the copy is here; the same id in the copy and outside is the relay's.
     if (answer.finished) {
       const localIds = new Set(local.events.filter(mine).map((e) => e.id));
       answer.onThisRelay = !!answer.latest && localIds.has(answer.latest.id);
       if (answer.published) {
         answer.published.source = answer.onThisRelay ? 'local'
-          : (stored && answer.latest && answer.latest.id === stored.id ? 'copy' : 'relay');
+          : (stored && answer.latest && answer.latest.id === stored.id && !heldOutside ? 'copy' : 'relay');
       }
     }
     return answer;
@@ -299,7 +299,7 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
  * them public; one it refuses, for whatever reason, has not answered. With a version here (this instance's relay or the
  * press's copy, Amendment 3), the outside is best-effort and the newest wins. With none, the read finishes only when
  * the lookup finished and: one relay of W answered, when W is not empty; else one relay of O answered, or O is empty
- * too.
+ * too. A finished answer carries `heldOutside`, whether an outside relay returned the newest version's id.
  */
 async function strictOutsideRound({ who, here, mapEvent, offer, filter, mine, found }, d) {
   const { readWithinBudget, newest } = shared();
@@ -329,7 +329,8 @@ async function strictOutsideRound({ who, here, mapEvent, offer, filter, mine, fo
   }
   const events = ok([...fromWrites, ...fromHints, ...fromOffer]).flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine);
   const latest = newest(here ? [here, ...events] : events);
-  return found(latest, latest && latest === here ? 'local' : 'relay');
+  const heldOutside = !!latest && events.some((e) => e.id === latest.id);
+  return { ...found(latest, latest && latest === here ? 'local' : 'relay'), heldOutside };
 }
 
 /** An unfinished answer, with every field (Amendment 1 item 6's shape). */
