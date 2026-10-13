@@ -319,6 +319,9 @@ From the owner's ask and the facts above; the Architect decides.
       should say, which story 2 only calls.
     - `src/api/assistant/attention.js` is the one hub line round 3 edits (ADR 0002 Amendment 2's opt-in
       `everyRelay`). Staging has not changed it since the branch last merged.
+  - **Round 4's Implementation:** `origin/staging` was still at `9679668`, so there was nothing to merge. Round 4 edits
+    only story 2's own modules (`selfMapChoice.js`, `selfMap.js`, `selfMapPublish.js`), a comment in `dutyMenu.js`,
+    and the records.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

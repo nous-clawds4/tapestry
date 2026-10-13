@@ -12,16 +12,19 @@
  * A press, one at a time per Assistant (withAssistantLock, so no two versions share a created_at; story 3's automation
  * goes through the same lock):
  *  1. Reads what it needs, strictly (selfMap.js gatherSelfMap / lookupSelfMap with forWrite): for `on` the whole check,
- *     for `off` only the Assistant's kind 10040. If a read does not finish, or the version found is not the Assistant's
- *     own validly signed kind 10040, it answers 503 not-read and changes nothing.
+ *     for `off` only the Assistant's kind 10040. The copy of the newest version a press has seen or signed
+ *     (selfMapChoice.js readSelfMapCopy, ADR 0002 Amendment 3), once it checks as the Assistant's own validly signed
+ *     kind 10040, counts as a version here. If a read does not finish, or the version found is not the Assistant's own
+ *     validly signed kind 10040, it answers 503 not-read and changes nothing. The version found then becomes the copy
+ *     when it is newer.
  *  2. Remembers the choice (selfMapChoice.js), before anything is published, so an accepted press holds even if a relay
  *     refuses. The publish policy is read just before, so nothing that fails on configuration follows the write.
  *  3. Publishes nothing when the self-entries found already are the target (what the self-Map should say, or none) and,
  *     for a target that is not empty, no expiration or other owned tag sits beside them (ADR 0002 Amendment 1 item 2).
  *  4. Otherwise builds the next version with the library's merge (buildSelfMapEvent): only the self-entries change;
  *     every other tag and the content stay as found, an expiration going only beside a self-entry. It signs it and
- *     checks the result, kept tags and content included, before anything is written. A removal retracts nothing (ADR
- *     duty-menus-and-self-maps/0005 sub-decision 2: no stop).
+ *     checks the result, kept tags and content included, before anything is written, and keeps it as the copy. A
+ *     removal retracts nothing (ADR duty-menus-and-self-maps/0005 sub-decision 2: no stop).
  *  5. Writes it to this instance's relay first (a failure sends it nowhere), then, each once, to Finding a self-Map's
  *     places (§ 9.2): the relays the new self-entries name (owner-set, sent as such), and, at most 50 and each
  *     DNS-guarded, the Assistant's write relays and the relays the found version's self-entries named, so a removal
@@ -94,6 +97,9 @@ function defaultDeps() {
     isPublicHostname: (host) => isPublicRelayHostWithin(host, { timeoutMs: LOOKUP_BUDGET_MS }),
     now: () => Date.now(),
     writeSelfMapChoice: (pubkey, on, nowSeconds) => require('./selfMapChoice').writeSelfMapChoice(pubkey, on, nowSeconds),
+    // The copy of the newest version a press has seen or signed (ADR 0002 Amendment 3 item 1).
+    readSelfMapCopy: (pubkey) => require('./selfMapChoice').readSelfMapCopy(pubkey),
+    writeSelfMapCopy: (pubkey, event) => require('./selfMapChoice').writeSelfMapCopy(pubkey, event),
     // Story 1's reads: the whole check, the self-Map lookup, the viewer's Map, the offer, the write relays.
     gatherSelfMap: (input) => require('./selfMap').gatherSelfMap(input),
     lookupSelfMap: (input) => require('./selfMap').lookupSelfMap(input),
@@ -140,6 +146,20 @@ const orNone = (fn) => Promise.resolve().then(fn).then((list) => (Array.isArray(
 const notRead = () => ({ refusal: { status: 503, code: CODES.NOT_READ } });
 
 /**
+ * The press's copy (ADR 0002 Amendment 3 item 1), only when it is the Assistant's own validly signed kind 10040; else
+ * null, with a line in the log when one was there but failed. A copy that cannot be read is no copy.
+ */
+async function checkedCopy(A, d) {
+  let copy = null;
+  try { copy = await d.readSelfMapCopy(A); } catch { copy = null; }
+  if (!copy) return null;
+  let ok = false;
+  try { ok = copy.kind === SELF_MAP_KIND && String(copy.pubkey || '').toLowerCase() === A && d.verifyEvent(copy) === true; } catch { ok = false; }
+  if (!ok) console.warn("[assistant/self-map] the kept copy is not this Assistant's validly signed kind 10040; it is left out");
+  return ok ? copy : null;
+}
+
+/**
  * One press for one Assistant, inside its lock (ADR 0002 sub-decision 6). Answers { refusal } or { result }.
  * @param {{ viewer: string, assistantPubkey: string, privkeyBytes: Uint8Array, on: boolean }} input
  */
@@ -147,11 +167,13 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
   const d = { ...defaultDeps(), ...deps };
   const A = String(assistantPubkey || '').toLowerCase();
 
-  // 1. Read, strictly. Turning on needs what the self-Map should say; turning off needs only the current version.
+  // 1. Read, strictly. Turning on needs what the self-Map should say; turning off needs only the current version. The
+  // copy counts as a version here once it checks as the Assistant's own (Amendment 3 item 1); one that fails is left out.
+  const stored = await checkedCopy(A, d);
   let target;
   let lookup;
   if (on) {
-    const gathered = await d.gatherSelfMap({ viewer, assistantPubkey: A, forWrite: true });
+    const gathered = await d.gatherSelfMap({ viewer, assistantPubkey: A, forWrite: true, stored });
     if (!gathered || !gathered.answer || gathered.answer.finished !== true || !gathered.lookup || gathered.lookup.finished !== true) return notRead();
     target = Array.isArray(gathered.answer.shouldSay) ? gathered.answer.shouldSay : [];
     lookup = gathered.lookup;
@@ -159,7 +181,7 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
     const map = await Promise.resolve().then(() => d.lookupViewerMap(viewer)).catch(() => null);
     const mapEvent = map && map.finished === true ? map.event || null : null; // for relay hints only
     const offer = buildOffer(await d.resolveOfferInputs(viewer));
-    lookup = await d.lookupSelfMap({ assistantPubkey: A, mapEvent, offer, forWrite: true });
+    lookup = await d.lookupSelfMap({ assistantPubkey: A, mapEvent, offer, forWrite: true, stored });
     if (!lookup || lookup.finished !== true) return notRead();
     target = [];
   }
@@ -169,6 +191,8 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
     let verified = false;
     try { verified = latest.kind === SELF_MAP_KIND && String(latest.pubkey || '').toLowerCase() === A && d.verifyEvent(latest) === true; } catch { verified = false; }
     if (!verified) return notRead();
+    // Keep what was found, before the choice: the copy keeps the newer of the two (Amendment 3 item 1).
+    await d.writeSelfMapCopy(A, latest);
   }
 
   // 2. Remember the choice, before anything is published. The publish policy is read first, so nothing that can fail on
@@ -198,6 +222,10 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
     || !keptSame || signed.content !== template.content) {
     throw new Error("the signed event is not this Assistant's self-Map built from the version found");
   }
+
+  // Keep what is signed, before this instance's relay stores it (Amendment 3 item 1): a later press after a wipe builds
+  // on it. A failed import leaves a copy never stored anywhere, which carries its base's other tags and content.
+  await d.writeSelfMapCopy(A, signed);
 
   const { summarizePublish, localFailureMessage } = require('./profilePublish');
 

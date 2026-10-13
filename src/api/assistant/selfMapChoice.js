@@ -1,12 +1,14 @@
 'use strict';
 /**
  * The remembered self-Map choice: on or off, per Assistant (assistant-self-map #2, ADR assistant-self-map/0002
- * sub-decision 1).
+ * sub-decision 1); and the copy of the newest version of each Assistant's kind 10040 that a press has seen or signed
+ * (ADR 0002 Amendment 3 item 1).
  *
  * One small JSON file on the data volume, `assistant-self-map.json` under BRAINSTORM_BASE_DIR (the `tapestry-data`
- * volume at /var/lib/brainstorm), or wherever TAPESTRY_SELF_MAP_CHOICE_PATH points:
+ * volume at /var/lib/brainstorm, apart from strfry's), or wherever TAPESTRY_SELF_MAP_CHOICE_PATH points:
  *
- *   { "version": 1, "assistants": { "<assistant hex>": { "on": true, "changedAt": <unix seconds> } } }
+ *   { "version": 1, "assistants": { "<assistant hex>": { "on": true, "changedAt": <unix seconds> } },
+ *     "lastSigned": { "<assistant hex>": <the signed kind 10040, as it is> } }
  *
  * It is state this instance authors, with no event behind it (CLAUDE.md principle 4, BIBLE §30): nothing rebuilds it
  * from the relays, and no import, firmware reinstall or strfry rebuild touches it. Only the self-Map press (ADR 0002
@@ -16,6 +18,9 @@
  *   otherwise, and null (unknown) when the file exists but cannot be read or is not the shape above.
  * - writeSelfMapChoice: one at a time (a module-level promise lock), and atomically (a temp file, fsync, rename, then
  *   the directory). It throws, and never overwrites, when the file exists but cannot be read or is not the shape.
+ * - readSelfMapCopy / writeSelfMapCopy: the copy, which lets a press after a strfry wipe or an older restore build on
+ *   the newest version it knew rather than on nothing. The write keeps the newer of the stored event and the given one,
+ *   under the same lock and the same atomic write; `lastSigned` is optional, and every write keeps the rest of the file.
  */
 
 const fs = require('fs');
@@ -62,6 +67,34 @@ function readSelfMapChoice(assistantPubkey) {
   const key = String(assistantPubkey || '').toLowerCase();
   const entry = Object.prototype.hasOwnProperty.call(store.assistants, key) ? store.assistants[key] : null;
   return Boolean(entry && entry.on === true);
+}
+
+/** The copies kept, or none; throws when `lastSigned` is there but is not an object (never overwritten then). */
+function copiesOf(store) {
+  if (store.lastSigned === undefined) return {};
+  if (!isPlainObject(store.lastSigned)) throw new Error(`${SELF_MAP_CHOICE_PATH} holds a lastSigned that is not an object`);
+  return store.lastSigned;
+}
+
+/** Is event `a` newer than `b`: the higher created_at, a tie to the lower id (the lookups' newest). */
+const newer = (a, b) => a.created_at > b.created_at || (a.created_at === b.created_at && String(a.id) < String(b.id));
+
+/**
+ * The copy of this Assistant's newest kind 10040 a press has seen or signed (ADR 0002 Amendment 3 item 1), as stored.
+ * The press checks it (kind, author, signature) before it uses it.
+ * @param {string} assistantPubkey - 64-hex
+ * @returns {?Object} null when none is kept, or the file cannot be read
+ */
+function readSelfMapCopy(assistantPubkey) {
+  let copies;
+  try {
+    copies = copiesOf(readStore());
+  } catch (err) {
+    console.warn(`[assistant/self-map] the choice file cannot be read: ${err && err.message ? err.message : err}`);
+    return null;
+  }
+  const key = String(assistantPubkey || '').toLowerCase();
+  return Object.prototype.hasOwnProperty.call(copies, key) && isPlainObject(copies[key]) ? copies[key] : null;
 }
 
 /** Write `text` to `file` atomically: temp file, fsync, rename, directory fsync (tagging-edges/state.js writeAtomic). */
@@ -115,8 +148,37 @@ function writeSelfMapChoice(assistantPubkey, on, nowSeconds) {
   return run;
 }
 
+/**
+ * Keep `event` as this Assistant's copy when it is newer than the one stored, or none is (ADR 0002 Amendment 3 item 1);
+ * an older one changes nothing. Resolves once the file holds the newer; rejects on a key that is not an Assistant key,
+ * an event that is not that key's kind 10040, an unreadable file (left as it is), or a failed write.
+ * @param {string} assistantPubkey - 64-hex
+ * @param {Object} event - the Assistant's signed kind 10040
+ * @returns {Promise<void>}
+ */
+function writeSelfMapCopy(assistantPubkey, event) {
+  const run = choiceLock.then(() => {
+    if (typeof assistantPubkey !== 'string' || !HEX64.test(assistantPubkey)) throw new Error('not an Assistant key');
+    const key = assistantPubkey.toLowerCase();
+    if (!isPlainObject(event) || event.kind !== 10040 || String(event.pubkey || '').toLowerCase() !== key
+      || !Number.isInteger(event.created_at) || typeof event.id !== 'string') {
+      throw new Error("not this Assistant's kind 10040");
+    }
+    const store = readStore();
+    const copies = copiesOf(store);
+    const had = Object.prototype.hasOwnProperty.call(copies, key) && isPlainObject(copies[key]) ? copies[key] : null;
+    if (had && !newer(event, had)) return;
+    store.lastSigned = { ...copies, [key]: event };
+    writeAtomic(SELF_MAP_CHOICE_PATH, `${JSON.stringify(store, null, 2)}\n`);
+  });
+  choiceLock = run.catch(() => {});
+  return run;
+}
+
 module.exports = {
   readSelfMapChoice,
   writeSelfMapChoice,
+  readSelfMapCopy,
+  writeSelfMapCopy,
   SELF_MAP_CHOICE_PATH,
 };

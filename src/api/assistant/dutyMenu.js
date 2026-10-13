@@ -115,7 +115,7 @@ function writeRelays(event) {
  * It finished when the list was read (or found to be nowhere), or when there was no outside relay to look on
  * (`no-outside-relays`, a real answer). It did not when this instance's scan failed, no outside relay answered, or the
  * configured relays could not be read. `relays` are the list's write relays when it finished, else none.
- * With `everyRelay` (Amendment 2 item 1), a list found nowhere counts only when every configured relay answered.
+ * With `everyRelay` (Amendment 2 item 1), a list found nowhere counts only when every outside configured relay answered.
  * @param {{ assistantPubkey: string, everyRelay?: boolean }} input
  * @returns {Promise<{ finished: boolean, relays: string[] }>}
  */

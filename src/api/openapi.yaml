@@ -796,16 +796,19 @@ paths:
         session (the Owner's is the instance TA; anyone else's their own), and nothing in the request can name another
         Assistant, choose an entry or pick a relay. Refused first: no session (401 not-signed-in), a body whose `on` is
         not a boolean (400 bad-request), no Assistant on this instance (403 no-assistant). One press at a time per
-        Assistant. The press reads this instance's relay and the outside relays together for the Assistant's kind 10040
-        (and, to turn on, the whole self-Map check); with no version on this instance's relay, the read finishes only when
-        the Assistant's relay-list lookup finished (a list found nowhere counts only when every configured publish relay
-        answered) and one of its write relays answered (or, having none, one of the other outside relays did, or there
-        were none to ask). When a read does not finish, or the version found is not the Assistant's own validly signed
-        one, it answers 503 not-read and changes nothing. It then remembers the choice (assistant-self-map.json on the
-        data volume), and publishes nothing when the self-entries found are already the target and, when that target is
-        not empty, no expiration or other owned tag sits beside them. Otherwise it signs a new kind 10040 whose self-entries are exactly what the self-Map should say (none,
-        to turn off), keeping every other tag and the content as found (an expiration is dropped beside a self-entry),
-        dated after the version it replaces; a removal retracts nothing. It is written to this instance's relay first (a
+        Assistant. The press reads this instance's relay, its copy of the newest version a press here has seen or signed
+        (kept on the data volume, so it survives a strfry wipe), and the outside relays together for the Assistant's
+        kind 10040 (and, to turn on, the whole self-Map check); the newest wins. With no version on this instance's relay
+        and no copy (an Assistant's first press here), the read finishes only when the Assistant's relay-list lookup
+        finished (a list found nowhere counts only when every outside configured publish relay answered) and one of its
+        write relays answered (or, having none, one of the other outside relays did, or there were none to ask). When a
+        read does not finish, or the version found is not the Assistant's own validly signed one, it answers 503
+        not-read and changes nothing. It keeps the version found as the copy when newer, then remembers the choice
+        (assistant-self-map.json on the data volume), and publishes nothing when the self-entries found are already the
+        target and, when that target is not empty, no expiration or other owned tag sits beside them. Otherwise it signs
+        a new kind 10040 whose self-entries are exactly what the self-Map should say (none, to turn off), keeping every
+        other tag and the content as found (an expiration is dropped beside a self-entry), dated after the version it
+        replaces, and keeps it as the copy; a removal retracts nothing. It is written to this instance's relay first (a
         failed write sends it nowhere), then, each once, to the relays its self-entries name and to at most 50 relays
         from events, each resolved first and never connected to unless public: the Assistant's write relays and the
         relays the found version's self-entries named. Local-only mode keeps it here. Nothing calls this when an

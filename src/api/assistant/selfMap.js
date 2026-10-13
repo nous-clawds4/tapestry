@@ -25,12 +25,14 @@
  *   review R3-N2).
  * - The remembered choice (assistant-self-map #2, ADR 0002 sub-decision 2): the answer carries `selfMapOn`, the choice
  *   file's word for the viewer's own Assistant (true, false, or null when it cannot be read). It moves no mark.
- * - For a press (ADR 0002 sub-decision 3, Amendments 1 and 2): gatherSelfMap with `forWrite` reads every place at once,
- *   this instance's relay and the outside round, and the newest version wins. It does not finish when this instance's
- *   scan fails; and, when this instance holds no version, unless the Assistant's relay-list lookup finished and one of
- *   its write relays answered (or, having none, one of the other outside relays did, or there were none to ask). A list
- *   found nowhere counts only when every configured relay answered, and a relay the DNS guard refuses has not answered.
- *   So the press never builds over nothing.
+ * - For a press (ADR 0002 sub-decision 3, Amendments 1–3): gatherSelfMap with `forWrite` reads every place at once,
+ *   this instance's relay, the press's copy (`stored`) and the outside round, and the newest version wins. It does not
+ *   finish when this instance's scan fails; and, when neither this instance's relay nor the copy holds a version (an
+ *   Assistant's first press here), unless the Assistant's relay-list lookup finished and one of its write relays
+ *   answered (or, having none, one of the other outside relays did, or there were none to ask). A list found nowhere
+ *   counts only when every outside configured relay answered, and a relay the DNS guard refuses has not answered.
+ *   So after a first press here, a press never builds on anything older than the newest version a press has seen or
+ *   signed; a first press reads under those strict rules, whose limits ADR 0002 Amendment 3 item 2 names.
  *
  * Read-only: strfry is only scanned, outside relays are only read, the schedule and choice files are only read, nothing
  * is stored. The press that signs and stores is ADR 0002's own module (sub-decisions 5 and 6).
@@ -232,13 +234,14 @@ function mapHints(mapEvent, assistantPubkey) {
  * merge; `published` its self-entries, or null when there is none.
  *
  * With `forWrite` (ADR 0002 sub-decision 3, R1), this instance's relay and the outside round are both read and the
- * newest version across them wins (strictOutsideRound). It is unfinished with `instance-unanswered` when this instance's
- * scan fails, and with `no-relay-answered` when this instance holds no version and the outside round cannot show there
- * is none (Amendment 1 item 1).
+ * newest version across them wins (strictOutsideRound). `stored`, the press's checked copy (Amendment 3 item 1), counts
+ * as a version here; without `forWrite` it is ignored. It is unfinished with `instance-unanswered` when this instance's
+ * scan fails, and with `no-relay-answered` when neither this instance nor the copy holds a version and the outside round
+ * cannot show there is none (Amendment 1 item 1).
  * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object }
  *                  | { finished: false, reason: 'no-relay-answered'|'instance-unanswered' }>}
  */
-async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = false }, deps = {}) {
+async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = false, stored = null }, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const { readWithinBudget, newest } = shared();
   const who = String(assistantPubkey || '').toLowerCase();
@@ -255,7 +258,9 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
   const here = newest(local.events.filter(mine));
   if (forWrite) {
     if (!local.ok) return { finished: false, reason: 'instance-unanswered' };
-    return strictOutsideRound({ who, here, mapEvent, offer, filter, mine, found }, d);
+    // The press's copy counts as a version here (Amendment 3 item 1): after a wipe or an older restore, it is the base.
+    const hereOrCopy = newest([here, stored].filter(mine));
+    return strictOutsideRound({ who, here: hereOrCopy, mapEvent, offer, filter, mine, found }, d);
   }
   if (here) return found(here, 'local');
 
@@ -276,10 +281,10 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
 /**
  * A press's outside round (ADR 0002 sub-decision 3 with Amendment 1 item 1), once this instance's scan succeeded. It
  * reads, together: the Assistant's write relays (W, from a relay-list lookup that must have finished when nothing is
- * here, a list found nowhere only on every configured relay's answer, Amendment 2 item 1), the viewer's Map hints and
- * the offer's outside relays (O). Event-named relays (W and the hints) are read only
- * when the DNS guard finds them public; one it refuses, for whatever reason, has not answered. With a version here, the
- * outside is best-effort and the newest wins. With none, the read finishes only when the lookup finished and: one relay
+ * here, a list found nowhere only on every outside configured relay's answer, Amendment 2 item 1), the viewer's Map
+ * hints and the offer's outside relays (O). Event-named relays (W and the hints) are read only when the DNS guard finds
+ * them public; one it refuses, for whatever reason, has not answered. With a version here (this instance's relay or the
+ * press's copy, Amendment 3), the outside is best-effort and the newest wins. With none, the read finishes only when the lookup finished and: one relay
  * of W answered, when W is not empty; else one relay of O answered, or O is empty too.
  */
 async function strictOutsideRound({ who, here, mapEvent, offer, filter, mine, found }, d) {
@@ -335,12 +340,12 @@ async function checkSelfMap({ viewer, assistantPubkey }, deps = {}) {
 
 /**
  * Everything the action and a press need (ADR 0002 sub-decision 3): the answer, without the choice, and the self-Map
- * lookup with its `latest`. `forWrite` is the press's strict read (lookupSelfMap). `lookup` is null when the viewer's Map
- * could not be read.
- * @param {{ viewer: string, assistantPubkey: string, forWrite?: boolean }} input
+ * lookup with its `latest`. `forWrite` is the press's strict read (lookupSelfMap), and `stored` the press's checked copy
+ * (Amendment 3 item 1). `lookup` is null when the viewer's Map could not be read.
+ * @param {{ viewer: string, assistantPubkey: string, forWrite?: boolean, stored?: ?Object }} input
  * @returns {Promise<{ answer: Object, lookup: ?Object }>}
  */
-async function gatherSelfMap({ viewer, assistantPubkey, forWrite = false }, deps = {}) {
+async function gatherSelfMap({ viewer, assistantPubkey, forWrite = false, stored = null }, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const who = String(viewer || '').toLowerCase();
   const assistant = String(assistantPubkey || '').toLowerCase();
@@ -363,7 +368,7 @@ async function gatherSelfMap({ viewer, assistantPubkey, forWrite = false }, deps
   }
   const [upkeep, lookup] = await Promise.all([
     readUpkeep({ viewer: who, assistantPubkey: assistant, isOwner, offer, namedHeaders }, d),
-    lookupSelfMap({ assistantPubkey: assistant, mapEvent, offer, forWrite }, d),
+    lookupSelfMap({ assistantPubkey: assistant, mapEvent, offer, forWrite, stored }, d),
   ]);
   if (!upkeep.finished) return { answer: unfinished(upkeep.reason, { mapFound: !!mapEvent, isOwner }), lookup };
   if (!lookup.finished) return { answer: unfinished(lookup.reason, { mapFound: !!mapEvent, isOwner }), lookup };

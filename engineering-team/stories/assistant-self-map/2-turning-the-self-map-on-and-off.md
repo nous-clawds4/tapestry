@@ -280,6 +280,16 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
     `bad-request`, `no-assistant` and `not-read`. Anything else refreshes, a 500 or a request that never answered
     included.
 
+- **Round 4 Implementation, 2026-10-13 (small judgment calls within ADR 0002 Amendment 3):**
+  - **A `lastSigned` that isn't an object.** The copy store reads it as no copy, and a copy write refuses and leaves
+    the file as it is, as the choice store treats a file that isn't the shape. A choice write keeps it untouched.
+  - **What counts as an event.** Besides "that key's kind 10040", a copy write also needs an integer `created_at` and a
+    string `id`, which the newer-only rule compares.
+  - **Keeping the version found.** The press hands the version found to the store after every successful read, and
+    the store keeps only the newer, so "when it is newer" is decided in one place.
+  - **A copy that fails its check** is logged once per press and left out. The press goes on under the first-press
+    rules.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md` (Amendment 1 from review round 1, Amendment 2 from review round 2, Amendment 3 from review round 3)
