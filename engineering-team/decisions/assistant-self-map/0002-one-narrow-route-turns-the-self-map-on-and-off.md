@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 proposed (review round 3)
+follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 approved (review round 3)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -714,7 +714,8 @@ None. No acceptance criterion or approved word changes. AC-4's "Never blind" is 
 
 ## Amendment 3: the press keeps a copy of the last version, so it never builds over its own Map (2026-10-13)
 
-**Status of A3:** proposed. The owner chose its two decisions before the draft, 2026-10-13:
+**Status of A3:** approved by the owner at the Architecture gate of round 4, 2026-10-13, as written ("Ready for Test
+Design"). The owner chose its two decisions before the draft, 2026-10-13:
 - **Approach:** "Keep a local copy" (item 1), over "Every relay must answer" and keeping "at least one".
 - **First press:** "Stay strict" (item 3).
 
