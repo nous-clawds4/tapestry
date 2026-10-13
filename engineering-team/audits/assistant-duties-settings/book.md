@@ -1,9 +1,9 @@
 # Book of Work: Assistant Duties — the duties this instance offers, set by its Owner
 
 **Slug:** assistant-duties-settings
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-12
-**Closed:** —
+**Closed:** 2026-10-12 (on `staging`: story 1 review round 2 PASS `480343c22`; staging deploys 694 and 695 green; not yet on `main`)
 
 ## Intent anchor
 
@@ -64,17 +64,17 @@ The ask, verbatim (copied from the session transcript, not retyped):
 
 *Proposed from the intake decisions; confirmed by the owner at story 1's approval (2026-10-12).*
 
-- [ ] **An Assistant Duties tab.** `/tapestry/settings/assistant-duties` lists the duties this instance offers, and
+- [x] **An Assistant Duties tab.** `/tapestry/settings/assistant-duties` lists the duties this instance offers, and
       the Owner or an Admin can add any kind (a whole kind, Decision 8), remove any duty, set each duty's relay, drag
       them into order, and reset to the defaults. No one else can change them.
-- [ ] **Six by default.** A new instance offers today's six, each at this instance's relay, so nothing changes for
+- [x] **Six by default.** A new instance offers today's six, each at this instance's relay, so nothing changes for
       the Owner's Duty Menu until someone edits the list.
-- [ ] **Kept on the server.** The list is no longer written into the code. Changes live in the instance's settings
+- [x] **Kept on the server.** The list is no longer written into the code. Changes live in the instance's settings
       file and survive restarts and redeploys.
-- [ ] **Every Duty Menu follows it.** Every Assistant's Duty Menu page offers exactly the listed duties, in order,
+- [x] **Every Duty Menu follows it.** Every Assistant's Duty Menu page offers exactly the listed duties, in order,
       at their relays; publishing publishes them; an Assistant whose published menu no longer matches shows
       **Needs attention**.
-- [ ] **On staging**, at staging.brainstorm.world/tapestry/settings/assistant-duties.
+- [x] **On staging**, at staging.brainstorm.world/tapestry/settings/assistant-duties.
 
 ## Epics in this book
 
@@ -83,7 +83,7 @@ The ask, verbatim (copied from the session transcript, not retyped):
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high (one gap: no signed-in Owner or Admin has used the tab on staging; audit §5)
 
 ## Close artifacts *(filled by `/close-book`)*
 

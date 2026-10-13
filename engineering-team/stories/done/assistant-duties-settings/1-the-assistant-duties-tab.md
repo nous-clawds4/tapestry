@@ -1,6 +1,6 @@
 # Story 1: The Assistant Duties tab
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Approved:** 2026-10-12, by the owner ("Ready for Architecture"), as drafted
 **Type:** Feature
