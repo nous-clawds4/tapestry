@@ -55,6 +55,13 @@
  * assistant-self-map #3 (one name; story 3 § Copy, no ADR): C1 now checks the re-aimed criteria line, and N5 that nothing
  * the hub module gives a person says "self-Map" (AC-3).
  *
+ * assistant-self-map #4 (show your Assistant's raw Treasure Map; ADR assistant-self-map/0003 sub-decision 1): the found
+ * version rides the answer as published.event, exactly as it was read.
+ *   R — R1 local, R2 outside, R3 a version listing none of the Assistant's duties, R4 forWrite's three places (here, the
+ *       copy, outside): `event` is the found version, every field, and its id is `eventId`. R5 no version, an
+ *       unfinished check: no `event` anywhere, beside a found one that has it. R6 the docs name it (Implementation
+ *       notes 5). S6 already pins that no route is added.                                     [story 4 AC-1 … AC-4]
+ *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
  * sorting keys with compareKeys puts the more specific first; a duties item has a line only for the offered kinds its
@@ -1595,6 +1602,104 @@ test('V21 (A4 item 1, review round 5 R5-N2): the copy and an outside relay hold 
   const got = (await strictReadStored(w, JSON.parse(JSON.stringify(v)))).got;
   const view = show(got && { finished: got.finished, latest: got.latest && got.latest.id, onThisRelay: got.onThisRelay, source: got.published && got.published.source });
   assert(view === show({ finished: true, latest: v.id, onThisRelay: false, source: 'relay' }), `want onThisRelay false, source relay; got ${view}`);
+});
+
+/* ───────────────────────── Story 4: the found version itself (ADR 0003 sub-decision 1) ───────────────────────── */
+
+/** The seven fields of a signed event, in a fixed order, so two events compare field by field. */
+const SIGNED_FIELDS = ['id', 'pubkey', 'created_at', 'kind', 'tags', 'content', 'sig'];
+const signedView = (e) => (e && typeof e === 'object' ? show(Object.fromEntries(SIGNED_FIELDS.map((k) => [k, e[k]]))) : show(e));
+/** What is wrong with `published.event` against the version that was found (`want`), or [] when it is that version. */
+function eventProblems(label, published, want) {
+  const wrong = [];
+  if (!published) return [`${label}: a version was found, so published is not null; got ${show(published)}`];
+  const got = published.event;
+  if (!got || typeof got !== 'object' || Array.isArray(got)) return [`${label}: published.event is the found version itself (ADR 0003 sub-decision 1); got ${show(got)}`];
+  if (signedView(got) !== signedView(want)) wrong.push(`${label}: published.event is the version as it was read, every field (${SIGNED_FIELDS.join(', ')}); want ${signedView(want)}, got ${signedView(got)}`);
+  if (got.id !== published.eventId) wrong.push(`${label}: published.event.id === published.eventId; got ${show(got.id)} and ${show(published.eventId)}`);
+  return wrong;
+}
+
+test('R1 (story 4 AC-1, AC-2; ADR 0003 sub-decision 1): found on this instance\'s relay — published.event is that version, whole and as signed (id, pubkey, created_at, kind, tags in order, content, sig), and its id is published.eventId', async () => {
+  const version = selfMapEv([['30382', TA, OWN], ['39998', TA, OWN], ['30392', OTHER, 'wss://scores.brainstorm.world'], ['client', 'Brainstorm']], TA, NOW_S - 2 * H);
+  version.content = 'kept as found';
+  version.sig = 'ab'.repeat(64);
+  const action = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['x'], extraLocal: [version] }));
+  const wrong = [];
+  if (!action.published || action.published.source !== 'local') wrong.push(`the version here, source local; got ${show(action.published && action.published.source)}`);
+  wrong.push(...eventProblems('local', action.published, version));
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R2 (story 4 AC-1: "whether it was found on this instance\'s relay or another relay"): found outside — published.event is the outside version, whole, and its id is published.eventId', async () => {
+  const older = selfMapEv([['39998', TA, OWN]], TA, NOW_S - 9 * H);
+  const newer = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - 3 * H, 'b'.repeat(64));
+  newer.sig = 'cd'.repeat(64);
+  const got = await answer({
+    mapTags: [['39998', TA, HINT_A], ['3038x', TA, HINT_B]], scoresHoursAgo: 1,
+    relays: { [MAPR]: [], [PUB1]: [], [HINT_A]: [older], [HINT_B]: [newer], [A_WRITE]: [], [A_READ]: [], [OTHER_HINT]: [], [DLIST]: [] },
+  });
+  const action = mustAnswer(got);
+  const wrong = [];
+  if (!action.published || action.published.source !== 'relay') wrong.push(`the outside version, source relay; got ${show(action.published && action.published.source)}`);
+  wrong.push(...eventProblems('outside', action.published, newer));
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R3 (story 4 AC-1, the owner\'s choice 2): a version that lists none of the Assistant\'s duties — only this instance\'s other entries — still rides whole: no self-entries, and published.event is that version', async () => {
+  const version = selfMapEv([['30392', OTHER, 'wss://scores.brainstorm.world'], ['30382:rank', OTHER, 'wss://scores.brainstorm.world'], ['client', 'Brainstorm']], TA, NOW_S - 2 * H);
+  const action = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['x'], extraLocal: [version] }));
+  const wrong = [];
+  if (!action.published || !Array.isArray(action.published.selfEntries) || action.published.selfEntries.length !== 0) wrong.push(`no self-entries; got ${show(action.published && action.published.selfEntries)}`);
+  wrong.push(...eventProblems('listing none', action.published, version));
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R4 (ADR 0003 sub-decision 1: every path builds through found()): forWrite too — here, only in the press\'s copy, and only outside, published.event is latest, whole, and its id is published.eventId', async () => {
+  const wrong = [];
+  const v = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const cases = [
+    ['here', world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [] }, extraLocal: [v] }), null],
+    ['only in the copy', noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: {} })), JSON.parse(JSON.stringify(v))],
+    ['only outside', world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [v] } }), null],
+  ];
+  for (const [label, w, stored] of cases) {
+    const got = (await strictReadStored(w, stored)).got;
+    if (!got || got.finished !== true || !got.latest) { wrong.push(`${label}: finished with a version; got ${brief(got)}`); continue; }
+    wrong.push(...eventProblems(label, got.published, got.latest), ...eventProblems(`${label}, against the version placed`, got.published, v));
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R5 (story 4 AC-3; ADR 0003 sub-decision 1): no version, no event — none found anywhere, and a check that did not finish, answer published null with no event anywhere in the action; the same world with a version found carries it', async () => {
+  const wrong = [];
+  const hasEvent = (a) => JSON.stringify(a).includes('"event"');
+  // The path under test ran: with a version on this instance's relay, the same world's answer carries it.
+  const control = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['x'], extraLocal: [selfMapEv([['39998', TA, OWN]])] }));
+  if (!control.published || !control.published.event) wrong.push(`control: a version found here rides as published.event; got ${show(control.published)}`);
+  const none = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['x'] }));
+  if (none.finished !== true || none.published !== null || hasEvent(none)) wrong.push(`none found: finished, published null, no event; got ${show({ finished: none.finished, published: none.published })}`);
+  // U27's world: the self-Map scan fails here and no outside relay answers.
+  const quietOutside = { [MAPR]: [], [PUB1]: [], [A_WRITE]: 'unreachable', [HINT_A]: 'unreachable', [DLIST]: [] };
+  const unfinished = mustAnswer(await answer({ quiet: true, mapTags: [['39998', TA, HINT_A]], headers: ['x'], rejectScan: (f) => isSelfMapFilter(f), relays: quietOutside }));
+  if (unfinished.finished !== false || unfinished.published !== null || hasEvent(unfinished)) wrong.push(`unfinished (${show(unfinished.reason)}): published null, no event; got ${show({ finished: unfinished.finished, published: unfinished.published })}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R6 (ADR 0003 Implementation notes 5): the docs name the event — openapi.yaml\'s attention block gives published an `event` property for treasure-map, and BIBLE §11\'s attention row says the self-Map found rides with the event itself as `event`', () => {
+  const yaml = safeRead(path.join(REPO, 'src/api/openapi.yaml'));
+  const at = yaml.indexOf('/api/assistant/attention:');
+  const block = at >= 0 ? yaml.slice(at, yaml.indexOf(NL + '  /api/', at + 10)) : '';
+  const lines = block.split(NL);
+  const wrong = [];
+  const pub = lines.findIndex((l) => /^\s+published:\s*$/.test(l));
+  const props = pub >= 0 ? lines.slice(pub, pub + 40) : [];
+  const ev = props.find((l) => /^\s+event:\s*\{/.test(l)) || '';
+  if (!ev) wrong.push('openapi.yaml: published.properties has an `event: { … }` line');
+  else if (!/type:\s*object/.test(ev) || !/treasure-map/.test(ev)) wrong.push(`openapi.yaml: event is an object, described for treasure-map; got ${show(ev.trim())}`);
+  const bibleRow = safeRead(path.join(REPO, 'BIBLE.md')).split(NL).find((l) => l.includes('`/api/assistant/attention`')) || '';
+  if (!bibleRow.includes('with the event itself as `event`')) wrong.push('BIBLE §11: the attention row says the self-Map found carries "the event itself as `event`"');
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 async function run() {

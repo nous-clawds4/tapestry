@@ -72,6 +72,22 @@ const SM = require('../../test/helpers/selfMapFixtures');
  * assistant-self-map #3 (one name for your Assistant's Treasure Map; story 3 § Copy, no ADR): the fixtures' words are
  * re-aimed, so every B test that reads a line now reads the new one; N6 walks the page's states and the hub and finds no
  * "self-Map" on screen (AC-1, AC-3). These FAIL against story 2's build.
+ *
+ * assistant-self-map #4 (show your Assistant's raw Treasure Map; story 4 AC-1 … AC-5, § Copy; ADR assistant-self-map/0003
+ * sub-decisions 4–6):
+ *   R0 — the served origin runs a build that has the toggle.                                            [prerequisite]
+ *   R1 — a found version: the closed toggle in the published panel, named by its words alone; open, the box is the
+ *        event as JSON, every field; closed again.                                                          [AC-1, AC-2]
+ *   R2 — it shows for a version listing none of the Assistant's duties, one found on another relay, and a
+ *        customer's.                                                                                         [AC-1]
+ *   R3 — no toggle while checking, when the request fails, when the check did not finish or failed, when nothing
+ *        was found, signed out, or with no Assistant here.                                                   [AC-3]
+ *   R4 — open, a press's new answer with a newer version shows the newer one; one with none takes the toggle away;
+ *        a new visit starts closed.                                                                           [AC-4]
+ *   R5 — at phone width the open box wraps: no sideways scroll, in the box or the page; the box takes focus.  [AC-2]
+ *   R6 — opening and closing it sends nothing, and the page's other lines and buttons are as before.         [AC-5]
+ * N6 is re-aimed: it counts the enabled press buttons only (the toggle is a button too). These FAIL against story 3's
+ * build.
  */
 
 const TA = SM.TA;
@@ -575,8 +591,9 @@ test.describe('One name for your Assistant\'s Treasure Map (assistant-self-map #
     const off = publishedResult({ on: false, selfEntries: 0 });
     await routePress(page, off);
     const main = await open(page);
-    const enabled = main.getByRole('button').and(main.locator('button:not([disabled])'));
-    await expect(enabled, 'one enabled button while on and up to date: Turn off').toHaveCount(1);
+    // Re-aimed by assistant-self-map #4: the raw toggle is a button too, so only the press buttons are counted.
+    const enabled = main.locator('.bs-selfmap-actions button:not([disabled])');
+    await expect(enabled, 'one enabled press button while on and up to date: Turn off').toHaveCount(1);
     await enabled.click();
     await expect(main.getByText(off.result.message), 'the report after a Turn off').toBeVisible();
     for (const s of oldIn(await main.innerText())) found.push(`after a Turn off: ${s}`);
@@ -585,5 +602,185 @@ test.describe('One name for your Assistant\'s Treasure Map (assistant-self-map #
     const hub = await open(page, X.HUB);
     for (const s of oldIn(await hub.innerText())) found.push(`the hub: ${s}`);
     expect(found, 'the old name on screen (story 3 § Copy gives each line\'s new words)').toEqual([]);
+  });
+});
+
+/* ───────────────────────── assistant-self-map #4: show your Assistant's raw Treasure Map ───────────────────────── */
+
+const rawToggle = (page, open = false) => publishedPanel(page).getByRole('button', { name: open ? SM.RAW.hide : SM.RAW.show, exact: true });
+const anyRawToggle = (page) => page.locator('main').first().getByRole('button', { name: /raw Treasure Map/ });
+const rawBox = (page) => page.locator('main').first().getByRole('region', { name: SM.RAW.boxLabel, exact: true });
+/** The open box's text, read back as JSON (null when it is not JSON). */
+async function boxEvent(page) {
+  const text = await rawBox(page).innerText();
+  try { return JSON.parse(text); } catch { return null; }
+}
+/** A newer version of the canned one, with its own id and date (story 4 AC-4). */
+const newerVersion = (base = SM.ANSWERS.STALE) => SM.action({
+  ...base,
+  done: true, pending: false, current: true,
+  published: SM.published(SM.SHOULD_LIVE.slice(), { eventId: 'f'.repeat(64), createdAt: 1_760_009_999 }),
+});
+/** Answer the attention route with `answers` in turn (the last one repeats), recording each call in `log`. */
+async function answerInTurn(page, log, answers) {
+  await page.route('**/api/assistant/attention**', (r) => {
+    log.attentionCalls.push(r.request().url());
+    const a = answers[Math.min(log.attentionCalls.length - 1, answers.length - 1)];
+    return r.fulfill(json(answerWith(a)));
+  });
+}
+
+test.describe('Your Assistant\'s raw Treasure Map (assistant-self-map #4)', () => {
+  test.beforeEach(async () => {
+    if (process.env.BRAINSTORM_SERVER_ACCESSIBLE !== 'true') test.skip('Brainstorm server not accessible (set BRAINSTORM_SERVER_ACCESSIBLE=true)');
+  });
+
+  test('R0: the served origin runs a build that has the raw toggle', async ({ request, baseURL }) => {
+    const { found, why } = await bundleContains(request, SM.RAW.show);
+    expect(found, `the bundle served by ${baseURL} does not carry "${SM.RAW.show}" (${why}). Rebuild the UI, or story 4 is not built yet.`).toBe(true);
+  });
+
+  test('R1 (AC-1, AC-2; § Copy): a found version — the published panel shows the closed toggle, reading "▸ Show your Assistant\'s raw Treasure Map" and named by its words alone, with no box; open, it reads "▾ Hide …", and the box is the found event as JSON, every field; pressed again, it closes', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    await open(page);
+    const closed = rawToggle(page);
+    await expect(closed, 'the closed toggle, in the published panel').toBeVisible();
+    expect(squash(await closed.innerText()), 'as a sighted reader sees it').toBe(SM.RAW.closedLabel);
+    await expect(closed).toHaveAttribute('aria-expanded', 'false');
+    await expect(rawBox(page), 'no box while closed').toHaveCount(0);
+    await expect(page.locator('main').first().getByText(`"id": "${SM.ANSWERS.DONE.published.eventId}"`), 'no event text while closed').toHaveCount(0);
+
+    await closed.click();
+    const opened = rawToggle(page, true);
+    await expect(opened, 'the open toggle').toBeVisible();
+    expect(squash(await opened.innerText())).toBe(SM.RAW.openLabel);
+    await expect(opened).toHaveAttribute('aria-expanded', 'true');
+    await expect(rawBox(page), 'the box').toBeVisible();
+    const shown = await boxEvent(page);
+    expect(shown, 'the box is the found event, every field, as the answer carries it').toEqual(SM.ANSWERS.DONE.published.event);
+    expect(shown.id).toBe(SM.ANSWERS.DONE.published.eventId);
+
+    await opened.click();
+    await expect(rawBox(page), 'closed again').toHaveCount(0);
+    await expect(rawToggle(page)).toBeVisible();
+  });
+
+  test('R2 (AC-1): the toggle shows for any found version — one listing none of the Assistant\'s duties (beside the "lists none" line), one found on another relay, and a customer\'s', async ({ page }) => {
+    const outside = SM.action({ published: SM.published(SM.SHOULD_LIVE.slice(), { source: 'relay', eventId: 'f'.repeat(64) }) });
+    const customers = SM.action({ instanceMap: false, published: SM.published([{ key: '39998', relay: SM.OWN }], { otherEntries: 0, eventId: 'c'.repeat(64) }) });
+    customers.published.event = SM.foundEvent({ ...customers.published, author: CUSTOMER_ASSISTANT });
+    const cases = [
+      ['listing none of its duties', OWNER_USER, SM.ANSWERS.LISTS_NONE],
+      ['found on another relay', OWNER_USER, outside],
+      ['a customer\'s', CUSTOMER_USER, customers],
+    ];
+    for (const [label, who, a] of cases) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, { who, attention: answerWith(a) });
+      await open(page);
+      if (a === SM.ANSWERS.LISTS_NONE) await expect(publishedPanel(page).getByText(SM.PAGE.none, { exact: true }), `${label}: the none line`).toBeVisible();
+      await rawToggle(page).click();
+      const shown = await boxEvent(page);
+      expect(shown && shown.id, `${label}: the box shows the found version`).toBe(a.published.eventId);
+      expect(shown, `${label}: every field`).toEqual(a.published.event);
+    }
+  });
+
+  test('R3 (AC-3): nothing to toggle without a version — no toggle and no box while checking, when the request fails, when the check did not finish or failed, when nothing was found, with no duties, signed out, or with no Assistant here', async ({ page }) => {
+    // The path under test ran: the same page shows the toggle for a found version.
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    await open(page);
+    await expect(rawToggle(page), 'control: a found version has the toggle').toBeVisible();
+    const states = [
+      ['checking', { attention: 'hang' }, SM.PAGE.checking],
+      ['the request fails', { attention: 'error' }, SM.PAGE.couldNotCheck['request-failed']],
+      ['the check did not finish', { attention: answerWith(SM.ANSWERS.UNFINISHED) }, SM.PAGE.couldNotCheck['no-relay-answered']],
+      ['the check failed', { attention: answerWith(SM.ANSWERS.CHECK_FAILED) }, SM.PAGE.couldNotCheck['request-failed']],
+      ['nothing found', { attention: answerWith(SM.ANSWERS.NOT_PUBLISHED) }, SM.PAGE.none],
+      ['no duties, nothing found', { attention: answerWith(SM.ANSWERS.NO_DUTIES) }, SM.PAGE.none],
+      ['signed out', { who: null }, SM.PAGE.signedOutLine],
+      ['no Assistant here', { who: GUEST_USER }, X.COPY.noAssistantLine],
+    ];
+    for (const [label, opts, line] of states) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, opts);
+      const main = await open(page);
+      await expect(main.getByText(line, { exact: true }).first(), `${label}: the page drew its line`).toBeVisible();
+      await expect(anyRawToggle(page), `${label}: no toggle`).toHaveCount(0);
+      await expect(rawBox(page), `${label}: no box`).toHaveCount(0);
+    }
+  });
+
+  test('R4 (AC-4): never a stale version — open, a press whose new answer finds a newer version shows the newer one; one whose answer finds none takes the toggle and box away; a new visit starts closed', async ({ page }) => {
+    const log = await mock(page, { attention: answerWith(SM.ANSWERS.STALE) });
+    const newer = newerVersion();
+    await answerInTurn(page, log, [SM.ANSWERS.STALE, newer]);
+    await routePress(page, publishedResult());
+    await open(page);
+    await rawToggle(page).click();
+    expect((await boxEvent(page)).id, 'before the press: the version found').toBe(SM.ANSWERS.STALE.published.eventId);
+    await button(page, SM.PRESS.buttons.update).click();
+    await expect.poll(() => log.attentionCalls.length, { message: 'the answer is asked for again after the press' }).toBe(2);
+    await expect.poll(async () => ((await rawBox(page).count()) ? ((await boxEvent(page)) || {}).id : null), { message: 'the box shows the newer version' }).toBe(newer.published.eventId);
+    expect(await boxEvent(page), 'the newer version, every field').toEqual(newer.published.event);
+
+    // A press whose new answer finds no version: the toggle and the box go away.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    const log2 = await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    const gone = SM.offOf(SM.action({ ...SM.ANSWERS.NOT_PUBLISHED }));
+    await answerInTurn(page, log2, [SM.ANSWERS.DONE, gone]);
+    await routePress(page, publishedResult({ on: false, selfEntries: 0 }));
+    await open(page);
+    await rawToggle(page).click();
+    await expect(rawBox(page)).toBeVisible();
+    await button(page, SM.PRESS.buttons.turnOff).click();
+    await expect.poll(() => log2.attentionCalls.length).toBe(2);
+    await expect(page.locator('main').first().getByText(SM.PRESS.state.off, { exact: true }), 'the new answer is drawn').toBeVisible();
+    await expect(anyRawToggle(page), 'no toggle once no version is found').toHaveCount(0);
+    await expect(rawBox(page), 'no box once no version is found').toHaveCount(0);
+
+    // A new visit starts closed.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    await open(page);
+    await rawToggle(page).click();
+    await expect(rawBox(page)).toBeVisible();
+    await open(page);
+    await expect(rawToggle(page), 'reloaded: closed').toBeVisible();
+    await expect(rawBox(page), 'reloaded: no box').toHaveCount(0);
+  });
+
+  test('R5 (AC-2): at phone width (375px) the open box wraps — nothing in it scrolls sideways and neither does the page — and the box takes keyboard focus', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    await open(page);
+    await rawToggle(page).click();
+    const box = rawBox(page);
+    await expect(box).toBeVisible();
+    const sizes = await box.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+    expect(sizes.scroll, `the box's lines wrap (scrollWidth ${sizes.scroll}, clientWidth ${sizes.client})`).toBeLessThanOrEqual(sizes.client + 1);
+    const pageSizes = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: window.innerWidth }));
+    expect(pageSizes.scroll, `the page never scrolls sideways (scrollWidth ${pageSizes.scroll}, width ${pageSizes.inner})`).toBeLessThanOrEqual(pageSizes.inner);
+    await box.focus();
+    expect(await box.evaluate((el) => document.activeElement === el), 'the box takes focus, so a keyboard can scroll it').toBe(true);
+  });
+
+  test('R6 (AC-5): opening and closing the box sends nothing, and the page\'s other lines and buttons are as before — the state line, Update now disabled, Turn off enabled, the status line, the Owner\'s note', async ({ page }) => {
+    const log = await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    const main = await open(page);
+    const before = log.api.length;
+    await rawToggle(page).click();
+    await expect(rawBox(page)).toBeVisible();
+    await rawToggle(page, true).click();
+    await rawToggle(page).click();
+    await page.waitForTimeout(800);
+    expect(log.api.slice(before), 'no request from the toggle').toEqual([]);
+    expect(log.nonGet, 'nothing but GETs').toEqual([]);
+    expect(log.attentionCalls.length, 'the answer asked for once').toBe(1);
+    await expect(main.getByText(SM.PRESS.state.on, { exact: true }), 'the on line').toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.update), 'Update now, disabled while up to date').toBeDisabled();
+    await expect(button(page, SM.PRESS.buttons.turnOff), 'Turn off').toBeEnabled();
+    await expect(main.getByText(SM.PAGE.status.upToDate, { exact: true }), 'the status line').toBeVisible();
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'the Owner\'s note').toBeVisible();
   });
 });

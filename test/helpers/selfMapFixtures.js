@@ -22,6 +22,12 @@
  * 2026-10-12). Every canned answer carries the choice as on (so story 1's suites keep their status lines: while off, the
  * state line replaces it), except a check that threw, whose choice is unknown (null). Story 2's suites turn an answer
  * off with offOf(answer).
+ *
+ * assistant-self-map #4 (show your Assistant's raw Treasure Map): `published` carries the found version itself as
+ * `event` (ADR assistant-self-map/0003 sub-decision 1), so every canned `published(...)` gains a canned event, built by
+ * foundEvent from its own fields, whose id is its eventId. RAW holds the toggle's words from
+ * engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.md § Copy (approved 2026-10-13)
+ * and the box's accessible name from ADR 0003 sub-decision 4 (accepted 2026-10-13).
  */
 
 // ─── The wire facts ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -190,6 +196,19 @@ const PRESS = {
   choiceFile: 'assistant-self-map.json',
   choiceEnv: 'TAPESTRY_SELF_MAP_CHOICE_PATH',
 };
+// ─── The raw view (story 4 § Copy; ADR 0003 sub-decision 4) ──────────────────────────────────────────────────────────
+const RAW = {
+  show: "Show your Assistant's raw Treasure Map",
+  hide: "Hide your Assistant's raw Treasure Map",
+  closedMark: '▸',
+  openMark: '▾',
+  /** The open box's accessible name: never seen, heard by a screen reader (ADR 0003 sub-decision 4). */
+  boxLabel: "Your Assistant's raw Treasure Map",
+  /** The toggle as a sighted reader sees it, word for word as § Copy. */
+  closedLabel: "▸ Show your Assistant's raw Treasure Map",
+  openLabel: "▾ Hide your Assistant's raw Treasure Map",
+};
+
 /** Every fixed sentence story 2's § Copy gives the page (the server's summaries and refusals are the route's). */
 const PRESS_PAGE_SENTENCES = [
   PRESS.buttons.turnOn, PRESS.buttons.update, PRESS.buttons.turnOff,
@@ -248,7 +267,29 @@ function stagingDuties({ scores = 'active', concepts = 'active', scoresReason = 
   ];
 }
 const SHOULD_LIVE = [{ key: '30382', relay: OWN }, { key: '39998', relay: OWN }];
-const published = (selfEntries, over = {}) => ({ selfEntries, otherEntries: 4, createdAt: 1_760_000_000, source: 'local', eventId: 'd'.repeat(64), ...over });
+/**
+ * The found version itself, as a reader receives it (story 4; ADR 0003 sub-decision 1): a kind 10040 by the Assistant,
+ * its self-entries, `otherEntries` entries naming the other Assistant (the staging Owner's), and a client tag; its id
+ * is the `published` eventId it rides with.
+ */
+function foundEvent({ selfEntries = [], otherEntries = 0, createdAt = 1_760_000_000, eventId = 'd'.repeat(64), author = TA } = {}) {
+  const others = stagingOwnerMapTags(author, OTHER_ASSISTANT).filter((t) => t[1] === OTHER_ASSISTANT).slice(0, otherEntries);
+  return {
+    id: eventId,
+    pubkey: author,
+    created_at: createdAt,
+    kind: SELF_MAP_KIND,
+    tags: [...selfEntries.map((e) => [e.key, author, e.relay]), ...others, ['client', 'Brainstorm']],
+    content: '',
+    sig: 'e'.repeat(128),
+  };
+}
+/** A found version's `published`; `event` is built from its own fields unless `over` names one (null included). */
+function published(selfEntries, over = {}) {
+  const p = { selfEntries, otherEntries: 4, createdAt: 1_760_000_000, source: 'local', eventId: 'd'.repeat(64), ...over };
+  if (!Object.prototype.hasOwnProperty.call(over, 'event')) p.event = foundEvent(p);
+  return p;
+}
 
 /** The treasure-map action, with every field the answer carries; `over` adjusts it. */
 function action(over = {}) {
@@ -290,6 +331,8 @@ const ANSWERS = {
     shouldSay: [],
     published: null,
   }),
+  /** Found, but listing none of the Assistant's duties (story 4 AC-1): for the Owner, only this instance's entries. */
+  LISTS_NONE: action({ done: false, pending: true, current: false, published: published([]) }),
   /** No duties at all: done, with nothing to claim. */
   NO_DUTIES: action({ mapFound: true, duties: [], shouldSay: [], published: null, instanceMap: false }),
   UNFINISHED: action({ finished: false, done: false, pending: false, reason: 'no-relay-answered', published: null, current: null }),
@@ -316,7 +359,7 @@ module.exports = {
   HOUR_MS, OWNER_SCORE_TASKS, ALL_CUSTOMER_SCORE_TASKS, ONE_CUSTOMER_SCORE_TASKS, SYSTEMD_TIMER, scheduleEntry,
   KEY, PATH, TITLE, ALERT_CRITERIA, PLANNING_NOTES, CHECKED_AFTER, ANSWER_FIELDS, LINE_FIELDS, STATUSES, REASONS, CHECK_REASONS,
   COUNT_ZERO,
-  CATEGORY_NAMES, PAGE, PAGE_SENTENCES, PRESS, PRESS_PAGE_SENTENCES,
+  CATEGORY_NAMES, PAGE, PAGE_SENTENCES, PRESS, PRESS_PAGE_SENTENCES, RAW,
   TA, OWNER, OTHER_ASSISTANT, DOCKER_RELAY_URL, DOMAIN, OWN, DOCKER_CONFIG, stagingOwnerMapTags,
-  line, stagingDuties, SHOULD_LIVE, published, action, ANSWERS, offOf, withSelfMap,
+  line, stagingDuties, SHOULD_LIVE, foundEvent, published, action, ANSWERS, offOf, withSelfMap,
 };

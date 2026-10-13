@@ -86,5 +86,5 @@ path Standard, all five phases:
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-self-map/0003-the-found-version-rides-the-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.test-plan.md`
 - Review: (filled in after Review phase)
