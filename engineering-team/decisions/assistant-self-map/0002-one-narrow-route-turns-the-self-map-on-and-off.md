@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up)
+follow-up); Amendment 1 proposed (review round 1)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -411,3 +411,137 @@ concept: `nostr-user` and `nostr-relay` are named only as roles. No firmware cha
 - Extracting a shared fan-out helper (§ Consequences).
 - A history of every relay a self-entry ever named.
 - Any change to `readUpkeep`, the offer, the Duty Menu route, or `protocols/`.
+
+## Amendment 1: fixes from review round 1 (2026-10-13)
+
+**Status of A1:** proposed. The owner chose at the review gate to fold in all five non-blocking notes, Turn off while
+the check did not finish included (items 2–6).
+
+The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`. Item 1 is its
+Blocking 1, and items 2–6 are its non-blocking 1–5.
+
+### 1. The strict read: a failed discovery is never "nobody to ask" (Blocking 1)
+
+**What was wrong.** Sub-decision 3 finished a `forWrite` read when this instance held no version and "there was none
+to ask". But the outside set it asked was shrunk silently, in three ways:
+- the Assistant's relay-list lookup, when it did not finish, became `[]` (`assistantWriteRelays`, `dutyMenu.js:119–125`,
+  and `attempt(…, [])` in `selfMap.js`);
+- a relay the DNS guard refused was dropped. `isPublicRelayHostWithin` never rejects, and a resolver error, a timeout
+  and a private address all come back as `false` (`src/utils/relayHostGuard.js:24–61`);
+- `outsideOnly` removes this instance's own relays.
+
+So after a strfry wipe, with the publish relays or the resolver down, the read finished with no version, and Turn on
+built over nothing. § Consequences' line that "a strfry wipe … can't make the press build over an older version or
+over nothing" was false as written.
+
+**The rule now.** With `forWrite`, when this instance's relay holds no version of the Assistant's kind 10040, the read
+finishes only when all of these hold:
+1. **The Assistant's relay-list lookup finished.** That means `lookupNewestReplaceable` answered `finished: true`, or
+   `no-outside-relays` (there was nowhere to look, which is a real answer).
+   - Any other unfinished reason is `no-relay-answered`: `local-unreadable`, or `outside-unreachable`.
+   - So is a throw anywhere in this discovery. In the `forWrite` path, no `attempt(…, [])` fallback stands in for an
+     answer.
+2. **When the Assistant has outside write relays (W), at least one of them answered.** W is counted before the DNS
+   guard: a write relay the guard refuses, for whatever reason, has not answered.
+   - The write relays are where every version goes (sub-decision 6 step 8). So an answer from a hint or an owner-set
+     offer relay does not stand in for them.
+3. **When W is empty, the other outside relays (O) are empty, or at least one of them answered.** O is the hints
+   (counted before the guard) and the offer's outside relays.
+
+Otherwise the read is unfinished with `no-relay-answered`, and the press answers 503 `not-read` as before. When this
+instance's relay holds a version, nothing changes: outside answers stay best-effort and the newest wins.
+
+**The cost, accepted.** If a wipe left the Assistant with write relays that are all private, or that the resolver
+can't reach, the press refuses until one answers. Refusing is the safe side of principle 4.
+
+**The code.**
+- **`src/api/assistant/dutyMenu.js` gains `assistantWriteRelayLookup({ assistantPubkey }, deps)`.** It answers
+  `{ finished, relays }`, where `finished` is the lookup's `finished`, or true for `no-outside-relays`. `relays` is the
+  write relays when finished, else `[]`.
+- **`assistantWriteRelays` becomes `(await assistantWriteRelayLookup(…)).relays`.** Its answer is unchanged in every
+  case, so the Duty Menu check and publish are unaffected.
+- **`lookupSelfMap`'s `forWrite` path** calls the lookup directly with no fallback, keeps W and O apart, counts a
+  guarded-out relay as not answered, and applies the rule above. The non-`forWrite` path is byte-for-byte as before.
+
+### 2. "Nothing to change" also means nothing stale is left (non-blocking 1)
+
+Sub-decision 6 step 4 changes as follows. When the target is **not empty**, the press publishes nothing only when all
+of these hold:
+- the self-entries found are the target, as before;
+- the version found carries no `expiration` tag (§ 9.2, No expiration);
+- the version's owned tags (`ownsTag`) number exactly the self-entries found. So it holds no duplicate self-entry,
+  and no owned spelling that readers ignore, such as `39998:`.
+
+Otherwise it publishes, and the merge drops the expiration and the stray owned tags.
+
+When the target is **empty** (Turn off, or nothing to claim), the rule is unchanged: nothing is published when no
+self-entry is found. An owned tag that readers ignore claims nothing, so it isn't worth a version of its own.
+
+### 3. A 500 after the choice is remembered (non-blocking 2)
+
+- **`isLocalOnly()` is read before the choice is written** (sub-decision 6, between steps 1 and 2). Nothing that can
+  throw for configuration reasons runs after the write.
+- **The page asks for the answer again after every press except a refusal.** A refusal is an answer with a refusal
+  code: 400, 401, 403 or 503 `not-read`, none of which changes anything. So a 500, and a request that never answered,
+  refresh the page, since the choice may have changed.
+- **openapi's 500 entry** says that the choice may have been remembered.
+
+### 4. Turn off shows whenever the self-Map found is unknown (non-blocking 3; owner, at the review gate)
+
+Sub-decision 7's `selfMapButtons` changes for **off or unknown** (`selfMapOn !== true`):
+- Turn on shows, as before.
+- Turn off shows when a finished check found self-entries, **or when the check did not finish**. That includes a check
+  that threw (`SELF_MAP_CHECK_FAILED`): the self-Map found is then unknown, and the Turn off press needs only the kind
+  10040 (sub-decision 6 step 1). So no claim can be stuck behind a check that never finishes.
+
+**On, and no answer yet,** are unchanged. **The state line is unchanged:** for an unfinished check while off it says
+"Your Assistant's self-Map is off."
+
+*This widens story 2 AC-2's "Turn off while off" rule. See § Story deviations (A1).*
+
+### 5. The Owner's note reads the session (non-blocking 4)
+
+The page shows the Owner's note when the signed-in viewer is the Owner (`user.classification === 'owner'`, from
+`useAuth`), beside the buttons. It no longer reads `answer.instanceMap`, which a check that threw sets false. The
+Owner's other line, "also this instance's own Treasure Map", still reads `instanceMap` and `published`, as story 1 has
+it.
+
+### 6. A dead seam goes (non-blocking 5)
+
+`getConfiguredPublishRelays` leaves `selfMapPublish.js`'s `defaultDeps`: nothing in the module calls it.
+
+### Story deviations (A1)
+
+- **AC-2, "Turn off while off".** It also shows while off whenever the check did not finish (item 4). The owner chose
+  this at the review gate, 2026-10-13. No words change.
+
+### Tests (the Tester's lane, Phase 3)
+
+- **New R-tests** (`test/assistant-self-map-publish.test.js`). Each is "nothing on this instance's relay" and gives 503
+  `not-read` with nothing changed:
+  - the relay-list lookup's relays don't answer;
+  - the only write relay is refused by the DNS guard;
+  - the write relays are silent while an owner-set typed offer relay answers empty.
+- **One positive case:** no relay-list relays configured (`no-outside-relays`), no hints, and only this instance's
+  relay on the offer. That read is finished, and the press builds from nothing.
+- **New E-tests:**
+  - "already current" with an `expiration` publishes, and the expiration goes;
+  - "already current" with a stray `39998:` owned tag publishes, and the stray tag goes;
+  - off with only a stray owned tag publishes nothing.
+- **C-tests:**
+  - `isLocalOnly()` throwing gives a 500 with no choice written;
+  - a throw after the choice was written gives a 500.
+- **V-tests** (`test/assistant-self-map-check.test.js`): `forWrite`'s discovery rule, items 1–3, directly on
+  `lookupSelfMap`; and the non-`forWrite` path unchanged.
+- **Re-aims and additions:**
+  - Q3's cases: off or unknown with an unfinished check shows Turn off;
+  - a browser spec: a 500 refreshes the answer;
+  - a browser spec: the Owner's note after a check that threw;
+  - the Duty Menu suite's `assistantWriteRelays` tests keep passing unchanged, as the refactor's guard.
+
+### Consequences (A1)
+
+- The strict read now refuses in the cases it used to finish wrongly. A press after a strfry wipe needs the
+  Assistant's relay-list lookup to finish and one of its write relays to answer.
+- `assistantWriteRelays`' callers see no change.
+- **Firmware reinstall required?** No.
