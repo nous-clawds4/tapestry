@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 approved (review round 1)
+follow-up); Amendment 1 approved (review round 1); Amendment 2 proposed (review round 2)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -543,6 +543,168 @@ it.
 ### Consequences (A1)
 
 - The strict read now refuses in the cases it used to finish wrongly. A press after a strfry wipe needs the
-  Assistant's relay-list lookup to finish and one of its write relays to answer.
+  Assistant's relay-list lookup to finish and one of its write relays to answer. *(Corrected by Amendment 2 item 3.)*
 - `assistantWriteRelays`' callers see no change.
+- **Firmware reinstall required?** No.
+
+## Amendment 2: a relay list found nowhere needs every relay's answer (2026-10-13)
+
+**Status of A2:** proposed.
+
+The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`, its Round 2. Item 1
+is its R2-B1. Items 4 and 5 carry R2-N2 and R2-N1. Item 6 proposes where R2-N3 and R2-N4 go.
+
+### 1. The relay list is "nowhere" only when every relay said so (R2-B1)
+
+**What was wrong.** Amendment 1 item 1.1 counted the Assistant's relay-list lookup as finished whenever
+`lookupNewestReplaceable` answered `finished: true`. That function answers `{ finished: true, event: null }` as soon as
+*one* outside relay answers without the list (`src/api/assistant/attention.js:223–225`). That is right for a best-effort
+read. For a press it is not: one configured publish relay that doesn't hold the list reads as "the Assistant has no
+write relays". It could have been added after the list was published, dropped or refused it, or accept no such events.
+W is then empty, rule 1.3 applies, and a wipe with the hints and the offer on this instance's own relay finishes with
+no version. The write relays that hold the real one are never asked.
+
+**The rule now.** With `forWrite` and no version on this instance's relay, item 1.1 reads:
+1. **The Assistant's relay-list lookup finished.** That means one of:
+   - the list was found, here or on an outside relay that answered. The newest found wins, as before.
+   - there was no outside relay to look on (`no-outside-relays`).
+   - **every** outside configured publish relay answered, and none held the list. This is new.
+
+   Anything else is `no-relay-answered`: the list found nowhere while at least one relay did not answer, as well as
+   `local-unreadable`, `outside-unreachable` and a throw.
+
+Items 1.2 and 1.3 are unchanged. A list found on any relay is a positive answer. The case "found nowhere" is the one
+that needs every answer, because a relay that didn't answer may be the one that holds it.
+
+**The cost, accepted.** After a wipe, with no relay list anywhere, a press needs every configured outside publish relay
+to answer: six public relays with the shipped settings (`src/config/defaults.json`: the general-purpose, profile and
+WoT relays). A relay that is down refuses the press until it answers, or until the Owner removes it from the settings.
+Refusing is the safe side of principle 4, as in Amendment 1. When the list is found, which is the usual case once the
+Outbox Relays page has published it, nothing more is needed.
+
+**The code.**
+- **`lookupNewestReplaceable` (`attention.js:206`) takes an optional `everyRelay`, false by default.** With it, when no
+  answering relay held the event and fewer relays answered than were asked, it answers
+  `{ finished: false, reason: 'outside-unreachable' }`, its existing reason. Without it, every answer is as before.
+  Its four other callers pass nothing and are unchanged: the outbox check, `assistantWriteRelays`, Nous' relay list
+  and the relay-list publish.
+
+  ```js
+  if (found.length > 0) return { finished: true, event: newest(found), source: 'relay' };
+  if (everyRelay && answered.length < relays.length) return { finished: false, reason: 'outside-unreachable' };
+  return { finished: true, event: null, source: null };
+  ```
+- **`assistantWriteRelayLookup` (`dutyMenu.js:121`) takes the same optional `everyRelay` and passes it through.**
+  `assistantWriteRelays` calls it without the flag, so the Duty Menu check and publish see no change.
+- **`strictOutsideRound` (`selfMap.js:287`) calls the lookup with `everyRelay: true`.** With a version here, the lookup
+  stays best-effort in effect: when it doesn't finish, W is not read, as before.
+
+**Not chosen.**
+- **Adding the configured publish relays to O.** The relay that answered without the list would answer the 10040 read
+  empty too, and the read would finish. That doesn't close the case.
+- **Answer counts on every `lookupNewestReplaceable` answer.** It changes the answer's shape for every caller and every
+  suite that compares it.
+- **A copy of the lookup in `selfMap.js`.** It would put the newest-replaceable rule in two places. The opt-in flag
+  keeps it in one, and leaves its default path byte-for-byte.
+
+### 2. A settings failure is not "nothing configured", so no new reader
+
+Review round 2 asked whether the strict path must tell a relay-settings failure apart from "nothing configured".
+- **It doesn't need to, because a settings read never throws.** `getSettings()` (`src/config/settings.js:76`) merges
+  two layers that each catch their own read error and return `{}`:
+  - `loadDefaults`;
+  - `loadOverrides`, where a missing file also gives `{}`.
+
+  So an unreadable or missing override file reads as the shipped defaults, whose publish relays are those six. It
+  doesn't read as an empty list. `readConfiguredRelays`'s own catch (`profilePublish.js:75–80`) only guards against an
+  injected reader.
+- **Round 2's defensive branch stays.** `assistantWriteRelayLookup` reports "not finished" when reading the configured
+  relays throws (story § Deviations, round 2). It costs nothing. The story's note stands; the branch can only be
+  reached with an injected reader.
+- **No press leans on the duty read failing too.** The reviewer's worry was that safety came from `resolveOfferInputs`
+  throwing on the same failure. On a settings failure it doesn't throw either (`readAssistantDuties` reads the same
+  `getSettings()`), and it doesn't need to.
+
+**The limit, stated.** The strict read asks where the settings say to look. If the override file is lost in the same
+event as strfry (the data volume restored without it, say), the read asks the shipped defaults. If the Owner had
+replaced them, the Assistant's list may be on none of them. Then every default relay answers "nowhere", and a press
+builds from nothing, while the real version still sits on relays the lost settings named. No press can find what
+nothing on the instance names. A stricter reader that told a corrupt file from a missing one would need a new settings
+API shared by every page. That costs more than this double loss is worth, so it is not built.
+
+### 3. The guarantee, corrected
+
+§ Consequences (A1) said: "A press after a strfry wipe needs the Assistant's relay-list lookup to finish and one of its
+write relays to answer." With item 1.1 as Amendment 1 had it, that was false as written (review round 2, R2-B1). It now
+reads:
+
+> With no version on this instance's relay, a press reads every place a version could be:
+> - the Assistant's write relays, as its relay list names them, and at least one of them must answer;
+> - or, when no outside configured publish relay holds a relay list and every one of them said so, the hints and the
+>   offer's outside relays, which must be empty or answer.
+>
+> It builds from nothing only when those places hold nothing.
+
+There are two known limits:
+- the settings limit in item 2;
+- a relay list found on one relay while a newer one, naming other write relays, sits only on relays that did not
+  answer. The press then reads the older list's write relays. Each version goes to all the write relays named at
+  publish time, so those relays hold the versions published while that list was current. What can be missed is a
+  version published after a newer list dropped one of them. A loss would need a wipe, a changed list and a silent
+  holder of the newer list all at once.
+
+### 4. The records name Amendment 1 item 2 and this rule (R2-N2)
+
+- **`src/api/openapi.yaml` (the press's description, around line 804).** After "publishes nothing when the self-entries
+  found are already the target", it adds: "and, when that target is not empty, no expiration or other owned tag sits
+  beside them". Its strict-read sentence adds that a relay list found nowhere counts only when every configured
+  publish relay answered.
+- **The BIBLE §11 row for `POST /api/assistant/self-map` (`BIBLE.md:531`).** It gets the same two additions in the same
+  places.
+
+### 5. Tests (the Tester's lane, Phase 3)
+
+- **New R-test** (`test/assistant-self-map-publish.test.js`). Nothing on this instance's relay and no relay list here.
+  One profile publish relay answers without the list and the other is silent, while the write relay holds a version.
+  Turn on answers 503 `not-read`, with nothing changed: the choice is unchanged and nothing is written or sent. This is
+  R2-B1's reproduction as a test.
+- **One positive case:** the same world, with every publish relay answering and none holding the list, and the hints
+  and the offer on this instance's own relay. The read finishes, and Turn on builds from nothing, as item 1.1 allows.
+- **New V-tests** (`test/assistant-self-map-check.test.js`), directly on `lookupSelfMap` with `forWrite`:
+  - the same two cases;
+  - `assistantWriteRelayLookup` with `everyRelay`: `{ finished: false }` for a list found nowhere with one relay
+    silent. Without the flag, its answer and `assistantWriteRelays`' are unchanged.
+- **`lookupNewestReplaceable`'s flag, directly:**
+  - with `everyRelay`, nothing held and one of two relays silent gives `outside-unreachable`; every relay answering
+    empty gives `{ finished: true, event: null }`; a list on the one that answered is found;
+  - without it, the first case is `{ finished: true, event: null }`, as today.
+
+  The outbox and Duty Menu suites keep passing unchanged, as the default path's guard.
+- **R2-N1, guard before connect.** In V8 (or a new V-test beside it) and R10, the relay reads include no host the DNS
+  guard refused. A read that connects first and checks afterwards must fail them.
+
+### 6. Where R2-N3 and R2-N4 go (proposed; the owner decides at the gate)
+
+- **R2-N3:** while on, Update now stays disabled beside a stale expiration, because `current` compares self-entries
+  only (`src/lib/self-map/index.js:527`). It is **left out**: `current` is story 1's rule and feeds the hub's done
+  mark, and story 3's upkeep reads it too. So the right place is story 3's design. Only a version this press didn't
+  build can carry an expiration, and an expired claim reads as not published, which re-enables the press. A ledger row
+  carries it to story 3.
+- **R2-N4:** Turn on looks the relay list up again for its send set (`selfMapPublish.js:222`), so a second lookup
+  failing leaves W out though the strict read found it. It is **left out**: the send is best-effort, and this predates
+  round 2. Carrying W through means a new field from `gatherSelfMap` to the press. A ledger row carries it, beside the
+  fan-out row `2026-10-12-self-map-press-duplicates-fanout`.
+
+### Story deviations (A2)
+
+None. No acceptance criterion or approved word changes. AC-4's "Never blind" is met in one more case.
+
+### Consequences (A2)
+
+- After a wipe, with no relay list anywhere, a press needs every configured outside publish relay to answer. With the
+  list found, nothing changes.
+- `lookupNewestReplaceable`, `assistantWriteRelayLookup` and `assistantWriteRelays` answer exactly as before for every
+  caller that doesn't pass `everyRelay`.
+- `attention.js` is a hub line shared with other books. The change is one optional input, and the Implementer rechecks
+  the shared line before editing it (book § Shared lines).
 - **Firmware reinstall required?** No.
