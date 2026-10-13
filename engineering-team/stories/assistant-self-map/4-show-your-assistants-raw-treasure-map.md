@@ -85,6 +85,6 @@ path Standard, all five phases:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-self-map/0003-the-found-version-rides-the-answer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
