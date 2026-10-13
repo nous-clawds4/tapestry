@@ -40,6 +40,12 @@
  *
  * Everything FAILS against the current code: src/api/assistant/selfMapPublish.js and selfMapChoice.js do not exist, the
  * library has no merge, selfMap.js exports no gatherSelfMap, and the route is not registered.
+ *
+ * Round 2 (ADR 0002 Amendment 1, review round 1): R9–R13 pin the strict read's discovery (a relay-list lookup that does
+ * not finish, a write relay the DNS guard refuses, silent write relays beside an answering offer relay, and the two
+ * finished cases); E11–E14 that "nothing to change" leaves nothing stale; C5–C6 that isLocalOnly is read before the
+ * choice and what a 500 after it means. The world gains `publishRelays` (where the relay list is looked up) and
+ * `noRelayList` (no copy of the Assistant's 10002 here).
  */
 
 const fs = require('fs');
@@ -180,7 +186,7 @@ function world(opts = {}) {
   const A = key.A;
   const local = [];
   if (opts.mapTags !== null) local.push(ev(SM.TREASURE_MAP_KIND, opts.viewer || OWNER, NOW_S - 50 * H, opts.mapTags || ownerMapTags(A)));
-  local.push(relayList(A));
+  if (!opts.noRelayList) local.push(relayList(A));
   for (const d of (opts.headers === undefined ? ['dog-tricks'] : opts.headers)) local.push(header(A, d));
   if (opts.base !== null) local.push(opts.base || version(key, instanceMapTags(A), { content: PRIVATE_CONTENT }));
   local.push(...(opts.extraLocal || []));
@@ -194,6 +200,8 @@ function world(opts = {}) {
     rejectScan: opts.rejectScan, importFails: Boolean(opts.importFails), localOnly: Boolean(opts.localOnly),
     notPublic: (opts.notPublic || []).map(hostOf), noAssistant: Boolean(opts.noAssistant), choiceThrows: Boolean(opts.choiceThrows),
     refuse: (opts.refuse || []).map(normUrl),
+    // Round 2: the profile publish relays, where the Assistant's relay list is looked up when it is not held here.
+    publishRelays: opts.publishRelays || [PUB1, SM.DOCKER_RELAY_URL],
   };
 }
 function matching(events, filter) {
@@ -223,7 +231,7 @@ function lowLevel(w, calls) {
     },
     getConfigFromFile: (k, dflt) => (Object.prototype.hasOwnProperty.call(w.config, k) ? w.config[k] : dflt),
     readConfiguredRelays: () => [],
-    getConfiguredPublishRelays: () => [PUB1, SM.DOCKER_RELAY_URL],
+    getConfiguredPublishRelays: () => w.publishRelays.slice(),
     mapDefaultRelays: () => [MAPR, SM.DOCKER_RELAY_URL],
     isPublicRelayHostWithin: async (host) => !w.notPublic.includes(hostOf(host)),
     isLocalOnly: () => w.localOnly,
@@ -1062,6 +1070,103 @@ test('S5: the records — openapi.yaml documents POST /api/assistant/self-map an
   if (!/assistant-self-map\.json/.test(s15)) wrong.push('BIBLE §15 does not name assistant-self-map.json');
   if (!/Extended by ADR 0002/.test(safeRead(ADR_0001))) wrong.push('ADR 0001 carries no "Extended by ADR 0002" note');
   assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Round 2: ADR 0002 Amendment 1 (review round 1) ───────────────────────── */
+
+/** A press with one seam replaced (C5, C6). */
+async function pressWith(w, body, patch) {
+  const { deps, calls } = pressDeps(w);
+  Object.assign(deps, patch);
+  const handle = need(publishModule(), 'createSelfMapHandler', rel(MODULE))(deps);
+  const res = fakeRes();
+  quiet();
+  try { await within(handle(pressReq(w.viewer, body), res), PRESS_LIMIT_MS); } finally { restoreConsole(); }
+  return { res, body: res.body, calls };
+}
+const OWN_HINTS = (A) => [['39998', A, OWN], ['3038x', A, OWN], ['39999', A, OWN]];
+
+test('R9 (A1 item 1.1): nothing on this instance\'s relay and the Assistant\'s relay-list lookup does not finish (its relays don\'t answer) — 503 not-read for either press, even though the viewer\'s Map hints answer; nothing changes', async () => {
+  for (const on of [true, false]) {
+    const got = await press({ base: null, noRelayList: true, relays: { [DCOSL]: [], [NIP85]: [] } }, { on });
+    mustRefuseRead(got, `on: ${on}, relay-list lookup unfinished`);
+  }
+});
+
+test('R10 (A1 item 1.2): nothing on this instance\'s relay and the only write relay is refused by the DNS guard — a guarded-out write relay has not answered: 503 not-read, though the hints answer', async () => {
+  const got = await press({ base: null, notPublic: [hostOf(A_WRITE)], relays: { [A_WRITE]: [], [DCOSL]: [], [NIP85]: [] } }, { on: true });
+  mustRefuseRead(got, 'the write relay guarded out');
+});
+
+test('R11 (A1 item 1.2): nothing on this instance\'s relay, the write relays silent, and an owner-set typed offer relay answering empty — the offer relay does not stand in for the write relays: 503 not-read', async () => {
+  const key = newAssistant();
+  const duties = DM.DEFAULT_DUTIES.map((d) => (d.key === '39998' || d.key === '39999' ? { key: d.key, relay: DLIST } : d));
+  const got = await press({ key, base: null, duties, relays: { [DLIST]: [header(key.A, 'dog-tricks')] } }, { on: true });
+  mustRefuseRead(got, 'write relays silent, offer relay answering');
+});
+
+test('R12 (A1 item 1, the finished case): nothing on this instance\'s relay, no outside relay to look the relay list up on (no-outside-relays), the hints and the offer this instance\'s own — finished: Turn on publishes the self-entries alone', async () => {
+  const key = newAssistant();
+  const got = await press({ key, base: null, noRelayList: true, publishRelays: [SM.DOCKER_RELAY_URL], mapTags: OWN_HINTS(key.A), relays: {} }, { on: true });
+  mustPublish(got, 'nothing anywhere to ask');
+  assert(show(got.signed.tags) === show([['39998', key.A, OWN]]), `the self-entry alone, got ${show(got.signed.tags)}`);
+});
+
+test('R13 (A1 item 1.2, the finished case): nothing on this instance\'s relay, two write relays, one silent and one answering with nothing — finished: Turn on publishes', async () => {
+  const key = newAssistant();
+  const A2W = 'wss://a-write-two.example';
+  const twoWrites = ev(SM.RELAY_LIST_KIND, key.A, NOW_S - 50 * H, [['r', A_WRITE, 'write'], ['r', A2W, 'write']]);
+  const got = await press({ key, base: null, noRelayList: true, extraLocal: [twoWrites], relays: { [A2W]: [] } }, { on: true });
+  mustPublish(got, 'one write relay answered');
+  assert(sameEntries(selfTags(got.signed, key.A), SHOULD), `self-entries ${show(SHOULD)}, got ${show(selfTags(got.signed, key.A))}`);
+});
+
+test('E11 (A1 item 2): Turn on when the self-entries already match but the version carries an expiration — it publishes, and the new version carries no expiration (§ 9.2, No expiration)', async () => {
+  const key = newAssistant();
+  const base = version(key, [['30382:rank', OTHER, SCORES_R], ['39998', key.A, OWN], ['expiration', String(NOW_S + 86400)]]);
+  const got = await press({ key, base }, { on: true });
+  mustPublish(got, 'already matching, with an expiration');
+  const wrong = [];
+  if (got.signed.tags.some((t) => t[0] === 'expiration')) wrong.push('the expiration is gone');
+  if (!sameEntries(selfTags(got.signed, key.A), SHOULD)) wrong.push(`self-entries ${show(SHOULD)}, got ${show(selfTags(got.signed, key.A))}`);
+  if (show(kept(got.signed.tags, key.A, false)) !== show([['30382:rank', OTHER, SCORES_R]])) wrong.push(`the other entry kept, got ${show(kept(got.signed.tags, key.A, false))}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('E12 (A1 item 2): Turn on when the self-entries already match but a stray owned tag readers ignore (39998:) sits beside them — it publishes, and the stray tag is gone', async () => {
+  const key = newAssistant();
+  const got = await press({ key, base: version(key, [['39998', key.A, OWN], ['39998:', key.A, OWN]]) }, { on: true });
+  mustPublish(got, 'already matching, with a stray owned tag');
+  assert(show(selfTags(got.signed, key.A)) === show([['39998', key.A, OWN]]), `one owned tag left, the self-entry, got ${show(selfTags(got.signed, key.A))}`);
+});
+
+test('E13 (A1 item 2): Turn on when the self-entry is there twice — it publishes, and one is left', async () => {
+  const key = newAssistant();
+  const got = await press({ key, base: version(key, [['39998', key.A, OWN], ['client', 'Brainstorm'], ['39998', key.A, OWN]]) }, { on: true });
+  mustPublish(got, 'a duplicate self-entry');
+  assert(show(selfTags(got.signed, key.A)) === show([['39998', key.A, OWN]]), `one self-entry left, got ${show(selfTags(got.signed, key.A))}`);
+});
+
+test('E14 (A1 item 2, unchanged for an empty target): Turn off when only a stray owned tag readers ignore is there — nothing is claimed, so nothing is published', async () => {
+  const key = newAssistant();
+  const got = await press({ key, base: version(key, [['client', 'Brainstorm'], ['39998:', key.A, OWN]]) }, { on: false });
+  const r = mustAccept(got, 'off with a stray owned tag');
+  assert(r.published === false && r.unchanged === 'nothing-claimed' && got.calls.importEvent.length === 0, `nothing-claimed and nothing written, got ${show(r)}`);
+});
+
+test('C5 (A1 item 3): isLocalOnly is read before the choice is remembered — when it throws, the press answers 500 in the approved words and no choice is written', async () => {
+  const got = await pressWith(world(), { on: true }, { isLocalOnly: () => { throw new Error('fixture: the publish policy cannot be read'); } });
+  assert(got.res.statusCode === SM.PRESS.status.failed && got.body && got.body.error === SM.PRESS.failed, `want 500 with the approved words, got ${got.res.statusCode} ${show(got.body)}`);
+  assert(got.calls.writeChoice.length === 0, `no choice written, got ${show(got.calls.writeChoice)}`);
+  assert(got.calls.importEvent.length === 0, 'nothing written here');
+});
+
+test('C6 (A1 item 3): a throw after the choice is remembered (the signer) answers 500 in the approved words; the choice was written once and nothing else was', async () => {
+  const w = world();
+  const got = await pressWith(w, { on: true }, { finalizeEvent: () => { throw new Error('fixture: the signer failed'); } });
+  assert(got.res.statusCode === SM.PRESS.status.failed && got.body && got.body.error === SM.PRESS.failed, `want 500 with the approved words, got ${got.res.statusCode} ${show(got.body)}`);
+  assert(show(got.calls.writeChoice) === show([[w.A, true, NOW_S]]), `the choice written once, got ${show(got.calls.writeChoice)}`);
+  assert(got.calls.importEvent.length === 0 && got.calls.publishToRelays.length === 0, 'nothing written here or sent');
 });
 
 async function run() {

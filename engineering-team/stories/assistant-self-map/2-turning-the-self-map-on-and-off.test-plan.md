@@ -164,3 +164,45 @@ Three test defects that the prototype exposed were fixed before the runs above:
 - S1 read `src/api/index.js` through `codeOnly`, which mistakes `/*` in a route string for a comment;
 - W4 put only `39998` at the typed relay;
 - S6's route regex also matched the route's "why" sentence.
+
+## Round 2: ADR 0002 Amendment 1 (review round 1)
+
+**Date:** 2026-10-13. These tests were added for review Blocking 1 and the five non-blocking notes, which the owner
+chose to fold in.
+
+| Amendment item | Tests | File |
+|---|---|---|
+| **1. The strict read's discovery** | R9: the relay-list lookup doesn't finish → 503, though hints answer. R10: the only write relay is guarded out → 503. R11: write relays silent, a typed offer relay answering → 503. R12: no outside relay to look the list up on → finished, publishes the self-entries alone. R13: one of two write relays answers → finished, publishes | publish |
+| | V7–V9: the same three refusals directly on `lookupSelfMap`. V10: no write relays (a hint answering, or nothing anywhere) finishes, and a silent hint does not. V11: with a version here, `forWrite` finishes whatever the outside does; without `forWrite`, nothing changed. V12: `assistantWriteRelayLookup`'s `{ finished, relays }` in three cases, and `assistantWriteRelays` unchanged in each | check |
+| **2. "Nothing to change" leaves nothing stale** | E11: matching plus an `expiration` → publishes without it. E12: matching plus a stray `39998:` → publishes without it. E13: a duplicate self-entry → publishes one. E14: off with only a stray owned tag → nothing published | publish |
+| **3. `isLocalOnly` first, and a 500** | C5: `isLocalOnly` throws → 500, no choice written. C6: the signer throws after the choice → 500, the choice written once, nothing else | publish |
+| | B23: a 500 shows the failed words and refreshes the answer | spec |
+| **4. Turn off while the check did not finish** | Q3 re-aimed: off or unknown with an unfinished check shows Turn off. B22: off and unfinished shows Turn on and Turn off | page, spec |
+| **5. The Owner's note from the session** | D9: `user.classification === 'owner'`, and the note no longer reads `instanceMap`. B24: after a check that threw, the Owner sees the note and a customer doesn't | page, spec |
+| **6. The dead seam** | None: removing an unused default is invisible to tests. The Reviewer checks it | — |
+
+**Re-aimed: V5's third case.** "Nothing outside to ask" is now a relay-list lookup with no outside relay to look on
+(`publishRelays: [this instance's relay]`). An unanswered lookup no longer finishes.
+
+**World options added.**
+- **Publish suite:** `noRelayList` (no copy of the Assistant's 10002 here) and `publishRelays` (where its relay list is
+  looked up).
+- **Check suite:** `publishRelays`. `getConfiguredPublishRelays` in both suites' fakes reads it.
+
+**Verification, 2026-10-13, on `6e39924` with these tests:**
+- **The Node gate:** `20261013T013927Z-11798-b4f1 [s2-r2-phase3] — FAIL, exit 1, 5935 passed, 13 failed, 582
+  skipped, 308/308 suites; failed: assistant-self-map-check, assistant-self-map-page, assistant-self-map-publish`.
+  Every failure is a round 2 test:
+  - **publish, 7:** R9–R11 (200 published instead of 503), E11–E13 (`already-current` instead of a publish), and C5
+    (the choice written before `isLocalOnly`);
+  - **check, 4:** V7–V9 (`{"finished":true,"latest":null}`), and V12 (no `assistantWriteRelayLookup`);
+  - **page, 2:** Q3 (`turnOff: false` while unfinished), and D9 (the note still reads `instanceMap`).
+
+  R12, R13, E14, C6, V10 and V11 pass already. They guard against an over-strict fix.
+- **The browser spec, against a build of the round 1 code:** 22 passed, and B22–B24 failed. B22 and B24 because Turn off
+  isn't there; B23 because the answer is not asked for again after a 500.
+- **That the tests can pass.** I checked against a throwaway prototype of Amendment 1 in a scratch worktree. It was
+  never committed, and has been deleted:
+  - publish 62/62, check 77/77, page 19/19;
+  - the Duty Menu check 65/65 and publish 36/36 (the `assistantWriteRelays` refactor's guard);
+  - this browser spec, 25/25.

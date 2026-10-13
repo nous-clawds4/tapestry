@@ -26,6 +26,8 @@
  *   H — the client helper, ui/src/utils/setAssistantSelfMap.js, loaded in Node with fetch stubbed.   [AC-2, AC-3]
  *   D4 is re-aimed (the page now has buttons and one network call, through the helper); D7–D8 pin the wiring and the
  *   words' one home. These FAIL until the helper, the two pure helpers and the page's buttons exist.
+ * Round 2 (ADR 0002 Amendment 1): Q3's off-or-unknown cases with an unfinished check now show Turn off (item 4); D9 pins
+ * the Owner's note to the session (item 5).
  */
 
 const fs = require('fs');
@@ -261,7 +263,7 @@ test('Q2: selfMapStateLine gives the one state line — on; off; off while the v
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('Q3: selfMapButtons says which buttons show — off or unknown: Turn on, plus Turn off only when a finished check found self-entries; on: Update now (enabled unless up to date) and Turn off; no answer: none (AC-2; ADR 0002 sub-decision 7)', async () => {
+test('Q3: selfMapButtons says which buttons show — off or unknown: Turn on, plus Turn off when a finished check found self-entries or the check did not finish (ADR 0002 A1 item 4); on: Update now (enabled unless up to date) and Turn off; no answer: none (AC-2; ADR 0002 sub-decision 7)', async () => {
   const buttons = (await copyModule()).selfMapButtons;
   assert(typeof buttons === 'function', `${rel(COPY_MOD)} must export selfMapButtons() (ADR 0002 sub-decision 7)`);
   const view = (b) => ({ turnOn: Boolean(b && b.turnOn), update: Boolean(b && b.update && b.update.shown), updateEnabled: Boolean(b && b.update && b.update.shown && b.update.enabled), turnOff: Boolean(b && b.turnOff) });
@@ -274,8 +276,9 @@ test('Q3: selfMapButtons says which buttons show — off or unknown: Turn on, pl
     ['off, nothing found', SM.offOf(SM.ANSWERS.NOT_PUBLISHED), { turnOn: true, update: false, updateEnabled: false, turnOff: false }],
     ['off, nothing to claim', SM.offOf(SM.ANSWERS.NO_DUTIES), { turnOn: true, update: false, updateEnabled: false, turnOff: false }],
     ['off, self-entries still found', offStale(), { turnOn: true, update: false, updateEnabled: false, turnOff: true }],
-    ['off, the check did not finish', offUnfinished(), { turnOn: true, update: false, updateEnabled: false, turnOff: false }],
-    ['unknown (check failed)', SM.ANSWERS.CHECK_FAILED, { turnOn: true, update: false, updateEnabled: false, turnOff: false }],
+    // Re-aimed by ADR 0002 Amendment 1 item 4: the self-Map found is unknown, so Turn off shows.
+    ['off, the check did not finish', offUnfinished(), { turnOn: true, update: false, updateEnabled: false, turnOff: true }],
+    ['unknown (check failed)', SM.ANSWERS.CHECK_FAILED, { turnOn: true, update: false, updateEnabled: false, turnOff: true }],
     ['no answer', null, { turnOn: false, update: false, updateEnabled: false, turnOff: false }],
   ];
   for (const [label, a, want] of cases) {
@@ -360,6 +363,16 @@ test('D8 (story 2 § Copy): story 2\'s words have one home too — none of its p
   assert(raw, `${rel(PAGE)} does not exist`);
   const retyped = [...SM.PRESS_PAGE_SENTENCES, SM.PRESS.buttons.publishing].filter((x) => raw.includes(x));
   assert(retyped.length === 0, `retyped in the page: ${retyped.map(show).join('; ')}`);
+});
+
+test('D9 (ADR 0002 A1 item 5): the Owner\'s note reads the session — the page tests user.classification === \'owner\' for it, so a check that threw (instanceMap false) does not hide it', () => {
+  const src = codeOnly(safeRead(PAGE));
+  assert(src, `${rel(PAGE)} does not exist`);
+  const wrong = [];
+  if (!/user\.classification\s*===\s*['"]owner['"]/.test(src)) wrong.push("no user.classification === 'owner'");
+  const noteLine = src.split(NL).find((l) => /ownerNote/.test(l)) || '';
+  if (/instanceMap/.test(noteLine)) wrong.push(`the note's line still reads instanceMap: ${noteLine.trim()}`);
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 async function run() {

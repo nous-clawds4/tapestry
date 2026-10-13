@@ -54,6 +54,10 @@ const SM = require('../../test/helpers/selfMapFixtures');
  *   B20 — nothing published: the instance's line, and the answer asked for again; a refusal: its words, and
  *         no second GET.                                                                                       [AC-2]
  *   B21 — a customer gets no Owner's note; signed out or with no Assistant, no self-Map button.               [AC-2]
+ *   Round 2 (ADR 0002 Amendment 1):
+ *   B22 — off while the check did not finish: Turn on and Turn off (item 4).                                   [AC-2]
+ *   B23 — a 500 shows the failed words and asks for the answer again; it may have changed the choice (item 3).  [AC-2]
+ *   B24 — the Owner's note after a check that threw, from the session; still none for a customer (item 5).      [AC-2]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. /api/assistant/attention answers per scenario: an object, 'hang' or 'error' (a 500).
@@ -498,5 +502,34 @@ test.describe('Turning your Assistant\'s self-Map on and off (assistant-self-map
       main = await open(page);
       for (const name of Object.values(SM.PRESS.buttons)) await expect(button(page, name), `${who ? 'no Assistant' : 'signed out'}: no "${name}"`).toHaveCount(0);
     }
+  });
+
+  test('B22 (A1 item 4): off while the check did not finish — the off line, Turn on, and Turn off, since the self-Map found is unknown (AC-2: "so no claim can be stuck")', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.UNFINISHED)) });
+    const main = await open(page);
+    await expect(main.getByText(SM.PRESS.state.off, { exact: true }), 'the off line').toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.turnOn)).toBeEnabled();
+    await expect(button(page, SM.PRESS.buttons.turnOff), 'Turn off, the self-Map found being unknown').toBeEnabled();
+  });
+
+  test('B23 (A1 item 3): a press that answers 500 shows "This instance did not answer; nothing was published." and asks for the answer again, since the choice may have changed', async ({ page }) => {
+    const log = await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.NOT_PUBLISHED)) });
+    await routePress(page, { status: 500, body: { success: false, error: SM.PRESS.failed } });
+    const main = await open(page);
+    await button(page, SM.PRESS.buttons.turnOn).click();
+    await expect(main.getByText(SM.PRESS.failed, { exact: true }), 'the failed words').toBeVisible();
+    await expect.poll(() => log.attentionCalls.length, { message: 'asked again after a 500' }).toBe(2);
+  });
+
+  test('B24 (A1 item 5): after a check that threw, the Owner still sees the Owner\'s note beside Turn on and Turn off; a customer does not', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.ANSWERS.CHECK_FAILED) });
+    let main = await open(page);
+    await expect(button(page, SM.PRESS.buttons.turnOn)).toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.turnOff)).toBeVisible();
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'the Owner\'s note, from the session').toBeVisible();
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { who: CUSTOMER_USER, attention: answerWith(SM.ANSWERS.CHECK_FAILED) });
+    main = await open(page);
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'no Owner\'s note for a customer').toHaveCount(0);
   });
 });

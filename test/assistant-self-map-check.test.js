@@ -41,6 +41,9 @@
  * choice store (injected as readSelfMapChoice; false unless a world names `choice`), checkSelfMap is gatherSelfMap plus
  * the choice, lookupSelfMap reads every place when forWrite is set, and the relay hints come only from entries whose key
  * parses (story 1 review R3-N2). V1–V6 pin them; U3's field list and S6's route table are re-aimed.
+ * Round 2 (ADR 0002 Amendment 1): V7–V12 pin forWrite's discovery rule and the relay-list lookup's `finished`; V5's
+ * "nothing outside to ask" case is re-aimed to a lookup with no outside relay to ask (`publishRelays`), since an
+ * unanswered lookup no longer finishes.
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -187,6 +190,8 @@ function world(opts = {}) {
     duties: opts.duties === undefined ? DM.DEFAULT_DUTIES : opts.duties,
     // assistant-self-map #2: readSelfMapChoice's answer (true, false or null), or 'throw'.
     choice: opts.choice === undefined ? false : opts.choice,
+    // Round 2: the profile publish relays, where the Assistant's relay list is looked up when it is not held here.
+    publishRelays: opts.publishRelays || [PUB1, SM.DOCKER_RELAY_URL],
   };
 }
 
@@ -215,7 +220,7 @@ function fakes(w) {
     },
     getConfigFromFile: (key, dflt) => (Object.prototype.hasOwnProperty.call(w.config, key) ? w.config[key] : dflt),
     readConfiguredRelays: (categories) => (Array.isArray(categories) ? categories : []).flatMap((c) => w.settings[c] || []),
-    getConfiguredPublishRelays: () => [PUB1, SM.DOCKER_RELAY_URL],
+    getConfiguredPublishRelays: () => w.publishRelays.slice(),
     mapDefaultRelays: () => [MAPR, SM.DOCKER_RELAY_URL],
     isPublicRelayHostWithin: async (hostOrUrl) => { const host = hostOf(hostOrUrl); calls.guard.push(host); return !w.refused.has(host); },
     getCustomer: async (pubkey) => { calls.getCustomer.push(pubkey); return w.customer; },
@@ -1331,7 +1336,8 @@ test('V5 (story 2 AC-4 "Never blind"; ADR 0002 sub-decision 3, R1): forWrite\'s 
   const silent = world({ mapTags, relays: {} });
   const b = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapOf(silent), offer: [], forWrite: true }, fakes(silent).deps);
   if (!b || b.finished !== false || b.reason !== 'no-relay-answered') wrong.push(`none here, no outside answer: { finished: false, reason: 'no-relay-answered' }, got ${show(b && { finished: b.finished, reason: b.reason })}`);
-  const alone = world({ mapTags: [], relays: {} });
+  // Re-aimed by ADR 0002 Amendment 1: "nothing outside to ask" means the relay-list lookup had nowhere outside to look.
+  const alone = world({ mapTags: [], relays: {}, publishRelays: [SM.DOCKER_RELAY_URL] });
   alone.local = alone.local.filter((e) => e.kind !== SM.RELAY_LIST_KIND);
   const c = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapOf(alone), offer: [], forWrite: true }, fakes(alone).deps);
   if (!c || c.finished !== true || c.latest !== null) wrong.push(`none here, nothing outside to ask: finished with latest null, got ${show(c && { finished: c.finished, latest: c.latest, reason: c.reason })}`);
@@ -1346,6 +1352,85 @@ test('V6 (story 2; story 1 review R3-N2, ADR 0002 sub-decision 3): the relay hin
   const wrong = [];
   if (!asked.includes(normUrl(NEW_HINT))) wrong.push(`the valid entry's relay is asked, got ${show(asked)}`);
   if (asked.includes(normUrl(BAD_HINT)) || got.calls.guard.includes(hostOf(BAD_HINT))) wrong.push(`the 39998: entry's relay is neither guarded nor asked, got ${show(asked)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Story 2, round 2: ADR 0002 Amendment 1 item 1 ───────────────────────── */
+
+const mapEventOf = (w) => w.local.find((e) => e.kind === SM.TREASURE_MAP_KIND && e.pubkey === OWNER);
+const noRelayList = (w) => { w.local = w.local.filter((e) => e.kind !== SM.RELAY_LIST_KIND); return w; };
+async function strictRead(w, offer = []) {
+  const { selfMap } = freshModules();
+  const { deps, calls } = fakes(w);
+  const got = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapEventOf(w), offer, forWrite: true }, deps);
+  return { got, calls };
+}
+const brief = (r) => show(r && { finished: r.finished, latest: r.latest ? r.latest.id : r.latest, reason: r.reason });
+
+test('V7 (A1 item 1.1): forWrite with nothing here and a relay-list lookup that does not finish (its relays silent) is unfinished with no-relay-answered — even though a hint answers', async () => {
+  const w = noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [] } }));
+  const { got } = await strictRead(w);
+  assert(got && got.finished === false && got.reason === 'no-relay-answered', `want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
+});
+
+test('V8 (A1 item 1.2): forWrite with nothing here, whose only write relay the DNS guard refuses, is unfinished — a guarded-out write relay has not answered, though a hint answers', async () => {
+  const w = world({ mapTags: [['39998', TA, HINT_A]], relays: { [A_WRITE]: [], [HINT_A]: [] }, refused: [hostOf(A_WRITE)] });
+  const { got } = await strictRead(w);
+  assert(got && got.finished === false && got.reason === 'no-relay-answered', `want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
+});
+
+test('V9 (A1 item 1.2): forWrite with nothing here, the write relays silent and an outside offer relay answering is unfinished — the offer relay does not stand in for them', async () => {
+  const w = world({ mapTags: [], relays: { [DLIST]: [] } });
+  const { got } = await strictRead(w, [{ tag: 'duty', key: '39998', relay: DLIST }]);
+  assert(got && got.finished === false && got.reason === 'no-relay-answered', `want { finished: false, reason: 'no-relay-answered' }, got ${brief(got)}`);
+});
+
+test('V10 (A1 item 1.3): forWrite with nothing here and no write relays (the lookup finished, the Assistant has none) finishes once a hint answers; with no outside relay at all it finishes too; while every other relay is silent it does not', async () => {
+  const wrong = [];
+  const answered = noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [PUB1]: [] } }));
+  const a = (await strictRead(answered)).got;
+  if (!a || a.finished !== true || a.latest !== null) wrong.push(`no write relays, a hint answering: finished with none, got ${brief(a)}`);
+  const silent = noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: { [PUB1]: [] } }));
+  const b = (await strictRead(silent)).got;
+  if (!b || b.finished !== false || b.reason !== 'no-relay-answered') wrong.push(`no write relays, the hint silent: no-relay-answered, got ${brief(b)}`);
+  const none = noRelayList(world({ mapTags: [], relays: {}, publishRelays: [SM.DOCKER_RELAY_URL] }));
+  const c = (await strictRead(none)).got;
+  if (!c || c.finished !== true || c.latest !== null) wrong.push(`nothing anywhere to ask: finished with none, got ${brief(c)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V11 (A1 item 1): with a version on this instance\'s relay, forWrite finishes whatever the outside does — discovery failing or every relay silent leaves the version here as the base; and without forWrite the hub\'s read is unchanged by the new rule', async () => {
+  const here = selfMapEv([['39998', TA, OWN]], TA, NOW_S - H);
+  const wrong = [];
+  const w = noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: {}, extraLocal: [here] }));
+  const a = (await strictRead(w)).got;
+  if (!a || a.finished !== true || !a.latest || a.latest.id !== here.id) wrong.push(`forWrite with a version here: finished with it, got ${brief(a)}`);
+  const plain = noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [] } }));
+  const { selfMap } = freshModules();
+  const b = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapEventOf(plain), offer: [] }, fakes(plain).deps);
+  if (!b || b.finished !== true || b.latest !== null) wrong.push(`without forWrite, a failed relay-list lookup still reads as before (finished, none), got ${brief(b)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V12 (A1 item 1, the code): dutyMenu.js exports assistantWriteRelayLookup — { finished: true, relays } from a relay list here; { finished: true, relays: [] } with no outside relay to ask; { finished: false, relays: [] } when its relays are silent — and assistantWriteRelays answers exactly as before in all three', async () => {
+  freshModules();
+  const duty = require(DUTY_MODULE);
+  const lookup = duty.assistantWriteRelayLookup;
+  assert(typeof lookup === 'function', `${rel(DUTY_MODULE)} must export assistantWriteRelayLookup() (ADR 0002 Amendment 1 item 1)`);
+  const wrong = [];
+  const cases = [
+    ['a relay list here', world({}), { finished: true, relays: [A_WRITE] }],
+    ['no outside relay to ask', noRelayList(world({ publishRelays: [SM.DOCKER_RELAY_URL] })), { finished: true, relays: [] }],
+    ['its relays silent', noRelayList(world({ relays: {} })), { finished: false, relays: [] }],
+  ];
+  for (const [label, w, want] of cases) {
+    const { deps } = fakes(w);
+    const got = await lookup({ assistantPubkey: TA }, deps);
+    const norm = got && { finished: got.finished, relays: (got.relays || []).map(normUrl) };
+    if (show(norm) !== show({ finished: want.finished, relays: want.relays.map(normUrl) })) wrong.push(`${label}: want ${show(want)}, got ${show(got)}`);
+    const plain = await duty.assistantWriteRelays({ assistantPubkey: TA }, deps);
+    if (show((plain || []).map(normUrl)) !== show(want.relays.map(normUrl))) wrong.push(`${label}: assistantWriteRelays answers ${show(want.relays)}, got ${show(plain)}`);
+  }
   assert(wrong.length === 0, wrong.join('; '));
 });
 
