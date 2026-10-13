@@ -310,6 +310,15 @@ From the owner's ask and the facts above; the Architect decides.
     The self-Map engine is unchanged, so story 2's tests stand (W4's two typed relays are whole kinds).
   - **The merge conflicted** in `test/assistant-self-map-check.test.js`: their AD4 and story 2's V1–V6 had both been
     added just before `run()`. Both were kept.
+- **Recheck through story 2's review rounds 2 and 3 (2026-10-13).**
+  - **Round 2:** `origin/staging` at `d234c06`, merged as `675ff93`, then at `1854b5a`, merged as `0d0c848`. Both were
+    documents only: story 5 of `duty-menus-and-self-maps`, and that book's close.
+  - **Round 3's Implementation:** `origin/staging` at `9679668`, merged as `8fb3161`. Documents and harness only.
+    - That merge brought this book a note: story 4 of `duty-menus-and-self-maps` settled the `39999` against bare
+      `39998` tie (§ Facts above, ledger `2026-10-12-treasure-map-concept-key-readers`). It concerns what the self-Map
+      should say, which story 2 only calls.
+    - `src/api/assistant/attention.js` is the one hub line round 3 edits (ADR 0002 Amendment 2's opt-in
+      `everyRelay`). Staging has not changed it since the branch last merged.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

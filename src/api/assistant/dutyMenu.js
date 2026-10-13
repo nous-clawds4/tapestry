@@ -115,15 +115,16 @@ function writeRelays(event) {
  * It finished when the list was read (or found to be nowhere), or when there was no outside relay to look on
  * (`no-outside-relays`, a real answer). It did not when this instance's scan failed, no outside relay answered, or the
  * configured relays could not be read. `relays` are the list's write relays when it finished, else none.
- * @param {{ assistantPubkey: string }} input
+ * With `everyRelay` (Amendment 2 item 1), a list found nowhere counts only when every configured relay answered.
+ * @param {{ assistantPubkey: string, everyRelay?: boolean }} input
  * @returns {Promise<{ finished: boolean, relays: string[] }>}
  */
-async function assistantWriteRelayLookup({ assistantPubkey }, deps = {}) {
+async function assistantWriteRelayLookup({ assistantPubkey, everyRelay = false }, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   let relays = [];
   let configuredRead = true;
   try { relays = d.outsideOnly(d.getConfiguredPublishRelays(), d); } catch { relays = []; configuredRead = false; }
-  const lookup = await d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: assistantPubkey, relays }, d);
+  const lookup = await d.lookupNewestReplaceable({ kind: RELAY_LIST_KIND, author: assistantPubkey, relays, everyRelay }, d);
   if (lookup && lookup.finished === true) return { finished: true, relays: writeRelays(lookup.event) };
   return { finished: configuredRead && !!lookup && lookup.reason === 'no-outside-relays', relays: [] };
 }

@@ -25,11 +25,12 @@
  *   review R3-N2).
  * - The remembered choice (assistant-self-map #2, ADR 0002 sub-decision 2): the answer carries `selfMapOn`, the choice
  *   file's word for the viewer's own Assistant (true, false, or null when it cannot be read). It moves no mark.
- * - For a press (ADR 0002 sub-decision 3, Amendment 1 item 1): gatherSelfMap with `forWrite` reads every place at once,
+ * - For a press (ADR 0002 sub-decision 3, Amendments 1 and 2): gatherSelfMap with `forWrite` reads every place at once,
  *   this instance's relay and the outside round, and the newest version wins. It does not finish when this instance's
  *   scan fails; and, when this instance holds no version, unless the Assistant's relay-list lookup finished and one of
- *   its write relays answered (or, having none, one of the other outside relays did, or there were none to ask). A relay
- *   the DNS guard refuses has not answered. So the press never builds over nothing.
+ *   its write relays answered (or, having none, one of the other outside relays did, or there were none to ask). A list
+ *   found nowhere counts only when every configured relay answered, and a relay the DNS guard refuses has not answered.
+ *   So the press never builds over nothing.
  *
  * Read-only: strfry is only scanned, outside relays are only read, the schedule and choice files are only read, nothing
  * is stored. The press that signs and stores is ADR 0002's own module (sub-decisions 5 and 6).
@@ -275,7 +276,8 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
 /**
  * A press's outside round (ADR 0002 sub-decision 3 with Amendment 1 item 1), once this instance's scan succeeded. It
  * reads, together: the Assistant's write relays (W, from a relay-list lookup that must have finished when nothing is
- * here), the viewer's Map hints and the offer's outside relays (O). Event-named relays (W and the hints) are read only
+ * here, a list found nowhere only on every configured relay's answer, Amendment 2 item 1), the viewer's Map hints and
+ * the offer's outside relays (O). Event-named relays (W and the hints) are read only
  * when the DNS guard finds them public; one it refuses, for whatever reason, has not answered. With a version here, the
  * outside is best-effort and the newest wins. With none, the read finishes only when the lookup finished and: one relay
  * of W answered, when W is not empty; else one relay of O answered, or O is empty too.
@@ -284,7 +286,7 @@ async function strictOutsideRound({ who, here, mapEvent, offer, filter, mine, fo
   const { readWithinBudget, newest } = shared();
   const unanswered = { finished: false, reason: 'no-relay-answered' };
   let lookup = null;
-  try { lookup = await require('./dutyMenu').assistantWriteRelayLookup({ assistantPubkey: who }, d); } catch { lookup = null; }
+  try { lookup = await require('./dutyMenu').assistantWriteRelayLookup({ assistantPubkey: who, everyRelay: true }, d); } catch { lookup = null; }
   const discovered = !!lookup && lookup.finished === true;
   if (!here && !discovered) return unanswered;
 
