@@ -3,8 +3,8 @@
 **Id:** 2026-10-13-review-independent-check-uncodified
 **Type:** meta
 **Opened:** 2026-10-13 (`duty-menus-and-self-maps` book close, audit §7 P13)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-13 — operator-ratified harness commit `22948d45` (book `duty-menus-and-self-maps` close, audit §7 P13): `workflows/5-review.md` § Per-phase commits adds the optional independent check, recommended for docs-mode stories, run before the review commits.
 
 From story 2's round 3 on, every review in book `duty-menus-and-self-maps` was checked before commit. Auditor
 lenses (five in most rounds: re-derivation, sources, conformance, coherence, intent; four in story 3's round 2)

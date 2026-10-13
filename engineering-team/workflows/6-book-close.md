@@ -48,7 +48,7 @@ Both are **engineering-authored and live under `engineering-team/`.** The produc
     *Known limit:* this fires only at a book close. A session that ships stories without closing a book leaves the same unpushed state; `/whats-open`'s "Riding staging, not yet on main" and "Unmerged feature branches" sections are the (softer) surface for that case.
 
 ## Per-phase commit
-Commit the audit, feedback doc, updated `book.md`, and any ledger rows (new files under `ledger/`; status flips in the `OPEN.md` table) together: `git add engineering-team/audits/<book-slug> OPEN.md ledger && git commit -m "book-close: <book-slug>"`. The step-13 close-out follows this commit.
+Commit the audit, feedback doc, updated `book.md`, any ledger rows (new files under `ledger/`; status flips in the `OPEN.md` table) and the epic files step 9 flipped together: `git add engineering-team/audits/<book-slug> engineering-team/epics/<epic>.md OPEN.md ledger` (one `epics/<epic>.md` per epic flipped; step 9's `git mv` moves are already staged). Also `git add` every other file the close edited, such as another book's `audit.md` whose §6 item step 5 ticked, and check that `git status --short` shows none of the close's changes left unstaged or untracked before you `git commit -m "book-close: <book-slug>"`. This is the only copy of the line; `/close-book` points here. The step-13 close-out follows this commit.
 
 ## Book retirement
 Like epics, a closed book's folder moves under `audits/done/<book-slug>/` once the next phase has ingested it (one `git mv` on the directory). Everything outside `done/` is live; everything under it is shipped and read-only by convention.

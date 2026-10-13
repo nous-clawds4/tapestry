@@ -177,6 +177,11 @@ From the owner's ask and the facts above; the Architect decides.
 - **Provisional key grammar:** a bare `39998` and a `39999` self-entry tie under § 9.2 Ties (ledger
   `2026-10-12-self-maps-spec-fold-forwards` item 3). Story 4 of `duty-menus-and-self-maps` settles it. Until then
   the Concepts self-entries follow the text at Implementation time.
+
+  **Note, 2026-10-13:** story 4 of `duty-menus-and-self-maps` (closed 2026-10-13) settled it. Under Treasure Maps § 6
+  a `39999` key beats a bare `39998`, so the two self-entries no longer tie (§ 9.2 Ties: "None arise"); while no
+  header declared as a kind-39999 item is among the Assistant's duties, it leaves the `39999` self-entry out (§ 9.2
+  Ties). Ledger row `2026-10-12-treasure-map-concept-key-readers`.
 - **Reuse:**
   - `src/lib/duty-menu/` and `src/lib/nous.js`;
   - `dutyMenu.js`: a check inside the hub's one attention answer, with a local-first read, the SSRF guard and the

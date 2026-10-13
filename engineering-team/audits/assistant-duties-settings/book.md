@@ -83,7 +83,7 @@ The ask, verbatim (copied from the session transcript, not retyped):
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** high (one gap: no signed-in Owner or Admin has used the tab on staging; audit §5)
+- **Confidence at close:** high (one gap: no signed-in Owner or Admin had used the tab; closed post-close 2026-10-13 when the Owner reordered, republished and reset on production; audit §5)
 
 ## Close artifacts *(filled by `/close-book`)*
 

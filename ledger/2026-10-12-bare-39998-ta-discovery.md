@@ -46,3 +46,8 @@ has answered each. The row stays OPEN.
 **Note, 2026-10-13 (book close `duty-menus-and-self-maps`).** At story 5's review gate (2026-10-13) the owner was
 asked whether Treasure Maps § 13 question 13 should stay on this row or move. The owner answered "Proceed." and did
 not move it, so it stays on this row for the docs pass after the book.
+
+**Note, 2026-10-13 (the owner's approvals after the close of `duty-menus-and-self-maps`).** The owner confirmed this
+placement ("I agree with all of your recommendations. Approved."): Treasure Maps § 13 question 13 stays on this row
+for the docs pass after the book. Only its placement is confirmed. The question itself stays open, and the row stays
+OPEN.

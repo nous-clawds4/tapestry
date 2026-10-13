@@ -2841,7 +2841,7 @@ book Decision 1.
 **Classification:** feature, page and one read-only check (no event shape, auth default, schema, dependency or
 routing change), so the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B.
 
-## 2026-10-11 — Duty Menus and Self-Maps in code: publish and read them, and the /treasure-map changes (feature; waits on the specs)
+## 2026-10-11 — Duty Menus and Self-Maps in code: publish and read them, and the /treasure-map changes (feature; specs ratified 2026-10-13)
 
 **PICKED UP** (partial) 2026-10-12 → book `engineering-team/audits/assistant-duty-menu/book.md` (closed). What it
 delivered:
@@ -2905,8 +2905,10 @@ Still open after it:
   to (step 2's reconciliation): Treasure Maps § 3 lets a client of the service that runs an Assistant read the
   Assistant's menu from that service's own record. The readers' fix is Treasure Maps § 3's fallback, whose last step,
   the Assistant's kind 10002 write relays, works before anyone publishes menus.
-- **Before or with it:** Nous publishes the header (outside the repo); story 4's key-grammar answers, which readers'
-  key matching follows; a BIBLE pointer section when code ships (handoff § 8).
+- **Before or with it:** Nous publishes the header (outside the repo); a BIBLE pointer section when code ships (handoff
+  § 8). Story 4's key-grammar answers, which readers' key matching follows, are settled (Treasure Maps §§ 4.5, 4.6
+  and 6; book `duty-menus-and-self-maps`, closed 2026-10-13). Ledger row `2026-10-12-treasure-map-concept-key-readers`
+  lists the shipped readers that still take some Concept keys otherwise.
 - **Classification:** feature, Standard. The two hub pages lean Product Team first (prd-seed § 7); the readers and
   publishers go straight to engineering.
 

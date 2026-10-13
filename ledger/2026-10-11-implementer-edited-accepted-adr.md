@@ -98,3 +98,8 @@ friction 1).
   not move it, so it stays on that row for the docs pass after the book.
 - Does it port to the other flow? Yes. A Direction-mode book commits the same phases, and its Director answers the
   gates, so "who approves a post-acceptance section" needs the same answer there.
+
+**Note, 2026-10-13 (the owner's approvals after the close of `duty-menus-and-self-maps`).** The owner confirmed that
+Treasure Maps § 13 question 13, the question KB-C2 opened, stays on row `2026-10-12-bare-39998-ta-discovery` for the
+docs pass after the book. That makes the call the story-5 note above leaves to the owner, for this question. Only the
+placement is confirmed, and the question itself stays open. The fix shape is unchanged, and the row stays OPEN.
