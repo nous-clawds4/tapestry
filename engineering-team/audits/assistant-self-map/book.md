@@ -237,13 +237,15 @@ From the owner's ask and the facts above; the Architect decides.
       errors.
   - **The owner's check on staging,** signed in: pending. It should show the state line and the buttons, and a press
     should report honestly.
-  - **Production:** waits for story 3 (the owner's choice at planning).
+  - **Production:** waits for story 4, the upkeep (the owner's choice at planning; called story 3 until 2026-10-13).
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
   `staging` 2026-10-13, above).** The owner chose at planning that it reaches `staging` by a PR after its Review, as
-  above, and reaches production only together with story 3. Until story 3
-  keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
+  above, and reaches production only together with story 4, the upkeep (called story 3 until 2026-10-13). Until story
+  4 keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
+- **Story 3, one name for your Assistant's Treasure Map (drafted 2026-10-13).** The owner's ask after story 2's
+  staging check: the words people see say "Treasure Map", never "self-Map"; nothing under the hood changes.
   - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
     production too. No outside client reads self-Maps yet.
 
