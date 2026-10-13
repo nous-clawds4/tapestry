@@ -250,7 +250,41 @@ class SecureKeyStorage {
                 throw new Error(`Unsupported storage type: ${this.storageType}`);
         }
     }
-    
+
+    /**
+     * The account pubkeys this store holds a key for: the 64-hex file names, so the TA's 'tapestry-assistant'
+     * slot and the master key are never accounts. A missing directory is an empty store.
+     * (ADR about-this-instance/0001 Decision 3)
+     */
+    async listStoredAccounts() {
+        if (this.storageType !== 'encrypted-file') {
+            throw new Error(`listStoredAccounts not yet implemented for storage type: ${this.storageType}`);
+        }
+        if (!fs.existsSync(this.storagePath)) return [];
+        return fs.readdirSync(this.storagePath)
+            .filter((name) => /^[0-9a-f]{64}\.json$/.test(name))
+            .map((name) => name.slice(0, 64));
+    }
+
+    /**
+     * The Assistant pubkey stored for one account, or null. Decrypts the file's envelope and reads `pubkey` only:
+     * `privkey` and `nsec` stay encrypted. (ADR about-this-instance/0001 Decision 3)
+     */
+    async getStoredPubkey(accountPubkey) {
+        if (this.storageType !== 'encrypted-file') {
+            throw new Error(`getStoredPubkey not yet implemented for storage type: ${this.storageType}`);
+        }
+        if (typeof accountPubkey !== 'string' || !/^[0-9a-f]{64}$/.test(accountPubkey)) return null;
+        const filePath = path.join(this.storagePath, `${accountPubkey}.json`);
+        if (!fs.existsSync(filePath)) return null;
+        try {
+            const keyData = JSON.parse(this.decrypt(JSON.parse(fs.readFileSync(filePath, 'utf8'))));
+            return typeof keyData.pubkey === 'string' ? keyData.pubkey : null;
+        } catch {
+            return null;
+        }
+    }
+
     // ========== ENCRYPTED FILE STORAGE ==========
     
     ensureStorageDirectory() {

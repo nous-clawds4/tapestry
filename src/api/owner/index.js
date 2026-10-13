@@ -17,4 +17,6 @@ function handleGetOwnerPubkey(req, res) {
   return res.json({ success: true, pubkey });
 }
 
-module.exports = { handleGetOwnerPubkey };
+const { handleGetAboutThisInstance } = require('./aboutThisInstance');
+
+module.exports = { handleGetOwnerPubkey, handleGetAboutThisInstance };

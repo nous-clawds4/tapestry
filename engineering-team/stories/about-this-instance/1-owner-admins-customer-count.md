@@ -69,6 +69,12 @@ All resolved by the operator on 2026-10-13:
 5. Visual treatment? **Layout from the design, colours from `/about`.**
 6. Wording? **As in "Look and wording" above.**
 
+## Deviations
+
+- **No Owner configured.** The story is silent on an instance with no valid owner pubkey; the section then shows "No owner configured" under the Owner heading instead of a card (the read answers `ownerPubkey: null`, ADR Decision 1).
+- **Loading line.** While the read is on its way the section shows "Loading…" under its title and subtitle; the story names only the loaded and failed states.
+- **Route-table position.** `'GET /api/about-this-instance'` sits in the table's alphabetical order (first under "The API"), not beside `owner-info` as the ADR's notes suggested; the table is kept sorted by path.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/about-this-instance/book.md`

@@ -71,6 +71,7 @@ const ROUTE_ACCESS = Object.freeze({
   'USE /admin/queues': OWNER_ACTION,
 
   // ── The API ──
+  'GET /api/about-this-instance': PUBLIC_READ,
   'POST /api/add-new-customer': OWNER_ACTION,
   'POST /api/admin/add': OWNER_ACTION,
   'GET /api/admin/list': OWNER_READ,

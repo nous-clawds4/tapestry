@@ -167,4 +167,43 @@ async function listInstanceAssistants({ includeAdmins = false } = {}) {
     return out;
 }
 
-module.exports = { getAssistantKeys, getOwnerAssistantKeys, getOwnerAssistantPubkey, getAssistantPubkeyFor, listInstanceAssistants };
+/**
+ * How many customers this instance has (ADR about-this-instance/0001 Decisions 2–5): every account the key store holds
+ * an Assistant key for, minus the Owner, the Admins, and any account that is itself an Assistant this instance holds
+ * the key for (the TA, or any key holder's Assistant). Status on the customer list plays no part.
+ *
+ * Returns a number, or null when the store cannot be opened or listed. Never returns a key object: it reads each
+ * holder's Assistant pubkey through getStoredPubkey, which leaves the private fields encrypted.
+ *
+ * @param {{openStore?: Function, getOwnerPubkey?: Function, getAdminPubkeys?: Function, getTaPubkey?: Function}} [deps]
+ * @returns {Promise<number|null>}
+ */
+async function countInstanceCustomers(deps = {}) {
+    const d = {
+        openStore: () => new SecureKeyStorage({ storagePath: '/var/lib/brainstorm/secure-keys' }),
+        getOwnerPubkey: () => getConfigFromFile('BRAINSTORM_OWNER_PUBKEY'),
+        getAdminPubkeys,
+        getTaPubkey: getOwnerAssistantPubkey,
+        ...deps,
+    };
+    const hex = (pk) => (typeof pk === 'string' && /^[0-9a-f]{64}$/i.test(pk) ? pk.toLowerCase() : null);
+
+    let store;
+    let holders;
+    try {
+        store = d.openStore();
+        holders = await store.listStoredAccounts();
+    } catch {
+        return null;
+    }
+
+    const notCustomers = new Set([hex(d.getOwnerPubkey()), hex(d.getTaPubkey())]);
+    for (const pk of d.getAdminPubkeys() || []) notCustomers.add(hex(pk));
+    for (const holder of holders) {
+        const assistant = await store.getStoredPubkey(holder);
+        if (assistant) notCustomers.add(assistant);
+    }
+    return holders.filter((holder) => !notCustomers.has(holder)).length;
+}
+
+module.exports = { getAssistantKeys, getOwnerAssistantKeys, getOwnerAssistantPubkey, getAssistantPubkeyFor, listInstanceAssistants, countInstanceCustomers };

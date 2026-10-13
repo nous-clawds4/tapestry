@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import AboutThisInstance from '../components/AboutThisInstance';
 
 export default function BrainstormAbout() {
   const { user, login, logout } = useAuth();
@@ -39,6 +40,8 @@ export default function BrainstormAbout() {
             an explanation of the trust filter.
           </p>
         </div>
+
+        <AboutThisInstance />
       </div>
     </div>
   );
