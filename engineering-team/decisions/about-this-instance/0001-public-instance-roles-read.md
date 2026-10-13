@@ -103,6 +103,10 @@ Filtering `customers.json` (all statuses) by whether each entry has a key is clo
 
 7. **The link.** `BrainstormAboutSearch.jsx` gains a closing paragraph with `<a href="/about#this-instance">About this Brainstorm Instance</a>`, a plain anchor like the page's other links. The full navigation it causes is handled by the hash effect in point 6.
 
+## Amendment 1 — AC-4 is the section's, not the whole page's (Implementation, 2026-10-13, operator-approved)
+
+The app shell (`AssistantRosterProvider`, `ui/src/App.jsx`) reads `GET /api/assistant/roster` on every page, `/about` included, so "nothing the page loads" could never hold. That read is the existing disclosure recorded in Context and queued as its own question. Story AC-4 now reads "nothing the section displays or loads", and test B5 compares `/about`'s reads with the same shell without the section. No design change: Decisions 1–7 stand.
+
 ## The operator's decisions at the gate (2026-10-13)
 
 1. **Option A as written**, including Decision 5: "itself an Assistant" means an Assistant this instance holds the key

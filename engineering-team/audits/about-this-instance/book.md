@@ -40,7 +40,7 @@ The ask, verbatim, in the order it was given:
 
 - [ ] `/about` ends with an "About this Brainstorm Instance" section showing the Owner, the Admins with their count, and the Customer count. The Owner and Admin cards open their profiles.
 - [ ] The Customer count follows decision 3.
-- [ ] The section's data is public, and nothing on the page or behind it reveals a customer's identity or any key material.
+- [ ] The section's data is public, and nothing in the section or behind it reveals a customer's identity or any key material. *("On the page" became "in the section" at Implementation, 2026-10-13: the app shell reads the roster on every page; ADR 0001 Amendment 1.)*
 - [ ] `/about-brainstorm-search` carries an "About this Brainstorm Instance" link that lands on the section.
 - [ ] Live and verified on `staging.brainstorm.world`.
 

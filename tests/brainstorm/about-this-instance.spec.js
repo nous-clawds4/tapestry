@@ -15,8 +15,9 @@ const F = require('../../test/helpers/aboutThisInstanceFixtures');
  *   B2  — the cards open /user/<pubkey>.                                                              [AC-2]
  *   B3  — zero Admins: "0" beside the heading and "No admins"; the Owner card alone.                  [AC-2]
  *   B4  — the count line: "1 customer", "0 customers", and "Customer count unavailable".              [AC-3]
- *   B5  — a visitor's page reads no customer list and no owner-only read, asks profiles only for the
- *         Owner and the Admins, and only reads.                                                        [AC-4]
+ *   B5  — the section adds no customer-list, roster or owner-only read to what the app shell already
+ *         makes (counted against /about-brainstorm-search, the same shell without the section), asks
+ *         profiles only for the Owner and the Admins, and only reads. Re-aimed at Implementation.     [AC-4]
  *   B6  — the read fails (500, success: false, a dropped connection): the failure line, /about's own
  *         content intact; while the read is on its way, the title and subtitle are already there.     [AC-6, AC-1]
  *   B7  — the profile lookup fails: every card falls back to its shortened npub, and no failure line. [AC-2, AC-6]
@@ -207,14 +208,27 @@ test.describe('About this Brainstorm Instance, on /about (about-this-instance #1
     await expect(cardFor(page, F.OWNER), 'the Owner card still shows').toHaveCount(1);
   });
 
-  test('B5: a visitor\'s page reads no customer list and no owner-only read, asks profiles only for the Owner and the Admins, and only reads (AC-4)', async ({ page }) => {
-    const log = await mock(page);
-    await open(page);
-    await settled(page);
-    await page.waitForTimeout(500);
+  test('B5: the section adds no customer-list, roster or owner-only read to what the app shell already makes, asks profiles only for the Owner and the Admins, and only reads (AC-4)', async ({ page, context }) => {
+    // Re-aimed at Implementation (operator-approved, 2026-10-13). The app shell (AssistantRosterProvider,
+    // ui/src/App.jsx) reads /api/assistant/roster on every page, with or without this section, so "the page reads no
+    // roster" can never hold. The baseline is the same shell without the section: /about-brainstorm-search. Counted per
+    // endpoint, so a section that read the roster too would show as one read more than the baseline.
+    const counts = (log) => Object.fromEntries(F.FORBIDDEN_READS.map((r) => [r, log.api.filter((l) => l === `GET ${r}`).length]));
+
+    const base = await mock(page);
+    await page.goto(F.SEARCH_ABOUT);
+    await page.getByRole('link', { name: F.COPY.linkText, exact: true }).waitFor({ timeout: 20000 });
+    await page.waitForTimeout(1500);
+
+    const about = await context.newPage();
+    const log = await mock(about);
+    await open(about);
+    await settled(about);
+    await about.waitForTimeout(1500);
+
     expect(log.aboutCalls, `the path under test: the page reads ${F.ROUTE}`).toBeGreaterThanOrEqual(1);
-    const forbidden = log.api.filter((l) => F.FORBIDDEN_READS.some((r) => l.endsWith(` ${r}`)));
-    expect(forbidden, 'AC-4: no customer list, no roster, no owner-only admin list').toEqual([]);
+    expect(counts(log), 'AC-4: the section adds no customer list, roster or owner-only admin list to the shell\'s own reads')
+      .toEqual(counts(base));
     const allowed = new Set([F.OWNER, ...ADMINS]);
     expect(log.profilePubkeys.filter((pk) => !allowed.has(pk)), 'profiles only for the Owner and the Admins').toEqual([]);
     expect(log.nonGet, 'the page only reads').toEqual([]);
