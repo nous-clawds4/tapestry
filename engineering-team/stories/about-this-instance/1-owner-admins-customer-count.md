@@ -81,4 +81,4 @@ All resolved by the operator on 2026-10-13:
 - Design: Claude Design artifact *Brainstorm onboarding flow design*, "About" screen (<https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m>)
 - ADR: `engineering-team/decisions/about-this-instance/0001-public-instance-roles-read.md`
 - Test plan: `engineering-team/stories/about-this-instance/1-owner-admins-customer-count.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/about-this-instance/1-owner-admins-customer-count.md`
