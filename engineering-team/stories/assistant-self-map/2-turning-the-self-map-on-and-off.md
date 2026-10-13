@@ -282,6 +282,6 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md` (Amendment 1 from review round 1)
+- ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md` (Amendment 1 from review round 1, Amendment 2 from review round 2)
 - Test plan: `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.test-plan.md`
 - Review: `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`

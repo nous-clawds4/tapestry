@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 approved (review round 1); Amendment 2 proposed (review round 2)
+follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -549,7 +549,8 @@ it.
 
 ## Amendment 2: a relay list found nowhere needs every relay's answer (2026-10-13)
 
-**Status of A2:** proposed.
+**Status of A2:** approved by the owner at the Architecture gate of round 3, 2026-10-13, as written ("Ready for
+test design"), with R2-N3 and R2-N4 left out as item 6 proposes, each on its ledger row.
 
 The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`, its Round 2. Item 1
 is its R2-B1. Items 4 and 5 carry R2-N2 and R2-N1. Item 6 proposes where R2-N3 and R2-N4 go.
@@ -683,17 +684,17 @@ There are two known limits:
 - **R2-N1, guard before connect.** In V8 (or a new V-test beside it) and R10, the relay reads include no host the DNS
   guard refused. A read that connects first and checks afterwards must fail them.
 
-### 6. Where R2-N3 and R2-N4 go (proposed; the owner decides at the gate)
+### 6. Where R2-N3 and R2-N4 go (left out, as the owner approved)
 
 - **R2-N3:** while on, Update now stays disabled beside a stale expiration, because `current` compares self-entries
   only (`src/lib/self-map/index.js:527`). It is **left out**: `current` is story 1's rule and feeds the hub's done
   mark, and story 3's upkeep reads it too. So the right place is story 3's design. Only a version this press didn't
-  build can carry an expiration, and an expired claim reads as not published, which re-enables the press. A ledger row
-  carries it to story 3.
+  build can carry an expiration, and an expired claim reads as not published, which re-enables the press. Ledger row
+  `2026-10-13-self-map-current-ignores-expiration` carries it to story 3.
 - **R2-N4:** Turn on looks the relay list up again for its send set (`selfMapPublish.js:222`), so a second lookup
   failing leaves W out though the strict read found it. It is **left out**: the send is best-effort, and this predates
-  round 2. Carrying W through means a new field from `gatherSelfMap` to the press. A ledger row carries it, beside the
-  fan-out row `2026-10-12-self-map-press-duplicates-fanout`.
+  round 2. Carrying W through means a new field from `gatherSelfMap` to the press. Ledger row `2026-10-13-self-map-send-relooks-write-relays`
+  carries it, beside the fan-out row `2026-10-12-self-map-press-duplicates-fanout`.
 
 ### Story deviations (A2)
 
