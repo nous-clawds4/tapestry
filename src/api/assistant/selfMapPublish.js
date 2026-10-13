@@ -43,8 +43,8 @@ const { isPublicRelayHostWithin, within, LOOKUP_BUDGET_MS } = require('../../uti
 const HEX64 = /^[0-9a-f]{64}$/i;
 const TREASURE_MAP_KIND = 10040;
 
-/** The subject of every sentence the report says (story 2 § Copy). */
-const SELF_MAP_SUBJECT = "Your Assistant's self-Map";
+/** The subject of every sentence the report says (story 2 § Copy, renamed by story 3 § Copy). */
+const SELF_MAP_SUBJECT = "Your Assistant's Treasure Map";
 
 /** The summary when it was saved here and there was no other relay at all (as the Duty Menu publish's). */
 const NOTHING_ELSE = `${SELF_MAP_SUBJECT} was saved on this instance's relay. There was no other relay to send it to.`;
@@ -56,20 +56,23 @@ const CODES = {
   NOT_READ: 'not-read',
 };
 
-/** The refusal words (story 2 § Copy). A bad request and a throw read as a request that failed. */
+/**
+ * The refusal words (story 2 § Copy; story 3 § Copy renamed not-signed-in's). A bad request and a throw read as a request
+ * that failed.
+ */
 const WORDS = {
-  [CODES.NOT_SIGNED_IN]: "Sign in to change your Assistant's self-Map.",
+  [CODES.NOT_SIGNED_IN]: "Sign in to change your Assistant's Treasure Map.",
   [CODES.NO_ASSISTANT]: "You don't have a Tapestry Assistant on this instance yet.",
   [CODES.NOT_READ]: "Nothing was published: your Assistant's current Treasure Map could not be read, and publishing without it could lose its other entries.",
   [CODES.BAD_REQUEST]: 'This instance did not answer; nothing was published.',
   failed: 'This instance did not answer; nothing was published.',
 };
 
-/** When a press published nothing (story 2 § Copy; ADR 0002 sub-decision 6 step 4). */
+/** When a press published nothing (story 2 § Copy, renamed by story 3 § Copy; ADR 0002 sub-decision 6 step 4). */
 const UNCHANGED = {
-  'nothing-to-claim': "Your Assistant's self-Map is on. Nothing is live to claim yet, so nothing was published.",
-  'already-current': "Your Assistant's self-Map is on, and it already says what is live now, so nothing was published.",
-  'nothing-claimed': "Your Assistant's self-Map is off. It claimed nothing, so nothing was published.",
+  'nothing-to-claim': "Your Assistant's Treasure Map is set to list its live duties. None is live yet, so nothing was published.",
+  'already-current': "Your Assistant's Treasure Map is set to list its live duties, and it already lists what is live now, so nothing was published.",
+  'nothing-claimed': "Your Assistant's Treasure Map is set to list none of its duties. It listed none, so nothing was published.",
 };
 
 /** A relay the server would not connect to: its row (ADR assistant-outbox-relays/0003 Amendment 1). */

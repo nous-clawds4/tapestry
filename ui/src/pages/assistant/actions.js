@@ -23,7 +23,8 @@
  * engineering-team/stories/done/assistant-shared-categories/1-done-but-shared.md § Copy), and
  * engineering-team/stories/assistant-duty-cards/1-duty-menu-and-treasure-map-placeholder-cards.md § Copy (the Duty Menu's
  * alert criteria since engineering-team/stories/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md, ADR
- * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page), and
+ * assistant-duty-menu/0001 sub-decision 6, which made it a checked action with its own page; the Treasure Map's since
+ * engineering-team/stories/assistant-self-map/3-one-name-for-your-assistants-treasure-map.md § Copy), and
  * engineering-team/stories/done/assistant-coming-soon/1-coming-soon-cards.md § Copy (the Coming soon words, since five of the
  * placeholders say Coming soon and are never marked or counted: COMING_SOON_ACTIONS).
  */
@@ -107,7 +108,7 @@ export const ASSISTANT_ACTIONS = [
     path: `${ASSISTANT_MANAGEMENT_PATH}/treasure-map`,
     title: "Your Assistant's Treasure Map",
     description: ['Your Assistant keeps its own Treasure Map (kind 10040), naming itself as its own Assistant, to show which duties it is publishing right now. If you move a duty to this Assistant and it is already publishing it, the switch takes effect right away instead of waiting for a first computation.'],
-    alertCriteria: "If your Assistant's self-Map is missing, or says anything other than the duties that are live now.",
+    alertCriteria: "If your Assistant's Treasure Map doesn't list exactly the duties that are live now.",
     planningNotes: null,
   },
   {

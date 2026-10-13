@@ -68,6 +68,10 @@ const SM = require('../../test/helpers/selfMapFixtures');
  * These FAIL against the build before this story: /assistant/treasure-map is the placeholder page, the hub's card is
  * always marked and counted, and the count line has no zero state. B12 and B14–B21 FAIL against story 1's build: the
  * page has no state line and no buttons.
+ *
+ * assistant-self-map #3 (one name for your Assistant's Treasure Map; story 3 § Copy, no ADR): the fixtures' words are
+ * re-aimed, so every B test that reads a line now reads the new one; N6 walks the page's states and the hub and finds no
+ * "self-Map" on screen (AC-1, AC-3). These FAIL against story 2's build.
  */
 
 const TA = SM.TA;
@@ -531,5 +535,55 @@ test.describe('Turning your Assistant\'s self-Map on and off (assistant-self-map
     await mock(page, { who: CUSTOMER_USER, attention: answerWith(SM.ANSWERS.CHECK_FAILED) });
     main = await open(page);
     await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'no Owner\'s note for a customer').toHaveCount(0);
+  });
+});
+
+/* ───────────────────────── assistant-self-map #3: one name for your Assistant's Treasure Map ───────────────────────── */
+
+test.describe('One name for your Assistant\'s Treasure Map (assistant-self-map #3)', () => {
+  test.beforeEach(async () => {
+    if (process.env.BRAINSTORM_SERVER_ACCESSIBLE !== 'true') test.skip('Brainstorm server not accessible (set BRAINSTORM_SERVER_ACCESSIBLE=true)');
+  });
+
+  const OLD_NAME = /self-map|self-entr/i;
+  const oldIn = (text) => squash(text).split(/(?<=[.!?])\s+/).filter((s) => OLD_NAME.test(s));
+
+  test('N6 (story 3 AC-1, AC-3): no state of the page, and not the hub, shows "self-Map" or "self-entries" — signed out, the check failing or not finishing, nothing found, up to date, out of date, off, off while still listing, a customer, and after a Turn off\'s report', async ({ page }) => {
+    const states = [
+      ['signed out', { who: null }],
+      ['the request fails', { attention: 'error' }],
+      ['the check did not finish', { attention: answerWith(SM.ANSWERS.UNFINISHED) }],
+      ['the check failed', { attention: answerWith(SM.ANSWERS.CHECK_FAILED) }],
+      ['nothing listed yet', { attention: answerWith(SM.ANSWERS.NOT_PUBLISHED) }],
+      ['up to date (the Owner)', { attention: answerWith(SM.ANSWERS.DONE) }],
+      ['out of date', { attention: answerWith(SM.ANSWERS.STALE) }],
+      ['off, nothing listed', { attention: answerWith(SM.offOf(SM.ANSWERS.NOT_PUBLISHED)) }],
+      ['off, still listing', { attention: answerWith(SM.offOf(SM.ANSWERS.STALE)) }],
+      ['a customer with no duties', { who: CUSTOMER_USER, attention: answerWith(SM.ANSWERS.CUSTOMER_NOTHING) }],
+    ];
+    const found = [];
+    for (const [label, opts] of states) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, opts);
+      const main = await open(page);
+      for (const s of oldIn(await main.innerText())) found.push(`${label}: ${s}`);
+    }
+    // A Turn off's report: on and up to date, the one enabled button is Turn off (Update now is disabled), pressed by role
+    // so the press runs whatever its label says; the server's summary is the route's own words.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    const off = publishedResult({ on: false, selfEntries: 0 });
+    await routePress(page, off);
+    const main = await open(page);
+    const enabled = main.getByRole('button').and(main.locator('button:not([disabled])'));
+    await expect(enabled, 'one enabled button while on and up to date: Turn off').toHaveCount(1);
+    await enabled.click();
+    await expect(main.getByText(off.result.message), 'the report after a Turn off').toBeVisible();
+    for (const s of oldIn(await main.innerText())) found.push(`after a Turn off: ${s}`);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { attention: answerWith(SM.ANSWERS.STALE) });
+    const hub = await open(page, X.HUB);
+    for (const s of oldIn(await hub.innerText())) found.push(`the hub: ${s}`);
+    expect(found, 'the old name on screen (story 3 § Copy gives each line\'s new words)').toEqual([]);
   });
 });

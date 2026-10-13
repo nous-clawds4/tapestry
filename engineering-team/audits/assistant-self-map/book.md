@@ -226,14 +226,30 @@ From the owner's ask and the facts above; the Architect decides.
   - **Production:** PR #856, pinned at `f51fe70d` through `promote/assistant-self-map-1`, merge `ef04e503`, deploy
     run 38313469618, 2026-10-12. Smoke test Tiers 1–5 clean; Tier 4 used headless Chromium, signed out.
   - The frame's "On staging" bullet stays open until the book's later stories are verified the same way.
+- **Story 2, turning the self-Map on and off (Done; review PASS in round 6).**
+  - **Staging:** PR #859, merge `429d2333`, deploy run 38449500307 (1m45s), 2026-10-13. Safe-to-merge check: safe on
+    the first attempt. Smoke test Tiers 1–5 clean:
+    - the served bundle went from `index-C8cYr98C.js` to `index-HKSD5bc2.js`, the hash of the reviewed build, which
+      carries the three button labels;
+    - signed out, `POST /api/assistant/self-map` now answers 401 "Sign in to do this." (before the merge, the
+      owner/admin gate);
+    - Tier 4 used headless Chromium, signed out: `/assistant/treasure-map` and `/assistant` render with no console
+      errors.
+  - **The owner's check on staging,** signed in: pending. It should show the state line and the buttons, and a press
+    should report honestly.
+  - **Production:** waits for story 4, the upkeep (the owner's choice at planning; called story 3 until 2026-10-13).
 
 **Planned:**
-- **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6).** The
-  owner chose at planning that it reaches `staging` by a PR after its Review, as above, and reaches production only
-  together with story 3. Until story 3
-  keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
+- **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
+  `staging` 2026-10-13, above).** The owner chose at planning that it reaches `staging` by a PR after its Review, as
+  above, and reaches production only together with story 4, the upkeep (called story 3 until 2026-10-13). Until story
+  4 keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
   - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
     production too. No outside client reads self-Maps yet.
+- **Story 3, one name for your Assistant's Treasure Map (approved 2026-10-13, Architecture skipped; Done 2026-10-13,
+  review PASS).** The owner's ask after story 2's staging check: the words people see say "Treasure Map", never
+  "self-Map"; nothing under the hood changes. Wording follow-ups from its review: ledger row
+  `2026-10-13-treasure-map-wording-followups`.
 
 ## Shared lines
 

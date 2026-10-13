@@ -66,6 +66,10 @@
  * Round 6 (review round 5, Amendment 4 as written): C14 runs a press through the press's own wiring with the real store
  * at a temp path (R5-B1: `replace` must reach the store); E15 pins step 3's no-version branch (R5-N1); K13 the log line
  * for a file that cannot be read at all (R5-N3).
+ *
+ * assistant-self-map #3 (one name for your Assistant's Treasure Map; story 3 § Copy, no ADR): the fixtures' words are
+ * re-aimed to § Copy, so P1, P2, E3, E4, E7, W7 and the rest that compare the press's words now check the new ones; N4
+ * checks that nothing a press says carries the old name (AC-2). The press's behaviour is unchanged (AC-4).
  */
 
 const fs = require('fs');
@@ -577,7 +581,7 @@ test('K5: writes land one at a time — twenty Assistants written at once are al
 
 /* ───────────────────────── P — the refusals, and whose key (ADR 0002 sub-decision 5) ───────────────────────── */
 
-test('P1: the module exports what ADR 0002 § Implementation notes 4 names — the handler factory and handler, setSelfMapFor, applySelfMap, withAssistantLock, SELF_MAP_SUBJECT "Your Assistant\'s self-Map", CODES and WORDS in story § Copy\'s words (AC-3; § Copy)', () => {
+test('P1: the module exports what ADR 0002 § Implementation notes 4 names — the handler factory and handler, setSelfMapFor, applySelfMap, withAssistantLock, SELF_MAP_SUBJECT (story 3: "Your Assistant\'s Treasure Map"), CODES and WORDS in § Copy\'s words (AC-3; § Copy)', () => {
   const mod = publishModule();
   const wrong = [];
   for (const name of ['createSelfMapHandler', 'handleSelfMap', 'setSelfMapFor', 'applySelfMap', 'withAssistantLock']) if (typeof mod[name] !== 'function') wrong.push(`no ${name}()`);
@@ -978,7 +982,7 @@ test('W6: local-only mode keeps it on this instance\'s relay — nothing is sent
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('W7: the summary is the shared sentence with the subject "Your Assistant\'s self-Map" — and with no relay at all to send to, "…There was no other relay to send it to." (AC-2 report; § Copy)', async () => {
+test('W7: the summary is the shared sentence with the press\'s subject (story 3: "Your Assistant\'s Treasure Map") — and with no relay at all to send to, "…There was no other relay to send it to." (AC-2 report; § Copy)', async () => {
   const { summarizePublish } = require('../src/api/assistant/profilePublish');
   const wrong = [];
   const refused = await press({ refuse: [OLD1] }, { on: true });
@@ -1779,6 +1783,50 @@ test('K13 (A4 item 3, review round 5 R5-N3): when the whole file cannot be read 
     });
   }
   assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── N — one name for your Assistant's Treasure Map (assistant-self-map #3) ───────────────────────── */
+
+test('N4 (story 3 AC-2): no message a press returns says "self-Map" — a publish with its relay rows, local-only mode, no other relay, a failed local write, each "nothing was published", and each refusal; nor the exported subject or refusal words', async () => {
+  const OLD_NAME = /self-map|self-entr/i;
+  const stringsIn = (v, out = []) => {
+    if (typeof v === 'string') out.push(v);
+    else if (v && typeof v === 'object') for (const x of Object.values(v)) stringsIn(x, out);
+    return out;
+  };
+  const key = () => newAssistant();
+  const k1 = key();
+  const k2 = key();
+  const k3 = key();
+  const lonelyKey = key();
+  const lonely = world({ key: lonelyKey, base: version(lonelyKey, [['client', 'Brainstorm']]), relays: { [DCOSL]: [], [NIP85]: [] } });
+  lonely.local = lonely.local.filter((e) => e.kind !== SM.RELAY_LIST_KIND);
+  const cases = [
+    ['a publish, one relay refusing', () => press({ refuse: [OLD1] }, { on: true })],
+    ['a Turn off that publishes', () => press({}, { on: false })],
+    ['local-only mode', () => press({ localOnly: true }, { on: true })],
+    ['no other relay', () => press(lonely, { on: true })],
+    ['the local write fails', () => press({ importFails: true }, { on: true })],
+    ['already current', () => press({ key: k1, base: version(k1, [['30382:rank', OTHER, SCORES_R], ['39998', k1.A, OWN]], { content: '' }) }, { on: true })],
+    ['nothing to claim', () => press({ key: k2, headers: [], base: version(k2, [['client', 'Brainstorm']]) }, { on: true })],
+    ['nothing claimed', () => press({ key: k3, base: version(k3, [['30382:rank', OTHER, SCORES_R]]) }, { on: false })],
+    ['not signed in', () => press(world(), null, { req: { session: {}, body: { on: true } } })],
+    ['no Assistant', () => press({ noAssistant: true }, { on: true })],
+    ['a bad request', () => press({}, { on: 'true' })],
+    ['not read', () => { const k = key(); return press({ key: k, rejectScan: isSelfMapScan(k.A) }, { on: true }); }],
+    ['a throw', () => press({ choiceThrows: true }, { on: true })],
+  ];
+  const wrong = [];
+  for (const [label, run] of cases) {
+    const got = await run();
+    const said = stringsIn(got.body).filter((x) => OLD_NAME.test(x));
+    if (!got.body) wrong.push(`${label}: no answer`);
+    for (const x of said) wrong.push(`${label}: ${show(x)}`);
+  }
+  const mod = publishModule();
+  for (const x of [mod.SELF_MAP_SUBJECT, ...stringsIn(mod.WORDS)]) if (typeof x === 'string' && OLD_NAME.test(x)) wrong.push(`exported: ${show(x)}`);
+  if (mod.SELF_MAP_SUBJECT !== SM.PRESS.subject) wrong.push(`SELF_MAP_SUBJECT: want ${show(SM.PRESS.subject)}, got ${show(mod.SELF_MAP_SUBJECT)}`);
+  assert(wrong.length === 0, `the old name in what a press says (story 3 § Copy, the press table): ${[...new Set(wrong)].join(' | ')}`);
 });
 
 async function run() {
