@@ -1,6 +1,6 @@
 # Story 2: Turning your Assistant's self-Map on and off
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Type:** Feature
 **Epic:** `assistant-self-map`

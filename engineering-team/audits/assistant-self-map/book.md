@@ -228,8 +228,9 @@ From the owner's ask and the facts above; the Architect decides.
   - The frame's "On staging" bullet stays open until the book's later stories are verified the same way.
 
 **Planned:**
-- **Story 2, turning the self-Map on and off (approved 2026-10-12).** The owner chose at planning that it reaches
-  `staging` by a PR after its Review, as above, and reaches production only together with story 3. Until story 3
+- **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6).** The
+  owner chose at planning that it reaches `staging` by a PR after its Review, as above, and reaches production only
+  together with story 3. Until story 3
   keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
   - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
     production too. No outside client reads self-Maps yet.
@@ -324,6 +325,8 @@ From the owner's ask and the facts above; the Architect decides.
     and the records.
   - **Round 5's Implementation:** `origin/staging` was still at `9679668`. Round 5 edits only the same three modules of
     story 2's and the records.
+  - **Round 6, Implementation and Review:** `origin/staging` was still at `9679668`, already in the branch. Round 6
+    edits only the same three modules, `openapi.yaml`, BIBLE §11 and §15, and story 2's own tests and records.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

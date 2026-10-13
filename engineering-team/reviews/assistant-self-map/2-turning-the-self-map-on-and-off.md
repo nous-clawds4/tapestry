@@ -913,3 +913,132 @@ change.
 - [ ] Completion detection. *Not applicable this round.*
 - [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
       and its `- Review:` link already points here.*
+
+# Round 6
+
+**Reviewer:** Claude (acting as Reviewer), with a second, independent reader (no write access to the repo, no
+`npm test`; temp store paths only, and nothing written under `/var/lib/brainstorm`, which still holds only
+`customers/`). Every claim below was re-derived from commands. I reproduced the reader's findings, by my own script or
+by rerunning its own, before recording them. The optional independent check of the review's own claims was not
+applied: this is not a docs-mode story, and every finding is reproduced by a script.
+**Date:** 2026-10-13
+**Diff:** `git diff 262be73 0867338`. The ADR doesn't change this round (Amendments 1–4 stand).
+- `4cd8cbd`: the Tester's round 6 tests (C14, E15 and K13 in the publish suite; V20 and V21 in the check suite) and
+  the plan's Round 6 section. It touches no `src/` or `ui/`.
+- `0867338`: the fix in `selfMapPublish.js`, `selfMap.js` and `selfMapChoice.js`; `openapi.yaml`; BIBLE §11 and §15;
+  the story's round 6 Deviation and its correction of round 5's. It touches no `test/` or `tests/`.
+- This review's commit adds ledger row `2026-10-13-self-map-source-and-comment-nits` and the book's shared-line note.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `0867338`, clean tree, after the reader had finished (load average 0.23). `npm run gate:status`:
+
+  > `20261013T182618Z-8644-96da [s2-r6-review] started 2026-10-13T18:26:18.919Z on 08673385 — PASS, exit 0, 5986 passed, 0 failed, 582 skipped, 308/308 suites`
+- [x] **Playwright, chromium.** `ui/` and `tests/` are unchanged since `1249d7f`. I built `ui/` at `0867338` and served
+  it with `vite preview` on :4184, launched through node and stopped by its pid (the port then freed).
+  `assistant-self-map` and the nine hub specs: **120 passed, 5 skipped** (their own skip conditions), 5.6 m.
+- [x] `bash scripts/harness-lint.sh`: **clean**.
+- [x] **Shared lines.** `origin/staging` is still at `9679668`, already in the branch.
+- [x] _Lint, typecheck, build: not configured — skipped._
+
+## Round 5's findings, each re-derived as a fresh claim
+
+| Finding | Re-derived by | Result |
+|---|---|---|
+| **R5-B1**, the wiring drops `replace` | My `<scratch>/repro/r5-default-deps-replace.js`, rerun; the reader's `i1-default-deps-replace.js` (the real handler, the copy functions not injected, a spy on the store's export) | Mine: `arguments reaching the real writeSelfMapCopy: [3]`, `copy afterwards: content "" verifies true`. The reader's: a damaged copy gets `{"replace":true}` and verifies after an "already current" press; a tampered far-future copy is the newly signed event after a publish. The same script with 262be73's `selfMapPublish.js` gives two arguments and the copy stays damaged. C14 catches the two-argument wrapper. **Fixed.** |
+| **R5-N1**, step 3's no-version branch | E15; my mutant M7 and the reader's | Without `!latest ||`, E15 alone fails (`"published":true`, for Turn off and for Turn on with nothing to claim). **Fixed.** |
+| **R5-N2**, `source` when the copy and the outside share an id | The reader's `i2-source.js`, a 15-row matrix through `lookupSelfMap({ forWrite: true, stored })` | `'copy'` exactly when only the copy holds the newest version. Against 262be73 the matrix differs in one row only, copy and outside with the same id. `heldOutside` never reaches the answer (finished keys `[finished, latest, onThisRelay, published]`, unfinished `[finished, reason]`). **Fixed,** with two cases no test pins (R6-N2). |
+| **R5-N3**, the whole-file log line | The reader's `i3-log.js`, beside 262be73's module; K12, K13 | Not JSON, version 2, or a directory: "the choice file cannot be read". A `lastSigned` that isn't an object: the `lastSigned` line. A missing file: no log. `readSelfMapChoice` is unchanged, value and log. Either one-catch revert is caught (K13, K12). **Fixed.** |
+| **R5-N4**, records and comments | Read against the code; `js-yaml` parse; `awk` over comment lines | BIBLE §11 and §15, the press description, the three module headers and `selfMap.js:28` ("Amendments 1–4") are right. The press description parses, and its lines are 114–120 characters; the ragged line is gone. One new defect: R6-N1. **Fixed,** with one nit. |
+| **R5-N5**, V19 and "something here" | V20; my mutant M8 and the reader's | `onThisRelay` true whenever this instance holds any version fails V20 (and R21, R23). **Fixed.** |
+| **O1**, a refused removal stays outside | The reader's `o1-refused-removal.js` | Unchanged: press 2 `nothing-claimed`, while `OLD1` still serves the claim. Its row is unchanged. It stands, outside this story. |
+| **R4-N3**, K9 and the lock | — | Unchanged. It now has a home: ledger row `2026-10-13-self-map-source-and-comment-nits`. |
+
+**ADR adherence, Amendment 4.**
+- **Item 1 is now to the letter:** `'copy'` only when neither this instance's scan nor an outside relay returned that
+  id (`selfMap.js:272–273`, with `heldOutside` from `strictOutsideRound`, `:332–333`).
+- **Item 2 reaches the live route:** the default wiring passes the options through (`selfMapPublish.js:104`).
+- **Item 3's `lastSigned` message is unchanged** for its own failure.
+
+**The reader's walk.** 168 cases (on and off, 7 copy states, 4 local states, 3 outside states), two presses each,
+through the default copy wiring with the real store, diffed between 262be73's three modules and `0867338`:
+- the status, `published`/`unchanged`, and this instance's relay afterwards are identical in every case;
+- the only change is the copy, now valid where it was left damaged or tampered;
+- no case publishes again on its second press;
+- a failed copy stays only where a press writes no copy (a first-press 503, or Turn off with nothing anywhere), which
+  is item 2's "first copy write".
+
+**The tests fail on round 5's code as the plan says.** The reader ran the round 6 tests over 262be73's `src/`: publish
+89/2 (C14, K13), check 85/1 (V21). C14 fails for the right reason ("the copy verifies").
+
+My ten mutants of the round 6 code, in a scratch worktree:
+
+| Mutant | Caught by |
+|---|---|
+| the wrapper back to two arguments | C14 |
+| `source` ignoring `heldOutside` | V21 |
+| `heldOutside` always true | V19 |
+| `heldOutside` always false | V21 |
+| one catch, with the `lastSigned` line | K13 |
+| one catch, with the choice-file line | K12 |
+| step 3 without `!latest ||` | E15 |
+| `onThisRelay` when any version is here | V20, R21, R23 |
+| `keepCopy` never passing `replace` | C13, C14 |
+| the store ignoring `replace` | K11, C14 |
+
+## Findings
+
+### Blocking
+
+None.
+
+### Non-blocking
+
+1. **R6-N1 — `src/api/assistant/selfMap.js:240` is a 202-character comment line.**
+   - Round 6's own edit for R5-N4 replaced the start of a line and kept its tail, "It is unfinished with …".
+   - No other comment line in the three modules is over 125 characters; at 262be73 there was none.
+
+   **Home:** ledger row `2026-10-13-self-map-source-and-comment-nits`.
+2. **R6-N2 — two ways of breaking `heldOutside` pass every suite.**
+   - `heldOutside = events.length > 0`: a copy newer than an older version at a write relay reads `'relay'`.
+   - `heldOutside` counted from the write relays only: a copy whose id only a hint relay returned reads `'copy'`.
+   - **Reproduced** by me in my own worktree with the reader's `i7-source-gaps.js`. The real code is right on all three
+     rows. Each mutant gets one row wrong and passes the check suite (86/0) and the publish suite (91/0).
+   - Nothing in `src/` or `ui/src` reads `source`; the press reads only `onThisRelay`.
+
+   **Home:** the same row, to be pinned when something first reads `source`.
+
+Two code lines this round lengthened, `selfMap.js:265` (132 characters) and the log string at
+`selfMapPublish.js:162` (164, from 128), are not findings: the press module already had 16 code lines over 125.
+
+### Harness friction
+
+None this round.
+
+## Verdict
+
+**PASS**
+
+Round 6 closes review round 5 in full. The press's own wiring now carries `replace` to the real store, so a damaged
+or tampered copy is replaced on the live route (R5-B1), and C14 goes through that wiring. Step 3's no-version branch
+and the "latest here" test are pinned (R5-N1, R5-N5). `source` matches Amendment 4 item 1 (R5-N2). The log names the
+right file (R5-N3), and the records match the code (R5-N4).
+- The gate passes (5986 / 0), and the browser specs pass (120 / 0, 5 skipped).
+- The reader's 168-case walk finds no change in what any press answers or stores on this instance's relay, and no
+  second publish.
+- Ten mutants of the round's code are all caught.
+
+The two nits left (R6-N1, R6-N2) and round 4's R4-N3 change no behaviour, and they have a ledger row. O1 stays on its
+own row, for story 3's upkeep.
+
+## On PASS (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place. Its `- Review:` link already points here.
+- [x] **Completion detection.** The book is not complete. Judged against its acceptance frame:
+  - decision 1's "then automatic" upkeep is story 3's;
+  - decision 4's four extras have no story yet;
+  - the frame's "On staging" bullet stays open until the later stories are verified there.
+
+  So `/close-book` is not offered.
+- [x] **Next on the deploy chain:** story 2 reaches `staging` by a PR (`/cycle-staging`) when the owner asks, and
+  production only together with story 3 (the owner's choice at planning).
