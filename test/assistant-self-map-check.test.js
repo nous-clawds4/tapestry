@@ -61,6 +61,9 @@
  *       copy, outside): `event` is the found version, every field, and its id is `eventId`. R5 no version, an
  *       unfinished check: no `event` anywhere, beside a found one that has it. R6 the docs name it (Implementation
  *       notes 5). S6 already pins that no route is added.                                     [story 4 AC-1 … AC-4]
+ *       R7 (ADR 0003 Amendment 1): the exception to the answer's no-pubkey rule is that one field — without
+ *       published.event, the real answer names neither the viewer nor the Assistant. R6 also checks that openapi.yaml
+ *       and attention.js name the exception.
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -1686,7 +1689,7 @@ test('R5 (story 4 AC-3; ADR 0003 sub-decision 1): no version, no event — none 
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('R6 (ADR 0003 Implementation notes 5): the docs name the event — openapi.yaml\'s attention block gives published an `event` property for treasure-map, and BIBLE §11\'s attention row says the self-Map found rides with the event itself as `event`', () => {
+test('R6 (ADR 0003 Implementation notes 5, Amendment 1): the docs name the event — openapi.yaml\'s attention block gives published an `event` property for treasure-map, naming the no-pubkey exception; attention.js\'s header names it too; BIBLE §11\'s attention row says the self-Map found rides with the event itself as `event`', () => {
   const yaml = safeRead(path.join(REPO, 'src/api/openapi.yaml'));
   const at = yaml.indexOf('/api/assistant/attention:');
   const block = at >= 0 ? yaml.slice(at, yaml.indexOf(NL + '  /api/', at + 10)) : '';
@@ -1697,8 +1700,24 @@ test('R6 (ADR 0003 Implementation notes 5): the docs name the event — openapi.
   const ev = props.find((l) => /^\s+event:\s*\{/.test(l)) || '';
   if (!ev) wrong.push('openapi.yaml: published.properties has an `event: { … }` line');
   else if (!/type:\s*object/.test(ev) || !/treasure-map/.test(ev)) wrong.push(`openapi.yaml: event is an object, described for treasure-map; got ${show(ev.trim())}`);
+  else if (!/pubkey/.test(ev) || !/Amendment 1/.test(ev)) wrong.push(`openapi.yaml: event's description names the no-pubkey exception (ADR 0003 Amendment 1); got ${show(ev.trim())}`);
+  if (!/published\.event[\s\S]{0,240}Amendment 1|Amendment 1[\s\S]{0,240}published\.event/.test(safeRead(ATTENTION_MODULE))) wrong.push('attention.js: its header names published.event as the one field that may carry a pubkey (ADR 0003 Amendment 1)');
   const bibleRow = safeRead(path.join(REPO, 'BIBLE.md')).split(NL).find((l) => l.includes('`/api/assistant/attention`')) || '';
   if (!bibleRow.includes('with the event itself as `event`')) wrong.push('BIBLE §11: the attention row says the self-Map found carries "the event itself as `event`"');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R7 (ADR 0003 Amendment 1): the exception is that one field — with a version found, the real answer carries published.event, and without it the whole attention answer names neither the viewer nor the Assistant', async () => {
+  const version = selfMapEv([['39998', TA, OWN], ['30392', OTHER, 'wss://scores.brainstorm.world'], ['client', 'Brainstorm']], TA, NOW_S - 2 * H);
+  const got = await answer({ scoresHoursAgo: 1, headers: ['x'], extraLocal: [version] });
+  const action = mustAnswer(got);
+  const wrong = [];
+  if (!action.published || !action.published.event) wrong.push(`the found version rides as published.event; got ${show(action.published)}`);
+  const rest = JSON.parse(JSON.stringify(got.body));
+  const tm = rest.actions && rest.actions[SM.KEY];
+  if (tm && tm.published && typeof tm.published === 'object') delete tm.published.event;
+  const s = show(rest);
+  for (const [who, key] of [['the viewer', OWNER], ['the Assistant', TA]]) if (s.toLowerCase().includes(key)) wrong.push(`without published.event, the answer names ${who} (${key.slice(0, 8)}…)`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
