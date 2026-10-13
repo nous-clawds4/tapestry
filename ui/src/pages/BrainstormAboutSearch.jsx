@@ -46,6 +46,10 @@ export default function BrainstormAboutSearch() {
               <a href="/developers" style={{ color: '#a5b4fc' }}>See the developer documentation</a>.
             </li>
           </ol>
+
+          <p style={{ marginTop: '1rem' }}>
+            <a href="/about#this-instance" style={{ color: '#a5b4fc' }}>About this Brainstorm Instance</a>
+          </p>
         </div>
       </div>
     </div>

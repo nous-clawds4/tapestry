@@ -4178,6 +4178,41 @@ paths:
                   data:
                     type: object
 
+  /api/about-this-instance:
+    get:
+      tags: [Status]
+      summary: Who runs this instance, and how many customers it has
+      description: |
+        Public. The Owner's pubkey, the Admins' pubkeys, and the number of customers, for the
+        "About this Brainstorm Instance" section on /about. A customer is an account this instance holds an
+        Assistant key for, other than the Owner, an Admin, or an account that is itself an Assistant this
+        instance holds the key for. It never returns a customer's identity or any key material.
+      responses:
+        '200':
+          description: The instance's people and customer count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  ownerPubkey:
+                    type: string
+                    nullable: true
+                    description: Hex pubkey, or null when no owner is configured.
+                  adminPubkeys:
+                    type: array
+                    items:
+                      type: string
+                    description: Hex pubkeys in configured order, the Owner left out.
+                  customerCount:
+                    type: integer
+                    nullable: true
+                    description: Null when the key store could not be read.
+        '500':
+          description: The Owner or the Admins could not be read
+
   /api/debug:
     get:
       tags: [Status]
