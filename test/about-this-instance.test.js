@@ -8,7 +8,7 @@
  * Browser half: tests/brainstorm/about-this-instance.spec.js. Words: test/helpers/aboutThisInstanceFixtures.js.
  *
  *   K1..K6 — the key store's two new reads (SecureKeyStorage), over a temp store with real encryption.   [AC-3, AC-4]
- *   C1..C6 — countInstanceCustomers over that store.                                                     [AC-3]
+ *   C1..C7 — countInstanceCustomers over that store (C7 from review round 1).                            [AC-3]
  *   H1..H6 — the read's handler, through its deps.                                                      [AC-2, AC-3, AC-4, AC-6]
  *   R1..R2 — the route: registered, and public in the route table.                                      [AC-4]
  *   S1..S8 — the page sources; rendering itself is the browser half's.                                  [AC-1..AC-6]
@@ -343,6 +343,20 @@ test('C6: the customer list plays no part — the count never loads it', async (
     try { n = await quiet(() => count(w.deps())); } finally { Module._load = realLoad; }
     assert(n === 2, `the path under test ran: expected 2, got ${JSON.stringify(n)}`);
     assert(loads.length === 0, `ADR Decision 2: status on the customer list plays no part, so the count must not load it — loaded ${JSON.stringify(loads)}`);
+  });
+});
+
+test('C7: an Assistant pubkey stored in upper case is still recognised as an Assistant (review round 1, non-blocking 2)', async () => {
+  await withWorld(async (w) => {
+    // The inactive customer's key file is rewritten with its Assistant pubkey in upper case, and that Assistant holds a
+    // key of its own (lower case, as every file name is). It is an Assistant, so it is not a customer.
+    const k = generateRelayKeys();
+    await quiet(() => w.store.storeRelayKeys(INACTIVE, { ...k, pubkey: k.pubkey.toUpperCase() }));
+    const stored = await quiet(() => w.store.getStoredPubkey(INACTIVE));
+    assert(stored === k.pubkey.toUpperCase(), `fixture check: the stored Assistant pubkey must be upper case, got ${stored}`);
+    await quiet(() => w.store.storeRelayKeys(k.pubkey, generateRelayKeys()));
+    const n = await quiet(() => countFn()(w.deps()));
+    assert(n === 2, `the upper-case Assistant's own key file must be excluded like any Assistant — expected 2, got ${JSON.stringify(n)}`);
   });
 });
 

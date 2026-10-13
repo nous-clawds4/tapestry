@@ -24,6 +24,10 @@ const F = require('../../test/helpers/aboutThisInstanceFixtures');
  *   B8  — a signed-in customer sees the same section.                                                 [AC-1]
  *   B9  — /about#this-instance opened directly lands on the section.                                  [AC-1]
  *   B10 — the link on /about-brainstorm-search lands on the section.                                  [AC-5]
+ *   Review round 1 (reviews/about-this-instance/1-owner-admins-customer-count.md):
+ *   B11 — an Owner or Admin profile whose name fields are not text leaves /about intact; each card
+ *         takes the first of display_name and name that is text, else the shortened npub.     [AC-2, AC-6; Blocking 1]
+ *   B12 — a name that starts with an emoji shows the whole emoji as its initial, never half of it.   [AC-2; non-blocking 1]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked: a catch-all answers `success: false`; sign-in, the profiles and the read answer per
@@ -49,7 +53,7 @@ const cardFor = (page, pubkey) => section(page).locator(`a[href="/user/${pubkey}
 
 /**
  * Mock every /api route. `about`: an answer object, or 'error' (500), 'unsuccessful' (200, success: false),
- * 'abort' (a dropped connection) or 'hang'. `profiles`: 'ok' or 'error'.
+ * 'abort' (a dropped connection) or 'hang'. `profiles`: 'ok' (F.PROFILES), 'error', or a map { pubkey: profile }.
  */
 async function mock(page, { who = null, about = ABOUT, profiles = 'ok' } = {}) {
   const log = { api: [], nonGet: [], aboutCalls: 0, profilePubkeys: [] };
@@ -69,7 +73,8 @@ async function mock(page, { who = null, about = ABOUT, profiles = 'ok' } = {}) {
     log.profilePubkeys.push(...asked);
     if (profiles === 'error') return r.fulfill(json({ success: false, error: 'fixture failure' }, 500));
     const found = {};
-    for (const pk of asked) if (F.PROFILES[pk]) found[pk] = F.PROFILES[pk];
+    const map = profiles && typeof profiles === 'object' ? profiles : F.PROFILES;
+    for (const pk of asked) if (map[pk]) found[pk] = map[pk];
     return r.fulfill(json({ success: true, profiles: found }));
   });
   await page.route(`**${F.ROUTE}`, (r) => {
@@ -304,5 +309,38 @@ test.describe('About this Brainstorm Instance, on /about (about-this-instance #1
     await settled(page);
     await expect.poll(() => topOf(page), { message: 'the section is scrolled into view', timeout: 5000 })
       .toBeLessThan(NARROW.height / 2);
+  });
+
+  test('B11: an Owner or Admin profile whose name fields are not text leaves /about intact, and each card falls back to the first name that is text, else the shortened npub (AC-2, AC-6; review round 1, Blocking 1)', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await mock(page, {
+      profiles: {
+        [F.OWNER]: { name: 42, nip05: 'olive@example.com' },
+        [F.ADMIN_NAMED]: { display_name: { text: 'x' }, name: 'adam' },
+        [F.ADMIN_UNKNOWN]: { display_name: '', name: true },
+      },
+    });
+    await open(page);
+    await settled(page);
+    await page.waitForTimeout(500);
+    await expect(page.getByText('Brainstorm is open source', { exact: false }), "/about's own content survives malformed profiles").toBeVisible();
+    await expect(page.getByText('Unexpected Application Error', { exact: false }), 'no application error').toHaveCount(0);
+    await expect(cardFor(page, F.OWNER), 'a number for a name: the shortened npub').toContainText(F.shortNpub(F.OWNER));
+    await expect(cardFor(page, F.OWNER), 'its NIP-05 still shows').toContainText('olive@example.com');
+    await expect(cardFor(page, F.ADMIN_NAMED), 'an object for display_name: the name, which is text').toContainText('adam');
+    await expect(cardFor(page, F.ADMIN_UNKNOWN), 'empty and boolean: the shortened npub').toContainText(F.shortNpub(F.ADMIN_UNKNOWN));
+    expect(errors, 'no uncaught page error').toEqual([]);
+  });
+
+  test('B12: a name that starts with an emoji shows the whole emoji as its initial, never half of it (AC-2; review round 1, non-blocking 1)', async ({ page }) => {
+    await mock(page, { profiles: { [F.OWNER]: { display_name: '\u{1F9E0} Nous' } } });
+    await open(page);
+    await settled(page);
+    const text = await cardFor(page, F.OWNER).innerText();
+    expect(text, 'the path under test: the card shows the name').toContain('\u{1F9E0} Nous');
+    const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+    expect(lone.test(text), `no half emoji anywhere in the card: ${JSON.stringify(text)}`).toBe(false);
+    expect(text.split('\u{1F9E0}').length - 1, 'the emoji appears twice: as the initial and in the name').toBe(2);
   });
 });
