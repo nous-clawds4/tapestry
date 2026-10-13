@@ -1,6 +1,6 @@
 # Story 5: The rules that keep a self-Map true
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-12
 **Type:** Doc
 
@@ -545,4 +545,4 @@ into the deliverables. The ADR's quoted text went in as written, and none of the
 
 - ADR: [`decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md`](../../decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/duty-menus-and-self-maps/5-self-map-upkeep.md`](../../reviews/duty-menus-and-self-maps/5-self-map-upkeep.md)

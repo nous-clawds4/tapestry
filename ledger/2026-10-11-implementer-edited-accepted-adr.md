@@ -74,3 +74,14 @@ friction 1–2).
   and the Reviewer audited each one. That is the gap row `2026-10-08-new-browser-spec-amendments-unratified` names for
   test plans: who ratifies a no-rule-change amendment. Fix shape: an accepted ADR's post-acceptance section names its
   approver, or says that the Reviewer ratifies it by audit.
+
+**Recurred 2026-10-12, the approver of a post-acceptance section** (review of `duty-menus-and-self-maps` #5, Harness
+friction 1).
+- ADR `duty-menus-and-self-maps/0005`'s "Clarifications after acceptance" (KB-C2, KB-RD-1, KB-RD-2) landed in an
+  `adr:` commit of their own (`8287d951`), between the Implementer's first pass (`984c7cc8`) and the kick-back pass
+  (`930c5454`), as fix shape (b) asks. The Implementer carried the text verbatim and edited no ADR.
+- The section again names no approver. Two clarifications change no rule (the Reviewer audited each). KB-C2 adds an
+  open question that it says "the owner has not confirmed" (Treasure Maps § 13 question 13); it answers nothing, so
+  the spec states no new rule, but whether the owner keeps the question on row `2026-10-12-bare-39998-ta-discovery`
+  is still the owner's call. Same fix shape as the story-4 note: the section names its approver, or says that the
+  Reviewer ratifies it by audit and the owner confirms any question it opens.
