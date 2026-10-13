@@ -35,3 +35,13 @@ command file point at it: two copies of one line is how story #1 came to edit bo
 Does it port to the other flow? Yes: a Direction-mode close runs the same workflow.
 
 **Pointer:** `engineering-team/workflows/6-book-close.md` § "Per-phase commit" and step 9; `.claude/commands/close-book.md` ("Per-phase commit"); `scripts/harness-lint.sh` `check_L2`; row 121; the `ledger-row-identity` book's audit, §7 (F9).
+
+**Note, 2026-10-13 (book close `duty-menus-and-self-maps`, audit §7 P21).** The line misses more than the epic file:
+it misses every file the close edits outside `audits/<book-slug>`, `OPEN.md` and `ledger/`. Step 5 ticks §6 items
+in other books' audits, and repointing the pointers that step 9's move breaks (row
+`2026-09-20-done-move-breaks-inbound-refs`) edits whatever files hold them. This close ticked one item in
+`audits/treasure-map-card-details/audit.md`, which the line plus the epic file left unstaged (three independent
+checkers found it), and its repointing edited `docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`. Close `04f4eba4`
+(`assistant-coming-soon`) added four other audits by hand, with the source and test files whose pointers it
+repointed. The fix shape widens to match: after the named paths, stage what `git status --short` still shows as
+the close's, or name those paths in the line.

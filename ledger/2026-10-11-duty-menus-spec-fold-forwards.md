@@ -49,7 +49,7 @@ Status line is misinformed.
   included". After ADR 0003 A1-2 no fill rule reaches a self-entry, so that clause applies nowhere. Harmless; story 4
   either drops it or says why it stays.
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Findings
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Findings
 (round 3), non-blocking 12–24, 26 and 27; `engineering-team/epics/duty-menus-and-self-maps.md` (story 3's list).
 
 **Note, 2026-10-11 (story 3, ADR `duty-menus-and-self-maps/0003`).** Story 3 handled findings 14, 16, 20, 21 and 26,

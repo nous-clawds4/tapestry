@@ -98,8 +98,12 @@ or a ledger row. The one edit to an existing spec (E18) is named in story 2's De
 - [ ] Ignored entries and unknown kinds have no home on this page (§4 #3). This is the full Advanced page, already
   carried by `audits/manage-treasure-map/audit.md` §6 and `audits/treasure-map-edit/audit.md` §6; not duplicated
   here.
-- [ ] Whether a bare `39999` should be named in the draft Treasure Maps grammar, now that assigning Concepts writes it
-  (the hotfix that rides this branch; ledger `2026-10-09-draft-grammar-bare-39999`).
+- [x] Whether a bare `39999` should be named in the draft Treasure Maps grammar, now that assigning Concepts writes it
+  (the hotfix that rides this branch; ledger `2026-10-09-draft-grammar-bare-39999`). *Resolved 2026-10-12 by book
+  `duty-menus-and-self-maps` story 4 (ADR `duty-menus-and-self-maps/0004`, the owner's answer 1(a)); ticked at that
+  book's close, 2026-10-13.* `protocols/drafts/treasure-maps.md` § 4.5 names it ("The bare kind `39999` means the
+  observer's headers declared as kind-39999 items"), § 6 gives those headers to `39999` over `39998`, and the ledger
+  row is DONE.
 
 ## 7. Process findings (harness)
 

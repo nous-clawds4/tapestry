@@ -26,9 +26,9 @@ scripts that run gates inside a story commit gate-time ADR revisions as `adr:` b
 review-dispatch template that derives "which ADR changes are Architect-phase" from commit prefixes rather than asserting
 it.
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Harness friction;
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Harness friction;
 `git show 427b0123 -- engineering-team/decisions/duty-menus-and-self-maps/0002-the-duty-menus-pre-nip.md`;
-`engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Deviations, fix passes 5–6; related row
+`engineering-team/stories/done/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Deviations, fix passes 5–7; related row
 `2026-10-11-duty-menus-adr-0002-ratification-open`.
 
 **Recurred 2026-10-12** (review of `duty-menus-and-self-maps` #3, Harness friction 1).
@@ -85,3 +85,16 @@ friction 1).
   the spec states no new rule, but whether the owner keeps the question on row `2026-10-12-bare-39998-ta-discovery`
   is still the owner's call. Same fix shape as the story-4 note: the section names its approver, or says that the
   Reviewer ratifies it by audit and the owner confirms any question it opens.
+
+**Note, 2026-10-13 (book close `duty-menus-and-self-maps`, audit §7 P5–P6).**
+- Two more mixed-role commits of the book, not named above. Each names both roles in its subject, and neither changes
+  rule text:
+  - `fc4d55ab` (`adr: propose Amendment A1 to ADR 0003; PO records the owner's answers …`) carries the PO's "Owner's
+    answers to ADR 0003's questions" record in story 3 beside the Architect's A1 proposal;
+  - `8a9a420d` (`story: owner confirms ADR 0003 A1-4's AC3 departure by name …`) edits ADR 0003 to record the owner's
+    confirmation.
+- The question KB-C2 opened: at story 5's review gate (2026-10-13) the owner was asked whether Treasure Maps § 13
+  question 13 should stay on row `2026-10-12-bare-39998-ta-discovery` or move. The owner answered "Proceed." and did
+  not move it, so it stays on that row for the docs pass after the book.
+- Does it port to the other flow? Yes. A Direction-mode book commits the same phases, and its Director answers the
+  gates, so "who approves a post-acceptance section" needs the same answer there.

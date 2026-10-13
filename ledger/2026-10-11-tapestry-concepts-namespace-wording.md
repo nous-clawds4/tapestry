@@ -18,5 +18,5 @@ implementer reading "by concept slug" literally, would write `duty-menu` and fai
 Fix shape: one doc-lane edit to `tapestry-concepts.md` § "Data storage (json tag)": "namespaced by the concept's
 camelCase key (its Primary Property name), e.g. `coffeeHouse`". Add a two-word example.
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Findings, non-blocking 6;
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Findings, non-blocking 6;
 `src/api/normalize/index.js` (`toCamelCase`, `oKeys.singular`).

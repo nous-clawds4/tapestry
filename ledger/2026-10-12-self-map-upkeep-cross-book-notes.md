@@ -64,6 +64,6 @@ when each item is built or answered.
 5. **Lists.** Today it claims none (`older-form`). Sub-decision 10's note on the list-`d`-tags row says what an old
    `d` gets.
 
-**Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md` (Consequences;
+**Pointer:** ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0005-self-map-upkeep.md` (Consequences;
 sub-decisions 1, 2, 6 and 10); book `engineering-team/audits/assistant-self-map/book.md`; related rows
 `2026-10-12-list-d-tags-not-treasure-maps` and `2026-10-12-bare-39998-ta-discovery`.

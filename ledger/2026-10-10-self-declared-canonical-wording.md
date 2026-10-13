@@ -36,5 +36,5 @@ Non-blocking wording notes from the same review and its accuracy audit, worth fo
 Fix shape: one doc-lane pass (Implementer + Reviewer, non-numbered review). It can run after the
 `duty-menus-and-self-maps` book, or ride its story 2 or 3 if one of them touches these files anyway.
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` § Findings;
-`engineering-team/decisions/duty-menus-and-self-maps/0001-self-declaration-in-the-b-tag-section.md` § Consequences.
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` § Findings;
+`engineering-team/decisions/done/duty-menus-and-self-maps/0001-self-declaration-in-the-b-tag-section.md` § Consequences.

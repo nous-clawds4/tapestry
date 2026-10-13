@@ -37,8 +37,8 @@ can still close that row as the book's frame bullet 6 says. Line numbers are as 
    owner's frame bullet 6 and the epic's story-5 entry list story 5's items and close that row with it. The PO may move
    the two items here, so that story 5 can close that row, or take them into story 5 with the owner's OK (review NB6).
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/4-treasure-map-key-grammar.md` § Findings,
-non-blocking 1–6; ADR `engineering-team/decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md`
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/4-treasure-map-key-grammar.md` § Findings,
+non-blocking 1–6; ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md`
 (Clarifications after acceptance, KB-2); related rows `2026-10-12-self-maps-spec-fold-forwards` and
 `2026-10-12-addressable-kinds-spawning-content-categories`; book `engineering-team/audits/duty-menus-and-self-maps/book.md`
 frame bullet 6.

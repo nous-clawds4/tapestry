@@ -62,3 +62,9 @@ machine-readable token inside it that gets dropped.
 **Pointer:** `scripts/harness-stats.sh:85-96`; `engineering-team/workflows/5-review.md` (verdict
 rule); `engineering-team/templates/review-checklist.md`; audit
 `engineering-team/audits/profile-lookup-bounds/audit.md` §7.
+
+**A sibling gap, 2026-10-13 (book close `duty-menus-and-self-maps`, audit §7 P14).** This book appended every round
+to one review file and kept every CHANGES_REQUESTED token, so nothing was erased. Even so, `scripts/harness-stats.sh`
+reads its eight rounds (three of them CHANGES_REQUESTED: story 2's rounds 1 and 2, story 3's round 1) as five decided
+reviews, two "with kick-back history", and 0 churn: it counts review files, not rounds. Fix shape 1 above (a greppable
+`**Rounds:**` line) would count them too. Does it port to the other flow? Yes.

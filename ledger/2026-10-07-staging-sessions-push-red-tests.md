@@ -102,3 +102,11 @@ this book reached production.
 The owner chose (a): `feat/assistant-self-map`, with a PR to `staging` after Review. The phase documents up to
 Architecture had already gone to `staging` (drafts and a proposed ADR, the harmless kind this row names). Asking at the
 first red commit is a cheap habit until the harness tells sessions to do this.
+
+**Seen from a docs-only book, 2026-10-10 to 2026-10-11 (`duty-menus-and-self-maps`; book close, audit §7 P9).**
+Story 1's review gate (`20261010T222804Z-7814-1784`, on `4dae3e7a`) and story 2's round-1 gate
+(`20261010T235454Z-5682-05fc`) were FAIL with 27 failed, from another book's Tester-phase commit on `staging`
+(`ad61b9ad`, `security-auth-exposure` #8). Both Reviewers had to show non-regression by comparing failing-test names
+with the `dafbfe50` baseline (`20261010T221834Z-4660-bfd0`). By round 2 `151e39fb` had turned those suites green, and
+the round-2 dispatch still quoted the red baseline (the Reviewer judged that no defect). A book with no tests of its
+own only pays this cost. Does it port to the other flow? Yes: any flow on a shared `staging`.
