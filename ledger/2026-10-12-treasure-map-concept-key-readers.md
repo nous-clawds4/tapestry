@@ -47,7 +47,7 @@ code; the code books follow the answers.
   out `39999:dlist-header` and `39999:duty-menu`, and `treasureMapDuties` reads the bare kinds as § 4.5 does; each with
   a test.
 
-**Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (Context,
+**Pointer:** ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (Context,
 "Shipped code that reads these keys"; sub-decision 11; Consequences, Shipped code; Verification V22, V24 and V25);
 `protocols/drafts/treasure-maps.md` §§ 4.5, 4.6 and 6; ledger row `2026-10-12-duty-menu-code-cross-book-notes`; book
 `assistant-self-map`.
@@ -68,5 +68,5 @@ code; the row's fix shape widens to cover them.
 - **Fix shape, widened:** `conceptCurator` follows § 6 for every Concept key, `39999:<d>` entries included (assigning
   from either Concept kind). `roleOf` follows from the `entryOf`/`appliesTo` fix already named. Each with a test.
 
-Pointer: `engineering-team/reviews/duty-menus-and-self-maps/4-treasure-map-key-grammar.md` § Findings, non-blocking 7
+Pointer: `engineering-team/reviews/done/duty-menus-and-self-maps/4-treasure-map-key-grammar.md` § Findings, non-blocking 7
 and 8. The row stays OPEN.

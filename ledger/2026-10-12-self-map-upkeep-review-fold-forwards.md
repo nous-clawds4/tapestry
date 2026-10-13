@@ -43,8 +43,12 @@ docs pass after book `duty-menus-and-self-maps`. Item 6 is for the PO, before or
    late items and row `2026-10-12-key-grammar-review-fold-forwards` items 1–5 rode in story 5; 5(a), the two
    `protocol` rows go to a docs pass after the book. The frame does not change.
 
-**Pointer:** review `engineering-team/reviews/duty-menus-and-self-maps/5-self-map-upkeep.md` § Findings, non-blocking;
-ADR `engineering-team/decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md`; story
-`engineering-team/stories/duty-menus-and-self-maps/5-self-map-upkeep.md`; related rows
+**Pointer:** review `engineering-team/reviews/done/duty-menus-and-self-maps/5-self-map-upkeep.md` § Findings, non-blocking;
+ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0005-self-map-upkeep.md`; story
+`engineering-team/stories/done/duty-menus-and-self-maps/5-self-map-upkeep.md`; related rows
 `2026-10-12-addressable-kinds-spawning-content-categories` and `2026-10-12-bare-39998-ta-discovery` (the same docs
 pass).
+
+**Note, 2026-10-13 (PO, after story 5's review).** Item 6 is done: the epic's story-5 entry now records the
+owner's answers to questions 2, 4 and 5 and that the frame did not change, in the commit "story: epic records
+story 5's owner answers (duty-menus-and-self-maps #5)". The row stays OPEN for items 1–5.

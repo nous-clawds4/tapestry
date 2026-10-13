@@ -10,7 +10,7 @@ Story 3 (Self-Maps) is Done. None of these four gaps changes spec text, and none
 Each belongs to one role, and any of them can be fixed before the epic closes out. Line numbers are as of `11cc0008`.
 
 1. **Implementer.** The story's "Implementer, round 2 fix 1" block lists four kick-backs as open
-   (`engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`:633–642). Three were already done:
+   (`engineering-team/stories/done/duty-menus-and-self-maps/3-self-maps.md`:633–642). Three were already done:
    - the departures heading (:500, in `fe163bc0`);
    - the A2-2 markers (ADR 0003:1718 and :2058, in `38947382`);
    - the approval line (`11cc0008`).
@@ -25,8 +25,8 @@ Each belongs to one role, and any of them can be fixed before the epic closes ou
    § 9.2, third and fourth cases, :415–416). Add "or, for a List the key retracted, a List with no members (Treasure Maps
    § 7)" (review NB24).
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Round 2, Findings (round 2); ADR
-`engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md` Amendment A2; related row
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/3-self-maps.md` § Round 2, Findings (round 2); ADR
+`engineering-team/decisions/done/duty-menus-and-self-maps/0003-self-maps.md` Amendment A2; related row
 `2026-10-12-self-maps-spec-fold-forwards`.
 
 **Note, 2026-10-12 (story 4, ADR `duty-menus-and-self-maps/0004` sub-decision 11).** Each item was done by the role it

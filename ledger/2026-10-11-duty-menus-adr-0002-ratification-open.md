@@ -31,5 +31,5 @@ Fix shape, one Architect touch of ADR 0002 (no spec change):
   true for K's insights only; the key also takes `30396:tag:⟨D′⟩:⟨T⟩` for every other DList from whichever entry held
   it.
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Findings
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 3 → Findings
 (round 3), non-blocking 25; ADR 0002 § Amendment A1 ("After approval", A1-4, A1-6, A1-10, A1-11, A1-12).

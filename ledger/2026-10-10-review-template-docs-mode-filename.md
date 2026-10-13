@@ -27,4 +27,10 @@ Fix shape: split the blockquote into two cases.
 A harness-definition change: it needs a CHANGELOG row (L10).
 
 **Pointer:** `engineering-team/templates/review-checklist.md` § "Spec adherence"; `engineering-team/workflows/0-intake.md`
-step 3; `engineering-team/reviews/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` § Harness friction.
+step 3; `engineering-team/reviews/done/duty-menus-and-self-maps/1-ratify-self-pointing-b.md` § Harness friction.
+
+**Recurred in every review of the book, 2026-10-10 to 2026-10-13 (book close `duty-menus-and-self-maps`, audit §7
+P1).** All five of the book's reviews (eight rounds) are storied docs-mode reviews. Each kept its ACs and took the
+numbered filename; story 1's raised this row, and stories 2–5 each carry a "Filename note" in the header saying why.
+The blockquote is unchanged at `engineering-team/templates/review-checklist.md`:20. Does it port to the other flow?
+Yes: a Direction-mode docs-mode story reads the same template.
