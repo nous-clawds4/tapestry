@@ -1,6 +1,6 @@
 # ADR 0003: The found version rides the answer the page already reads, behind one toggle
 
-**Status:** Proposed
+**Status:** Accepted (by the owner, 2026-10-13, "approved — go ahead with the tests", as proposed)
 **Date:** 2026-10-13
 **Story:** `engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.md`
 **Extends:** ADR `assistant-self-map/0001` sub-decisions 5 and 7: `published` gains `event`. Nothing else in 0001 or
