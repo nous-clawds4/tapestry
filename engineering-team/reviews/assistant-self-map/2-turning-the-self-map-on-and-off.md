@@ -348,3 +348,183 @@ the Architect (Amendment 2), then the Tester, then the Implementer (R2-B1). R2-N
 - [ ] Completion detection. *Not applicable this round.*
 - [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
       and its `- Review:` link already points here.*
+
+# Round 3
+
+**Reviewer:** Claude (acting as Reviewer), with a second, independent reader (no write access to the repo, no
+`npm test`). Every claim below was re-derived from commands, and I reproduced the reader's findings before recording
+them. The optional independent check of the review's own claims (workflow 5, added at `22948d4`) was not applied: this
+is not a docs-mode story, and every finding is reproduced by a script.
+**Date:** 2026-10-13
+**Diff:** `git diff 3a96fba 665b2c2`, attributed commit by commit:
+- `8f39695`, `aecb47b`: ADR 0002 Amendment 2, proposed, then accepted; two ledger rows for R2-N3 and R2-N4; the story's
+  ADR link. Docs only.
+- `c1e94ca`: the Tester's round 3 tests (R14, R15, V13–V16; R10 and V8 extended) and the plan's Round 3 section. It
+  touches no `src/` or `ui/`.
+- `8fb3161`: a merge of `origin/staging` at `9679668`. Docs, harness and ledger files only
+  (`git diff --name-only 8fb3161^1 8fb3161`).
+- `665b2c2`: the fix in `attention.js`, `dutyMenu.js` and `selfMap.js`; `openapi.yaml`; BIBLE §11; the book's
+  shared-line note. It touches no `test/` or `tests/`.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `665b2c2`, clean tree, quiet machine. `npm run gate:status`:
+
+  > `20261013T042903Z-18038-f573 [s2-r3-review] started 2026-10-13T04:29:03.384Z on 665b2c2b — PASS, exit 0, 5954 passed, 0 failed, 582 skipped, 308/308 suites`
+
+  It matches the Implementer's `20261013T042018Z-14349-3160` (PASS, 5954/0). Test Design's red run
+  `20261013T035809Z-10560-24b8` exists as the plan records it: FAIL, 4 failed, in the two self-map suites.
+- [x] **Playwright, chromium.** `ui/` is unchanged since `1249d7f` (`git diff 1249d7f 665b2c2 -- ui` is empty). I built it
+  at `665b2c2` anyway and served it with `vite preview` on :4184, launched through node and stopped by its pid (the port
+  then freed, and no preview process was left). `assistant-self-map` and the nine hub specs: **120 passed, 5 skipped**
+  (their own skip conditions), 6.1 m.
+- [x] `bash scripts/harness-lint.sh`: **clean**.
+- [x] **Shared lines.** `origin/staging` is still at `9679668`, merged at `8fb3161`. `attention.js` on staging is
+  identical to the branch's before round 3 (`git diff origin/staging 8fb3161 -- src/api/assistant/attention.js` is
+  empty).
+- [x] _Lint, typecheck, build: not configured — skipped._
+
+## Round 2's findings, each re-derived as a fresh claim
+
+| Finding | Re-derived by | Result |
+|---|---|---|
+| **R2-B1**, the relay list found nowhere on one answer | `<scratch>/repro/r2-f1.js` and `r2-f1-press.js`, run again unchanged; a scratch worktree at `665b2c2` with the strict read's `everyRelay: true` removed | The strict read now answers `{"finished":false,"reason":"no-relay-answered"}`, and the press `{"refusal":{"status":503,"code":"not-read"}}` with nothing signed. With the flag removed, V13 and R14 fail. The reader's differential of `lookupSelfMap` at `3a96fba` against `665b2c2`, over 3,000 random worlds, found 85 differences. All are `665b2c2` refusing in the class "list found nowhere, one configured outside relay silent"; that class held 97 worlds, and none of them finished. **Fixed as Amendment 2 item 1 words it.** But see R3-B1: the same gap one level down. |
+| **R2-N1**, guard before connect | The same worktree, with `readGuarded` reading before the guard | V8 and R10 both fail: "no read of the write relay the DNS guard refused, got [\"wss://a-write.example\"]". The reader's in-memory mutants agree: seven mutants, each caught by at least one round 3 test, and none by `665b2c2`. **Fixed.** |
+| **R2-N2**, the records | Reading `openapi.yaml:798–806` and `BIBLE.md:531` against `selfMapPublish.js:181–190` and `attention.js:226–231` | Both now name Amendment 1 item 2's exception and Amendment 2's rule. The YAML still parses. **Fixed**, with two nits (R3-N2, R3-N3). |
+| **R2-N3, R2-N4** | `ledger/2026-10-13-self-map-current-ignores-expiration.md`, `ledger/2026-10-13-self-map-send-relooks-write-relays.md` | Both rows exist, **OPEN**, and are named in Amendment 2 item 6. |
+
+**ADR adherence, Amendment 2:**
+- Item 1: `lookupNewestReplaceable` takes `everyRelay` (`attention.js:210`, check at `:230`).
+  `assistantWriteRelayLookup` passes it through (`dutyMenu.js:122–127`), and only `strictOutsideRound` sets it
+  (`selfMap.js:289`). The reader's differential of the old code against the new, over 4,000 worlds, found no change in
+  `lookupNewestReplaceable` without the flag or with it false, in `assistantWriteRelayLookup` and `assistantWriteRelays`
+  without it, or in `nousWriteRelays`. An oracle written from item 1 agreed with `everyRelay: true` in every world, and
+  the flag changed the answer in 670 of them.
+- Items 4 and 5: as the table above.
+- **No new dependencies.** Layering holds.
+
+## Findings
+
+### Blocking
+
+1. **R3-B1 — `src/api/assistant/selfMap.js:308–309`, under ADR 0002 Amendment 1 items 1.2 and 1.3, unchanged by
+   Amendment 2. One write relay that answers stands in for all of them, so the press can still build over nothing
+   while the full version sits on a write relay the Assistant's current relay list names.**
+
+   **The gap.** With nothing here, the read finishes when *one* write relay answers (item 1.2), or, with no write
+   relays, one hint or offer relay (item 1.3). Amendment 2 item 1 gives the reason a single answer can't stand for a
+   silent relay: the answering one "could have been added after …, dropped or refused it, or accept no such events".
+   That reason applies word for word to a write relay and the kind 10040. Each version goes to every write relay named
+   at publish time, so a write relay added to the list since, or one that refuses or drops kind 10040, answers empty
+   while the ones holding the version may be silent.
+
+   **Failure:**
+   - strfry holds no copy of the 10040 or the 10002 (a wipe).
+   - The current relay list, found on a publish relay, names W_OLD and W_NEW. W_NEW answers and holds no 10040; W_OLD
+     holds the full version and is silent.
+   - The read finishes with no version, and Turn on signs the self-entry alone, with empty content.
+
+   This is not one of Amendment 2 item 3's two limits: the list here is the current one, not an older one. Item 3's
+   guarantee, "It builds from nothing only when those places hold nothing" (ADR line 647), and the comment at
+   `selfMap.js:33`, "So the press never builds over nothing", are false here. It is the same loss as round 1's
+   Blocking 1 and R2-B1, by a third road. The hints have the same gap: with no list anywhere and every publish relay
+   answering, one hint answering empty stands in for a silent hint that holds the version.
+
+   **Reproduced**, first by the reader (`<scratch>/reader3/a-strict-battery.js`, its S9/P9 and S10/P10) and then by me:
+   `node <scratch>/repro/r3-f1-f3.js <repo>`, on the real `lookupSelfMap` and `applySelfMap`, gives
+   - `F1 strict read: {"finished":true,"latest":null}`;
+   - `F1 Turn on: published=true tags=["39998"] content=""`, while the version on `w-old` had `["30382:rank","client","39998"]`
+     with private content.
+
+   I re-derived Amendment 1 item 1.2 in round 2 and recorded it as fixed. I didn't challenge "one answer suffices",
+   and neither did round 2's reader.
+
+2. **R3-B2 — ADR 0002 Amendment 2, "The cost, accepted" (line 580) and § Consequences (A2) (line 705). The cost the
+   owner approved is misstated. It reaches every first Turn on of an Assistant with no published relay list, with no
+   wipe involved.**
+   - Only `src/api/assistant/relayListPublish.js:126` signs a kind 10002: the Outbox Relays page. So an Assistant
+     whose owner never used that page has no relay list anywhere.
+   - Before its first press, there is no kind 10040 on this instance either. So the strict read needs every configured
+     outside publish relay to answer: six public relays with the shipped settings.
+   - With one of them silent, the person's first Turn on is refused with 503 not-read, in the words "Nothing was
+     published: your Assistant's current Treasure Map could not be read, and publishing without it could lose its other
+     entries." The Assistant has no Treasure Map yet.
+   - Amendment 2 scoped the cost to "After a wipe, with no relay list anywhere", and the owner approved it on that
+     wording. A cost the owner didn't knowingly accept goes back to the owner.
+
+   **Reproduced**, by the reader (`<scratch>/reader3/g-first-press.js`) and by me (`r3-f1-f3.js`):
+   - `F3 first Turn on, 1 of six publish relays silent: refused 503 not-read`;
+   - `0 of six silent: published=true`.
+
+**Asked change.** Both are in the ADR's rule and its stated cost, so they go back through the phases.
+- **Architecture (Amendment 3).** Three rounds have each found one more place where one answer stands in for a silent
+  relay that may hold the version: the relay list, then the write relays, then the hints. I recommend the Architect
+  settle the whole class at once rather than this case alone:
+  1. Say once what the strict read needs before it may conclude "no version anywhere".
+  2. Cost that rule honestly: on first presses, on Assistants without a relay list, and with relays that stay down.
+  3. Put the trade-off to the owner: refuse more often, or accept named risks.
+
+  Some directions for the Architect to weigh, not a decision:
+  - every member of the set the conclusion rests on must answer: W when W isn't empty, else O;
+  - a local record that tells a first press for this Assistant from a press after a wipe. The choice file is written
+    before anything is published, but it lives on the same data volume, so it may be lost with strfry;
+  - keep "at least one", with the limit named in the guarantee and in the code comment, if the owner accepts the risk.
+
+  Whatever is chosen, correct Amendment 2 item 3's guarantee, its "cost, accepted", § Consequences (A2), and
+  `selfMap.js:33` to what the code then does.
+- **Test Design and Implementation**, as the amendment decides.
+
+### Non-blocking
+
+1. **R3-N1 — ADR 0002 Amendment 2 item 2 (lines 614–627): "a settings read never throws" is false for one input.** An
+   override file that holds the JSON `null` makes `getSettings()` throw: `deepMerge` calls `Object.keys(null)`
+   (`src/config/settings.js:77`).
+   - `readConfiguredRelays` swallows the throw (`profilePublish.js:75–80`), so the lookup reads `no-outside-relays`,
+     and the strict read alone finishes with no version.
+   - Both presses are refused only because `resolveOfferInputs` reads the same settings through `readAssistantDuties`
+     (`dutyMenu.js:77`) and throws first: a 500, with nothing written. That is the coupling item 2 says no press leans
+     on.
+   - Every other bad file reads as the shipped defaults: missing, torn, a number, a string or an array. The app never
+     writes `null` (`saveOverrides` is given an object), so only a hand edit gets there.
+
+   **Reproduced** by me: `<scratch>/settings-probe` gives `"null" -> THROWS: Cannot convert undefined or null to
+   object`, and `TAPESTRY_SETTINGS_PATH=<null file> node <scratch>/repro/r3-null-settings.js <repo>` gives both presses
+   "threw (the handler answers 500)", with `choice writes / imports / publishes: []`. The reader got the same with
+   `<scratch>/reader3/d-settings.js` and `e-settings-press.js`.
+
+   **Fold into Amendment 3:** correct item 2's text. Hardening `loadOverrides` would be a change to shared settings
+   code; the Architect decides.
+2. **R3-N2 — "every configured publish relay" should say "every outside configured publish relay".** The code counts
+   only the outside ones: `outsideOnly` drops this instance's own, and none outside is `no-outside-relays`, which counts
+   as finished. The places are `openapi.yaml:801–802`, `BIBLE.md:531`, `selfMap.js:32` and `:279`, and
+   `dutyMenu.js:118`. **Fold into the next push that edits them.**
+3. **R3-N3 — `src/api/openapi.yaml:806` is 172 characters,** inside a folded scalar, where the rest of the paragraph wraps
+   near 120. It parses, and the description reads as intended. The comment at `selfMap.js:280` was left short by the
+   rewrap above it. **Fold into the next push that edits them.**
+
+### Harness friction
+
+None new. This round's gate passed on the first run, on a quiet machine, with the reader started only after it.
+
+## Verdict
+
+**CHANGES_REQUESTED**
+
+Round 3 fixes what round 2 asked for, and each fix holds when re-derived:
+- R2-B1's case now refuses;
+- the guard-before-connect assertions catch the mutant;
+- the records name both rules;
+- every other caller of the shared lookup answers as before (4,000 worlds, 0 differences);
+- the gate passes (5954 / 0), and the browser specs pass (120 / 0, 5 skipped).
+
+But the strict read still isn't "never blind". One write relay answering empty stands in for a silent one holding the
+version, so after a wipe Turn on can sign the self-entry alone over this instance's own Treasure Map (R3-B1). And the
+cost Amendment 2 asked the owner to accept is wider than stated: every first Turn on of an Assistant without a relay
+list needs all six shipped publish relays (R3-B2). Both are in the ADR's rule and its claims, so the fix goes to the
+Architect, who settles the whole class with the owner (Amendment 3), then the Tester, then the Implementer.
+
+## On PASS (same commit)
+
+- [ ] Completion detection. *Not applicable this round.*
+- [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
+      and its `- Review:` link already points here.*
