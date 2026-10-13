@@ -31,3 +31,10 @@ Received: "⋮⋮ 30382 Scores This instance's relay Move up Move down Change re
 - **Alone, the first time it failed alone:** across eight solo runs of the spec on the same build, it passed seven
   times (14/14) and failed B8 once, with the same reading. So it isn't only load.
 - **Story 3 changed nothing under `ui/src/pages/settings`;** its throwaway prototype's combined run had passed 121/0.
+
+**Occurrence, 2026-10-13** (`assistant-self-map` #3's Review, a build of `7d1f0fc`).
+- The combined chromium run failed B8 again (120 passed, 1 failed, 5 skipped), with the same reading.
+- That makes both combined runs on story 3's builds, while story 2's last three combined runs passed B8. Story 3
+  changed nothing under `ui/src/pages/settings`. It did add N6 to the self-Map spec, a long test (eleven page loads),
+  and the runner uses two workers in parallel (`fullyParallel: true`), so it plausibly adds load beside B8. The fix is
+  still B8's own wait (Fix shape above).

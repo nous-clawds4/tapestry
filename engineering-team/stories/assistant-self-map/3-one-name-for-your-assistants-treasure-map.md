@@ -1,6 +1,6 @@
 # Story 3: One name for your Assistant's Treasure Map
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-13
 **Type:** Feature (wording only; no behaviour changes)
 
@@ -127,4 +127,4 @@ nothing under the hood moves.
 
 - ADR: none (see Open questions)
 - Test plan: `engineering-team/stories/assistant-self-map/3-one-name-for-your-assistants-treasure-map.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-self-map/3-one-name-for-your-assistants-treasure-map.md`

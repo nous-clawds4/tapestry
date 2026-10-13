@@ -244,10 +244,12 @@ From the owner's ask and the facts above; the Architect decides.
   `staging` 2026-10-13, above).** The owner chose at planning that it reaches `staging` by a PR after its Review, as
   above, and reaches production only together with story 4, the upkeep (called story 3 until 2026-10-13). Until story
   4 keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
-- **Story 3, one name for your Assistant's Treasure Map (approved 2026-10-13; Architecture skipped).** The owner's ask after story 2's
-  staging check: the words people see say "Treasure Map", never "self-Map"; nothing under the hood changes.
   - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
     production too. No outside client reads self-Maps yet.
+- **Story 3, one name for your Assistant's Treasure Map (approved 2026-10-13, Architecture skipped; Done 2026-10-13,
+  review PASS).** The owner's ask after story 2's staging check: the words people see say "Treasure Map", never
+  "self-Map"; nothing under the hood changes. Wording follow-ups from its review: ledger row
+  `2026-10-13-treasure-map-wording-followups`.
 
 ## Shared lines
 
