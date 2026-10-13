@@ -92,7 +92,7 @@ For the Architect, not the PO:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/assistant-scores/0001-a-session-bound-scores-read-and-recalculate-route.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
