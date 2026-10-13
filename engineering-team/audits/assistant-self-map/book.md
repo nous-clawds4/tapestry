@@ -237,7 +237,15 @@ From the owner's ask and the facts above; the Architect decides.
       errors.
   - **The owner's check on staging,** signed in: pending. It should show the state line and the buttons, and a press
     should report honestly.
-  - **Production:** waits for story 4, the upkeep (the owner's choice at planning; called story 3 until 2026-10-13).
+  - **Production:** PR #861, pinned at `3def0f8a` through `promote/assistant-self-map-2-3`, merge `cf85458a`, deploy
+    run 38478862184 (1m43s), 2026-10-13, with story 3 in the same promotion. Safe-to-merge check: safe, re-run
+    after main's required `stack-free` check finished. Smoke test Tiers 1–5 clean: the served bundle went from
+    `index-C8cYr98C.js` to `index-DyLRJT-P.js`, byte-identical to staging's; signed out, the route answers 401 "Sign
+    in to do this." (before: the owner/admin gate); Tier 4 used headless Chromium, signed out, with no console errors
+    and no "self-Map".
+  - **Ahead of story 4, by the owner's choice (2026-10-13).** At planning the owner chose production only with story 4
+    (the upkeep); on 2026-10-13 the owner asked to promote stories 2 and 3 now. Until story 4 ships, a Treasure Map set
+    to list its duties changes only when its person presses.
 - **Story 3, one name for your Assistant's Treasure Map (Done; review PASS).**
   - **Staging:** PR #860, merge `3def0f8a`, deploy run 38476276179 (1m42s), 2026-10-13. Safe-to-merge check: safe on
     the first attempt. Smoke test Tiers 1–5 clean:
@@ -247,12 +255,21 @@ From the owner's ask and the facts above; the Architect decides.
     - Tier 4 used headless Chromium, signed out: `/assistant/treasure-map` and `/assistant` render with no console
       errors and no "self-Map".
   - **The owner's check on staging,** signed in: pending.
-  - **Production:** with story 4, as story 2.
+  - **Production:** PR #861, pinned at `3def0f8a` through `promote/assistant-self-map-2-3`, merge `cf85458a`, deploy
+    run 38478862184 (1m43s), 2026-10-13, with story 2 in the same promotion. Safe-to-merge check: safe, re-run
+    after main's required `stack-free` check finished. Smoke test Tiers 1–5 clean: the served bundle went from
+    `index-C8cYr98C.js` to `index-DyLRJT-P.js`, byte-identical to staging's; signed out, the route answers 401 "Sign
+    in to do this." (before: the owner/admin gate); Tier 4 used headless Chromium, signed out, with no console errors
+    and no "self-Map".
+  - **Ahead of story 4, by the owner's choice (2026-10-13).** At planning the owner chose production only with story 4
+    (the upkeep); on 2026-10-13 the owner asked to promote stories 2 and 3 now. Until story 4 ships, a Treasure Map set
+    to list its duties changes only when its person presses.
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
   `staging` 2026-10-13, above).** The owner chose at planning that it reaches `staging` by a PR after its Review, as
-  above, and reaches production only together with story 4, the upkeep (called story 3 until 2026-10-13). Until story
+  above, and reaches production only together with story 4, the upkeep (called story 3 until 2026-10-13; the owner
+  changed this on 2026-10-13, and stories 2 and 3 reached production together, above). Until story
   4 keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
   - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
     production too. No outside client reads self-Maps yet.
