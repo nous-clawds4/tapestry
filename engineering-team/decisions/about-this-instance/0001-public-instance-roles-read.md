@@ -1,6 +1,6 @@
 # ADR 0001: One public read for the instance's Owner, Admins and customer count; a section on /about renders it
 
-**Status:** Proposed
+**Status:** Accepted (operator, Architecture gate, 2026-10-13)
 **Date:** 2026-10-13
 **Story:** `engineering-team/stories/about-this-instance/1-owner-admins-customer-count.md`
 **Book:** `engineering-team/audits/about-this-instance/book.md`
@@ -102,6 +102,15 @@ Filtering `customers.json` (all statuses) by whether each entry has a key is clo
    - **Look:** the design's layout in the page's existing dark styling (the `bsp-page` background, `#a5b4fc` accent as on the page's links, cards with a faint border and fill), per the story's "Look and wording".
 
 7. **The link.** `BrainstormAboutSearch.jsx` gains a closing paragraph with `<a href="/about#this-instance">About this Brainstorm Instance</a>`, a plain anchor like the page's other links. The full navigation it causes is handled by the hash effect in point 6.
+
+## The operator's decisions at the gate (2026-10-13)
+
+1. **Option A as written**, including Decision 5: "itself an Assistant" means an Assistant this instance holds the key
+   for; one run by another instance is not recognised and, if it holds a key here, counts as a customer.
+2. **Correct the story and epic**: their claim that customer identities stay private is replaced with the fact in
+   Context (already public through `get-customers` and the roster). The acceptance criteria are unchanged.
+3. **Queue the open question** of whether customer identities should stay public, as its own intake entry
+   (`_intake.md`, 2026-10-13), outside this book.
 
 ## Consequences
 

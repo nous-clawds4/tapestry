@@ -2943,3 +2943,24 @@ Your Assistant's Treasure Map card is left as it is.
 
 **Classification:** feature, client-only page change (no event shape, auth default, schema, dependency or routing
 change), so the Light Feature lane: Gate A → J1 → J2 → J3 → Gate B.
+
+## 2026-10-13 — Should customer identities stay public? (product / security decision)
+
+**Raw request:** none; raised at the Architecture gate of `about-this-instance` #1 and queued with the operator's
+approval ("Yes to all three", 2026-10-13).
+
+**What was found.** `GET /api/get-customers` is a public read (`src/middleware/routeAccess.js`, `PUBLIC_READ`): visitors
+who are not signed in get every active customer's pubkey, name, display name, directory and comments. Only signed-in
+people who are neither customers nor the owner's side are refused (the customer-or-owner quirk,
+`src/middleware/auth.js`, carried by ADR `security-auth-exposure/0005` and left to a product call). `GET
+/api/assistant/roster` joins those pubkeys to their Assistant pubkeys for visitors too. Both follow ADR
+`author-scoped-inspection/0001` ("customers public (`get-customers`)"), so this is a recorded decision, not an
+accident; but the operator's 2026-10-13 framing assumed customers were private.
+
+**The question for the owner.** Keep customer identities public, or narrow `get-customers` (and the roster's
+customer rows) to the owner's side and the customer themselves? Consumers to check before narrowing: the
+scheduled-tasks panel's customer picker (ADR `task-queue-scheduler/0021`), the roster's "Mine" resolution, and any
+page that names customers. The `directory` and `comments` fields are worth a look even if identities stay public.
+
+**Classification:** product / security decision first; any change after it is a feature or security story under
+Standard (all phases).

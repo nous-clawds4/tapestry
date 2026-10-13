@@ -8,7 +8,7 @@
 
 A visitor to a Brainstorm instance cannot tell who runs it. The `/about` page describes Brainstorm in general (what it is, that NosFabrica builds it, that it is open source) but says nothing about *this* instance. Each deployment (tapestry, staging, tags, and any other) has its own Owner and Admins and serves its own customers, so the answer differs per instance.
 
-Today only the Owner's identity is publicly readable. Only the Owner can see the Admin list, and only the Owner and signed-in customers can see the customer list. The operator decided on 2026-10-13 to make the Admins and a customer **total** public. Customer identities stay private.
+Today the Owner's identity is publicly readable and only the Owner can see the Admin list. The operator decided on 2026-10-13 to make the Admins and a customer **total** public. Customer pubkeys and names are already public through two other reads (`GET /api/get-customers` and `GET /api/assistant/roster`, by ADR `author-scoped-inspection/0001`); this story adds no customer identity to what is public, and whether those reads should stay public is queued separately (`_intake.md`, 2026-10-13). *(Corrected at the Architecture gate, 2026-10-13: the approved draft said customer identities were private.)*
 
 The layout comes from the "About this Brainstorm" screen in the Claude Design artifact *Brainstorm onboarding flow design* (<https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m>): an Owner card, an Admins list with a count beside its heading, and a large Customer count. Each person card opens that person's profile. An earlier idea of a separate `/about-this-instance` page was dropped in favour of a section on the existing `/about` page, since that page already exists and covers the same ground.
 
@@ -56,6 +56,7 @@ These are facts about the instance, the same for every viewer. Nothing in this s
 - A separate `/about-this-instance` page (dropped), and any further reconciliation of `/about` with `/about-brainstorm-search`.
 - The design's other screens, including its own user-profile screen: cards open the existing profile page.
 - Live-updating numbers. The figures are as of page load.
+- Whether customer identities should stay public through the existing customer reads. Queued as its own intake entry (2026-10-13).
 
 ## Open questions
 
@@ -72,6 +73,6 @@ All resolved by the operator on 2026-10-13:
 
 - Book: `engineering-team/audits/about-this-instance/book.md`
 - Design: Claude Design artifact *Brainstorm onboarding flow design*, "About" screen (<https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m>)
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/about-this-instance/0001-public-instance-roles-read.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
