@@ -125,7 +125,8 @@ Still open:
 **A docs pass after this book** (the owner's choice):
 - whether a bare `39998` entry names a person's TA, and whether it asks for curation of a list;
 - Treasure Maps § 13 question 13 (does an Alternate entry for a list ask that Assistant to curate it?), which stays on
-  ledger row `2026-10-12-bare-39998-ta-discovery`;
+  ledger row `2026-10-12-bare-39998-ta-discovery` (**note, 2026-10-13:** the owner confirmed this placement after the
+  close; the question itself stays open);
 - "addressable" in Spawning and Content Categories;
 - five wording items from story 5's review.
 

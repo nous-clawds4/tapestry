@@ -47,3 +47,10 @@ reviews recorded these as known and added no note, so the close records them her
   other, not only with the dispatches.
 
 Does it port to the other flow? Yes: Direction-mode books dispatch the same Reviewer agent.
+
+**Note, 2026-10-13 (harness commit `22948d45`, audit `duty-menus-and-self-maps` §7 P13).** `workflows/5-review.md`
+§ Per-phase commits now has an optional independent check, and it orders the check before the review commit: the
+checker runs first, then the Reviewer folds in what holds and commits. So for a review that runs the check, holding
+the commit until the check is done follows the workflow, and the commit stays the Reviewer's. That settles the commit
+question only for that case. The row stays OPEN for its other defects: WebFetch named in dispatches, a commit held
+for any other reason (story 1's orchestrator commit, for one), and where completion detection is recorded.

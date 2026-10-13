@@ -34,3 +34,9 @@ edits a decision promises are as unchecked there.
 `engineering-team/audits/duty-menus-and-self-maps/audit.md` §7. Related rows:
 `2026-09-22-linked-artifacts-not-written-at-gates` (the same genus, for a story's Linked artifacts lines) and
 `2026-09-20-human-gated-approvals-leave-no-record`.
+
+**Note, 2026-10-13 (the owner's approvals after the close of `duty-menus-and-self-maps`, audit §7 P11).** The owner
+chose not to fix this row on its own. It folds into one grouped harness story with the two same-family rows above,
+`2026-09-22-linked-artifacts-not-written-at-gates` and `2026-09-20-human-gated-approvals-leave-no-record`, as the
+session digest's meta-escalation asks (group related items, name the story, list what it closes). The row stays
+OPEN until that story lands.

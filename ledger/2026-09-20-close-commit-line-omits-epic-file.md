@@ -3,8 +3,8 @@
 **Id:** 2026-09-20-close-commit-line-omits-epic-file
 **Type:** meta
 **Opened:** 2026-09-20 (`ledger-row-identity` book close, retro finding F9)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-13 — operator-ratified harness commit `7879d553` (book `duty-menus-and-self-maps` close, audit §7 P21): `workflows/6-book-close.md` § Per-phase commit stages the epic files step 9 flipped and every other file the close edited, checked against `git status --short`; `.claude/commands/close-book.md` points at it, so the line has one copy.
 
 **`workflows/6-book-close.md` § "Per-phase commit" and `.claude/commands/close-book.md` give the close
 commit as `git add engineering-team/audits/<book-slug> OPEN.md ledger && git commit …`. Step 9 of the
