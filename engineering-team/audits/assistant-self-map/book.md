@@ -251,7 +251,7 @@ From the owner's ask and the facts above; the Architect decides.
   review PASS).** The owner's ask after story 2's staging check: the words people see say "Treasure Map", never
   "self-Map"; nothing under the hood changes. Wording follow-ups from its review: ledger row
   `2026-10-13-treasure-map-wording-followups`.
-- **Story 4, show your Assistant's raw Treasure Map (drafted 2026-10-13).** The owner's ask: a toggle on the page
+- **Story 4, show your Assistant's raw Treasure Map (approved 2026-10-13; all five phases).** The owner's ask: a toggle on the page
   opens the found version of the Assistant's kind 10040 as published, read-only. The upkeep story is renumbered 5.
 
 ## Shared lines

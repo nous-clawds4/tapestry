@@ -1,6 +1,6 @@
 # Story 4: Show your Assistant's raw Treasure Map
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-13
 **Type:** Feature (small: one toggle and one panel on an existing page)
 
@@ -76,7 +76,8 @@ Story 3's rule holds: "Treasure Map", never "self-Map". The panel's body is the 
 
 ## Open questions
 
-None left for the owner, if the three choices below stand; each is a default the draft took, to confirm at the gate:
+None. The owner approved the story at the Planning gate (2026-10-13) with the three choices below as drafted, and the
+path Standard, all five phases:
 
 1. **Where:** inside the "Your Assistant's published Treasure Map" panel, right after what it lists as found.
 2. **When:** whenever a version is found, even one that lists none of the Assistant's duties.
