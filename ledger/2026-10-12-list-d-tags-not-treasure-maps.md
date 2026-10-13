@@ -50,3 +50,11 @@ For the reference publishers' use of the marker (item 19 of row `2026-10-12-self
   `currentNoteDTags`, as `tag-stack-merge-hardening` ADR 0001 (B4a) keeps the pubkey List's. A pin whose tag event is
   missing from local strfry has both its Lists marked; whether that is a gap or a stop is the code books' call. Until
   the next run republishes such a List, every reader reads it as no copy (Treasure Maps § 7).
+
+**Note, 2026-10-12 (review of `duty-menus-and-self-maps` #5, non-blocking 5).** The story-5 note above treats keeping
+an old `d` as an alias as an open choice for the move. Two specs already answer it for the pinned-tag Lists:
+Treasure Maps § 12 (`protocols/drafts/treasure-maps.md`:637: "old lists retracted in place") and Pins § 10
+(`protocols/drafts/pins.md`:234: "Existing `tl-pin-…` Trusted Lists are retracted in place as their replacements
+publish"). Keeping an alias departs from both, and the code book that makes the move records that departure if it
+takes it. Shipped readers still read `tl-pin-` `d` tags (`ui/src/hooks/useTagMemberSets.js`;
+`src/api/profile-tags/index.js`, `enrichRowsWithTLStatus`), so the move has readers to bring along either way.
