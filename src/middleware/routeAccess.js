@@ -104,6 +104,8 @@ const ROUTE_ACCESS = Object.freeze({
   'POST /api/assistant/publish-profile': allow('signed-in',
     "Your own Assistant's profile; the handler requires the session to be that Assistant's person."),
   'GET /api/assistant/roster': PUBLIC_READ,
+  'POST /api/assistant/self-map': allow('signed-in',
+    "Your Assistant turns its own self-Map on or off and signs it from this instance's own check; bound to your session."),
   'GET /api/assistant/status': PUBLIC_READ,
   'GET /api/audit/bios': PUBLIC_READ,
   'GET /api/audit/concept': PUBLIC_READ,

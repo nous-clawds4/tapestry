@@ -200,10 +200,14 @@ async function lookupByAddresses({ kind, author, ds, relays }, deps) {
  * instance's relay first, in one scan; only when it holds none, the given outside relays, all at once, each within the
  * relay budget. lookupByAddresses' rule for an address, for a kind with no d tag.
  *
+ * With `everyRelay` (assistant-self-map ADR 0002 Amendment 2), "found nowhere" needs every relay's answer: when none
+ * that answered holds it and one did not answer, it is `outside-unreachable`, since that one may hold it. Without it,
+ * one answer is enough, as every other caller reads it.
+ *
  * @returns {Promise<{finished: true, event: Object|null, source: 'local'|'relay'|null}
  *                  |{finished: false, reason: 'local-unreadable'|'no-outside-relays'|'outside-unreachable'}>}
  */
-async function lookupNewestReplaceable({ kind, author, relays }, deps) {
+async function lookupNewestReplaceable({ kind, author, relays, everyRelay = false }, deps) {
   const who = String(author || '').toLowerCase();
   const mine = (e) => e && e.kind === kind && String(e.pubkey || '').toLowerCase() === who;
 
@@ -222,7 +226,9 @@ async function lookupNewestReplaceable({ kind, author, relays }, deps) {
   const answered = answers.filter((a) => a && a.status === 'ok');
   if (answered.length === 0) return { finished: false, reason: 'outside-unreachable' };
   const found = answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine);
-  return found.length > 0 ? { finished: true, event: newest(found), source: 'relay' } : { finished: true, event: null, source: null };
+  if (found.length > 0) return { finished: true, event: newest(found), source: 'relay' };
+  if (everyRelay && answered.length < relays.length) return { finished: false, reason: 'outside-unreachable' };
+  return { finished: true, event: null, source: null };
 }
 
 /** Where taggings are looked for outside: the tag-federation relays, minus this instance's own. */

@@ -40,6 +40,25 @@ const SM = require('../../test/helpers/selfMapFixtures');
  *         says so — "Not offered" and the false-claim sentence on the 3038x line. A guard: the page draws
  *         the sentence on any line that carries falseClaim, so this passes on the round-1 build too.      [AC-6]
  *
+ *
+ * assistant-self-map #2 (turning the self-Map on and off; story 2 AC-2, § Copy; ADR assistant-self-map/0002
+ * sub-decision 7):
+ *   B12 — re-aimed: still one GET per load and nothing but GETs until a press; the buttons are the self-Map's.  [AC-2]
+ *   B14 — off, nothing found: the off line, Turn on alone, no status line.                                   [AC-2]
+ *   B15 — on, up to date: the on line, Update now disabled, Turn off, the status line, the Owner's note.      [AC-2]
+ *   B16 — on, out of date: Update now enabled, the out-of-date line.                                          [AC-2]
+ *   B17 — off, self-entries still found: the "still claims" line, Turn on and Turn off.                       [AC-2]
+ *   B18 — Turn on: one POST { on: true } as JSON; Publishing… with every button disabled while it runs; the
+ *         report's summary and relay lines; the answer asked for again.                                     [AC-2, AC-3]
+ *   B19 — Turn off: { on: false }; the report adds "now claims no duties"; the answer asked for again.       [AC-2, AC-5]
+ *   B20 — nothing published: the instance's line, and the answer asked for again; a refusal: its words, and
+ *         no second GET.                                                                                       [AC-2]
+ *   B21 — a customer gets no Owner's note; signed out or with no Assistant, no self-Map button.               [AC-2]
+ *   Round 2 (ADR 0002 Amendment 1):
+ *   B22 — off while the check did not finish: Turn on and Turn off (item 4).                                   [AC-2]
+ *   B23 — a 500 shows the failed words and asks for the answer again; it may have changed the choice (item 3).  [AC-2]
+ *   B24 — the Owner's note after a check that threw, from the session; still none for a customer (item 5).      [AC-2]
+ *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. /api/assistant/attention answers per scenario: an object, 'hang' or 'error' (a 500).
  *
@@ -47,7 +66,12 @@ const SM = require('../../test/helpers/selfMapFixtures');
  *   BRAINSTORM_BASE_URL → an origin serving the BUILT UI under test (see tests/brainstorm/assistant-management-page.spec.js).
  *
  * These FAIL against the build before this story: /assistant/treasure-map is the placeholder page, the hub's card is
- * always marked and counted, and the count line has no zero state.
+ * always marked and counted, and the count line has no zero state. B12 and B14–B21 FAIL against story 1's build: the
+ * page has no state line and no buttons.
+ *
+ * assistant-self-map #3 (one name for your Assistant's Treasure Map; story 3 § Copy, no ADR): the fixtures' words are
+ * re-aimed, so every B test that reads a line now reads the new one; N6 walks the page's states and the hub and finds no
+ * "self-Map" on screen (AC-1, AC-3). These FAIL against story 2's build.
  */
 
 const TA = SM.TA;
@@ -330,7 +354,7 @@ test.describe('Your Assistant\'s Treasure Map card and page (assistant-self-map 
     await expectNoStatusLine(page, 'request failed');
   });
 
-  test('B12: read-only, one request — one GET of the answer per load, nothing but GETs, no button but sign-in (AC-7)', async ({ page }) => {
+  test('B12 (AC-7; re-aimed by assistant-self-map #2): one request per load — one GET of the answer, nothing but GETs until a button is pressed, and the page\'s only buttons are the self-Map\'s (here, on and not yet published: Update now and Turn off)', async ({ page }) => {
     const log = await mock(page, { attention: answerWith(SM.ANSWERS.NOT_PUBLISHED) });
     const main = await open(page, SM.PATH, 3000);
     // The path under test ran: the page drew its panels from the answer (a "nothing else happened" check needs this).
@@ -338,7 +362,8 @@ test.describe('Your Assistant\'s Treasure Map card and page (assistant-self-map 
     expect(log.attentionCalls.length, `one GET of the answer, got ${JSON.stringify(log.attentionCalls)}`).toBe(1);
     expect(log.attentionCalls[0]).not.toContain('?');
     expect(log.nonGet, 'nothing but GETs').toEqual([]);
-    await expect(main.getByRole('button'), 'no button on the page itself').toHaveCount(0);
+    const names = (await main.getByRole('button').allInnerTexts()).map(squash).sort();
+    expect(names, 'the self-Map\'s buttons, and no other').toEqual([SM.PRESS.buttons.turnOff, SM.PRESS.buttons.update].sort());
   });
 
   test('B13: a not-offered part the found self-Map claims says so — the 3038x line reads Not offered and the false-claim sentence (AC-6; ADR 0001 A2 item 4)', async ({ page }) => {
@@ -349,5 +374,216 @@ test.describe('Your Assistant\'s Treasure Map card and page (assistant-self-map 
     await expectLine(dutiesPanel(page), { category: 'scores', key: '3038x', parts: [SM.PAGE.statusWords['not-offered'], SM.PAGE.falseClaim] }, 'the claimed not-offered line');
     const lines = await linesIn(dutiesPanel(page));
     expect(lines.filter((l) => l.includes(SM.PAGE.falseClaim)).length, `only that line is a false claim; the lines are ${JSON.stringify(lines)}`).toBe(1);
+  });
+});
+
+/* ───────────────────────── assistant-self-map #2: turning it on and off ───────────────────────── */
+
+const button = (page, name) => page.locator('main').first().getByRole('button', { name, exact: true });
+/** The press's answer for a published version (ADR 0002 sub-decision 6 step 9). */
+function publishedResult({ on = true, selfEntries = 1, relays = ['wss://a-write.example', 'wss://old-one.example'] } = {}) {
+  return {
+    success: true,
+    result: {
+      ok: true, on, published: true, outcome: 'published', localOnly: false, selfEntries,
+      message: `${SM.PRESS.subject} was saved on this instance's relay and accepted by ${relays.length} of ${relays.length} relays.`,
+      relays: { total: relays.length, success: relays.length, results: relays.map((relay) => ({ relay, status: 'accepted', reason: '' })) },
+    },
+  };
+}
+/** Route the press, recording each request; `answer` is a body, or a function of the request that may hold the reply. */
+async function routePress(page, answer) {
+  const presses = [];
+  await page.route(`**${SM.PRESS.route}`, async (r) => {
+    const req = r.request();
+    presses.push({ method: req.method(), body: req.postData(), contentType: req.headers()['content-type'] || '' });
+    const out = typeof answer === 'function' ? await answer(req) : answer;
+    return r.fulfill(json(out.body || out, out.status || 200));
+  });
+  return presses;
+}
+
+test.describe('Turning your Assistant\'s self-Map on and off (assistant-self-map #2)', () => {
+  test.beforeEach(async () => {
+    if (process.env.BRAINSTORM_SERVER_ACCESSIBLE !== 'true') test.skip('Brainstorm server not accessible (set BRAINSTORM_SERVER_ACCESSIBLE=true)');
+  });
+
+  test('B14: off, nothing found — the off line; Turn on alone, enabled; no status line (AC-2; § Copy)', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.NOT_PUBLISHED)) });
+    const main = await open(page);
+    await expect(main.getByText(SM.PRESS.state.off, { exact: true }), 'the off line').toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.turnOn), 'Turn on').toBeEnabled();
+    await expect(button(page, SM.PRESS.buttons.update), 'no Update now while off').toHaveCount(0);
+    await expect(button(page, SM.PRESS.buttons.turnOff), 'no Turn off: nothing is claimed').toHaveCount(0);
+    await expectNoStatusLine(page, 'off');
+  });
+
+  test('B15: on, up to date, the Owner — the on line; Update now shown but disabled; Turn off enabled; the up-to-date line; the Owner\'s note (AC-2; § Copy)', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    const main = await open(page);
+    await expect(main.getByText(SM.PRESS.state.on, { exact: true }), 'the on line').toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.update), 'Update now, disabled while up to date').toBeDisabled();
+    await expect(button(page, SM.PRESS.buttons.turnOff), 'Turn off').toBeEnabled();
+    await expect(button(page, SM.PRESS.buttons.turnOn), 'no Turn on while on').toHaveCount(0);
+    await expect(main.getByText(SM.PAGE.status.upToDate, { exact: true }), 'story 1\'s status line while on').toBeVisible();
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'the Owner\'s note').toBeVisible();
+  });
+
+  test('B16: on, out of date — Update now enabled; the out-of-date line (AC-2)', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.ANSWERS.STALE) });
+    const main = await open(page);
+    await expect(button(page, SM.PRESS.buttons.update), 'Update now, enabled while out of date').toBeEnabled();
+    await expect(main.getByText(SM.PAGE.status.outOfDate, { exact: true })).toBeVisible();
+  });
+
+  test('B17: off while the version found still claims duties — the "still claims" line; Turn on and Turn off; no status line (AC-2: "so no claim can be stuck")', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.STALE)) });
+    const main = await open(page);
+    await expect(main.getByText(SM.PRESS.state.offStillClaims, { exact: true })).toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.turnOn)).toBeEnabled();
+    await expect(button(page, SM.PRESS.buttons.turnOff)).toBeEnabled();
+    await expectNoStatusLine(page, 'off, still claiming');
+  });
+
+  test('B18: Turn on — one POST of { on: true } as JSON; while it runs, every button is disabled and the pressed one reads Publishing…; then the report\'s summary and one line per relay, and the answer is asked for again (AC-2, AC-3)', async ({ page }) => {
+    const log = await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.STALE)) });
+    let release;
+    const held = new Promise((r) => { release = r; });
+    const presses = await routePress(page, async () => { await held; return publishedResult(); });
+    const main = await open(page);
+    await button(page, SM.PRESS.buttons.turnOn).click();
+    await expect(button(page, SM.PRESS.buttons.publishing), 'the pressed button reads Publishing…').toBeDisabled();
+    await expect(button(page, SM.PRESS.buttons.turnOff), 'the other button is disabled meanwhile').toBeDisabled();
+    release();
+    const r = publishedResult().result;
+    await expect(main.getByText(r.message), 'the summary').toBeVisible();
+    for (const row of r.relays.results) await expect(main.getByText(`${row.relay} — accepted`), `the line for ${row.relay}`).toBeVisible();
+    expect(presses.length, 'one press, one request').toBe(1);
+    expect(presses[0].method).toBe('POST');
+    expect(JSON.parse(presses[0].body)).toEqual({ on: true });
+    expect(presses[0].contentType).toMatch(/^application\/json/);
+    await expect.poll(() => log.attentionCalls.length, { message: 'the answer is asked for again after the press' }).toBe(2);
+  });
+
+  test('B19: Turn off — { on: false }; the report adds "now claims no duties"; the answer is asked for again (AC-2, AC-5)', async ({ page }) => {
+    const log = await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    const presses = await routePress(page, publishedResult({ on: false, selfEntries: 0 }));
+    const main = await open(page);
+    await button(page, SM.PRESS.buttons.turnOff).click();
+    await expect(main.getByText(SM.PRESS.claimsNone, { exact: true }), 'the "now claims no duties" line').toBeVisible();
+    expect(presses.length).toBe(1);
+    expect(JSON.parse(presses[0].body)).toEqual({ on: false });
+    await expect.poll(() => log.attentionCalls.length, { message: 'the answer is asked for again' }).toBe(2);
+  });
+
+  test('B20: a press that published nothing shows the instance\'s line and still asks for the answer again (the choice changed); a refusal shows its words and asks for nothing (AC-2)', async ({ page }) => {
+    let log = await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.NO_DUTIES)) });
+    const unchanged = SM.PRESS.unchanged['nothing-to-claim'];
+    await routePress(page, { success: true, result: { ok: true, on: true, published: false, unchanged: 'nothing-to-claim', message: unchanged, relays: { total: 0, success: 0, results: [] } } });
+    let main = await open(page);
+    await button(page, SM.PRESS.buttons.turnOn).click();
+    await expect(main.getByText(unchanged, { exact: true }), 'the instance\'s line').toBeVisible();
+    await expect.poll(() => log.attentionCalls.length, { message: 'asked again: the choice changed' }).toBe(2);
+
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    log = await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.NOT_PUBLISHED)) });
+    await routePress(page, { status: 503, body: { success: false, code: SM.PRESS.codes.notRead, error: SM.PRESS.refusals['not-read'] } });
+    main = await open(page);
+    await button(page, SM.PRESS.buttons.turnOn).click();
+    await expect(main.getByText(SM.PRESS.refusals['not-read'], { exact: true }), 'the refusal\'s words').toBeVisible();
+    await page.waitForTimeout(800);
+    expect(log.attentionCalls.length, 'a refusal changed nothing, so nothing is asked again').toBe(1);
+  });
+
+  test('B21: a customer gets no Owner\'s note; signed out, or with no Assistant here, there is no self-Map button (AC-2)', async ({ page }) => {
+    await mock(page, { who: CUSTOMER_USER, attention: answerWith(SM.ANSWERS.CUSTOMER_NOTHING) });
+    let main = await open(page);
+    await expect(main.getByText(SM.PRESS.state.on, { exact: true }), 'the customer\'s state line').toBeVisible();
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'no Owner\'s note for a customer').toHaveCount(0);
+    for (const who of [null, GUEST_USER]) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, { who });
+      main = await open(page);
+      for (const name of Object.values(SM.PRESS.buttons)) await expect(button(page, name), `${who ? 'no Assistant' : 'signed out'}: no "${name}"`).toHaveCount(0);
+    }
+  });
+
+  test('B22 (A1 item 4): off while the check did not finish — the off line, Turn on, and Turn off, since the self-Map found is unknown (AC-2: "so no claim can be stuck")', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.UNFINISHED)) });
+    const main = await open(page);
+    await expect(main.getByText(SM.PRESS.state.off, { exact: true }), 'the off line').toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.turnOn)).toBeEnabled();
+    await expect(button(page, SM.PRESS.buttons.turnOff), 'Turn off, the self-Map found being unknown').toBeEnabled();
+  });
+
+  test('B23 (A1 item 3): a press that answers 500 shows "This instance did not answer; nothing was published." and asks for the answer again, since the choice may have changed', async ({ page }) => {
+    const log = await mock(page, { attention: answerWith(SM.offOf(SM.ANSWERS.NOT_PUBLISHED)) });
+    await routePress(page, { status: 500, body: { success: false, error: SM.PRESS.failed } });
+    const main = await open(page);
+    await button(page, SM.PRESS.buttons.turnOn).click();
+    await expect(main.getByText(SM.PRESS.failed, { exact: true }), 'the failed words').toBeVisible();
+    await expect.poll(() => log.attentionCalls.length, { message: 'asked again after a 500' }).toBe(2);
+  });
+
+  test('B24 (A1 item 5): after a check that threw, the Owner still sees the Owner\'s note beside Turn on and Turn off; a customer does not', async ({ page }) => {
+    await mock(page, { attention: answerWith(SM.ANSWERS.CHECK_FAILED) });
+    let main = await open(page);
+    await expect(button(page, SM.PRESS.buttons.turnOn)).toBeVisible();
+    await expect(button(page, SM.PRESS.buttons.turnOff)).toBeVisible();
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'the Owner\'s note, from the session').toBeVisible();
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { who: CUSTOMER_USER, attention: answerWith(SM.ANSWERS.CHECK_FAILED) });
+    main = await open(page);
+    await expect(main.getByText(SM.PRESS.ownerNote, { exact: true }), 'no Owner\'s note for a customer').toHaveCount(0);
+  });
+});
+
+/* ───────────────────────── assistant-self-map #3: one name for your Assistant's Treasure Map ───────────────────────── */
+
+test.describe('One name for your Assistant\'s Treasure Map (assistant-self-map #3)', () => {
+  test.beforeEach(async () => {
+    if (process.env.BRAINSTORM_SERVER_ACCESSIBLE !== 'true') test.skip('Brainstorm server not accessible (set BRAINSTORM_SERVER_ACCESSIBLE=true)');
+  });
+
+  const OLD_NAME = /self-map|self-entr/i;
+  const oldIn = (text) => squash(text).split(/(?<=[.!?])\s+/).filter((s) => OLD_NAME.test(s));
+
+  test('N6 (story 3 AC-1, AC-3): no state of the page, and not the hub, shows "self-Map" or "self-entries" — signed out, the check failing or not finishing, nothing found, up to date, out of date, off, off while still listing, a customer, and after a Turn off\'s report', async ({ page }) => {
+    const states = [
+      ['signed out', { who: null }],
+      ['the request fails', { attention: 'error' }],
+      ['the check did not finish', { attention: answerWith(SM.ANSWERS.UNFINISHED) }],
+      ['the check failed', { attention: answerWith(SM.ANSWERS.CHECK_FAILED) }],
+      ['nothing listed yet', { attention: answerWith(SM.ANSWERS.NOT_PUBLISHED) }],
+      ['up to date (the Owner)', { attention: answerWith(SM.ANSWERS.DONE) }],
+      ['out of date', { attention: answerWith(SM.ANSWERS.STALE) }],
+      ['off, nothing listed', { attention: answerWith(SM.offOf(SM.ANSWERS.NOT_PUBLISHED)) }],
+      ['off, still listing', { attention: answerWith(SM.offOf(SM.ANSWERS.STALE)) }],
+      ['a customer with no duties', { who: CUSTOMER_USER, attention: answerWith(SM.ANSWERS.CUSTOMER_NOTHING) }],
+    ];
+    const found = [];
+    for (const [label, opts] of states) {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await mock(page, opts);
+      const main = await open(page);
+      for (const s of oldIn(await main.innerText())) found.push(`${label}: ${s}`);
+    }
+    // A Turn off's report: on and up to date, the one enabled button is Turn off (Update now is disabled), pressed by role
+    // so the press runs whatever its label says; the server's summary is the route's own words.
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { attention: answerWith(SM.ANSWERS.DONE) });
+    const off = publishedResult({ on: false, selfEntries: 0 });
+    await routePress(page, off);
+    const main = await open(page);
+    const enabled = main.getByRole('button').and(main.locator('button:not([disabled])'));
+    await expect(enabled, 'one enabled button while on and up to date: Turn off').toHaveCount(1);
+    await enabled.click();
+    await expect(main.getByText(off.result.message), 'the report after a Turn off').toBeVisible();
+    for (const s of oldIn(await main.innerText())) found.push(`after a Turn off: ${s}`);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await mock(page, { attention: answerWith(SM.ANSWERS.STALE) });
+    const hub = await open(page, X.HUB);
+    for (const s of oldIn(await hub.innerText())) found.push(`the hub: ${s}`);
+    expect(found, 'the old name on screen (story 3 § Copy gives each line\'s new words)').toEqual([]);
   });
 });

@@ -413,6 +413,7 @@ paths:
                         current: { type: boolean, nullable: true, description: 'duty-menu: the published menu has the offer''s rows; treasure-map: the self-Map found says what it should; null when the check did not finish' }
                         mapFound: { type: boolean, description: 'treasure-map: a Treasure Map was found for the viewer' }
                         instanceMap: { type: boolean, description: 'treasure-map: the assistant''s Treasure Map is also this instance''s own (the Owner)' }
+                        selfMapOn: { type: boolean, nullable: true, description: 'treasure-map: the remembered self-Map choice for the assistant (assistant-self-map ADR 0002): on, off, or null when the choice file cannot be read; it moves no mark' }
                         duties:
                           type: array
                           description: 'treasure-map: the duties the viewer''s Treasure Map gives the assistant, one item per Map key'
@@ -785,6 +786,87 @@ paths:
           description: No Assistant on this instance for the viewer (code no-assistant)
         '500':
           description: The publish could not run
+  /api/assistant/self-map:
+    post:
+      tags: [Auth]
+      summary: Turn the signed-in viewer's own Assistant's self-Map on or off
+      description: >-
+        A narrow, session-bound route in the Duty Menu publish's shape (assistant-self-map ADR 0002). The body is one
+        bit, `{ "on": true | false }` (Turn on and Update now send true, Turn off false); whose Assistant comes from the
+        session (the Owner's is the instance TA; anyone else's their own), and nothing in the request can name another
+        Assistant, choose an entry or pick a relay. Refused first: no session (401 not-signed-in), a body whose `on` is
+        not a boolean (400 bad-request), no Assistant on this instance (403 no-assistant). One press at a time per
+        Assistant. The press reads this instance's relay, its copy of the newest version a press here has seen or signed
+        (kept on the data volume, so it survives a strfry wipe), and the outside relays together for the Assistant's
+        kind 10040 (and, to turn on, the whole self-Map check); the newest wins. With no version on this instance's
+        relay and no copy (an Assistant's first press here), the read finishes only when the Assistant's relay-list
+        lookup finished (a list found nowhere counts only when every outside configured publish relay answered) and one
+        of its write relays answered (or, having none, one of the other outside relays did, or there were none to ask).
+        When a read does not finish, or the version found is not the Assistant's own validly signed one, it answers 503
+        not-read and changes nothing. It keeps the version found as the copy when newer (or in place of a copy that
+        failed its check), then remembers the choice (assistant-self-map.json on the data volume), and publishes nothing
+        when the self-entries found are already the target and this instance's relay holds that version and, when that
+        target is not empty, no expiration or other owned tag sits beside them. Otherwise it signs a new kind 10040
+        whose self-entries are exactly what the self-Map should say (none, to turn off), keeping every other tag and the
+        content as found (an expiration is dropped beside a self-entry), dated after the version it replaces, and keeps
+        it as the copy; a removal retracts nothing. It is written to this instance's relay first (a failed write sends
+        it nowhere), then, each once, to the relays its self-entries name and to at most 50 relays from events, each
+        resolved first and never connected to unless public: the Assistant's write relays and the relays the found
+        version's self-entries named. Local-only mode keeps it here. Nothing calls this when an Assistant is created or
+        on a schedule.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [on]
+              properties:
+                on: { type: boolean }
+      responses:
+        '200':
+          description: The press was accepted; the report, whatever the relays did
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  result:
+                    type: object
+                    properties:
+                      ok: { type: boolean }
+                      on: { type: boolean, description: 'the choice now remembered' }
+                      published: { type: boolean, description: 'a new version was written here' }
+                      unchanged: { type: string, enum: [nothing-to-claim, already-current, nothing-claimed], description: 'why nothing was published' }
+                      outcome: { type: string, enum: [published, kept-local, not-delivered] }
+                      message: { type: string }
+                      localOnly: { type: boolean }
+                      stage: { type: string, enum: [local] }
+                      selfEntries: { type: integer, description: 'how many self-entries the version signed holds' }
+                      relays:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          success: { type: integer }
+                          results:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                relay: { type: string }
+                                status: { type: string, enum: [accepted, refused, unreachable, timeout, skipped, not-sent] }
+                                reason: { type: string }
+        '400':
+          description: The body's `on` is not a boolean (code bad-request); nothing changed
+        '401':
+          description: No signed-in session (code not-signed-in)
+        '403':
+          description: No Assistant on this instance for the viewer (code no-assistant)
+        '503':
+          description: The Assistant's current Treasure Map could not be read (code not-read); nothing changed
+        '500':
+          description: The press could not run; nothing was published, though the choice may have been remembered
   /api/auth/sign-up-new-customer:
     post:
       tags: [Auth]

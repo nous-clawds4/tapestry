@@ -7,8 +7,9 @@
 (`duty-menus-and-self-maps` #5), which touch none of this book's files.
 **Provenance:** Acceptance-frame (no PRD). The owner confirmed the frame at story 1's approval, and amended it at review
 round 1 (book Decision 8).
-**Confidence:** high, with one gap. No signed-in Owner or Admin has used the tab on staging: every check of it so far is
-from the tests, the browser specs and an unauthenticated smoke (§5).
+**Confidence:** high. At close there was one gap: no signed-in Owner or Admin had used the tab, and every check of it
+was from the tests, the browser specs and an unauthenticated smoke. **Closed post-close (2026-10-13, production):** the
+Owner reordered, republished and reset from the tab signed in (§5 "Post-close verification").
 
 > The Build Audit is the **as-built record**: what the product *is* now, factual and source-linked. It does not propose
 > changes; that is the seed's job.
@@ -145,13 +146,21 @@ their own commits, and both reviews judged them genuine (§7, P5).
   close's uncommitted files): PASS, exit 0, 5866 passed, 0 failed, 582 skipped, 307/307 suites.
 - **Review round 2's own gate.** `20261012T233931Z-5898-8ddb`: PASS, 5866 passed, 0 failed. Its browser specs passed
   31/31 on Chromium.
-- **Not yet seen signed in.** No Owner or Admin has used the tab on staging. The checks there are the deploys and an
-  unauthenticated smoke. (Same gap as the sibling book `assistant-duty-menu`.)
+- **Not yet seen signed in, at close.** No Owner or Admin had used the tab on staging. The checks there were the deploys
+  and an unauthenticated smoke. (Same gap as the sibling book `assistant-duty-menu`.)
+- **Post-close verification (2026-10-13, production, the Owner signed in).** At
+  tapestry.brainstorm.world/tapestry/settings/assistant-duties, after PR #857:
+  - The tab listed the six defaults. The Duty Menu page showed the same six.
+  - Swapping `39998` and `39999` saved, and the new order was still there after leaving the page and coming back.
+  - `/assistant` and `/assistant/duty-menu` then asked for a republish, and the republish went through.
+  - Reset to defaults put the six back.
+
+  Add, Remove and Change relay were not tried signed in; the tests and browser specs cover them (B0–B13).
 - **Debt logged:**
   - Ledger row `2026-10-12-settings-json-written-in-place`, pre-existing and widened by this book: `settings.json` is
     written in place, so a crash mid-write would lose every override, this list included.
   - Ledger row `2026-10-12-duty-settings-test-cleanups`: small test tidy-ups the reviews left non-blocking.
-  - Ledger row `2026-10-12-staging-duty-list-round1-keys`: a one-off check of staging's saved list.
+  - Ledger row `2026-10-12-staging-duty-list-round1-keys`: a one-off check of staging's saved list (done 2026-10-13: the Owner reset staging to defaults).
 - **Accepted by the ADR (§ Sub-options), not bugs:**
   - Typed relays are owner-set configuration. They are connected to without the DNS guard, as Relay Settings' relays
     are.
@@ -164,8 +173,8 @@ their own commits, and both reviews judged them genuine (§7, P5).
   Blocking 1's three rules (a)–(c). Product: is it wanted?
 - [ ] **The key field's words** (§4 #6). Possibly "Kind" and "That isn't a kind: enter five digits, such as 30383."
   (review round 2 note 4).
-- [ ] **Try the tab signed in on staging** (§5): add, remove, reorder, reset; then check a Duty Menu goes Needs
-  attention and republishes.
+- [x] **Try the tab signed in** (§5): done on production 2026-10-13 by the Owner (reorder, persistence, Needs attention
+  and republish, reset). Add, Remove and Change relay were not tried signed in.
 - [ ] **The drag handle has no role** (review round 1 note 7). It is announced only by its `aria-label`; the keyboard
   path is Move up / Move down.
 - [ ] **Typed relays without the DNS guard** (review round 1 note 6; ADR § Sub-options). Revisit if Admins setting

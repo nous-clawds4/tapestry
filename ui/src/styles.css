@@ -9053,6 +9053,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-idtags-publish:hover:not(:disabled) { background: rgba(99,102,241,0.3); }
 .bs-idtags-publish:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Your Assistant's Treasure Map: up to two buttons side by side (assistant-self-map #2). */
+.bs-selfmap-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .bs-idtags-results { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
 .bs-idtags-results:empty { margin-top: 0; }
 .bs-idtags-result { padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); }

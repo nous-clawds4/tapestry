@@ -16,15 +16,21 @@ own Map (`/treasure-map`) says what they asked for.
 
 ## Stories
 
-`stories/assistant-self-map/`. Story 1 is Done (`1-the-self-map-page-and-its-check.md`, approved and passed review in round 3, 2026-10-12). The rest
-are a first cut, to be revised at `/plan-feature`:
+`stories/assistant-self-map/`. Story 1 is Done (`1-the-self-map-page-and-its-check.md`, approved and passed review in round 3, 2026-10-12).
+Story 2 is Done (`2-turning-the-self-map-on-and-off.md`, 2026-10-13, on staging). Story 3 is the owner's wording ask of
+2026-10-13 (`3-one-name-for-your-assistants-treasure-map.md`). The rest are a first cut, to be revised at
+`/plan-feature`; the upkeep story, called "story 3" until 2026-10-13, is now story 4:
 
 1. The self-Map check and page, read-only. What this instance can truly claim for the viewer's Assistant, the
    self-Map found now, the hub's real mark, and the page with its cross-links.
 2. Turning it on and off. The signing route, and a merge that keeps every entry the self-Map doesn't own.
-3. Keeping it true. Adding after the first full set lands, and narrowing or removing before upkeep stops.
-4. Readers. The Counting Maps rule in this instance's counters, and the hub's self-entry reading.
-5. `/treasure-map`'s Active and Standby-ready badges.
+   As planned: a remembered on/off choice per Assistant, with Turn on, Update now and Turn off. It reaches staging
+   after its Review, and production together with story 4.
+3. One name for your Assistant's Treasure Map. The words people see say "Treasure Map", never "self-Map"; nothing
+   under the hood changes.
+4. Keeping it true. Adding after the first full set lands, and narrowing or removing before upkeep stops.
+5. Readers. The Counting Maps rule in this instance's counters, and the hub's self-entry reading.
+6. `/treasure-map`'s Active and Standby-ready badges.
 
 ## Key facts / guardrails
 
