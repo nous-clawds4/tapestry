@@ -238,6 +238,16 @@ From the owner's ask and the facts above; the Architect decides.
   - **The owner's check on staging,** signed in: pending. It should show the state line and the buttons, and a press
     should report honestly.
   - **Production:** waits for story 4, the upkeep (the owner's choice at planning; called story 3 until 2026-10-13).
+- **Story 3, one name for your Assistant's Treasure Map (Done; review PASS).**
+  - **Staging:** PR #860, merge `3def0f8a`, deploy run 38476276179 (1m42s), 2026-10-13. Safe-to-merge check: safe on
+    the first attempt. Smoke test Tiers 1–5 clean:
+    - the served bundle went from `index-HKSD5bc2.js` to `index-DyLRJT-P.js`, the hash of the reviewed build, which
+      carries the new button and line words and no "self-Map" at all;
+    - signed out, `POST /api/assistant/self-map` still answers 401 "Sign in to do this.";
+    - Tier 4 used headless Chromium, signed out: `/assistant/treasure-map` and `/assistant` render with no console
+      errors and no "self-Map".
+  - **The owner's check on staging,** signed in: pending.
+  - **Production:** with story 4, as story 2.
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
