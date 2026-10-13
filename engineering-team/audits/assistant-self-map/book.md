@@ -322,6 +322,8 @@ From the owner's ask and the facts above; the Architect decides.
   - **Round 4's Implementation:** `origin/staging` was still at `9679668`, so there was nothing to merge. Round 4 edits
     only story 2's own modules (`selfMapChoice.js`, `selfMap.js`, `selfMapPublish.js`), a comment in `dutyMenu.js`,
     and the records.
+  - **Round 5's Implementation:** `origin/staging` was still at `9679668`. Round 5 edits only the same three modules of
+    story 2's and the records.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

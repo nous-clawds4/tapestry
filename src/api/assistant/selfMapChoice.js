@@ -80,6 +80,16 @@ function copiesOf(store) {
 const newer = (a, b) => a.created_at > b.created_at || (a.created_at === b.created_at && String(a.id) < String(b.id));
 
 /**
+ * Is `entry` a stored copy for `key`: an object of kind 10040 by that key, with an integer created_at and a string id?
+ * Anything else is no copy, read or written (ADR 0002 Amendment 4 item 2), so the next write replaces it.
+ */
+const wellFormed = (entry, key) => isPlainObject(entry) && entry.kind === 10040 && String(entry.pubkey || '').toLowerCase() === key
+  && Number.isInteger(entry.created_at) && typeof entry.id === 'string';
+
+/** This key's stored copy, when well formed; else none. */
+const storedCopy = (copies, key) => (Object.prototype.hasOwnProperty.call(copies, key) && wellFormed(copies[key], key) ? copies[key] : null);
+
+/**
  * The copy of this Assistant's newest kind 10040 a press has seen or signed (ADR 0002 Amendment 3 item 1), as stored.
  * The press checks it (kind, author, signature) before it uses it.
  * @param {string} assistantPubkey - 64-hex
@@ -90,11 +100,10 @@ function readSelfMapCopy(assistantPubkey) {
   try {
     copies = copiesOf(readStore());
   } catch (err) {
-    console.warn(`[assistant/self-map] the choice file cannot be read: ${err && err.message ? err.message : err}`);
+    console.warn(`[assistant/self-map] the self-Map copy (lastSigned) cannot be read: ${err && err.message ? err.message : err}`);
     return null;
   }
-  const key = String(assistantPubkey || '').toLowerCase();
-  return Object.prototype.hasOwnProperty.call(copies, key) && isPlainObject(copies[key]) ? copies[key] : null;
+  return storedCopy(copies, String(assistantPubkey || '').toLowerCase());
 }
 
 /** Write `text` to `file` atomically: temp file, fsync, rename, directory fsync (tagging-edges/state.js writeAtomic). */
@@ -150,13 +159,15 @@ function writeSelfMapChoice(assistantPubkey, on, nowSeconds) {
 
 /**
  * Keep `event` as this Assistant's copy when it is newer than the one stored, or none is (ADR 0002 Amendment 3 item 1);
- * an older one changes nothing. Resolves once the file holds the newer; rejects on a key that is not an Assistant key,
+ * an older one changes nothing. With `replace` it is kept whatever is stored: the press passes it when the stored copy
+ * failed its check (Amendment 4 item 2). Resolves once the file holds it; rejects on a key that is not an Assistant key,
  * an event that is not that key's kind 10040, an unreadable file (left as it is), or a failed write.
  * @param {string} assistantPubkey - 64-hex
  * @param {Object} event - the Assistant's signed kind 10040
+ * @param {{ replace?: boolean }} [options]
  * @returns {Promise<void>}
  */
-function writeSelfMapCopy(assistantPubkey, event) {
+function writeSelfMapCopy(assistantPubkey, event, { replace = false } = {}) {
   const run = choiceLock.then(() => {
     if (typeof assistantPubkey !== 'string' || !HEX64.test(assistantPubkey)) throw new Error('not an Assistant key');
     const key = assistantPubkey.toLowerCase();
@@ -166,8 +177,8 @@ function writeSelfMapCopy(assistantPubkey, event) {
     }
     const store = readStore();
     const copies = copiesOf(store);
-    const had = Object.prototype.hasOwnProperty.call(copies, key) && isPlainObject(copies[key]) ? copies[key] : null;
-    if (had && !newer(event, had)) return;
+    const had = storedCopy(copies, key);
+    if (replace !== true && had && !newer(event, had)) return;
     store.lastSigned = { ...copies, [key]: event };
     writeAtomic(SELF_MAP_CHOICE_PATH, `${JSON.stringify(store, null, 2)}\n`);
   });

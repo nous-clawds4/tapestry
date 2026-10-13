@@ -235,10 +235,12 @@ function mapHints(mapEvent, assistantPubkey) {
  *
  * With `forWrite` (ADR 0002 sub-decision 3, R1), this instance's relay and the outside round are both read and the
  * newest version across them wins (strictOutsideRound). `stored`, the press's checked copy (Amendment 3 item 1), counts
- * as a version here; without `forWrite` it is ignored. It is unfinished with `instance-unanswered` when this instance's
- * scan fails, and with `no-relay-answered` when neither this instance nor the copy holds a version and the outside round
- * cannot show there is none (Amendment 1 item 1).
- * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object }
+ * as a version here; without `forWrite` it is ignored. A finished `forWrite` answer also says where `latest` is
+ * (Amendment 4 item 1): `onThisRelay` when this instance's scan returned it, and `published.source` 'local', 'copy' or
+ * 'relay'. It is unfinished with `instance-unanswered` when this instance's scan fails, and with `no-relay-answered`
+ * when neither this instance nor the copy holds a version and the outside round cannot show there is none (Amendment 1
+ * item 1).
+ * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object, onThisRelay?: boolean }
  *                  | { finished: false, reason: 'no-relay-answered'|'instance-unanswered' }>}
  */
 async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = false, stored = null }, deps = {}) {
@@ -260,7 +262,18 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
     if (!local.ok) return { finished: false, reason: 'instance-unanswered' };
     // The press's copy counts as a version here (Amendment 3 item 1): after a wipe or an older restore, it is the base.
     const hereOrCopy = newest([here, stored].filter(mine));
-    return strictOutsideRound({ who, here: hereOrCopy, mapEvent, offer, filter, mine, found }, d);
+    const answer = await strictOutsideRound({ who, here: hereOrCopy, mapEvent, offer, filter, mine, found }, d);
+    // Where the base is (Amendment 4 item 1): the press publishes nothing only over a version this instance's relay
+    // holds. The same id here and in the copy is here.
+    if (answer.finished) {
+      const localIds = new Set(local.events.filter(mine).map((e) => e.id));
+      answer.onThisRelay = !!answer.latest && localIds.has(answer.latest.id);
+      if (answer.published) {
+        answer.published.source = answer.onThisRelay ? 'local'
+          : (stored && answer.latest && answer.latest.id === stored.id ? 'copy' : 'relay');
+      }
+    }
+    return answer;
   }
   if (here) return found(here, 'local');
 
@@ -284,8 +297,9 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
  * here, a list found nowhere only on every outside configured relay's answer, Amendment 2 item 1), the viewer's Map
  * hints and the offer's outside relays (O). Event-named relays (W and the hints) are read only when the DNS guard finds
  * them public; one it refuses, for whatever reason, has not answered. With a version here (this instance's relay or the
- * press's copy, Amendment 3), the outside is best-effort and the newest wins. With none, the read finishes only when the lookup finished and: one relay
- * of W answered, when W is not empty; else one relay of O answered, or O is empty too.
+ * press's copy, Amendment 3), the outside is best-effort and the newest wins. With none, the read finishes only when
+ * the lookup finished and: one relay of W answered, when W is not empty; else one relay of O answered, or O is empty
+ * too.
  */
 async function strictOutsideRound({ who, here, mapEvent, offer, filter, mine, found }, d) {
   const { readWithinBudget, newest } = shared();

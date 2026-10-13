@@ -288,7 +288,13 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
   - **Keeping the version found.** The press hands the version found to the store after every successful read, and
     the store keeps only the newer, so "when it is newer" is decided in one place.
   - **A copy that fails its check** is logged once per press and left out. The press goes on under the first-press
-    rules.
+    rules. *(Corrected in round 5: that holds only when this instance's relay also holds nothing; otherwise the base is
+    this instance's version. Amendment 4 item 2 also has the press replace such a copy on its first copy write.)*
+
+- **Round 5 Implementation, 2026-10-13 (small judgment calls within ADR 0002 Amendment 4):**
+  - **`replace` and a failed write.** The press passes `replace: true` only on its first copy write after a failed
+    check. If that write throws, the press answers 500 as for any copy write. The next press sees the same failed copy
+    and passes `replace` again.
 
 ## Linked artifacts
 

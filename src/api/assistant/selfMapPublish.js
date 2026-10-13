@@ -19,8 +19,9 @@
  *     when it is newer.
  *  2. Remembers the choice (selfMapChoice.js), before anything is published, so an accepted press holds even if a relay
  *     refuses. The publish policy is read just before, so nothing that fails on configuration follows the write.
- *  3. Publishes nothing when the self-entries found already are the target (what the self-Map should say, or none) and,
- *     for a target that is not empty, no expiration or other owned tag sits beside them (ADR 0002 Amendment 1 item 2).
+ *  3. Publishes nothing when the self-entries found already are the target (what the self-Map should say, or none),
+ *     this instance's relay holds that version (ADR 0002 Amendment 4 item 1), and, for a target that is not empty, no
+ *     expiration or other owned tag sits beside them (Amendment 1 item 2).
  *  4. Otherwise builds the next version with the library's merge (buildSelfMapEvent): only the self-entries change;
  *     every other tag and the content stay as found, an expiration going only beside a self-entry. It signs it and
  *     checks the result, kept tags and content included, before anything is written, and keeps it as the copy. A
@@ -147,16 +148,18 @@ const notRead = () => ({ refusal: { status: 503, code: CODES.NOT_READ } });
 
 /**
  * The press's copy (ADR 0002 Amendment 3 item 1), only when it is the Assistant's own validly signed kind 10040; else
- * null, with a line in the log when one was there but failed. A copy that cannot be read is no copy.
+ * no copy, with a line in the log when one was there but failed. `failed` says so, and the press then replaces it on
+ * its first copy write (Amendment 4 item 2). A copy that cannot be read is no copy.
+ * @returns {Promise<{ copy: ?Object, failed: boolean }>}
  */
 async function checkedCopy(A, d) {
   let copy = null;
   try { copy = await d.readSelfMapCopy(A); } catch { copy = null; }
-  if (!copy) return null;
+  if (!copy) return { copy: null, failed: false };
   let ok = false;
   try { ok = copy.kind === SELF_MAP_KIND && String(copy.pubkey || '').toLowerCase() === A && d.verifyEvent(copy) === true; } catch { ok = false; }
   if (!ok) console.warn("[assistant/self-map] the kept copy is not this Assistant's validly signed kind 10040; it is left out");
-  return ok ? copy : null;
+  return ok ? { copy, failed: false } : { copy: null, failed: true };
 }
 
 /**
@@ -169,7 +172,14 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
 
   // 1. Read, strictly. Turning on needs what the self-Map should say; turning off needs only the current version. The
   // copy counts as a version here once it checks as the Assistant's own (Amendment 3 item 1); one that fails is left out.
-  const stored = await checkedCopy(A, d);
+  const { copy: stored, failed: copyFailed } = await checkedCopy(A, d);
+  // A copy that failed its check is replaced by this press's first copy write, whatever it holds (Amendment 4 item 2).
+  let replaceCopy = copyFailed;
+  const keepCopy = async (event) => {
+    const options = replaceCopy ? { replace: true } : {};
+    await d.writeSelfMapCopy(A, event, options);
+    replaceCopy = false;
+  };
   let target;
   let lookup;
   if (on) {
@@ -192,7 +202,7 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
     try { verified = latest.kind === SELF_MAP_KIND && String(latest.pubkey || '').toLowerCase() === A && d.verifyEvent(latest) === true; } catch { verified = false; }
     if (!verified) return notRead();
     // Keep what was found, before the choice: the copy keeps the newer of the two (Amendment 3 item 1).
-    await d.writeSelfMapCopy(A, latest);
+    await keepCopy(latest);
   }
 
   // 2. Remember the choice, before anything is published. The publish policy is read first, so nothing that can fail on
@@ -202,12 +212,13 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
   await d.writeSelfMapChoice(A, on, nowSeconds);
 
   // 3. Nothing to change: the self-entries found are the target, and, when the target is not empty, nothing stale sits
-  // beside them, no expiration and no other owned tag (Amendment 1 item 2).
+  // beside them, no expiration and no other owned tag (Amendment 1 item 2); and this instance's relay holds that version
+  // (Amendment 4 item 1). A base held only in the copy, or only outside, is stored here anew and sent out.
   const found = latest ? readSelfEntries(latest, A).selfEntries : [];
   const baseTags = latest && Array.isArray(latest.tags) ? latest.tags : [];
   const stale = target.length > 0
     && (baseTags.some((t) => Array.isArray(t) && t[0] === 'expiration') || baseTags.filter((t) => ownsTag(t, A)).length !== found.length);
-  if (sameSelfEntries(target, found) && !stale) {
+  if (sameSelfEntries(target, found) && !stale && (!latest || lookup.onThisRelay === true)) {
     const unchanged = on ? (target.length > 0 ? 'already-current' : 'nothing-to-claim') : 'nothing-claimed';
     return { result: { ok: true, on, published: false, unchanged, message: UNCHANGED[unchanged], localOnly, relays: { total: 0, success: 0, results: [] } } };
   }
@@ -225,7 +236,7 @@ async function applySelfMap({ viewer, assistantPubkey, privkeyBytes, on }, deps 
 
   // Keep what is signed, before this instance's relay stores it (Amendment 3 item 1): a later press after a wipe builds
   // on it. A failed import leaves a copy never stored anywhere, which carries its base's other tags and content.
-  await d.writeSelfMapCopy(A, signed);
+  await keepCopy(signed);
 
   const { summarizePublish, localFailureMessage } = require('./profilePublish');
 
