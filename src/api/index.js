@@ -343,6 +343,12 @@ async function register(app) {
     app.get('/api/settings/overrides', requireOwner, handleGetOverrides);
     app.put('/api/settings', requireOwner, handleUpdateSettings);
     app.delete('/api/settings/*', requireOwner, handleResetSetting);
+    // The Assistant Duties tab: the duties every Assistant here offers (assistant-duties-settings #1, ADR 0001). Reset
+    // is a POST, not a DELETE, so it never competes with the reset route above.
+    const assistantDutiesApi = require('./settings/assistantDutiesApi');
+    app.get('/api/settings/assistant-duties', requireOwner, assistantDutiesApi.handleGetAssistantDuties);
+    app.put('/api/settings/assistant-duties', requireOwner, assistantDutiesApi.handleUpdateAssistantDuties);
+    app.post('/api/settings/assistant-duties/reset', requireOwner, assistantDutiesApi.handleResetAssistantDuties);
 
     // Neo4j endpoints
     app.post('/api/neo4j-setup-constraints-and-indexes', handleNeo4jSetupConstraintsAndIndexes);

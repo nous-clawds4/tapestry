@@ -7,7 +7,9 @@
  * Called by GET /api/assistant/attention (src/api/assistant/attention.js) for the session's viewer, with the Assistant
  * that answer already resolved from the session (for the Owner the instance TA). No request parameter reaches it.
  *
- * - The offer is the Duty Menu check's own (resolveOfferInputs + buildOffer), so the two pages never disagree.
+ * - The offer is the Duty Menu check's own (resolveOfferInputs + buildOffer), so the two pages never disagree. It is the
+ *   instance's Assistant Duties list, so it may name a duty this instance does not publish, or a typed relay: such a
+ *   duty is offered and never live (ADR assistant-duties-settings/0001 sub-decision 6).
  * - The viewer's Map is /setup's read (lookupNewest over treasureMapRelays): this instance's relay first.
  * - Live (sub-decisions 3 and 6) is read from what has landed at the offer's relay:
  *   - Scores: the newest Assistant-signed 30382 in this instance's strfry (both publishers re-sign every event every
@@ -160,7 +162,11 @@ async function readUpkeep({ viewer, assistantPubkey, isOwner, offer, namedHeader
   const out = { scores: { status: 'not-scheduled', lastLandedAt: null }, record: { anyHeader: false, headers: new Set() } };
 
   try {
-    if (relayOf(SCORE_KIND)) {
+    const scoreRelay = relayOf(SCORE_KIND);
+    // Scores are read from this instance's strfry, so they are live only where the offer names this instance's relay;
+    // a typed relay elsewhere is never claimed (ADR assistant-duties-settings/0001 sub-decision 6).
+    if (scoreRelay && !isOwnRelay(scoreRelay, d)) out.scores = { status: 'not-published-here', lastLandedAt: null };
+    else if (scoreRelay) {
       const interval = scheduleIntervals({ viewer, isOwner }, d);
       const events = await d.scanLocal({ kinds: [SCORE_KIND], authors: [assistantPubkey], limit: 1 });
       const beat = newest((Array.isArray(events) ? events : []).filter((e) => e && e.kind === SCORE_KIND && String(e.pubkey).toLowerCase() === assistantPubkey));

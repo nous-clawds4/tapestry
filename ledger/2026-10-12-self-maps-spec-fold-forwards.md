@@ -3,8 +3,8 @@
 **Id:** 2026-10-12-self-maps-spec-fold-forwards
 **Type:** protocol
 **Opened:** 2026-10-12 (`duty-menus-and-self-maps` #3 review, non-blocking findings 1 and 3–16)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-12 (`duty-menus-and-self-maps` #5, ADR 0005): items 5, 9, 10, 12, 13, 19 and 20, the § 5.4 Enumerate question and the two late items landed in the drafts (note, story 5); the rest by stories 3 and 4, and item 2 was no fold-forward.
 
 Story 3 (Self-Maps) was reviewed CHANGES_REQUESTED on two blockers: B1, what a reader does with a retracted List, and
 B2, an unnamed second departure from AC3 under § 9.2 Ties. The review's non-blocking findings below are wording gaps
@@ -59,14 +59,6 @@ review's numbered finding, which holds the evidence.
 16. *(Architect)* ADR 0003 Verification AC4's third case (ADR :1480–1481) says "No menu", then names "A's menu relay
     R1". The script it rests on describes "No self-Map". Either wording gives Rw (review NB16).
 
-- *Added 2026-10-12 (story 4, after ADR 0004's clarifications):* two small Treasure Maps wording items for story 5 or
-  a later docs pass, neither a rule change:
-  - Principle 8 ("A shorter key covers more", `treasure-maps.md` § 1) has no exceptions, while the At a glance bullet
-    that says the same now names them (§ 4.4's Profiles category; a Concept key's `d`, § 4.5). Gloss it, or accept the
-    segment reading.
-  - Treasure Maps' metadata Sources line names numbered sections only, so it does not list the At a glance wording
-    ADR 0004's KB-2 clarification changed; Duty Menus' Sources line lists every section touched. Align the two.
-
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings; story
 `engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`; ADR
 `engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md`; related rows
@@ -112,3 +104,38 @@ The row stays OPEN.
 Items 5, 9, 10, 12, 13, 19 and 20, and the § 5.4 Enumerate question, go to story 5 of the epic (the owner's answer
 5(a) to story 4's open question 5). That includes NB10 (item 10), which ADR 0003 A2 left "for story 4's ADR" (ADR 0004
 sub-decision 10). The title names story 5. The row stays OPEN.
+
+- *Added 2026-10-12 (story 4, after ADR 0004's clarifications):* two small Treasure Maps wording items for story 5 or
+  a later docs pass, neither a rule change:
+  - Principle 8 ("A shorter key covers more", `treasure-maps.md` § 1) has no exceptions, while the At a glance bullet
+    that says the same now names them (§ 4.4's Profiles category; a Concept key's `d`, § 4.5). Gloss it, or accept the
+    segment reading.
+  - Treasure Maps' metadata Sources line names numbered sections only, so it does not list the At a glance wording
+    ADR 0004's KB-2 clarification changed; Duty Menus' Sources line lists every section touched. Align the two.
+
+**Note, 2026-10-12 (story 5, ADR `duty-menus-and-self-maps/0005`).** Story 5 did the rest of the row, under the
+owner's answers to its open questions: 1(a) a stopped assistant keeps its curation copies, 2(a) a List still
+maintained is never marked and a marked List is never a copy, 3(a) Enumerate reads the marker as § 7 does, and 4(a)
+the two late items ride here. Where each item landed, with ADR 0005's sub-decision:
+- 5: Treasure Maps § 9.2, What a self-entry speaks for (7);
+- 9: Treasure Maps § 13 question 8 and § 9.2 Private duties, and the handoff's Open questions line (7);
+- 10: Assistant Designation § Curation copies, When curation stops, with its worked copy and Revocation, and Treasure
+  Maps § 9.2, What follows a stop (1, 2);
+- 12: Treasure Maps § 7, the Alternates bullet (7);
+- 13: the leads of Treasure Maps §§ 10 and 5 (7);
+- 19: Trusted Lists § Common wire shape, Spawning §§ 4 and 5, and Treasure Maps § 7 with §§ 3 and 9.2 (3, 4);
+- 20: Treasure Maps § 9.2, What the allowance rests on, second case (6);
+- the § 5.4 question: Treasure Maps § 5.4, Enumerate (5);
+- the two late items: Treasure Maps principle 8, and its Sources line's ADR 0004 clause (8, 10).
+
+ADR 0005 supersedes two things in ADR 0003 (ADR 0005 sub-decision 9), whose text is not edited:
+- Amendment A2-1's reading of a retraction that a self-entry claims as the List with no members, with every passage
+  that ADR 0005 sub-decision 4 lists. A2-1's send clause, § 3's search past a retraction and the Residual stay;
+- sub-decision 4's reading of a removed self-entry as a stop: the Lists bullet's "its self-entry was removed", the
+  Scores bullet's "stopped" signal, and the Concepts bullet's "the removed self-entry says that curation has stopped"
+  and "their removal follows Assistant Designation § Curation copies".
+
+The book's close audit should list ADR 0005 as superseding ADR 0003 A2-1 and sub-decision 4's reading of a removed
+self-entry as a stop (ADR 0005 sub-decision 9).
+
+ADR 0003's NB10 (item 10) is answered by 1(a), and its "Not in A2" (the § 5.4 question) by 3(a).

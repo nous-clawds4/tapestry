@@ -17,7 +17,7 @@
  * written, the signed event must be the Assistant's own and a Duty Menu by § 6.1.
  *
  * It is written to this instance's relay first — a failed write sends it nowhere and says so — then, each once and this
- * instance's own left out, to § 8.1's places: the relays its rows name (Relay Settings' relays, sent as owner-set), and,
+ * instance's own left out, to § 8.1's places: the relays its rows name (owner-set: Relay Settings or Assistant Duties, sent as such), and,
  * at most 50 in this order, the Assistant's write relays, the relays the found version's rows named, and Nous' write
  * relays. Each relay from an event is connected to only when the DNS guard (src/utils/relayHostGuard.js) finds its host
  * public within one 3 s budget; otherwise it reads `not-sent: not a public address`. In local-only mode it stays here.
@@ -138,9 +138,9 @@ async function publishDutyMenuFor({ viewer }, deps = {}) {
     };
   }
 
-  // § 8.1's places. The new rows' relays are Relay Settings' (owner-set); the rest come from events: the Assistant's
-  // write relays, the found version's rows (read even when it is not a menu), then Nous', capped at MAX_RELAYS once
-  // de-duplicated against each other and the configured ones.
+  // § 8.1's places. The new rows' relays are owner-set (Relay Settings or Assistant Duties); the rest come from events:
+  // the Assistant's write relays, the found version's rows (read even when it is not a menu), then Nous', capped at
+  // MAX_RELAYS once de-duplicated against each other and the configured ones.
   const configured = d.outsideOnly(rowRelays, d);
   const owned = new Set(configured.map((url) => normalizeRelayUrl(url)));
   const [assistantWrite, nousWrite] = await Promise.all([

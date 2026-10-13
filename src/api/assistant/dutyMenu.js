@@ -7,11 +7,12 @@
  * that answer already resolved from the session (the one main→delegate mapping; for the Owner the instance TA). No
  * request parameter reaches it.
  *
- * The offer (sub-decision 2; R1 and K1) is built from what this instance does, re-read at every check: this
- * instance's relay at its public address holds every duty it performs, so every row names it; with no public address,
- * Concepts take the first public DList relay in Relay Settings (none when publishing is local-only) and Scores and
- * Lists get no row. Scores are offered to the Owner and to active customers, as the Scores pipeline computes them;
- * Lists and Concepts to every Assistant. It never depends on the lookup, so an unfinished check still carries it.
+ * The offer (ADR assistant-duties-settings/0001 sub-decision 3) is the instance's Assistant Duties list, re-read from
+ * the settings at every check (readAssistantDuties; hand-edited entries the rule refuses are dropped and logged), the
+ * same for every Assistant. Each duty is at its typed relay, else This instance's relay: this instance's relay at its
+ * public address; with none, a Concept key takes the first public DList relay in Relay Settings (none when publishing
+ * is local-only) and any other key gets no row (R1). It never depends on the lookup, so an unfinished check still
+ * carries it.
  *
  * The lookup (sub-decision 3; duty-menus.md § 8.1) reads this instance's relay first, in one strict local scan (ADR
  * 0002 sub-decision 7): when it holds any version of the menu, the newest there counts and nothing else is read. Only
@@ -27,13 +28,11 @@
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored but the in-process Nous list.
  */
 
-const net = require('net');
 const { normalizeRelayUrl, parseRelayList, MAX_RELAYS } = require('../../lib/relay-list');
 const {
-  DUTY_MENU_KIND, DUTY_MENU_D, isDutyMenu, readMenuRows, sameRows, buildOffer,
+  DUTY_MENU_KIND, DUTY_MENU_D, isDutyMenu, readMenuRows, sameRows, buildOffer, readDutyList, isPublicRelayUrl,
 } = require('../../lib/duty-menu');
 const { NOUS_PUBKEY } = require('../../lib/nous');
-const { isPublicAddress, hasPrivateHostSuffix } = require('../../utils/ssrfGuard');
 
 const RELAY_LIST_KIND = 10002;
 const TREASURE_MAP_KIND = 10040;
@@ -74,12 +73,8 @@ function defaultDeps() {
     lookupNewest: (input, d) => require('../setup/status').lookupNewest(input, d),
     treasureMapRelays: (d) => require('../setup/status').treasureMapRelays(d),
     lookupNewestReplaceable: (input, d) => require('./attention').lookupNewestReplaceable(input, d),
-    getCustomer: async (pubkey) => {
-      const CustomerManager = require('../../utils/customerManager');
-      const customers = new CustomerManager();
-      await customers.initialize();
-      return customers.getCustomer(pubkey);
-    },
+    // The Assistant Duties list, re-read from the settings files at every check (ADR assistant-duties-settings/0001).
+    readAssistantDuties: () => require('../../config/settings').getSettings().assistantDuties,
     now: () => Date.now(),
   };
 }
@@ -87,16 +82,11 @@ function defaultDeps() {
 /** The attention handler's relay read within the relay budget, and NIP-01's newest; required lazily (no cycle). */
 const shared = () => require('./attention');
 
-/** ssrfGuard's synchronous rule for a relay's host: a non-public IP literal, or a private-by-construction name. */
-function isPlainlyPrivateRelay(url) {
-  const bare = new URL(url).hostname.replace(/^\[|\]$/g, '');
-  return net.isIP(bare) ? !isPublicAddress(bare) : hasPrivateHostSuffix(bare);
-}
-
 /**
- * The offer's inputs for one viewer, read from the settings at each check (sub-decision 2).
- * @param {string} viewer - the session's viewer, lower-case hex
- * @returns {Promise<{ ownRelay: ?string, dlistRelay: ?string, scores: boolean }>}
+ * The offer's inputs, read from the settings at each check (sub-decision 2; ADR assistant-duties-settings/0001
+ * sub-decision 3). The same for every viewer: `viewer` stays in the signature for the three callers.
+ * @param {string} viewer - the session's viewer, lower-case hex (unused)
+ * @returns {Promise<{ ownRelay: ?string, dlistRelay: ?string, duties: Array<{ key: string, relay?: string }> }>}
  */
 async function resolveOfferInputs(viewer, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
@@ -106,22 +96,12 @@ async function resolveOfferInputs(viewer, deps = {}) {
   if (!d.isLocalOnly()) {
     let listed = [];
     try { listed = d.readConfiguredRelays(DLIST_RELAY_CATEGORIES); } catch { listed = []; }
-    dlistRelay = (Array.isArray(listed) ? listed : []).map(normalizeRelayUrl).find((url) => url && !isPlainlyPrivateRelay(url)) || null;
+    dlistRelay = (Array.isArray(listed) ? listed : []).map(normalizeRelayUrl).find((url) => url && isPublicRelayUrl(url)) || null;
   }
 
-  const who = String(viewer || '').toLowerCase();
-  const owner = String(d.getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '') || '').trim().toLowerCase();
-  let scores = !!owner && owner === who;
-  if (!scores) {
-    try {
-      const customer = await d.getCustomer(who);
-      scores = !!customer && customer.status === 'active';
-    } catch (err) {
-      console.error('[assistant/duty-menu] could not look the viewer up as a customer:', err && err.message ? err.message : err);
-      scores = false;
-    }
-  }
-  return { ownRelay, dlistRelay, scores };
+  const { duties, dropped } = readDutyList(d.readAssistantDuties());
+  if (dropped > 0) console.warn(`[assistant/duty-menu] ignored ${dropped} assistantDuties entries`);
+  return { ownRelay, dlistRelay, duties };
 }
 
 /** A NIP-65 list's write relays: its `r` entries with no marker or `write`, each in its one spelling. */

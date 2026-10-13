@@ -28,6 +28,11 @@
  * docker/entrypoint.sh) the offer's relay is derived from STRFRY_DOMAIN, and that address is still this instance: never
  * sent to as an outside relay (W12, AC-4), while the signed rows name it (W13).
  *
+ * assistant-duties-settings #1 (ADR assistant-duties-settings/0001 sub-decision 3): resolveOfferInputs answers
+ * { ownRelay, dlistRelay, duties } (no `scores`), and buildOffer turns the list into rows. The `inputs` seam gains the
+ * six defaults when a test names none; W13's real resolveOfferInputs reads the injected readAssistantDuties; W14 pins
+ * a changed list, typed relays and order on the signed event.
+ *
  * Everything FAILS against the current code: src/api/assistant/dutyMenuPublish.js and src/utils/relayHostGuard.js do
  * not exist, the route is not registered, and dutyMenu.js exports no write-relay helpers.
  */
@@ -125,7 +130,8 @@ const CONFIG = { BRAINSTORM_RELAY_URL: OWN, STRFRY_DOMAIN: OWN_DOMAIN };
  * The route's seams, under the names ADR 0002 gives them; every one RECORDS its calls, and `order` the local write and
  * the fan-out in sequence. The story-1 functions are fakes here (the E8/W10 tests run the real ones).
  *   assistant  — null: no Assistant here; otherwise each viewer gets its own generated key.
- *   inputs     — what resolveOfferInputs answers; default { ownRelay: OWN, dlistRelay: null, scores: true }.
+ *   inputs     — what resolveOfferInputs answers; default { ownRelay: OWN, dlistRelay: null }, with `duties` the six
+ *                defaults (DM.DEFAULT_DUTIES) unless the test names a list (assistant-duties-settings #1).
  *   latest     — the newest version lookupPublishedMenu found (any validity), or null.
  *   aWrite     — the Assistant's write relays; nous — Nous' write relays ([] = its list not found).
  *   localFails — the local write throws. localOnly — local-only mode. rows — publishToRelays' answer.
@@ -174,7 +180,7 @@ function fakes(opts = {}) {
     now: () => NOW_MS,
     resolveOfferInputs: async (viewer) => {
       calls.resolveOfferInputs.push(viewer);
-      return opts.inputs || { ownRelay: OWN, dlistRelay: null, scores: true };
+      return { duties: DM.DEFAULT_DUTIES.map((d) => ({ ...d })), ...(opts.inputs || { ownRelay: OWN, dlistRelay: null }) };
     },
     lookupPublishedMenu: async (input) => {
       calls.lookupPublishedMenu.push(input);
@@ -221,7 +227,7 @@ async function within(promise, ms) {
  * Low-level fakes for the REAL story-1 functions (E8, W10): this instance's relay is `store`, outside relays `relays`
  * ({ url: events | 'hang' }; unlisted = unreachable). Complete, so it needs nothing from dutyMenu.js's defaults.
  */
-function lowLevel({ store, relays = {}, viewer = VIEWER }) {
+function lowLevel({ store, relays = {}, viewer = VIEWER, duties = DM.DEFAULT_DUTIES }) {
   const status = require('../src/api/setup/status');
   const attention = require('../src/api/assistant/attention');
   const L = {
@@ -243,6 +249,9 @@ function lowLevel({ store, relays = {}, viewer = VIEWER }) {
     treasureMapRelays: (d) => status.treasureMapRelays(d || L),
     lookupNewestReplaceable: (input, d) => attention.lookupNewestReplaceable(input, d || L),
     getCustomer: async () => null,
+    // assistant-duties-settings #1 (ADR 0001 sub-decision 3): the Assistant Duties list, injected so no developer's own
+    // settings.json can steer the suite.
+    readAssistantDuties: () => JSON.parse(JSON.stringify(duties)),
     now: () => NOW_MS,
   };
   L.viewer = viewer;
@@ -352,14 +361,14 @@ test('P7: an unexpected throw answers 500 with "Could not publish your Assistant
 /* ───────────────────────── E — the event (AC-3) ───────────────────────── */
 
 test('E1: the event — kind 39999, empty content, signed by the Assistant (it verifies), with exactly the tags d, Nous\' z, p, then one duty row per offer row in the offer\'s order (AC-3; sub-decision 2; rows only)', async () => {
-  const got = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true } });
+  const got = await answer({ inputs: { ownRelay: OWN, dlistRelay: null } });
   const ev = got.signed;
   const wrong = [];
   if (!ev) wrong.push('nothing was written locally');
   else {
     if (ev.kind !== DM.DUTY_MENU_KIND || ev.content !== '') wrong.push(`kind ${ev.kind}, content ${show(ev.content)}`);
     if (ev.pubkey !== got.assistantPubkey || !nt().verifyEvent(ev)) wrong.push('signed by the Assistant, and the signature verifies');
-    const want = [['d', DM.DUTY_MENU_D], ['z', DM.DUTY_MENU_HEADER], ['p', got.assistantPubkey], ...DM.expectedOffer({ ownRelay: OWN, scores: true }).map((r) => ['duty', r.key, r.relay])];
+    const want = [['d', DM.DUTY_MENU_D], ['z', DM.DUTY_MENU_HEADER], ['p', got.assistantPubkey], ...DM.expectedOffer({ ownRelay: OWN }).map((r) => ['duty', r.key, r.relay])];
     if (!sameJson(ev.tags, want)) wrong.push(`tags: want ${show(want)}, got ${show(ev.tags)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
@@ -367,7 +376,7 @@ test('E1: the event — kind 39999, empty content, signed by the Assistant (it v
 
 test('E2: the event is a Duty Menu by § 6.1 (all five conditions), and its rows read back are exactly the offer (AC-3)', async () => {
   const { isDutyMenu, readMenuRows, sameRows } = require(LIB);
-  const got = await answer({ inputs: { ownRelay: null, dlistRelay: DLIST, scores: false } });
+  const got = await answer({ inputs: { ownRelay: null, dlistRelay: DLIST } });
   assert(got.signed, `nothing was signed: ${show(got.body)}`);
   assert(isDutyMenu(got.signed, got.assistantPubkey) === true, 'isDutyMenu(signed, assistant) holds');
   const want = DM.expectedOffer({ dlistRelay: DLIST });
@@ -375,7 +384,7 @@ test('E2: the event is a Duty Menu by § 6.1 (all five conditions), and its rows
 });
 
 test('E3: an empty offer still publishes an empty menu — d, z and p only — and the answer says duties 0 (AC-3; § 11)', async () => {
-  const got = await answer({ inputs: { ownRelay: null, dlistRelay: null, scores: false } });
+  const got = await answer({ inputs: { ownRelay: null, dlistRelay: null } });
   const wrong = [];
   if (!got.signed || !sameJson(got.signed.tags, [['d', DM.DUTY_MENU_D], ['z', DM.DUTY_MENU_HEADER], ['p', got.assistantPubkey]])) wrong.push(`tags: ${show(got.signed && got.signed.tags)}`);
   if (!got.result || got.result.ok !== true || got.result.duties !== 0) wrong.push(`answer: ${show(got.result)}`);
@@ -448,7 +457,7 @@ test('W1: this instance\'s relay first — the local write comes before any rela
 test('W2: the set, each relay once — the Assistant\'s write relays, the new rows\' relays, the rows of the menu found at publish time (read even from an invalid one), and Nous\' write relays; never this instance\'s own, never the profile publish set (AC-4; sub-decisions 4, 5)', async () => {
   const latest = (a) => foundMenu(a, { z: [], rows: [['duty', '30382', OLD1], ['duty', '30392', OLD2], ['duty', '30393', A1], ['not-offered', '30385']] });
   const got = await answer({
-    inputs: { ownRelay: null, dlistRelay: DLIST, scores: false },
+    inputs: { ownRelay: null, dlistRelay: DLIST },
     latest, aWrite: [A1, A2, OWN, 'ws://localhost:7777', 'wss://A-Two.example/'], nous: [N1, DLIST],
   });
   const want = [DLIST, A1, A2, OLD1, OLD2, N1];
@@ -471,7 +480,7 @@ test('W3: Nous\' list not found — nothing is sent for Nous, and the rest still
 });
 
 test('W4: a configured row relay is sent without a DNS lookup — also when an event names it too; every event-named relay is looked up (AC-4; sub-decision 5)', async () => {
-  const got = await answer({ inputs: { ownRelay: null, dlistRelay: DLIST, scores: false }, aWrite: [A1, DLIST] });
+  const got = await answer({ inputs: { ownRelay: null, dlistRelay: DLIST }, aWrite: [A1, DLIST] });
   const looked = got.calls.isPublicHostname.slice().sort();
   const wrong = [];
   if (looked.includes(hostOf(DLIST))) wrong.push(`the configured ${DLIST} was looked up`);
@@ -499,7 +508,7 @@ test('W6: at most 50 event-named relays, the first 50 in the ADR\'s order (the A
   const N = Array.from({ length: 15 }, (_, i) => `wss://nw-${i}.example`);
   const oldRows = O.map((u, i) => ['duty', String(30380 + i), u]);
   const latest = (a) => foundMenu(a, { rows: [...oldRows, ['duty', '39998', A[0]]] });
-  const got = await answer({ inputs: { ownRelay: null, dlistRelay: DLIST, scores: false }, latest, aWrite: [DLIST, ...A], nous: N });
+  const got = await answer({ inputs: { ownRelay: null, dlistRelay: DLIST }, latest, aWrite: [DLIST, ...A], nous: N });
   const first50 = [...A, ...O];
   const beyond = N;
   const looked = got.calls.isPublicHostname;
@@ -517,7 +526,7 @@ test('W6: at most 50 event-named relays, the first 50 in the ADR\'s order (the A
 });
 
 test('W7: local-only mode — written here, every relay of the set reads skipped: local-only publish mode, nothing is sent, kept-local, the approved sentence (AC-4; sub-decision 5)', async () => {
-  const got = await answer({ localOnly: true, inputs: { ownRelay: null, dlistRelay: DLIST, scores: false } });
+  const got = await answer({ localOnly: true, inputs: { ownRelay: null, dlistRelay: DLIST } });
   const r = got.result || {};
   const rows = rowsOf(got);
   const wrong = [];
@@ -540,7 +549,7 @@ test('W8: a DNS lookup that never answers costs only the 3 s budget — the answ
 
 test('W9: the answer — { success, result: { ok, outcome, message, localOnly, duties, relays: { total, success, results } } }, counting only accepting relays, in § Copy\'s sentences (AC-1, AC-4; sub-decision 5)', async () => {
   const someRefuse = (list) => list.map((relay, i) => (i === 0 ? { relay, status: 'refused', reason: 'blocked: fixture' } : { relay, status: 'accepted', reason: '' }));
-  const got = await answer({ rows: someRefuse, inputs: { ownRelay: null, dlistRelay: DLIST, scores: false } });
+  const got = await answer({ rows: someRefuse, inputs: { ownRelay: null, dlistRelay: DLIST } });
   const r = got.result || {};
   const n = sentTo(got).length;
   const wrong = [];
@@ -579,18 +588,18 @@ test('W11: saved here, not local-only, and no relay at all to send to — the an
   const { summarizePublish } = require('../src/api/assistant/profilePublish');
   const subject = DM.PUBLISH.subject;
   const wrong = [];
-  const empty = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [], nous: [], latest: null });
+  const empty = await answer({ inputs: { ownRelay: OWN, dlistRelay: null }, aWrite: [], nous: [], latest: null });
   const r = empty.result || {};
   if (!(r.ok === true && r.message === DM.PUBLISH.nothingElse)) wrong.push(`empty set: want ${show(DM.PUBLISH.nothingElse)}, got ${show(r.message)} (${show({ ok: r.ok, outcome: r.outcome })})`);
   if (!(r.relays && r.relays.total === 0 && Array.isArray(r.relays.results) && r.relays.results.length === 0)) wrong.push(`empty set: no relay rows, got ${show(r.relays)}`);
   if (empty.calls.importEvent.length !== 1 || empty.calls.publishToRelays.some((c) => c.relays.length > 0)) wrong.push('empty set: saved here, nothing sent');
-  const one = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [A1], nous: [], latest: null });
+  const one = await answer({ inputs: { ownRelay: OWN, dlistRelay: null }, aWrite: [A1], nous: [], latest: null });
   const want1 = summarizePublish({ subject, rows: rowsOf(one), localOnly: false }).message;
   if (!one.result || one.result.message !== want1 || one.result.message === DM.PUBLISH.nothingElse) wrong.push(`one relay: want summarizePublish's ${show(want1)}, got ${show(one.result && one.result.message)}`);
-  const refused = await answer({ inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [A1], nous: [], notPublic: [hostOf(A1)] });
+  const refused = await answer({ inputs: { ownRelay: OWN, dlistRelay: null }, aWrite: [A1], nous: [], notPublic: [hostOf(A1)] });
   const wantR = summarizePublish({ subject, rows: rowsOf(refused), localOnly: false }).message;
   if (!refused.result || refused.result.message !== wantR || refused.result.message === DM.PUBLISH.nothingElse) wrong.push(`one relay, refused by the guard (the set is not empty before it): want ${show(wantR)}, got ${show(refused.result && refused.result.message)}`);
-  const local = await answer({ localOnly: true, inputs: { ownRelay: OWN, dlistRelay: null, scores: true }, aWrite: [], nous: [] });
+  const local = await answer({ localOnly: true, inputs: { ownRelay: OWN, dlistRelay: null }, aWrite: [], nous: [] });
   if (!local.result || local.result.message !== DM.PUBLISH.localOnly) wrong.push(`local-only, empty set: want ${show(DM.PUBLISH.localOnly)}, got ${show(local.result && local.result.message)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -632,13 +641,40 @@ test('W12: on Docker the derived address is never sent to as an outside relay �
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('W13: on Docker the signed menu\'s rows name wss://<domain>/relay — Lists and Concepts for a viewer without Scores — and the fan-out never sends to it (duty-menu-public-relay AC-1, AC-4)', async () => {
+test('W13: on Docker the signed menu\'s rows name wss://<domain>/relay — the six defaults for a viewer who is not a customer, since assistant-duties-settings #1 — and the fan-out never sends to it (duty-menu-public-relay AC-1, AC-4)', async () => {
   const got = await publishOnDocker(() => []);
   const wrong = [];
   const rows = got.signed ? got.signed.tags.filter((t) => t[0] === 'duty').map((t) => ({ tag: 'duty', key: t[1], relay: t[2] })) : null;
   const want = DM.expectedOffer({ ownRelay: DERIVED });
   if (!rows || show(rows) !== show(want)) wrong.push(`the signed rows: want ${show(want)}, got ${show(rows)}`);
   if (got.sent.some((u) => OWN_HOSTS.includes(hostOf(u)))) wrong.push(`the derived relay was sent to: ${show(got.sent)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('W14 (assistant-duties-settings #1 AC-6): the press publishes exactly the Assistant Duties list, in its order — a typed relay as typed (in its one spelling), This instance\'s relay by category — through the real resolveOfferInputs and buildOffer; the typed relay is sent to as a row relay; and the check reads the result back current', async () => {
+  const sk = nt().generateSecretKey();
+  const A = nt().getPublicKey(sk);
+  const store = [];
+  const TYPED = 'wss://typed-relay.example';
+  // Whole kinds (assistant-duties-settings ADR 0001 Amendment 1): 30395 is a List kind outside the six.
+  const duties = [{ key: '39999' }, { key: '30383', relay: 'wss://Typed-Relay.Example/' }, { key: '30392' }, { key: '30395' }];
+  const L = lowLevel({ store, duties });
+  const { deps, calls, duty } = integratedDeps(L, { sk, store });
+  const handle = need(publishModule(), 'createPublishDutyMenuHandler', rel(MODULE))(deps);
+  const res = fakeRes();
+  console.log = () => {}; console.warn = () => {};
+  try { await within(handle(signedInReq(), res), HANDLER_LIMIT_MS); } finally { restoreConsole(); }
+  const signed = store[0] || null;
+  const rows = signed ? signed.tags.filter((t) => t[0] === 'duty').map((t) => t.slice(1)) : null;
+  const want = [['39999', OWN], ['30383', TYPED], ['30392', OWN], ['30395', OWN]];
+  const wrong = [];
+  if (!rows || show(rows) !== show(want)) wrong.push(`the signed rows, in the list's order: want ${show(want)}, got ${show(rows)}`);
+  const sent = calls.publishToRelays.flat();
+  if (!sent.includes(TYPED)) wrong.push(`the typed relay is a row relay, so the menu is sent there: ${show(sent)}`);
+  if (signed) {
+    const check = await duty.checkDutyMenu({ viewer: VIEWER, assistantPubkey: A }, L);
+    if (!(check.finished && check.current === true && check.done === true)) wrong.push(`the check reads it back current and done: ${show(check)}`);
+  }
   assert(wrong.length === 0, wrong.join('; '));
 });
 

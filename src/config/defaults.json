@@ -57,6 +57,14 @@
   "trustedLists": {
     "membershipMethod": "count"
   },
+  "assistantDuties": [
+    { "key": "30382" },
+    { "key": "30392" },
+    { "key": "30393" },
+    { "key": "30394" },
+    { "key": "39998" },
+    { "key": "39999" }
+  ],
   "nip05": {
     "names": {},
     "relays": {}

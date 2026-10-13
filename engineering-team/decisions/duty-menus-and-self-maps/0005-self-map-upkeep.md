@@ -1,6 +1,6 @@
 # ADR 0005: Keeping a self-Map true — curation copies stay at a stop, a removed self-entry is no stop, the marker means "stopped", and a retracted List is never a copy
 
-**Status:** Proposed
+**Status:** Accepted (by the owner, 2026-10-12, with Open question 1 answered (b), as recommended)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/duty-menus-and-self-maps/5-self-map-upkeep.md`
 
@@ -10,13 +10,80 @@ case now reads a retraction as § 7 does. The lead of What follows a stop drops 
 claims, and the Lists bullet's reasons follow § 9's duties. Spawning's Refresh turns on "maintained", and an assistant
 may resume curating while a Map entry empowers it. The publisher claim is narrowed to a run that succeeds, and two
 failure paths go to the code books. The supersession record adds sub-decision 4's reading of a removal as a stop.
-Which version Enumerate reads goes to the owner (Open question 1).
+Which version Enumerate reads went to the owner (Open question 1).
 
 **Revision 2 (2026-10-12)** answers the second review (N1, N2). N1 was re-checked on a model (`s5/r2/n1.py`) and N2
 against the draft's order. The cross-book notes now treat a change to the person's Map as a stop only for what no
 remaining entry gives the Assistant (Scores, Lists) or empowers it to curate (Concepts). Re-giving a key to the same
 Assistant is no stop. The worked copy's new sentence is set while Fido's copy stands, so it no longer comes after
 that copy's deletion.
+
+**At acceptance (2026-10-12)** the owner answered Open question 1 (b): Enumerate reads the latest version it finds
+(NIP-01), and sub-decision 5 now gives that clause alone. The owner also confirmed that sub-decision 10's new
+question, whether a bare `39998` asks for curation, rides with the docs pass after the book on row
+`2026-10-12-bare-39998-ta-discovery`. Two notes were checked on a model (`s5impl/n34.py`) and folded in. N3: item 4
+of the cross-book notes follows Assistant Designation's "the first occurrence wins", so a reorder that puts
+another assistant's entry first ends curation as Revocation does. N4: item 4's bare-`39998` case is stated under
+its conditions, and the row's question names Spawning § 3.6 and principle 3.
+
+**Clarifications after acceptance (2026-10-12)** answer the Implementer's kick-backs KB-C2, KB-RD-1 and KB-RD-2.
+None changes a rule: each makes the text say what the owner's answers already decide, or marks open what no spec
+settles. The body below carries the ADR's own changes in place. Implementation notes item 8 lands them, and V15
+checks them.
+- **KB-C2. The Alternate case is a separate question** (changes no rule). It is related to the bare-`39998`
+  question, but this ADR adds it, the owner has not confirmed it, and row `2026-10-12-bare-39998-ta-discovery` must
+  answer it on its own before it closes. The owner may confirm it, or move it to another row.
+  - Sub-decision 10, the bare-`39998` row's note, its last sentence →
+    > The note then names a separate, related question, which this ADR adds and the owner has not confirmed, and
+    > which the row must answer on its own before it closes: does an Alternate entry for a list ask that Assistant
+    > to curate it? Treasure Maps §§ 7 and 9 give an Alternate a duty, which Assistant Designation, where the first
+    > occurrence wins, does not empower (Treasure Maps § 13 question 13).
+  - Consequences, item 4, its last sentence →
+    > A reorder that puts another assistant's entry for the list first ends curation as Revocation does, though
+    > Treasure Maps §§ 7 and 9 still give the Assistant a duty as an Alternate. Whether that duty asks it to curate
+    > is a separate question, related to the bare `39998` one (below) but not confirmed by the owner, which the docs
+    > pass must answer on its own (sub-decision 10; Treasure Maps § 13 question 13).
+  - Out of scope, the first bullet, its last sentence →
+    > Its note also names a separate, related question, which this ADR adds and the owner has not confirmed:
+    > whether an Alternate entry for a list asks for curation (Treasure Maps § 13 question 13). The row answers each
+    > on its own, and answering either is out of scope here.
+  - **Row `2026-10-12-bare-39998-ta-discovery`**, its story-5 note: the two sentences from "An Alternate entry for a
+    list" through "item 4)." →
+    > Until the pass decides, a self-Map narrows to exact keys for such a list (row
+    > `2026-10-12-self-map-upkeep-cross-book-notes`, item 4). The row also carries a separate, related question,
+    > which ADR 0005 adds and the owner has not confirmed: does an Alternate entry for a list ask that Assistant to
+    > curate it? Treasure Maps §§ 7 and 9 give an Alternate a duty, which Assistant Designation, where the first
+    > occurrence wins, does not empower (Treasure Maps § 13 question 13). An answer to the bare-`39998` question
+    > does not answer this one, and the row closes only when the pass has answered each.
+  - **Row `2026-10-12-self-map-upkeep-cross-book-notes`**, item 4: its last sentence becomes Consequences item 4's,
+    above, as written.
+- **KB-RD-1. Treasure Maps § 11, How many colons?** (changes no rule). The first sentence read as one count shared
+  by a system's List keys and Score keys, where § 4.3 makes a Score key one segment longer. Sub-decision 8's text for
+  the answer →
+  > In each system (§ 4.3), every List key has the same number, whatever its kind, and so does every Score key. Where
+  > a system has both, a Score key has one more, since it is the matching List key plus `:<metric>`. A Concept key
+  > has no system: its `d` is one segment, which may hold colons (§ 4.5). Fewer segments, or an empty one, makes a
+  > scope, except where § 4.4 makes an empty category the Profiles category: `30392:tag::⟨Podcaster⟩` is exact, and
+  > `30382:tag::⟨Podcaster⟩`, with no metric, is a scope.
+
+  The Concept and Profiles sentences stay. The last clause states § 10.5's reading of `30382:tag::<Tag>` ("in every
+  metric").
+- **KB-RD-2. A new Treasure Maps § 13 question 13** (changes no rule: it asks, and answers nothing). No spec marked
+  open how Treasure Maps and Assistant Designation treat an Alternate on a per-list Concept key. After question 12,
+  as one line like the others, add:
+  > 13. **Alternates on a per-list Concept key.** §§ 7 and 9 ask every provider listed on a key such as
+  >     `39998:<d-tag>`, Alternates included, to publish and maintain its Concept, a header and its item copies
+  >     (§ 4.5), and [Spawning](./spawning.md)'s two gates (principle 3) pass for each of them, since the Map names
+  >     each on the key and the key is exact. But
+  >     [Assistant Designation](./assistant-designation.md) § Per-DList curation entries empowers only the first
+  >     entry for a (kind, d-tag), so a list has at most one curating assistant, and its § Curation copies lets an
+  >     assistant curate only while a Map entry empowers it. Does an Alternate on such a key curate the list as a
+  >     standby, and if so, what empowers it? The writer rules differ as well: Assistant Designation keeps one entry
+  >     per (kind, d-tag), replaced in place, where § 7 lets several entries share one key.
+
+  Its number is 13: § 13 ends at question 12. The Sources line names it, since AC5 asks each spec's Sources line to
+  name this ADR for the sections that rest on it. In sub-decision 10's ADR 0005 clause, "and § 13 question 8)" →
+  "and § 13 question 8; and § 13 question 13, which it opens)".
 
 ## Context
 
@@ -122,7 +189,7 @@ The owner's answers settle every rule. These are the choices of form that remain
 ### Choice 4 — What § 5.4 drops (AC2, 3(a))
 - **A (chosen): exactly the marked Lists.** It adds "leaving out any List whose latest version it finds carries the
   marker, which is no copy (§ 7)". Under 2(a) this is 3(a). Which version counts when a client finds two at different
-  relays is Open question 1.
+  relays was Open question 1; the owner answered (b), the latest version found.
 - **B: "keeps those § 7 takes as copies".** This is more general, but it would also pull § 7's age and allowance tests
   into Enumerate, so an old but current List would drop out. That changes Enumerate beyond the question.
 
@@ -340,9 +407,7 @@ answer.
 
 - **§ 5.4, item 2 (:270).** "…and keeps those whose `d` tag starts with the scope." → "…and keeps those whose `d`
   tag starts with the scope, leaving out any List whose latest version it finds (NIP-01) carries
-  `["status", "retracted"]`, which is no copy (§ 7)." That is Open question 1's recommended answer. Under the other
-  answer, the clause ends "leaving out each version it finds that carries `["status", "retracted"]`, which is no copy
-  (§ 7)."
+  `["status", "retracted"]`, which is no copy (§ 7)." That is the owner's answer (b) to Open question 1.
 - **§ 3, Enumerating (:95).** Unchanged. It enumerates "(§ 5.4)", so it agrees.
 - **The AC2 check, on the model** (Part 4). Under `30396:tag:⟨D⟩`, A has four lists:
   - one with members;
@@ -353,8 +418,8 @@ answer.
   Enumerate lists the first and the fourth. Under the new rule, § 7 takes exactly those two as copies for every
   reader. Under A2-1, F, N and Z2 would also have taken the second.
 - **Two relays** (`r1.out` Part C, the Residual: R holds A's retraction, and Rw missed it). A client that asks both
-  lists nothing from A under the recommended answer, and A's last version under the other, at every age. One that
-  asks only Rw lists A's last version under both. § 7's reader F takes A's last version at age 60, and B's List at
+  lists nothing from A at every age; under (a), not taken, it would list A's last version. One that asks only Rw
+  lists A's last version under either answer. § 7's reader F takes A's last version at age 60, and B's List at
   age 5,000.
 
 ### 6. A change to the supported sets (AC2, item 20)
@@ -412,10 +477,12 @@ On the model:
 
 - **Principle 8 (:53).** "A shorter key covers more." → "A shorter key covers more, except where § 4.4 makes an empty
   category the Profiles category, and within a Concept key's `d` (§ 4.5)."
-- **§ 11, How many colons? (:606)** → "A fixed number per system (§ 4.3), the same for every Score kind and for every
-  List kind. A Concept key has no system: its `d` is one segment, which may hold colons (§ 4.5). Fewer segments, or an
-  empty one, makes a scope, except where § 4.4 makes an empty category the Profiles category: `30392:tag::⟨Podcaster⟩`
-  is exact."
+- **§ 11, How many colons? (:606)** → "In each system (§ 4.3), every List key has the same number, whatever its kind,
+  and so does every Score key. Where a system has both, a Score key has one more, since it is the matching List key
+  plus `:<metric>`. A Concept key has no system: its `d` is one segment, which may hold colons (§ 4.5). Fewer
+  segments, or an empty one, makes a scope, except where § 4.4 makes an empty category the Profiles category:
+  `30392:tag::⟨Podcaster⟩` is exact, and `30382:tag::⟨Podcaster⟩`, with no metric, is a scope." (Clarified after
+  acceptance, KB-RD-1.)
 - **§ 10.5, `30382:tag:::<metric>` (:506).** "…in my supported Tags for profiles, …" → "…in my supported Tags in the
   Profiles category, …".
 - **§ 4.3, Addressable kinds (:164).** "(its table of category types, and § 4)" → "(its opening table of the four
@@ -429,6 +496,9 @@ On the model:
     `30392:tag:D1:T1`.
   - **A Concept key.** `39998:a` does not cover `39998:a:b`, whose `d` is the single segment `a:b`.
   - **§ 10.5's row.** `30382:tag:::rank` reaches only the Profiles category.
+  - **§ 11's count** (`s5impl/fix2/kbrd1.py`, after acceptance). Exact List keys have 3 colons in system `tag` and 2
+    in `dlist`. Exact Score keys have 4 and 3, and the NIP-85 native ones 1. `30382:tag::T1` matches `:conf` and
+    `:rank`, so it is a scope, as § 10.5 reads `30382:tag::<Tag>`.
 - **The two Sources clauses** are in sub-decision 10.
 
 ### 9. Records (AC2, AC5)
@@ -456,7 +526,8 @@ On the model:
   - In the ADR 0004 clause, "and §§ 3, 5.3, 9.2, …" → "and At a glance's second bullet, §§ 3, 5.3, 9.2, …".
   - At the end, before the final ".", add: "; and ADR 0005 (keeping a self-Map true: § 7's reading of a retracted
     List, which replaces ADR 0003 A2's, with § 3, § 5.4's Enumerate, and § 9.2's What follows a stop and What the
-    allowance rests on; and the wording of principle 8, §§ 4.3, 5, 7, 9.2, 10, 10.5 and 11, and § 13 question 8)".
+    allowance rests on; and the wording of principle 8, §§ 4.3, 5, 7, 9.2, 10, 10.5 and 11, and § 13 question 8;
+    and § 13 question 13, which it opens)". (The last part was clarified after acceptance, KB-RD-2.)
 - **`duty-menus.md` (:6).**
   - In the ADR 0003 clause, "ADR 0003 with Amendment A1 (" → "ADR 0003 with Amendments A1 and A2 (".
   - In the same clause, "§ 7's own-Assistant exception, § 10 and § 14 follow" → "§ 7's own-Assistant exception, § 9's
@@ -489,9 +560,14 @@ On the model:
   10). Item 6 was resolved by the owner's 4(a).
 - **`2026-10-12-addressable-kinds-spawning-content-categories`** and **`2026-10-12-bare-39998-ta-discovery`** each
   get a note: the owner placed the row in a docs pass after this book (5(a)). Both stay OPEN. The bare-`39998` row's
-  note adds one question for that pass: does a bare `39998` ask the Assistant to curate a list that has no entry of
-  its own in the Map? Treasure Maps § 10.1 gives it "the items filed under" the person's headers, but Assistant
-  Designation's blanket entry "names no individual list" (cross-book item 4).
+  note adds one question for that pass, which the owner confirmed rides with it: does a bare `39998` ask the
+  Assistant to curate a list that has no entry of its own in the Map? Treasure Maps § 10.1 gives it "the items filed
+  under" the person's headers, and Spawning § 3.6, under principle 3's two gates, has it spawn the curated Concept
+  of a list among the Supported Concepts, but Assistant Designation's blanket entry "names no individual list"
+  (cross-book item 4). The note then names a separate, related question, which this ADR adds and the owner has not
+  confirmed, and which the row must answer on its own before it closes: does an Alternate entry for a list ask that
+  Assistant to curate it? Treasure Maps §§ 7 and 9 give an Alternate a duty, which Assistant Designation, where the
+  first occurrence wins, does not empower (Treasure Maps § 13 question 13). (Clarified after acceptance, KB-C2.)
 - **`2026-10-12-list-d-tags-not-treasure-maps`** gets a note:
   - under 2(a), an old `d` gets the marker when this instance stops maintaining a List there;
   - an old `d` kept as an alias stays maintained and unmarked, even with no members;
@@ -548,9 +624,9 @@ this ADR's text.
     where the reader finds it, is no copy (Part B1).
 - **Enumerate** reads the marker as § 7 does, and applies no age test (Choice 4). Where relays disagree (Part C), a
   client that asks only a relay that missed a retraction lists A's last version there whatever its age, while § 7
-  takes it only while it is young. A client that also finds the retraction leaves the List out under Open question
-  1's recommended answer, where a § 3 reader may still take the older version while it is young (the Residual).
-  Under the other answer it lists the older version, whatever its age.
+  takes it only while it is young. A client that also finds the retraction leaves the List out (Open question 1,
+  answered (b)), where a § 3 reader may still take the older version while it is young (the Residual): the cost the
+  owner accepted with (b).
 - **Turning a self-Map off retracts and deletes nothing.** Removing self-entries changes only what readers grant
   (confirmation, the allowance). Without the allowance, readers accept the key's insights only while they are no
   older than the reader accepts. So a List, Score or Concept that has not changed for longer falls to the next
@@ -579,15 +655,24 @@ this ADR's text.
   4. **Concepts.** The instance stops curating a list when no entry in the person's Map empowers it any longer
      (Assistant Designation, Revocation), or for another cause in When curation stops (sub-decision 1). It narrows or
      removes its self-entries as § 9.2's When it changes asks. It keeps the header, its `b` and the copies, sends no
-     deletion, and copies nothing more for that list. A Map change that leaves the list's own entry naming the
-     Assistant is no stop for that list: dropping a bare `39998`, say, or re-giving the entry at another relay.
+     deletion, and copies nothing more for that list. A Map change that leaves the list's first entry naming the
+     Assistant (Assistant Designation: on duplicate entries for one (kind, d-tag), the first occurrence wins) is no
+     stop for that list: dropping a bare `39998`, say, or re-giving the entry at another relay. A reorder that puts
+     another assistant's entry for the list first ends curation as Revocation does, though Treasure Maps §§ 7 and 9
+     still give the Assistant a duty as an Alternate. Whether that duty asks it to curate is a separate question,
+     related to the bare `39998` one (below) but not confirmed by the owner, which the docs pass must answer on its
+     own (sub-decision 10; Treasure Maps § 13 question 13).
      - **A bare `39998` in the same Map.** If the Map drops a list's entry but keeps a bare `39998` naming the
-       Assistant, curation of that list ends, because the blanket entry names no list (Assistant Designation). Yet
-       Treasure Maps § 9 still gives the list's Concept to the Assistant through the bare key, so a bare `39998`
-       self-entry would still win and speak for it. The self-Map therefore narrows to exact keys. Whether a bare
-       `39998` asks for curation is left to the docs pass (sub-decision 10).
+       Assistant, then under Assistant Designation's current text, where only a per-DList entry empowers (the blanket
+       entry names no list), curation of that list ends. Where the list is among the person's Supported Concepts
+       (Treasure Maps § 8), Treasure Maps § 9 still gives its Concept to the Assistant through the bare key, and
+       Spawning § 3.6's gates (principle 3) still pass, so a bare `39998` self-entry would win and speak for it. The
+       self-Map narrows to exact keys until the docs pass decides whether a bare `39998` asks for curation
+       (sub-decision 10).
      - Shipped Revoke conforms.
-     - Update list opens only for a list the Map names (`curatedDListAccess`, `ui/src/utils/treasureMap.js`:357–371).
+     - Update list opens only for a list whose first entry in the Map names the assistant (`curatedDListRows` and
+       `curatedDListAccess`, `ui/src/utils/treasureMap.js`:313–323, :357–371), so after a reorder the page already
+       opens it read-only.
        `POST /api/dlist-curation/update` does not itself check the Map entry, so "copies and deletes nothing more"
        rests on the page.
   5. **Lists.** Today it claims none (`older-form`). Sub-decision 10's note on the list-`d`-tags row says what an old
@@ -599,6 +684,10 @@ this ADR's text.
 - **Firmware reinstall required?** No. No concept definitions change.
 
 ## Open questions for the owner
+
+**Answered by the owner, 2026-10-12, at this ADR's gate:** 1 (b), as recommended. The owner also confirmed that
+sub-decision 10's new question, whether a bare `39998` asks for curation, rides with the docs pass after the book on
+row `2026-10-12-bare-39998-ta-discovery` (5(a)).
 
 1. **Which version of a List does Enumerate read, when a client finds more than one?** (F3; 3(a).) A client that
    enumerates at several relays (§ 3, Enumerating) can find A's retraction at one relay and A's older version at a
@@ -617,7 +706,8 @@ this ADR's text.
    Enumerate. There, the answer turned on which relay a reader meets first, and the rule added a memory to § 3's walk
    across relays. Enumerate gathers its relays' answers in no order and compares them at once. The cost of (b): in
    the Residual, Enumerate leaves out a List that a § 3 reader may still take while it is young. Sub-decision 5 gives
-   the text for each answer.
+   (b)'s text. (a)'s clause would have ended "leaving out each version it finds that carries
+   `["status", "retracted"]`, which is no copy (§ 7)". *Owner: (b).*
 
 ## Implementation notes
 
@@ -640,6 +730,17 @@ Edit in this order, so that each pointer lands after its target.
 6. **`docs/DUTY_MENUS_AND_SELF_MAPS_DESIGN_HANDOFF.md`:** :19–20 (sub-decision 7). Nothing else.
 7. **`ledger/`:** the five notes and the two new rows (sub-decision 10). Then flip the self-maps and key-grammar rows
    DONE last, once the drafts are in.
+8. **Clarifications after acceptance** (KB-C2, KB-RD-1, KB-RD-2). The first pass is in at `984c7cc8`. Each edit
+   below replaces text in place, found by its quoted words, and copies the text that Clarifications after acceptance
+   gives, as written:
+   - `treasure-maps.md` § 11, How many colons?: the answer → sub-decision 8's clarified text (KB-RD-1);
+   - `treasure-maps.md` § 13: question 13 after question 12 (KB-RD-2); then the Sources line's ADR 0005 clause,
+     "and § 13 question 8)" → "and § 13 question 8; and § 13 question 13, which it opens)";
+   - `ledger/2026-10-12-bare-39998-ta-discovery.md`: the story-5 note's two sentences from "An Alternate entry for a
+     list" through "item 4)." (KB-C2);
+   - `ledger/2026-10-12-self-map-upkeep-cross-book-notes.md`: item 4's last sentence → Consequences item 4's (KB-C2).
+
+   No other file changes for them, and no § Deviations block is needed: the text is this ADR's.
 
 Not edited:
 - ADRs 0003 and 0004;
@@ -663,7 +764,9 @@ Re-derive each check from the drafts as changed. Then run the scripts with `pyth
 - `s5/model.py s3r2/a2.py 4000` writes `s5/model.out`;
 - `s5/wording.py .` writes `s5/wording.out`;
 - `s5/r1/r1.py .` writes `s5/r1/r1.out` (revision 1);
-- `s5/r2/n1.py .` writes `s5/r2/n1.out` (revision 2).
+- `s5/r2/n1.py .` writes `s5/r2/n1.out` (revision 2);
+- `s5impl/n34.py .` writes `s5impl/n34.out` (at acceptance: N3, N4);
+- `s5impl/fix2/kbrd1.py .` prints what `s5impl/verify/check3/kbrd1.out` holds (after acceptance: KB-RD-1).
 
 Each prints the same output on every run.
 
@@ -686,8 +789,9 @@ Each prints the same output on every run.
   List; at age 5,000 every reader takes B's List. With no Alternate (A2), every reader answers not found. The
   conforming twin (A1c) gives A's unmarked List at R to every reader.
 - **V4. Enumerate** (Part 4, AC2). Enumerate lists `L1 members` and `L4 maintained, no members`. The new rule gives
-  "every reader matches Enumerate". A2-1 gives F, N and Z2 "!= Enumerate". At two relays, `r1.out` Part C prints the
-  answers sub-decision 5 gives for each answer to Open question 1.
+  "every reader matches Enumerate". A2-1 gives F, N and Z2 "!= Enumerate". At two relays, `r1.out` Part C's "latest
+  version found" answers are sub-decision 5's: "A not listed" for a client that asks R and Rw, and "A listed (from
+  Rw)" for one that asks only Rw, at both ages.
 - **V5. A List with no members** (AC2, item 19). Read alone, Trusted Lists and Spawning each say that it is an
   unmarked List with no members, and that a move to another `d` puts the marker at the old `d`. Spawning's Refresh
   turns on "maintained", not on the gates.
@@ -731,13 +835,37 @@ Each prints the same output on every run.
     - in `trusted-lists.md`, the Sources lines and the marker bullet;
     - in `spawning.md`, :160 and :169.
   - `git diff --stat` outside `protocols/` lists only the handoff, `ledger/` and the story file.
-- **V14. The cross-book notes** (N1). Items 2 and 4 call a change to the person's Map a stop only for what no
-  remaining entry gives the Assistant or, for Concepts, empowers it to curate. `n1.out` shows:
+- **V14. The cross-book notes** (N1, N3, N4). Items 2 and 4 call a change to the person's Map a stop only for what
+  no remaining entry gives the Assistant or, for Concepts, empowers it to curate, where a list's first entry wins.
+  `n1.out` shows:
   - S1: dropping `3038x` under `*` stops none of the 115 duties `3038x` won, where the first wording stopped all 115;
   - S3: giving `3038x` to B, beside `30385` → A, stops 98 and keeps 18;
   - S2 and C3: re-giving to the same Assistant at another relay changes nothing;
   - C1: dropping the bare `39998` keeps `39998:c1`;
   - C2: dropping `39998:c1` beside a bare `39998` keeps the § 9 duty, while the list's empowerment ends.
+
+  `n34.out` counts Alternates among § 9's duties, takes empowerment from a list's first entry, and gives S1–S3 and
+  C1–C3 as above. It also shows:
+  - C4: a reorder that puts B's `39998:c1` entry before A's ends A's empowerment, a stop as under Revocation, while A
+    keeps its § 9 duty as an Alternate. The shipped reader agrees (`s5sk/check3/reorder.mjs`, run with `node`: `mine`
+    goes false, and access goes read-only). C5: B's entry added after A's is no stop;
+  - C2 with Supported Concepts: with `c1` supported, the § 9 duty, Spawning's gates and the bare `39998` self-entry's
+    claim all hold; with `c1` not supported, none does. Assistant Designation empowers A in neither.
+- **V15. Clarifications after acceptance** (KB-C2, KB-RD-1, KB-RD-2). None changes a rule: their hunks in
+  `protocols/` add no MUST, SHOULD or MAY, and none of the words that AC5's vocabulary gate bars.
+  - **KB-C2.** `grep -n 'same[ ]question'` finds nothing in this ADR or in the two rows. The bare-`39998` row's note
+    names the Alternate question after its sentence on narrowing to exact keys, as separate, added by ADR 0005 and
+    not confirmed by the owner, and says the row closes only when each question is answered. The cross-book row's
+    item 4 matches Consequences item 4 word for word.
+  - **KB-RD-1.** § 11's answer gives a system's List keys and its Score keys each their own count. `kbrd1.out`
+    prints, for system `tag`, List keys with 3 colons and Score keys with 4; for `dlist`, 2 and 3; for the NIP-85
+    native metrics, Score keys with 1; and `30382:tag::T1` as a scope over `:conf` and `:rank`, as § 10.5 reads it.
+  - **KB-RD-2.** § 13 ends with question 13, in the text given above, citing only specs. Its premises hold in the
+    drafts: § 7's fourth bullet and § 9's first bullet count Alternates among the duties; Spawning principle 3;
+    Assistant Designation's "the first occurrence wins", "at most one curating assistant", and When curation stops.
+    `n34.out` C4 shows the conflict: A's § 9 duty and Spawning's gate (a) stay True, while first-occurrence
+    empowerment goes from True to False. The Sources line's ADR 0005 clause ends "and § 13 question 13, which it
+    opens)".
 
 The scratchpad is not durable. To rebuild `model.py`:
 1. Exec `a2.py`'s model section, the lines above its "Part 1" line.
@@ -749,17 +877,24 @@ The scratchpad is not durable. To rebuild `model.py`:
 To rebuild `wording.py`, exec `r4/tm4.py` and `s4/tmfinal.py`, as `s4/m1_grammar.py` does, and run the four checks of
 sub-decisions 7 and 8. To rebuild `r1/r1.py`, exec `a2.py`'s model section for Parts A–C: the cases that V1, V3 and
 V4 name. Part D uses the grammar model as `wording.py` does. To rebuild `r2/n1.py`, exec the grammar model as
-`wording.py` does. Compute § 9's duties with `win` over a Map before and after each change, and take empowerment as
-the named `39998:<d>` and `39999:<d>` entries that name A.
+`wording.py` does. Compute § 9's duties with `win` over a Map before and after each change, counting every provider
+on the winning key, Preferred or Alternate (§ 7). Take empowerment as the first named `39998:<d>` or `39999:<d>`
+entry for each (kind, d-tag), when it names A (Assistant Designation: the first occurrence wins). `s5impl/n34.py`
+rebuilds it so, and adds the reorder cases (C4, C5) and a set of Supported Concepts that expands a Concept scope key
+(C2).
 
 ## Out of scope
 
 - **The two `protocol` rows** (5(a)): what an Assistant spawns for (T, `39998`), and whether a bare `39998` entry
-  names a user's TA. The second also gets sub-decision 10's question: whether a bare `39998` asks for curation.
+  names a user's TA. The second also gets sub-decision 10's question, which the owner confirmed rides with it:
+  whether a bare `39998` asks for curation. Its note also names a separate, related question, which this ADR adds
+  and the owner has not confirmed: whether an Alternate entry for a list asks for curation (Treasure Maps § 13
+  question 13). The row answers each on its own, and answering either is out of scope here.
 - **Any code**, including the update endpoint's own Map-entry check (Consequences, item 4).
 - **How long a brief gap may last.**
 - **Answering § 13 question 8.**
-- **The reader rule A2-1 did not take**, for a failed send, in § 3. Which version Enumerate reads is Open question 1.
+- **The reader rule A2-1 did not take**, for a failed send, in § 3. Which version Enumerate reads was Open question 1,
+  answered (b) (sub-decision 5).
 - **Spawning beyond § 4's `status` row and § 5's Refresh**, and Content Categories.
 - **Duty Menus § 14 questions 1–3**, NosFabrica (Q6), and the older `treasure-map.md` draft.
 - **The two `docs` rows from stories 1 and 2**, and the existing `canonical` uses (new row, sub-decision 10).

@@ -30,6 +30,13 @@
  * attention answer has no treasure-map key, the card is an always-marked placeholder, and the count line has no zero
  * state.
  *
+ * assistant-duties-settings #1 (ADR assistant-duties-settings/0001 sub-decisions 3 and 6): the offer is the Assistant
+ * Duties list (injected as readAssistantDuties; DM.DEFAULT_DUTIES unless a world names `duties`), the same for every
+ * Assistant, so U21's inactive customer is offered Scores now. AD1–AD3 pin the self-Map's side: a 30382 row at a typed
+ * relay is never live from this instance's strfry, an added duty that is not built is offered and never active, and an
+ * Admin's Assistant is offered Scores without their being claimed. AD4 (ADR Amendment 1): a narrower key hand-edited
+ * into the list reaches neither page, so they agree.
+ *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
  * sorting keys with compareKeys puts the more specific first; a duties item has a line only for the offered kinds its
@@ -40,6 +47,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const SM = require('./helpers/selfMapFixtures');
+const DM = require('./helpers/dutyMenuFixtures');
 
 const REPO = path.resolve(__dirname, '..');
 const LIB = path.join(REPO, 'src/lib/self-map/index.js');
@@ -144,6 +152,8 @@ const SCORES_EVERY_12H = [SM.scheduleEntry('processAllTasks', { hours: 12 })];
  *   customerTimers    — { <customer main pubkey>: ms }: the per-customer timers running now (ADR 0001 A2 item 3).
  *   dropConfig        — config keys absent from brainstorm.conf (e.g. an older one with no TASK_QUEUE_ENABLED line).
  *   config, settings, customer, relays, refused, rejectScan, clock — as in the Duty Menu suite.
+ *   duties            — readAssistantDuties' answer, the Assistant Duties list (default DM.DEFAULT_DUTIES;
+ *                       assistant-duties-settings #1).
  */
 function world(opts = {}) {
   const viewer = opts.viewer || OWNER;
@@ -169,6 +179,7 @@ function world(opts = {}) {
     clock: opts.clock || { t: T0 },
     checkSelfMap: opts.checkSelfMap,
     realDutyMenu: Boolean(opts.realDutyMenu),
+    duties: opts.duties === undefined ? DM.DEFAULT_DUTIES : opts.duties,
   };
 }
 
@@ -203,6 +214,7 @@ function fakes(w) {
     getCustomer: async (pubkey) => { calls.getCustomer.push(pubkey); return w.customer; },
     isLocalOnly: () => false,
     now: () => w.clock.t,
+    readAssistantDuties: () => JSON.parse(JSON.stringify(w.duties)),
     readScheduleEntries: () => { calls.readScheduleEntries += 1; return JSON.parse(JSON.stringify(w.schedule)); },
     schedulerEnabled: () => w.scheduler,
     timerExists: (p) => { calls.timerExists.push(p); return w.timer; },
@@ -619,7 +631,7 @@ test('U20 (AC-2, AC-3; ADR K1): a key shape the check does not reason over is un
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U21 (AC-2; ADR sub-decision 6): a customer\'s Scores — live with a processCustomer entry for that customer, processAllActiveCustomers or processAllTasks; not-scheduled with another customer\'s entry or the Owner\'s export; not offered when the customer is not active', async () => {
+test('U21 (AC-2; ADR sub-decision 6): a customer\'s Scores — live with a processCustomer entry for that customer, processAllActiveCustomers or processAllTasks; not-scheduled with another customer\'s entry or the Owner\'s export; re-aimed by assistant-duties-settings #1: offered whatever the customer\'s status (one list for every Assistant)', async () => {
   const base = { viewer: CUSTOMER, assistant: CUSTOMER_ASSISTANT, customer: { status: 'active' }, mapTags: [['30382:rank', CUSTOMER_ASSISTANT, OWN]], scoresHoursAgo: 1 };
   const reason = async (o) => (lineOf(mustAnswer(await answer({ ...base, ...o })), '30382:rank', '30382:rank') || {});
   const wrong = [];
@@ -641,7 +653,7 @@ test('U21 (AC-2; ADR sub-decision 6): a customer\'s Scores — live with a proce
     if (l.reason !== 'not-scheduled') wrong.push(`${schedule[0].taskId} ${show(schedule[0].args)}: not-scheduled (got ${show(l)})`);
   }
   const inactive = await reason({ customer: { status: 'inactive' }, schedule: live[0] });
-  if (inactive.status !== 'not-offered') wrong.push(`an inactive customer's Scores are not offered (got ${show(inactive)})`);
+  if (!inactive.status || inactive.status === 'not-offered') wrong.push(`assistant-duties-settings #1: an inactive customer's Scores are offered like everyone's (got ${show(inactive)})`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -1154,6 +1166,72 @@ test('U41 (AC-6; ADR 0001 A3 item 2, review R2-N1): a found self-entry with an e
   const bad = mustAnswer(await answer({ scoresHoursAgo: 1, headers: ['dog-tricks'], extraLocal: [selfMapEv([['30382', TA, 'not a url'], ['39998', TA, OWN]])] }));
   const b = lineOf(bad, '3038x', '30382');
   if (!b || b.falseClaim !== true) wrong.push(`found ["30382", TA, "not a url"]: a claim at an unusable relay is a false claim (got ${show(b)})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────── AD — assistant-duties-settings #1: the self-Map over the Assistant Duties list ───────────── */
+
+const scoreScans = (got) => got.calls.scanLocal.filter((f) => Array.isArray(f && f.kinds) && f.kinds.includes(SM.SCORE_KIND));
+
+test('AD1 (assistant-duties-settings #1 AC-6; ADR assistant-duties-settings/0001 sub-decision 6): when the Assistant Duties list gives 30382 a typed relay, Scores that landed here are never claimed there — the 30382:rank line is offered, at the typed relay, with reason not-published-here; no Scores scan runs; nothing for Scores in shouldSay. Control: at This instance\'s relay the same world is live', async () => {
+  const TYPED = 'wss://typed-scores.example';
+  const typedList = DM.DEFAULT_DUTIES.map((d) => (d.key === '30382' ? { key: '30382', relay: TYPED } : { ...d }));
+  const base = { scoresHoursAgo: 1, mapTags: [['30382:rank', TA, OWN]] };
+  const typed = await answer({ ...base, duties: typedList });
+  const control = await answer({ ...base });
+  const wrong = [];
+  const t = lineOf(mustAnswer(typed), '30382:rank', '30382:rank') || {};
+  const c = lineOf(mustAnswer(control), '30382:rank', '30382:rank') || {};
+  if (c.reason !== 'live-unclaimed') wrong.push(`control: at This instance's relay the Scores are live (got ${show(c)})`);
+  if (t.status !== 'offered' || t.reason !== 'not-published-here') wrong.push(`typed relay: offered, reason not-published-here (got ${show(t)})`);
+  if (t.relay !== TYPED) wrong.push(`typed relay: the line carries the offer's relay ${TYPED} (got ${show(t.relay)})`);
+  if (scoreScans(typed).length !== 0) wrong.push(`typed relay: no Scores scan of this instance's strfry (got ${show(scoreScans(typed))})`);
+  if (scoreScans(control).length === 0) wrong.push('control: the Scores scan ran (so the typed case is not an early return)');
+  if ((typed.action.shouldSay || []).some((e) => /^30382/.test(e.key))) wrong.push(`typed relay: shouldSay claims no Scores (got ${show(typed.action.shouldSay)})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('AD2 (assistant-duties-settings #1 AC-6, story § Background "offered but not live"): a duty added to the list that this instance does not publish — 30383 — given to the Assistant by the Map is offered and never active, with reason not-published-here; without it on the list the same Map entry is not offered', async () => {
+  const withAdded = [...DM.DEFAULT_DUTIES.map((d) => ({ ...d })), { key: '30383' }];
+  const base = { scoresHoursAgo: 1, mapTags: [['30383', TA, OWN]] };
+  const added = mustAnswer(await answer({ ...base, duties: withAdded }));
+  const plain = mustAnswer(await answer({ ...base }));
+  const wrong = [];
+  const a = lineOf(added, '30383', '30383') || {};
+  const p = lineOf(plain, '30383', '30383') || {};
+  if (a.status !== 'offered' || a.reason !== 'not-published-here') wrong.push(`listed 30383: offered, not-published-here (got ${show(a)})`);
+  if (linesOf(added, '30383', 'active').length !== 0) wrong.push('listed 30383 is never active');
+  if ((added.shouldSay || []).some((e) => /^30383/.test(e.key))) wrong.push(`shouldSay never claims 30383 (got ${show(added.shouldSay)})`);
+  if (p.status !== 'not-offered') wrong.push(`control: off the list, 30383 is not offered (got ${show(p)})`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('AD3 (assistant-duties-settings #1 AC-6; book Decision 6): an Admin who is not a customer has Scores offered on the self-Map too — the 30382:rank line is offered, not "not offered" — and, with no Scores of theirs landed here, never active', async () => {
+  const ADMIN = 'ad'.repeat(32);
+  const ADMIN_ASSISTANT = 'a1'.repeat(32);
+  const got = await answer({ viewer: ADMIN, assistant: ADMIN_ASSISTANT, customer: null, mapTags: [['30382:rank', ADMIN_ASSISTANT, OWN]] });
+  const l = lineOf(mustAnswer(got), '30382:rank', '30382:rank') || {};
+  const wrong = [];
+  if (l.status !== 'offered') wrong.push(`the Admin's Scores are offered (got ${show(l)})`);
+  if (linesOf(got.action, '30382:rank', 'active').length !== 0) wrong.push('never active without Scores landed');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('AD4 (assistant-duties-settings #1 ADR Amendment 1; review round 1 Blocking 1): a hand-edited list that names 30382:rank in place of 30382 never puts the narrower key on either page — the Duty Menu offers no 30382 row and the self-Map\'s 30382:rank line is not offered, so the two agree and no true claim is flagged false', async () => {
+  const edited = DM.DEFAULT_DUTIES.map((d) => (d.key === '30382' ? { key: '30382:rank' } : { ...d }));
+  const warn = console.warn;
+  console.warn = () => {};
+  let got;
+  try { got = await answer({ realDutyMenu: true, duties: edited, scoresHoursAgo: 1, mapTags: [['30382:rank', TA, OWN]] }); } finally { console.warn = warn; }
+  const self = mustAnswer(got);
+  const menu = got.body && got.body.actions ? got.body.actions['duty-menu'] : null;
+  const wrong = [];
+  const offerKeys = ((menu && menu.offer) || []).map((r) => r.key);
+  if (!menu || offerKeys.some((k) => /^30382/.test(k))) wrong.push(`the Duty Menu offers no 30382 row (got ${show(offerKeys)})`);
+  if (offerKeys.includes('30382:rank')) wrong.push('the narrower key never reaches the Duty Menu offer');
+  const l = lineOf(self, '30382:rank', '30382:rank') || {};
+  if (l.status !== 'not-offered') wrong.push(`the self-Map's 30382:rank line is not offered, as on the Duty Menu (got ${show(l)})`);
+  if (l.falseClaim) wrong.push('nothing is flagged a false claim');
   assert(wrong.length === 0, wrong.join('; '));
 });
 

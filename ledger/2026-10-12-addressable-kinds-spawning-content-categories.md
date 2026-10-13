@@ -28,3 +28,9 @@ below, which lie outside story 4's scope (its AC6):
 
 **Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (sub-decision 6;
 Consequences, Other specs; Open question 3); `protocols/drafts/treasure-maps.md` § 4.3.
+
+**Note, 2026-10-12 (story 5, ADR `duty-menus-and-self-maps/0005` sub-decision 10).** The owner placed this row in a
+docs pass after book `duty-menus-and-self-maps` (answer 5(a) to story 5's open question 5), so story 5 does not take
+it. Story 5 changed only § 4.3's citation of Content Categories, to "its opening table of the four category types"
+(row `2026-10-12-key-grammar-review-fold-forwards`, item 4). § 4.3's departure from Spawning § 3.2 and Content
+Categories stands. The row stays OPEN.

@@ -390,6 +390,10 @@ const ROUTE_ACCESS = Object.freeze({
   'DELETE /api/settings/*': OWNER_ACTION,
   'GET /api/settings/defaults': OWNER_READ,
   'GET /api/settings/overrides': OWNER_READ,
+  // The Assistant Duties tab (assistant-duties-settings #1, ADR 0001 sub-decision 4).
+  'GET /api/settings/assistant-duties': OWNER_READ,
+  'PUT /api/settings/assistant-duties': OWNER_ACTION,
+  'POST /api/settings/assistant-duties/reset': OWNER_ACTION,
   'GET /api/setup/status': PUBLIC_READ,
   'GET /api/shared-by-me': PUBLIC_READ,
   'GET /api/status': PUBLIC_READ,

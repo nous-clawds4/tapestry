@@ -7,6 +7,7 @@ import UuidSettings from './UuidSettings';
 import DatabaseSettings from './DatabaseSettings';
 import FirmwareExplorer from './FirmwareExplorer';
 import Audit from '../manage/Audit';
+import AssistantDuties from './AssistantDuties';
 import { MY_ASSISTANT_PATH } from '../../config/avatarMenuLinks';
 
 // A tab with `to` opens another page instead of a panel here. The assistant profile moved to the My
@@ -17,6 +18,8 @@ const TABS = [
   { key: 'uuids', path: 'uuids', label: '🔑 Concept UUIDs' },
   { key: 'firmware', path: 'firmware', label: '🔧 Firmware' },
   { key: 'assistant', to: MY_ASSISTANT_PATH, label: '🤖 Assistant Profile' },
+  // The duties every Assistant here offers on its Duty Menu (assistant-duties-settings #1, ADR 0001).
+  { key: 'assistant-duties', path: 'assistant-duties', label: '📋 Assistant Duties' },
   { key: 'auditing', path: 'auditing', label: '🔍 Auditing Tools' },
 ];
 
@@ -209,6 +212,9 @@ export default function SettingsIndex() {
         )}
         {activeTab === 'firmware' && (
           <FirmwareExplorer />
+        )}
+        {activeTab === 'assistant-duties' && (
+          <AssistantDuties />
         )}
         {activeTab === 'auditing' && (
           <Audit />

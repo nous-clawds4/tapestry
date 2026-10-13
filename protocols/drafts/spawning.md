@@ -157,7 +157,7 @@ The same header spawns both 3.1 and 3.6. They're gated independently (Supported 
 | `d` | yes | the scope: the spawn key minus its kind |
 | member tags | yes | `p` / `e` / `a` / `i` / `z`, per kind. `30397` `z` members are references, never membership claims (Treasure Maps § 5.5). |
 | `truncated` | when partial | trusted-lists.md completeness signal |
-| `status` | on retirement | `retracted` |
+| `status` | when the list stops being maintained at its `d` (§ 5) | `retracted`; never on a list still maintained, even one with no members ([Trusted Lists](./trusted-lists.md#common-wire-shape)) |
 | `title` | optional | a human label |
 
 - **No `metric`, `observer`, `cutoff` or `min-rank` tags.** trusted-lists.md allows them today. Under principle 2 they reveal the method, so they SHOULD be dropped.
@@ -166,7 +166,7 @@ The same header spawns both 3.1 and 3.6. They're gated independently (Supported 
 ## 5. Lifecycle
 
 1. **Spawn** — both gates pass: compute, then publish at `d` = scope.
-2. **Refresh** — republish when inputs change. The replaceable event means consumers always see the latest.
+2. **Refresh** — republish when inputs change, with the members as computed, even when none remain: a list still maintained carries no `status` tag, even one with no members (§ 4). The replaceable event means consumers always see the latest.
 3. **Hand-off** — the observer moves the winning key to another Assistant. The old one retracts; the new one spawns. For a while both may be live; clients follow the Map.
 4. **Retire** — a gate fails (removed from a supported set, Map entry removed): retract in place.
 5. **Restore** — the gate passes again: republish at the same `d`. The address never changes.

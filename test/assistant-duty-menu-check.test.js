@@ -43,6 +43,12 @@
  * duty-menu-public-relay #1 (Light Bug lane; the story's Design note): this instance's public relay is derived from
  * STRFRY_DOMAIN when BRAINSTORM_RELAY_URL is Docker's container-internal ws://localhost:7777 (docker/entrypoint.sh).
  * U38 (AC-1), U39 (AC-2), U40 (AC-3), U41 (AC-4).
+ *
+ * assistant-duties-settings #1 (ADR assistant-duties-settings/0001) re-aims the offer. It is the instance's Assistant
+ * Duties list, read through a readAssistantDuties dependency (DM.DEFAULT_DUTIES unless a test says otherwise), in list
+ * order, the same for every Assistant: there is no Scores condition and no customer lookup (sub-decision 3). "Current"
+ * counts order (sub-decision 5). Re-aimed: offerAt/offerDiff (ordered), L8, L9, L10, L11, U6, U7, U8, U11, U23, U24.
+ * The new behaviour itself is test/assistant-duties-settings.test.js.
  */
 
 const fs = require('fs');
@@ -213,14 +219,16 @@ function hostOf(x) {
  *   relays     — { [url]: events | 'unreachable' | 'hang' | { raw: events } }; an unlisted relay is unreachable.
  *                Keyed by the relay's lower-cased spelling without a trailing slash.
  *   config     — getConfigFromFile's values over BASE_CONFIG. settings — readConfiguredRelays' lists by category.
- *   customer   — getCustomer's answer: null (not a customer), { status }, or 'throw'.
+ *   customer   — getCustomer's answer: null (not a customer), { status }, or 'throw'. Since assistant-duties-settings #1
+ *                the offer never asks it; it stays so a test can show that.
+ *   duties     — readAssistantDuties' answer (default DM.DEFAULT_DUTIES), or (n) => the answer at its n-th call.
  *   refused    — hosts isPublicRelayHostWithin refuses. clock — { t }: what now() answers.
  *   localOnly  — local-only publish mode, set every way the server may read it (see answer()).
  *   localOnlySeam — overrides only the isLocalOnly seam, so the seam can disagree with env and config (Amendment 1 item 2).
  *   checkDutyMenu — replaces the check on the handler (a spy, or a throw).
  */
 function fakes(opts = {}) {
-  const calls = { scanLocal: [], readRelay: [], guard: [], getCustomer: [], checkDutyMenu: [] };
+  const calls = { scanLocal: [], readRelay: [], guard: [], getCustomer: [], checkDutyMenu: [], readAssistantDuties: 0 };
   const local = opts.local !== undefined ? opts.local : baseLocal();
   const rawRelays = opts.relays !== undefined ? opts.relays : quietRelays();
   const relays = Object.fromEntries(Object.entries(rawRelays).map(([u, v]) => [normUrl(u), v]));
@@ -254,6 +262,14 @@ function fakes(opts = {}) {
       return opts.customer || null;
     },
     now: () => clock.t,
+    // assistant-duties-settings #1 (ADR 0001 sub-decision 3): the Assistant Duties list, as getSettings() would answer
+    // it. A copy each time, so nothing the server does to it can bend the fixture. `duties` may be a function of the
+    // call count, to change the list between two answers of one running server.
+    readAssistantDuties: () => {
+      calls.readAssistantDuties += 1;
+      const raw = typeof opts.duties === 'function' ? opts.duties(calls.readAssistantDuties) : (opts.duties !== undefined ? opts.duties : DM.DEFAULT_DUTIES);
+      return raw === undefined ? undefined : JSON.parse(JSON.stringify(raw));
+    },
     isLocalOnly: () => (opts.localOnlySeam !== undefined ? Boolean(opts.localOnlySeam) : Boolean(opts.localOnly)),
     // The other checks, stubbed: this suite is about the Duty Menu (the other suites drive the real ones).
     checkOutboxRelays: async () => ({ finished: true, done: true, pending: false, reason: null, source: 'local', createdAt: 1, outbox: ['wss://fixture.example'], inboxOnlyCount: 0, suggestions: [] }),
@@ -320,12 +336,12 @@ async function esm(absPath, what) {
 const actionsModule = () => esm(ACTIONS_MOD, 'It holds ASSISTANT_ACTIONS, CHECKED_ACTIONS and assistantAttention.');
 const ruleModule = () => esm(RULE, 'It is the Treasure Map\'s category rule (entryOf, appliesTo).');
 
-/** The offer's oracle for this suite's default world (ADR 0001 R1, K1). */
-const offerAt = (ownRelay, { scores = false, dlistRelay = null } = {}) => DM.expectedOffer({ ownRelay, dlistRelay, scores });
-/** Report an offer against the oracle, order-blind within the category order the ADR fixes. */
+/** The offer's oracle for this suite's default world (ADR assistant-duties-settings/0001 sub-decision 3; R1). */
+const offerAt = (ownRelay, { dlistRelay = null, duties } = {}) => DM.expectedOffer({ ownRelay, dlistRelay, ...(duties ? { duties } : {}) });
+/** Report an offer against the oracle, in order: the offer is the list's order (ADR assistant-duties-settings/0001). */
 function offerDiff(label, got, want) {
   if (!Array.isArray(got)) return [`${label}: no offer array, got ${show(got)}`];
-  return sameRowSet(got, want) && got.length === want.length ? [] : [`${label}: want ${show(want)}, got ${show(got)}`];
+  return show(rowView(got)) === show(rowView(want)) ? [] : [`${label}: want ${show(want)}, got ${show(got)}`];
 }
 
 /* ───────────────────────── L — the library ───────────────────────── */
@@ -462,14 +478,16 @@ test('L7: normalizeMenuKey agrees with the Treasure Map rule\'s entryOf — the 
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L8: sameRows compares rows as sets of tag, key and relay — order never counts; a different relay, tag or key, or a row more or less, does (AC-4; ADR 0001 sub-decision 1)', () => {
+test('L8, re-aimed by assistant-duties-settings #1: sameRows compares rows in order — the same tag, key and relay at every position; another order, a different relay, tag or key, or a row more or less, is not the same (ADR assistant-duties-settings/0001 sub-decision 5; it was order-blind under assistant-duty-menu #1 AC-4)', () => {
   const sameRows = need(libModule(), 'sameRows', 'src/lib/duty-menu');
   const a = [{ tag: 'duty', key: '30382', relay: OWN }, { tag: 'duty', key: '30392', relay: OWN }, { tag: 'duty', key: '39998', relay: DLIST }];
   const wrong = [];
-  if (sameRows(a, a.slice()) !== true) wrong.push('the same rows');
-  if (sameRows(a, a.slice().reverse()) !== true) wrong.push('the same rows in another order');
-  if (sameRows([], []) !== true) wrong.push('two empty menus');
+  if (sameRows(a, a.slice()) !== true) wrong.push('the same rows in the same order are the same');
+  if (sameRows(a, a.map((r) => ({ ...r }))) !== true) wrong.push('equal rows that are other objects are the same');
+  if (sameRows([], []) !== true) wrong.push('two empty menus are the same');
   const differs = [
+    ['the same rows in another order', a.slice().reverse()],
+    ['two rows swapped', [a[1], a[0], a[2]]],
     ['a relay', [a[0], a[1], { ...a[2], relay: OWN }]],
     ['a tag', [a[0], a[1], { tag: 'not-offered', key: '39998', relay: DLIST }]],
     ['a key', [a[0], a[1], { ...a[2], key: '39999' }]],
@@ -477,62 +495,57 @@ test('L8: sameRows compares rows as sets of tag, key and relay — order never c
     ['a row less', a.slice(0, 2)],
     ['empty against rows', []],
   ];
-  for (const [label, b] of differs) if (sameRows(a, b) !== false || sameRows(b, a) !== false) wrong.push(label);
+  for (const [label, b] of differs) if (sameRows(a, b) !== false || sameRows(b, a) !== false) wrong.push(`${label} must not be the same`);
   assert(wrong.length === 0, `wrong answer for: ${wrong.join('; ')}`);
 });
 
-test('L9: buildOffer gives the K1 rows — 30382 only with scores, at ownRelay; 30392–30394 at ownRelay; 39998 and 39999 at ownRelay, else dlistRelay; a row with no relay left out; Scores, then Lists, then Concepts (ADR 0001 sub-decision 1, K1, R1)', () => {
+test('L9, re-aimed by assistant-duties-settings #1: buildOffer({ ownRelay, dlistRelay, duties }) over the six defaults gives one row per duty in list order — 30382 and the three List kinds at ownRelay, 39998 and 39999 at ownRelay else dlistRelay, a row with no relay left out — and a `scores` input changes nothing (ADR assistant-duties-settings/0001 sub-decision 3)', () => {
   const buildOffer = need(libModule(), 'buildOffer', 'src/lib/duty-menu');
-  const order = (rows) => rows.map((r) => (/^3038/.test(r.key) ? 0 : /^3039/.test(r.key) ? 1 : 2));
   const wrong = [];
   for (const ownRelay of [OWN, null]) {
     for (const dlistRelay of [DLIST, null]) {
-      for (const scores of [true, false]) {
-        const input = { ownRelay, dlistRelay, scores };
+      const want = DM.expectedOffer({ ownRelay, dlistRelay });
+      for (const extra of [{}, { scores: false }, { scores: true }]) {
+        const input = { ownRelay, dlistRelay, duties: DM.DEFAULT_DUTIES.map((d) => ({ ...d })), ...extra };
         let got;
         try { got = buildOffer(input); } catch (err) { wrong.push(`${show(input)} threw ${err.message}`); continue; }
-        wrong.push(...offerDiff(show(input), got, DM.expectedOffer(input)));
-        const o = Array.isArray(got) ? order(got) : [];
-        if (o.some((n, i) => i > 0 && n < o[i - 1])) wrong.push(`${show(input)}: Scores, Lists, Concepts in that order, got ${show(got && got.map((r) => r.key))}`);
+        wrong.push(...offerDiff(show({ ownRelay, dlistRelay, ...extra }), got, want));
       }
     }
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L10: every offer buildOffer gives is valid on its own — duty rows only, one per key, never an empty relay, never 39998: or 39999:, never a family key; each key is a kind the Treasure Map rule puts in exactly one category (AC-2 "Valid on its own", "Nothing else"; K1)', async () => {
+test('L10, re-aimed by assistant-duties-settings #1: the offer the six defaults give is valid on its own — duty rows only, one per key, never an empty relay, never 39998: or 39999:; each key a kind the Treasure Map rule puts in exactly one category (AC-2 of assistant-duty-menu #1, "Valid on its own")', async () => {
   const buildOffer = need(libModule(), 'buildOffer', 'src/lib/duty-menu');
   const { entryOf, appliesTo } = await ruleModule();
   const wrong = [];
   for (const ownRelay of [OWN, null]) {
     for (const dlistRelay of [DLIST, null]) {
-      for (const scores of [true, false]) {
-        const input = { ownRelay, dlistRelay, scores };
-        const rows = buildOffer(input);
-        const label = show(input);
-        if (!Array.isArray(rows)) { wrong.push(`${label}: not an array`); continue; }
-        if (rows.some((r) => r.tag !== 'duty')) wrong.push(`${label}: a not-offered row (K1 needs no exceptions)`);
-        if (new Set(rows.map((r) => r.key)).size !== rows.length) wrong.push(`${label}: two rows share a key`);
-        if (rows.some((r) => typeof r.relay !== 'string' || r.relay === '')) wrong.push(`${label}: an empty relay`);
-        if (rows.some((r) => /:$/.test(r.key))) wrong.push(`${label}: a trailing-colon key`);
-        if (rows.some((r) => /x/.test(r.key) || r.key === '*')) wrong.push(`${label}: a family or * key claims kinds built nowhere`);
-        if (!scores && rows.some((r) => /^3038/.test(r.key))) wrong.push(`${label}: Scores without scores`);
-        for (const r of rows) {
-          const cats = ['scores', 'lists', 'concepts'].filter((c) => appliesTo(c, entryOf([r.key, HEX, r.relay])));
-          if (cats.length !== 1) wrong.push(`${label}: ${r.key} falls in ${show(cats)}`);
-        }
+      const input = { ownRelay, dlistRelay, duties: DM.DEFAULT_DUTIES.map((d) => ({ ...d })) };
+      const rows = buildOffer(input);
+      const label = show({ ownRelay, dlistRelay });
+      if (!Array.isArray(rows)) { wrong.push(`${label}: not an array`); continue; }
+      if (rows.some((r) => r.tag !== 'duty')) wrong.push(`${label}: a not-offered row`);
+      if (new Set(rows.map((r) => r.key)).size !== rows.length) wrong.push(`${label}: two rows share a key`);
+      if (rows.some((r) => typeof r.relay !== 'string' || r.relay === '')) wrong.push(`${label}: an empty relay`);
+      if (rows.some((r) => /:$/.test(r.key))) wrong.push(`${label}: a trailing-colon key`);
+      for (const r of rows) {
+        const cats = ['scores', 'lists', 'concepts'].filter((c) => appliesTo(c, entryOf([r.key, HEX, r.relay])));
+        if (cats.length !== 1) wrong.push(`${label}: ${r.key} falls in ${show(cats)}`);
       }
     }
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('L11: buildOffer gives every relay in its one spelling — ownRelay and dlistRelay pass through normalizeRelayUrl (ADR 0001 Amendment 1 item 3)', () => {
+test('L11: buildOffer gives every relay in its one spelling — ownRelay and dlistRelay pass through normalizeRelayUrl (ADR 0001 Amendment 1 item 3; re-aimed by assistant-duties-settings #1: the six defaults passed as duties)', () => {
   const buildOffer = need(libModule(), 'buildOffer', 'src/lib/duty-menu');
+  const duties = () => DM.DEFAULT_DUTIES.map((d) => ({ ...d }));
   const wrong = [];
-  const own = buildOffer({ ownRelay: OWN_CONFIGURED, dlistRelay: 'wss://Dcosl.example/', scores: true });
-  wrong.push(...offerDiff('ownRelay spelled wss://Tapestry.Example/relay/', own, DM.expectedOffer({ ownRelay: OWN, scores: true })));
-  const dlist = buildOffer({ ownRelay: null, dlistRelay: 'wss://Dcosl.example/', scores: false });
+  const own = buildOffer({ ownRelay: OWN_CONFIGURED, dlistRelay: 'wss://Dcosl.example/', duties: duties() });
+  wrong.push(...offerDiff('ownRelay spelled wss://Tapestry.Example/relay/', own, DM.expectedOffer({ ownRelay: OWN })));
+  const dlist = buildOffer({ ownRelay: null, dlistRelay: 'wss://Dcosl.example/', duties: duties() });
   wrong.push(...offerDiff('dlistRelay spelled wss://Dcosl.example/', dlist, DM.expectedOffer({ dlistRelay: 'wss://dcosl.example' })));
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -563,7 +576,7 @@ test('L12: isDutyMenu refuses an otherwise conforming menu that carries ["z", "l
 test('L13: buildMenuTags gives d, Nous\' z and p (the Assistant), then one ["duty", key, relay] per duty row of the offer in its order, and nothing else; an empty offer gives the three; the result is a menu by § 6.1 whose rows read back as the offer (story 2 AC-3; ADR 0002 sub-decision 2)', () => {
   const lib = libModule();
   const buildMenuTags = need(lib, 'buildMenuTags', 'src/lib/duty-menu');
-  const offer = DM.expectedOffer({ ownRelay: OWN, scores: true });
+  const offer = DM.expectedOffer({ ownRelay: OWN });
   const head = [['d', DM.DUTY_MENU_D], ['z', DM.DUTY_MENU_HEADER], ['p', ASSISTANT]];
   const wrong = [];
   const tags = buildMenuTags({ assistantPubkey: ASSISTANT, offer });
@@ -594,7 +607,7 @@ test('U2: a signed-in viewer with no Assistant here gets actions {} — no duty-
 });
 
 test('U3: a viewer with an Assistant gets actions["duty-menu"] with exactly offer, published, current, finished, done, pending and reason; published carries rows, createdAt, source and eventId (AC-1; ADR 0001 sub-decision 4)', async () => {
-  const menu = menuEv({ rows: offerAt(OWN, { scores: true }) });
+  const menu = menuEv({ rows: offerAt(OWN) });
   const got = await answer({ customer: { status: 'active' }, local: [...baseLocal(), menu] });
   const a = got.action;
   assert(a && typeof a === 'object', `no duty-menu action in ${show(got.body)}`);
@@ -627,32 +640,37 @@ test('U4: whose Assistant comes from the session — the check runs once with th
 
 test('U5: the Owner\'s Assistant is offered Scores (30382), Lists (30392–30394) and Concepts (39998, 39999), each at this instance\'s relay in its one spelling (AC-2; ADR 0001 sub-decision 2, R1, K1)', async () => {
   const got = await answer({ config: { BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-  const wrong = offerDiff('the Owner', offerOf(got), offerAt(OWN, { scores: true }));
+  const wrong = offerDiff('the Owner', offerOf(got), offerAt(OWN));
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U6: an active customer\'s Assistant is offered Scores too — the customer looked up for the session\'s viewer (AC-2; ADR 0001 sub-decision 2)', async () => {
+test('U6, re-aimed by assistant-duties-settings #1: an active customer\'s Assistant is offered exactly what the Owner\'s is — the six defaults, Scores included — and no customer is looked up to decide it (ADR assistant-duties-settings/0001 sub-decision 3; book Decision 6)', async () => {
   const got = await answer({ customer: { status: 'active', name: 'fixture' } });
-  const wrong = offerDiff('an active customer', offerOf(got), offerAt(OWN, { scores: true }));
-  if (!got.calls.getCustomer.map(lc).includes(VIEWER)) wrong.push(`getCustomer is asked for the viewer, got ${show(got.calls.getCustomer)}`);
+  const owner = await answer({ config: { BRAINSTORM_OWNER_PUBKEY: VIEWER } });
+  const wrong = offerDiff('an active customer', offerOf(got), offerAt(OWN));
+  wrong.push(...offerDiff('the Owner', offerOf(owner), offerAt(OWN)));
+  if (got.calls.readAssistantDuties < 1) wrong.push('the offer reads the Assistant Duties list (readAssistantDuties was never called)');
+  if (got.calls.getCustomer.length !== 0) wrong.push(`no customer lookup decides the offer, got ${show(got.calls.getCustomer)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U7: an admin who is not a customer, and an inactive customer, get no Scores row — but Lists and Concepts, for every Assistant (AC-2 "Lists, for every Assistant", "Nothing else")', async () => {
+test('U7, re-aimed by assistant-duties-settings #1: an admin who is not a customer, an inactive customer and a pending one are offered the same six, Scores included — one list for every Assistant (book Decisions 3 and 6)', async () => {
   const wrong = [];
   for (const [label, customer] of [['not a customer', null], ['an inactive customer', { status: 'inactive' }], ['a pending customer', { status: 'pending' }]]) {
     const got = await answer({ customer });
     wrong.push(...offerDiff(label, offerOf(got), offerAt(OWN)));
-    if (!got.calls.getCustomer.map(lc).includes(VIEWER)) wrong.push(`${label}: getCustomer is asked for the viewer (so "no Scores" is its answer, not a skipped path)`);
+    if (!(offerOf(got) || []).some((r) => r.key === '30382')) wrong.push(`${label}: the Scores row is offered`);
+    if (got.calls.getCustomer.length !== 0) wrong.push(`${label}: no customer lookup, got ${show(got.calls.getCustomer)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U8: a customer lookup that throws leaves Scores out and the offer still answers — the action is not check-failed (ADR 0001 sub-decision 2)', async () => {
+test('U8, re-aimed by assistant-duties-settings #1: a customer store that throws changes nothing — it is never asked, the offer is the list and the check finishes (ADR assistant-duties-settings/0001 sub-decision 3)', async () => {
   const got = await answer({ customer: 'throw', quiet: true });
-  const wrong = offerDiff('the customer lookup threw', offerOf(got), offerAt(OWN));
+  const wrong = offerDiff('the customer store would throw', offerOf(got), offerAt(OWN));
   if (got.res.statusCode !== 200) wrong.push(`status ${got.res.statusCode}`);
-  if (!got.action || got.action.reason === 'check-failed' || got.action.finished !== true) wrong.push(`the check still answers, finished: ${show(got.action)}`);
+  if (!got.action || got.action.reason === 'check-failed' || got.action.finished !== true) wrong.push(`the check answers, finished: ${show(got.action)}`);
+  if (got.calls.getCustomer.length !== 0) wrong.push(`never asked, got ${show(got.calls.getCustomer)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -661,7 +679,7 @@ test('U9: with no public address for this instance\'s relay (loopback, a private
   for (const url of ['ws://localhost:7777', 'ws://127.0.0.1:7777', 'ws://192.168.1.20/relay', 'wss://tapestry.local/relay']) {
     // Re-aimed by duty-menu-public-relay #1: a public STRFRY_DOMAIN now gives a public relay, so "no public address" sets a non-public one too.
     const got = await answer({ config: { BRAINSTORM_RELAY_URL: url, STRFRY_DOMAIN: 'localhost', BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-    wrong.push(...offerDiff(url, offerOf(got), offerAt(null, { scores: true, dlistRelay: DLIST })));
+    wrong.push(...offerDiff(url, offerOf(got), offerAt(null, { dlistRelay: DLIST })));
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
@@ -673,25 +691,26 @@ test('U10: local-only publishing — with no public address the offer is empty (
   const a = await answer({ localOnly: true, config: privateOwn });
   wrong.push(...offerDiff('local-only, no public address', offerOf(a), []));
   const b = await answer({ localOnly: true, config: { BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-  wrong.push(...offerDiff('local-only, a public address', offerOf(b), offerAt(OWN, { scores: true })));
+  wrong.push(...offerDiff('local-only, a public address', offerOf(b), offerAt(OWN)));
   const c = await answer({ config: privateOwn, settings: { aDListRelays: ['ws://10.0.0.5:7777', 'wss://box.local'] } });
   wrong.push(...offerDiff('no public DList relay, no public address', offerOf(c), []));
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U11: the offer follows the settings at each check, with no code change — the relay address and the customer status move it between two answers of one running server (AC-2 "No code change needed", as amended)', async () => {
+test('U11, re-aimed by assistant-duties-settings #1: the offer follows the settings at each check, with no restart — the relay address and the Assistant Duties list move it between answers of one running server (AC-5: "A change reaches every Duty Menu check … with no restart")', async () => {
   const session = freshModules();
   const wrong = [];
   const first = await answer({}, signedInReq(), session);
   wrong.push(...offerDiff('first', offerOf(first), offerAt(OWN)));
   const moved = await answer({ config: { BRAINSTORM_RELAY_URL: 'wss://new-home.example' } }, signedInReq(), session);
   wrong.push(...offerDiff('the relay address changed', offerOf(moved), offerAt('wss://new-home.example')));
-  const customer = await answer({ customer: { status: 'active' } }, signedInReq(), session);
-  wrong.push(...offerDiff('the viewer became an active customer', offerOf(customer), offerAt(OWN, { scores: true })));
+  const shorter = [{ key: '39999' }, { key: '30392' }];
+  const changed = await answer({ duties: shorter }, signedInReq(), session);
+  wrong.push(...offerDiff('the list changed to 39999, 30392', offerOf(changed), offerAt(OWN, { duties: shorter })));
+  const back = await answer({}, signedInReq(), session);
+  wrong.push(...offerDiff('the list back to the six', offerOf(back), offerAt(OWN)));
   assert(wrong.length === 0, wrong.join('; '));
 });
-
-/* ───────────────────────── U — the lookup (AC-3) ───────────────────────── */
 
 test('U12: the menu is looked up as § 8.1 says — one local scan, and in parallel every relay in the three places (the Map\'s hints for this Assistant, its 10002 write relays, Nous\' 10002 write relays), each once, with § 8.1\'s filter; never another Assistant\'s hint or a read-only relay (AC-3; ADR 0001 sub-decision 3)', async () => {
   const local = [
@@ -800,7 +819,7 @@ test('U18: finished when the local scan succeeded or at least one relay answered
   const want = { finished: false, done: false, pending: false, reason: 'no-relay-answered', published: null, current: null };
   const shaped = c.action && { finished: c.action.finished, done: c.action.done, pending: c.action.pending, reason: c.action.reason, published: c.action.published, current: c.action.current };
   if (!sameJson(shaped, want)) wrong.push(`nothing answered: want ${show(want)}, got ${show(c.action)}`);
-  wrong.push(...offerDiff('unfinished still carries the offer', offerOf(c), offerAt(OWN, { scores: true })));
+  wrong.push(...offerDiff('unfinished still carries the offer', offerOf(c), offerAt(OWN)));
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -853,25 +872,30 @@ test('U22: a Nous relay list that was not found is never remembered — the next
 
 /* ───────────────────────── U — current, done, pending (AC-4) ───────────────────────── */
 
-test('U23: current and done — a menu with the offer\'s rows in another order, written in other spellings (39998:dlist-header, the relay\'s case and slash), with a name, description, json and another z, is current; done, not pending (AC-4; § 5.3)', async () => {
-  const offer = offerAt(OWN, { scores: true });
-  const rows = offer.slice().reverse().map((r) => (r.key === '39998' ? ['duty', '39998:dlist-header', OWN_CONFIGURED] : ['duty', r.key, r.relay]));
+test('U23, re-aimed by assistant-duties-settings #1: current and done — a menu with the offer\'s rows in the offer\'s order, written in other spellings (39998:dlist-header, the relay\'s case and slash), with a name, description, json and another z, is current; done, not pending (AC-4; § 5.3; ADR assistant-duties-settings/0001 sub-decision 5)', async () => {
+  const offer = offerAt(OWN);
+  const rows = offer.map((r) => (r.key === '39998' ? ['duty', '39998:dlist-header', OWN_CONFIGURED] : ['duty', r.key, r.relay]));
   const menu = menuEv({ createdAt: 1234, rows, z: [`39998:${OTHER}:elsewhere`, DM.DUTY_MENU_HEADER], extra: [['name', 'n'], ['description', 'd'], ['json', '{"dutyMenu":{"30382":{"interval":"PT6H"}}}']] });
   const got = await answer({ customer: { status: 'active' }, local: [...baseLocal(), menu] });
   const a = got.action || {};
   const wrong = [];
   if (!(a.finished === true && a.current === true && a.done === true && a.pending === false && a.reason === null)) wrong.push(`want finished, current, done, not pending; got ${show(a)}`);
-  if (!(a.published && sameRowSet(a.published.rows, offer))) wrong.push(`published rows, normalized: want ${show(offer)}, got ${show(a.published && a.published.rows)}`);
+  if (!(a.published && show(rowView(a.published.rows)) === show(rowView(offer)))) wrong.push(`published rows, normalized and in order: want ${show(offer)}, got ${show(a.published && a.published.rows)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('U24: out of date — a different relay, a row missing, a row more, or a not-offered row more makes the menu not current: not done, pending (AC-4)', async () => {
+test('U24: out of date — a different relay, a row missing, a row more, a not-offered row more, or (since assistant-duties-settings #1) the same rows in another order makes the menu not current: not done, pending (AC-4; ADR assistant-duties-settings/0001 sub-decision 5)', async () => {
   const offer = offerAt(OWN);
   const variants = [
     ['a different relay', offer.map((r) => (r.key === '30392' ? { ...r, relay: 'wss://elsewhere.example' } : r))],
     ['a row missing', offer.filter((r) => r.key !== '39999')],
-    ['a row more', [...offer, { tag: 'duty', key: '30382', relay: OWN }]],
+    // A key the offer lacks: since assistant-duties-settings #1 the six include 30382, so a second 30382 would only be a
+    // duplicate readers merge away (§ 5.3), not a row more.
+    ['a row more', [...offer, { tag: 'duty', key: '30383', relay: OWN }]],
     ['a not-offered row more', [...offer, { tag: 'not-offered', key: '30385' }]],
+    // assistant-duties-settings #1 (ADR 0001 sub-decision 5): order counts.
+    ['the same rows in another order', offer.slice().reverse()],
+    ['two rows swapped', [offer[1], offer[0], ...offer.slice(2)]],
   ];
   const wrong = [];
   for (const [label, rows] of variants) {
@@ -1107,11 +1131,11 @@ const DERIVED = 'wss://staging.example.org/relay';
 test('U38: on Docker — BRAINSTORM_RELAY_URL ws://localhost:7777 (docker/entrypoint.sh), or another internal address such as ws://tapestry:80/relay, beside a public STRFRY_DOMAIN — the offer names wss://<domain>/relay for Scores (when the viewer gets them), Lists and Concepts, in its one spelling; a DList setting naming the same address adds no row (duty-menu-public-relay AC-1)', async () => {
   const wrong = [];
   const owner = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-  wrong.push(...offerDiff('the Owner', offerOf(owner), offerAt(DERIVED, { scores: true })));
+  wrong.push(...offerDiff('the Owner', offerOf(owner), offerAt(DERIVED)));
   const internal = await answer({ config: { BRAINSTORM_RELAY_URL: OTHER_INTERNAL_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-  wrong.push(...offerDiff('the Owner, beside ws://tapestry:80/relay', offerOf(internal), offerAt(DERIVED, { scores: true })));
+  wrong.push(...offerDiff('the Owner, beside ws://tapestry:80/relay', offerOf(internal), offerAt(DERIVED)));
   const guest = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: 'Staging.Example.ORG' } });
-  wrong.push(...offerDiff('no Scores, the domain written in capitals', offerOf(guest), offerAt(DERIVED)));
+  wrong.push(...offerDiff('a viewer who is not a customer (the six since assistant-duties-settings #1), the domain written in capitals', offerOf(guest), offerAt(DERIVED)));
   const same = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: PUBLIC_DOMAIN }, settings: { aDListRelays: ['wss://Staging.Example.org/relay/', DLIST] } });
   wrong.push(...offerDiff('the DList setting names the same address', offerOf(same), offerAt(DERIVED)));
   assert(wrong.length === 0, wrong.join('; '));
@@ -1119,7 +1143,7 @@ test('U38: on Docker — BRAINSTORM_RELAY_URL ws://localhost:7777 (docker/entryp
 
 test('U39: a public BRAINSTORM_RELAY_URL still wins, in its one spelling, whatever STRFRY_DOMAIN says (duty-menu-public-relay AC-2)', async () => {
   const got = await answer({ config: { BRAINSTORM_RELAY_URL: 'wss://Relay.Example.org/', STRFRY_DOMAIN: PUBLIC_DOMAIN, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-  const wrong = offerDiff('a public relay URL beside another domain', offerOf(got), offerAt('wss://relay.example.org', { scores: true }));
+  const wrong = offerDiff('a public relay URL beside another domain', offerOf(got), offerAt('wss://relay.example.org'));
   assert(wrong.length === 0, wrong.join('; '));
 });
 
@@ -1127,7 +1151,7 @@ test('U40: no public address at all — the Docker relay URL beside a STRFRY_DOM
   const wrong = [];
   for (const domain of ['localhost:7777', '10.0.0.5', 'tapestry', 'localhost', '', undefined]) {
     const got = await answer({ config: { BRAINSTORM_RELAY_URL: DOCKER_RELAY, STRFRY_DOMAIN: domain, BRAINSTORM_OWNER_PUBKEY: VIEWER } });
-    wrong.push(...offerDiff(`STRFRY_DOMAIN ${show(domain)}`, offerOf(got), offerAt(null, { scores: true, dlistRelay: DLIST })));
+    wrong.push(...offerDiff(`STRFRY_DOMAIN ${show(domain)}`, offerOf(got), offerAt(null, { dlistRelay: DLIST })));
   }
   assert(wrong.length === 0, wrong.join('; '));
 });
