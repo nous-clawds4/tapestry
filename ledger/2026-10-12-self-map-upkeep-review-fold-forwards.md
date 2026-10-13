@@ -48,3 +48,7 @@ ADR `engineering-team/decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md
 `engineering-team/stories/duty-menus-and-self-maps/5-self-map-upkeep.md`; related rows
 `2026-10-12-addressable-kinds-spawning-content-categories` and `2026-10-12-bare-39998-ta-discovery` (the same docs
 pass).
+
+**Note, 2026-10-13 (PO, after story 5's review).** Item 6 is done: the epic's story-5 entry now records the
+owner's answers to questions 2, 4 and 5 and that the frame did not change, in the commit "story: epic records
+story 5's owner answers (duty-menus-and-self-maps #5)". The row stays OPEN for items 1–5.
