@@ -91,3 +91,12 @@ before widening the window.
   - It came straight after a 6-minute Playwright run on the same machine.
   - The diff touched no wrapper code.
 - **Afterwards:** the suite passed alone (24/0). The quiet full rerun is recorded in story 2's round 2 Implementation.
+
+**Occurrence, 2026-10-13** (`assistant-self-map` #2, round 2's Review).
+- **The failing run:** `20261013T025711Z-5781-3dae [s2-r2-review]`, on `1249d7f8`, a clean tree. RW7, "node exits 1"
+  and "node exits 0": the first restart came at 0.77 s (starts `[0, 0.77, 2.77]` and `[0, 0.77, 2.81]` s). An
+  independent read-only reader was running beside it. The diff touched no wrapper code.
+- **Again:** the full rerun `20261013T030407Z-11978-bcf9 [s2-r2-review-rerun]`, on `1249d7f8` with the reader still
+  running, failed RW7 alone at 0.73 s ("node exits 1") and 0.77 s ("node exits 0").
+- **Afterwards:** the suite passed alone (24/0), and the full run on a quiet machine,
+  `20261013T031322Z-11940-f663 [s2-r2-review-quiet]`, passed (5948/0).
