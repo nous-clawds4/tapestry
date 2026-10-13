@@ -380,3 +380,7 @@ deferred scope is in §6, and harness lessons are in §7.
 entry's title ("waits on the specs") and its "Before or with it" line ("story 4's key-grammar answers"), and the
 "Provisional key grammar" bullet in `audits/assistant-self-map/book.md`, which is that open book's to change
 (Treasure Maps §§ 4.5 and 6 now settle it).
+
+**Note, 2026-10-13:** both done after the close commit, in records commit `5fad3b27`: the intake entry's title and its
+"Before or with it" line are refreshed, and `audits/assistant-self-map/book.md` has a dated line beneath its
+"Provisional key grammar" bullet, whose text is untouched.
