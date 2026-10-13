@@ -49,7 +49,13 @@
  *
  * Round 3 (ADR 0002 Amendment 2, review round 2): R14 pins that a relay list found nowhere, while a publish relay is
  * unheard, is not "no write relays" (R2-B1); R15 that every publish relay answering "nowhere" still finishes; R10 now
- * also pins that the press never connects to a relay the DNS guard refused (R2-N1).
+ * also pins that the press never connects to a relay the DNS guard refused (R2-N1). *
+ * Round 4 (ADR 0002 Amendment 3, review round 3): K6–K9 pin the copy store (readSelfMapCopy, writeSelfMapCopy:
+ * lastSigned in the same file, newer only, refusals, one lock); R16–R20 that the press builds on the copy after a wipe,
+ * in round 3's world and after an older restore, that a newer outside version still wins and a bad copy is left out;
+ * C7, C8, C10 and C12 when the copy is kept; C11 that a settings read that throws refuses the press (R3-N1); S6 the
+ * records. The world gains `copy` and `copyWriteThrowsOn`; pressDeps fakes the copy store in memory; nothingDone also
+ * checks that no copy was written.
  */
 
 const fs = require('fs');
@@ -206,6 +212,10 @@ function world(opts = {}) {
     refuse: (opts.refuse || []).map(normUrl),
     // Round 2: the profile publish relays, where the Assistant's relay list is looked up when it is not held here.
     publishRelays: opts.publishRelays || [PUB1, SM.DOCKER_RELAY_URL],
+    // Round 4 (ADR 0002 Amendment 3): the copy of the newest version a press has seen or signed (null = none), and
+    // which write to it (1-based) throws.
+    copy: opts.copy ? clone(opts.copy) : null,
+    copyWriteThrowsOn: opts.copyWriteThrowsOn || 0,
   };
 }
 function matching(events, filter) {
@@ -269,7 +279,7 @@ const choiceModule = () => load(CHOICE, 'ADR 0002 sub-decision 1 creates it: rea
 
 /** The press's seams (ADR 0002 § Implementation notes 4), every one recording; the story-1 functions bound to L. */
 function pressDeps(w) {
-  const calls = { scanLocal: [], readRelay: [], importEvent: [], publishToRelays: [], writeChoice: [], guard: [], order: [], nous: 0, getAssistantKeys: [] };
+  const calls = { scanLocal: [], readRelay: [], importEvent: [], publishToRelays: [], writeChoice: [], writeCopy: [], guard: [], order: [], nous: 0, getAssistantKeys: [] };
   const L = lowLevel(w, calls);
   const selfMap = load(SELF_MAP_MODULE, 'It is story 1\'s check.');
   const duty = load(DUTY_MODULE, 'It is the Duty Menu check.');
@@ -304,9 +314,19 @@ function pressDeps(w) {
     getConfiguredPublishRelays: L.getConfiguredPublishRelays,
     getConfigFromFile: L.getConfigFromFile,
     outsideOnly: (urls) => status.outsideOnly(urls, L),
+    // Round 4 (ADR 0002 Amendment 3 item 1): the copy store, in memory, keeping the newer event as the real one does.
+    readSelfMapCopy: (pk) => (lc(pk) === lc(w.A) && w.copy ? clone(w.copy) : null),
+    writeSelfMapCopy: async (pk, event) => {
+      calls.order.push('copy');
+      calls.writeCopy.push([lc(pk), clone(event)]);
+      if (w.copyWriteThrowsOn && calls.writeCopy.length === w.copyWriteThrowsOn) throw new Error('fixture: the copy cannot be written');
+      if (!w.copy || newerEvent(event, w.copy)) w.copy = clone(event);
+    },
   };
   return { deps, calls, L, selfMap };
 }
+/** Is `a` newer than `b`: the higher created_at, a tie to the lower id (the lookups' newest). */
+const newerEvent = (a, b) => a.created_at > b.created_at || (a.created_at === b.created_at && a.id < b.id);
 function fakeRes() {
   const res = { statusCode: 200, body: undefined };
   res.status = (code) => { res.statusCode = code; return res; };
@@ -342,6 +362,7 @@ function nothingDone(got, what) {
   if (got.calls.writeChoice.length) wrong.push(`no choice written (got ${show(got.calls.writeChoice)})`);
   if (got.calls.importEvent.length) wrong.push(`nothing written here (got ${got.calls.importEvent.length})`);
   if (got.calls.publishToRelays.length) wrong.push('nothing sent out');
+  if (got.calls.writeCopy && got.calls.writeCopy.length) wrong.push(`no copy written (got ${got.calls.writeCopy.length}; ADR 0002 Amendment 3)`);
   if (wrong.length) throw new Error(`${what}: ${wrong.join('; ')}`);
 }
 
@@ -820,7 +841,10 @@ test('C1: an accepted press remembers the choice — writeSelfMapChoice(Assistan
     const got = await press({}, { on });
     mustPublish(got, `on: ${on}`);
     assert(show(got.calls.writeChoice) === show([[got.w.A, on, NOW_S]]), `on: ${on}: want [[A, ${on}, ${NOW_S}]], got ${show(got.calls.writeChoice)}`);
-    assert(got.calls.order[0] === 'choice' && got.calls.order.indexOf('import') > 0, `on: ${on}: the choice before the write, got ${show(got.calls.order)}`);
+    // Re-aimed by ADR 0002 Amendment 3: the copy of the version found is kept before the choice; the choice still comes
+    // before anything is stored on a relay or sent.
+    const relayWrites = got.calls.order.filter((o) => o !== 'copy');
+    assert(relayWrites[0] === 'choice' && relayWrites.indexOf('import') > 0, `on: ${on}: the choice before the write, got ${show(got.calls.order)}`);
   }
 });
 
@@ -1193,6 +1217,302 @@ test('R15 (A2 item 1, the finished case): nothing on this instance\'s relay and 
   const got = await press({ key, base: null, noRelayList: true, mapTags: OWN_HINTS(key.A), publishRelays: [PUB1, PUB2, SM.DOCKER_RELAY_URL], relays: { [PUB1]: [], [PUB2]: [] } }, { on: true });
   mustPublish(got, 'every publish relay answered "nowhere"');
   assert(show(got.signed.tags) === show([['39998', key.A, OWN]]), `the self-entry alone, got ${show(got.signed.tags)}`);
+});
+
+/* ───────────────────────── Round 4: ADR 0002 Amendment 3 (review round 3) ───────────────────────── */
+
+const W_OLD = 'wss://w-old.example';                  // round 3's world: the write relay that holds the version, silent
+const W_NEW = 'wss://w-new.example';                  // ... and the one that answers without it
+/** A version of the Assistant's kind 10040 whose signature no longer verifies (its content changed after signing). */
+const tampered = (key, tags) => ({ ...clone(version(key, tags, { content: PRIVATE_CONTENT })), content: 'changed after signing' });
+/** What a published version kept of `copy`: the same other tags (the expiration dropped beside a self-entry) and content. */
+function keptFrom(got, copy, A, on) {
+  const wrong = [];
+  if (show(kept(got.signed.tags, A, on)) !== show(kept(copy.tags, A, on))) wrong.push(`the copy's other tags kept, want ${show(kept(copy.tags, A, on))}, got ${show(kept(got.signed.tags, A, on))}`);
+  if (got.signed.content !== copy.content) wrong.push(`the copy's content kept, want ${show(copy.content)}, got ${show(got.signed.content)}`);
+  if (!(got.signed.created_at > copy.created_at)) wrong.push(`dated after the copy (${copy.created_at}), got ${got.signed.created_at}`);
+  return wrong;
+}
+
+test('K6 (A3 item 1): the store exports readSelfMapCopy and writeSelfMapCopy — a missing file reads null; a write keeps the event as it is under lastSigned in the same { version: 1 } file, reads back, any case of key; a choice write keeps lastSigned and a copy write keeps the choices', async () => {
+  await withStore(async (mod, { file }) => {
+    const read = need(mod, 'readSelfMapCopy', rel(CHOICE));
+    const write = need(mod, 'writeSelfMapCopy', rel(CHOICE));
+    const a = newAssistant();
+    const b = newAssistant();
+    const va = clone(version(a, instanceMapTags(a.A), { content: PRIVATE_CONTENT }));
+    const vb = clone(version(b, [['39998', b.A, OWN]]));
+    const wrong = [];
+    if (await read(a.A) !== null) wrong.push(`missing file: null, got ${show(await read(a.A))}`);
+    await write(a.A, va);
+    if (show(await read(a.A)) !== show(va)) wrong.push('reads back the event as it is');
+    if (show(await read(a.A.toUpperCase())) !== show(va)) wrong.push('an upper-case key is the same Assistant');
+    await mod.writeSelfMapChoice(a.A, true, NOW_S);
+    await write(b.A.toUpperCase(), vb);
+    let json = null;
+    try { json = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { wrong.push(`the file is JSON: ${e.message}`); }
+    const want = { version: 1, assistants: { [a.A]: { on: true, changedAt: NOW_S } }, lastSigned: { [a.A]: va, [b.A]: vb } };
+    if (json && show(sortKeys(json)) !== show(sortKeys(want))) wrong.push(`the file: want ${show(want)}, got ${show(json)}`);
+    if (await mod.readSelfMapChoice(a.A) !== true) wrong.push('the choice reads back on');
+    assert(wrong.length === 0, wrong.join('; '));
+  });
+});
+
+test('K7 (A3 item 1): only a newer event replaces the copy — an older created_at changes nothing; at the same created_at the lower id stays; a later one replaces it', async () => {
+  await withStore(async (mod) => {
+    const read = need(mod, 'readSelfMapCopy', rel(CHOICE));
+    const write = need(mod, 'writeSelfMapCopy', rel(CHOICE));
+    const key = newAssistant();
+    const mid = clone(version(key, [['39998', key.A, OWN]], { createdAt: NOW_S - 2 * H }));
+    const old = clone(version(key, [['39998', key.A, OLD1]], { createdAt: NOW_S - 5 * H }));
+    const twin = clone(version(key, [['39998', key.A, OWN], ['client', 'Brainstorm']], { createdAt: NOW_S - 2 * H }));
+    const late = clone(version(key, [['39998', key.A, OWN]], { createdAt: NOW_S - H }));
+    const [lo, hi] = mid.id < twin.id ? [mid, twin] : [twin, mid];
+    const wrong = [];
+    await write(key.A, hi);
+    await write(key.A, old);
+    if ((await read(key.A) || {}).id !== hi.id) wrong.push('an older event changes nothing');
+    await write(key.A, lo);
+    if ((await read(key.A) || {}).id !== lo.id) wrong.push('at the same created_at, the lower id replaces the higher');
+    await write(key.A, hi);
+    if ((await read(key.A) || {}).id !== lo.id) wrong.push('at the same created_at, the higher id does not replace the lower');
+    await write(key.A, late);
+    if ((await read(key.A) || {}).id !== late.id) wrong.push('a later event replaces it');
+    assert(wrong.length === 0, wrong.join('; '));
+  });
+});
+
+test('K8 (A3 item 1): the copy store refuses what is not its own — a key that is not an Assistant key, or an event that is not that key\'s kind 10040, throws and writes nothing; a file that is not the shape reads null and is never overwritten', async () => {
+  const wrong = [];
+  await withStore(async (mod, { file }) => {
+    const write = need(mod, 'writeSelfMapCopy', rel(CHOICE));
+    const key = newAssistant();
+    const other = newAssistant();
+    const good = clone(version(key, [['39998', key.A, OWN]]));
+    const cases = [
+      ['a key that is not 64-hex', 'nope', good],
+      ['the key is __proto__', '__proto__', good],
+      ['another Assistant\'s event', key.A, clone(version(other, [['39998', other.A, OWN]]))],
+      ['not a kind 10040', key.A, clone(nt().finalizeEvent({ kind: 39999, created_at: NOW_S - H, tags: [], content: '' }, key.sk))],
+      ['not an event', key.A, null],
+    ];
+    for (const [label, pk, event] of cases) {
+      let threw = false;
+      try { await write(pk, event); } catch { threw = true; }
+      if (!threw) wrong.push(`${label}: throws`);
+    }
+    if (fs.existsSync(file)) wrong.push(`nothing written (found ${show(fs.readFileSync(file, 'utf8'))})`);
+  });
+  for (const text of ['{ not json', '[]', '{"version":1}', '{"version":2,"assistants":{}}']) {
+    await withStore(async (mod, { file }) => {
+      const key = newAssistant();
+      fs.writeFileSync(file, text);
+      quiet();
+      let readGot;
+      let threw = false;
+      try {
+        readGot = await need(mod, 'readSelfMapCopy', rel(CHOICE))(key.A);
+        try { await need(mod, 'writeSelfMapCopy', rel(CHOICE))(key.A, clone(version(key, [['39998', key.A, OWN]]))); } catch { threw = true; }
+      } finally { restoreConsole(); }
+      if (readGot !== null) wrong.push(`${show(text)}: reads null, got ${show(readGot)}`);
+      if (!threw) wrong.push(`${show(text)}: the write throws`);
+      if (fs.readFileSync(file, 'utf8') !== text) wrong.push(`${show(text)}: the file is untouched`);
+    });
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('K9 (A3 item 1): copy writes and choice writes share one lock — ten of each, all at once, all land, and no temp file is left', async () => {
+  await withStore(async (mod, { dir, file }) => {
+    const write = need(mod, 'writeSelfMapCopy', rel(CHOICE));
+    const keys = Array.from({ length: 10 }, () => newAssistant());
+    const copies = keys.map((k) => clone(version(k, [['39998', k.A, OWN]])));
+    await Promise.all(keys.flatMap((k, i) => [mod.writeSelfMapChoice(k.A, i % 2 === 0, NOW_S + i), write(k.A, copies[i])]));
+    const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const wrong = [];
+    for (const [i, k] of keys.entries()) {
+      if (!json.assistants || !json.assistants[k.A] || json.assistants[k.A].on !== (i % 2 === 0)) wrong.push(`${k.A.slice(0, 8)}…: the choice landed`);
+      if (!json.lastSigned || !json.lastSigned[k.A] || json.lastSigned[k.A].id !== copies[i].id) wrong.push(`${k.A.slice(0, 8)}…: the copy landed`);
+    }
+    const left = fs.readdirSync(dir).filter((n) => n !== path.basename(file));
+    if (left.length) wrong.push(`no temp files left: ${show(left)}`);
+    assert(wrong.length === 0, wrong.join('; '));
+  });
+});
+
+test('R16 (A3 item 1, review round 3 R3-B1): after a wipe — nothing on this instance\'s relay, no relay list here, and the copy holding the full version: with every outside relay silent, or every one answering without it, Turn on builds on the copy (its other tags and content kept, dated after it) and Turn off removes only the self-entries', async () => {
+  const worlds = [
+    ['every outside relay silent', {}],
+    ['every outside relay answering without it', null],
+  ];
+  for (const [label, relays] of worlds) {
+    for (const on of [true, false]) {
+      const key = newAssistant();
+      const copy = version(key, instanceMapTags(key.A), { content: PRIVATE_CONTENT });
+      const opts = { key, base: null, noRelayList: true, copy };
+      if (relays) opts.relays = relays;
+      const got = await press(opts, { on });
+      mustPublish(got, `${label}, on: ${on}`);
+      const wrong = keptFrom(got, copy, key.A, on);
+      const self = selfTags(got.signed, key.A);
+      if (on && !sameEntries(self, SHOULD)) wrong.push(`self-entries ${show(SHOULD)}, got ${show(self)}`);
+      if (!on && self.length) wrong.push(`no self-entry left, got ${show(self)}`);
+      assert(wrong.length === 0, `${label}, on: ${on}: ${wrong.join('; ')}`);
+    }
+  }
+});
+
+test('R17 (A3 item 1, review round 3 R3-B1): round 3\'s world — nothing here, the current relay list (on a publish relay) naming two write relays, the one holding the version silent and the other answering without it; with a copy, Turn on builds on the copy, never from nothing', async () => {
+  const key = newAssistant();
+  const list = ev(SM.RELAY_LIST_KIND, key.A, NOW_S - 100 * H, [['r', W_OLD, 'write'], ['r', W_NEW, 'write']]);
+  const copy = version(key, instanceMapTags(key.A), { content: PRIVATE_CONTENT });
+  const got = await press({ key, base: null, noRelayList: true, copy, relays: { [PUB1]: [list], [W_NEW]: [], [DCOSL]: [], [NIP85]: [] } }, { on: true });
+  mustPublish(got, 'round 3\'s world with a copy');
+  const wrong = keptFrom(got, copy, key.A, true);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R18 (A3 item 1): an older restore — an older version on this instance\'s relay and a newer one in the copy: the base is the copy', async () => {
+  const key = newAssistant();
+  const older = version(key, [['30382:rank', OTHER, SCORES_R], ['39998', key.A, OLD1]], { createdAt: NOW_S - 10 * H, content: 'older-content' });
+  const copy = version(key, instanceMapTags(key.A), { createdAt: NOW_S - H, content: PRIVATE_CONTENT });
+  const got = await press({ key, base: older, copy }, { on: true });
+  mustPublish(got, 'an older restore');
+  const wrong = keptFrom(got, copy, key.A, true);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R19 (A3 item 1): a newer version outside than the copy — the base is the outside one (the newest across this instance\'s relay, the copy and the outside round wins)', async () => {
+  const key = newAssistant();
+  const copy = version(key, [['39998', key.A, OLD1]], { createdAt: NOW_S - 10 * H, content: 'copy-content' });
+  const newer = version(key, instanceMapTags(key.A), { createdAt: NOW_S - H, content: PRIVATE_CONTENT });
+  const got = await press({ key, base: null, copy, relays: { [A_WRITE]: [newer], [DCOSL]: [], [NIP85]: [], [PUB1]: [] } }, { on: true });
+  mustPublish(got, 'a newer version outside');
+  const wrong = keptFrom(got, newer, key.A, true);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('R20 (A3 item 1): a copy that fails its check is left out — another Assistant\'s version, or one whose signature does not verify; with nothing else here and every outside relay silent, the first-press rules refuse: 503 not-read, nothing written, no copy written', async () => {
+  const cases = [
+    ['another Assistant\'s version', (key) => { const o = newAssistant(); return version(o, [['39998', o.A, OWN]], { content: PRIVATE_CONTENT }); }],
+    ['a signature that does not verify', (key) => tampered(key, instanceMapTags(key.A))],
+  ];
+  for (const [label, make] of cases) {
+    const key = newAssistant();
+    quiet();
+    let got;
+    try { got = await press({ key, base: null, noRelayList: true, relays: {}, copy: make(key) }, { on: true }); } finally { restoreConsole(); }
+    mustRefuseRead(got, label);
+  }
+});
+
+test('C7 (A3 item 1): the copy is kept — after a publish it is the signed event; the version found is kept before the choice, and the signed one before this instance\'s relay stores it', async () => {
+  const w = world();
+  const base = w.local.find((e) => e.kind === SM.SELF_MAP_KIND && e.pubkey === w.A);
+  const got = await press(w, { on: true });
+  mustPublish(got, 'Turn on');
+  const wrong = [];
+  const ids = got.calls.writeCopy.map(([, e]) => e && e.id);
+  if (ids[0] !== base.id) wrong.push(`the version found is kept first, want ${base.id.slice(0, 8)}…, got ${show(ids)}`);
+  if (ids[ids.length - 1] !== got.signed.id) wrong.push(`the signed event is kept last, got ${show(ids)}`);
+  if (!w.copy || w.copy.id !== got.signed.id) wrong.push(`the copy is now the signed event, got ${show(w.copy && w.copy.id)}`);
+  const order = got.calls.order;
+  if (!(order.indexOf('copy') >= 0 && order.indexOf('copy') < order.indexOf('choice'))) wrong.push(`the found version is kept before the choice, order ${show(order)}`);
+  if (!(order.lastIndexOf('copy') < order.indexOf('import'))) wrong.push(`the signed event is kept before the import, order ${show(order)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('C8 (A3 item 1): "already current" still keeps the version found when it is newer than the copy — with no copy, and with an older copy, the copy becomes the version found; nothing is published', async () => {
+  const wrong = [];
+  for (const [label, withCopy] of [['no copy', false], ['an older copy', true]]) {
+    const key = newAssistant();
+    const base = version(key, [['30382:rank', OTHER, SCORES_R], ['39998', key.A, OWN]], { content: '' });
+    const copy = withCopy ? version(key, [['39998', key.A, OLD1]], { createdAt: NOW_S - 10 * H }) : null;
+    const w = world({ key, base, copy });
+    const got = await press(w, { on: true });
+    const r = mustAccept(got, label);
+    if (r.published !== false || r.unchanged !== 'already-current') wrong.push(`${label}: already current, got ${show(r)}`);
+    if (!w.copy || w.copy.id !== base.id) wrong.push(`${label}: the copy is the version found, got ${show(w.copy && w.copy.id)}`);
+    if (got.calls.importEvent.length) wrong.push(`${label}: nothing stored`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('C10 (A3 item 1): a copy write that fails answers 500 in the approved words with nothing stored or sent — the version found (before the choice), or the signed one (before this instance\'s relay)', async () => {
+  const wrong = [];
+  for (const [label, n, choiceWrites] of [['the version found', 1, 0], ['the signed event', 2, 1]]) {
+    const got = await press({ copyWriteThrowsOn: n }, { on: true });
+    if (got.res.statusCode !== SM.PRESS.status.failed || !got.body || got.body.error !== SM.PRESS.failed) wrong.push(`${label}: want 500 with the approved words, got ${got.res.statusCode} ${show(got.body)}`);
+    if (got.calls.writeCopy.length !== n) wrong.push(`${label}: the write was attempted (${n}), got ${got.calls.writeCopy.length}`);
+    if (got.calls.importEvent.length || got.calls.publishToRelays.length) wrong.push(`${label}: nothing stored or sent`);
+    if (got.calls.writeChoice.length !== choiceWrites) wrong.push(`${label}: the choice written ${choiceWrites} time(s), got ${got.calls.writeChoice.length}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('C11 (A3 item 4, review round 3 R3-N1): a settings read that throws refuses the press — the duties reader throwing and the configured relays read as [] (as the real reader swallows it), with or without a copy, both presses answer 500 in the approved words and nothing is written', async () => {
+  const wrong = [];
+  for (const withCopy of [false, true]) {
+    for (const on of [true, false]) {
+      const key = newAssistant();
+      const w = world({ key, base: null, noRelayList: true, copy: withCopy ? version(key, instanceMapTags(key.A), { content: PRIVATE_CONTENT }) : null });
+      const { deps, calls, L } = pressDeps(w);
+      L.readAssistantDuties = () => { throw new TypeError('Cannot convert undefined or null to object'); };
+      L.getConfiguredPublishRelays = () => [];
+      const handle = need(publishModule(), 'createSelfMapHandler', rel(MODULE))(deps);
+      const res = fakeRes();
+      quiet();
+      try { await within(handle(pressReq(w.viewer, { on }), res), PRESS_LIMIT_MS); } finally { restoreConsole(); }
+      const label = `${withCopy ? 'a copy' : 'no copy'}, on: ${on}`;
+      if (res.statusCode !== SM.PRESS.status.failed || !res.body || res.body.error !== SM.PRESS.failed) wrong.push(`${label}: want 500 with the approved words, got ${res.statusCode} ${show(res.body)}`);
+      try { nothingDone({ calls }, label); } catch (e) { wrong.push(e.message); }
+    }
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('C12 (A3 item 1): with the real store at a temp path, Turn on leaves the signed event under lastSigned and the choice on, in one file', async () => {
+  await withStore(async (mod, { file }) => {
+    const w = world();
+    const { deps } = pressDeps(w);
+    deps.writeSelfMapChoice = (pk, on, nowSeconds) => mod.writeSelfMapChoice(pk, on, nowSeconds);
+    deps.readSelfMapCopy = need(mod, 'readSelfMapCopy', rel(CHOICE));
+    deps.writeSelfMapCopy = need(mod, 'writeSelfMapCopy', rel(CHOICE));
+    const handle = need(publishModule(), 'createSelfMapHandler', rel(MODULE))(deps);
+    const res = fakeRes();
+    quiet();
+    try { await within(handle(pressReq(OWNER, { on: true }), res), PRESS_LIMIT_MS); } finally { restoreConsole(); }
+    const wrong = [];
+    if (res.statusCode !== 200 || !res.body || !res.body.result || res.body.result.published !== true) wrong.push(`published, got ${res.statusCode} ${show(res.body)}`);
+    let json = null;
+    try { json = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { wrong.push(`the file is JSON: ${e.message}`); }
+    const copy = json && json.lastSigned && json.lastSigned[w.A];
+    const signed = w.local.filter((e) => e.kind === SM.SELF_MAP_KIND && e.pubkey === w.A).sort((a, b) => b.created_at - a.created_at)[0];
+    if (!copy || !signed || copy.id !== signed.id) wrong.push(`lastSigned holds the signed event, got ${show(copy && copy.id)}`);
+    if (!json || !json.assistants || !json.assistants[w.A] || json.assistants[w.A].on !== true) wrong.push('the choice is on in the same file');
+    assert(wrong.length === 0, wrong.join('; '));
+  });
+});
+
+test('S6 (A3 item 5, review round 3 R3-N2/R3-N3): the records name the copy — openapi\'s press description and the BIBLE §11 row say the press keeps a copy and say "outside configured publish relay"; BIBLE §15 names lastSigned; the press description wraps (no line over 125 characters)', () => {
+  const wrong = [];
+  const openapi = safeRead(OPENAPI);
+  const at = openapi.indexOf('/api/assistant/self-map:');
+  const block = at >= 0 ? openapi.slice(at, openapi.indexOf(NL + '  /api/', at + 10)) : '';
+  if (!/\bcopy\b/i.test(block)) wrong.push('openapi\'s press description names the copy');
+  if (!/outside configured publish relay/.test(block.replace(/\s+/g, ' '))) wrong.push('openapi says "outside configured publish relay"');
+  const dAt = block.indexOf('description:');
+  const description = dAt >= 0 ? block.slice(dAt, block.indexOf('requestBody:', dAt)) : '';
+  const long = description.split(NL).filter((l) => l.length > 125);
+  if (!description) wrong.push('openapi\'s press has a description');
+  if (long.length) wrong.push(`openapi\'s press description wraps: ${long.length} line(s) over 125 characters`);
+  const bible = safeRead(BIBLE);
+  const row = bible.split(NL).find((l) => l.startsWith('| POST |') && l.includes('`/api/assistant/self-map`')) || '';
+  if (!/\bcopy\b/i.test(row)) wrong.push('the BIBLE §11 row names the copy');
+  if (!/outside configured publish relay/.test(row)) wrong.push('the BIBLE §11 row says "outside configured publish relay"');
+  const s15 = bible.slice(bible.indexOf('## 15.'), bible.indexOf('## 16.'));
+  if (!/lastSigned/.test(s15)) wrong.push('BIBLE §15 names lastSigned');
+  assert(wrong.length === 0, wrong.join('; '));
 });
 
 async function run() {

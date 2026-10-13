@@ -47,6 +47,8 @@
  * Round 3 (ADR 0002 Amendment 2): V13–V16 pin that a relay list found nowhere needs every publish relay's answer, on
  * lookupSelfMap, assistantWriteRelayLookup and lookupNewestReplaceable (whose default path stays as it is); V8 now also
  * pins that a write relay the DNS guard refuses is never connected to (review round 2 R2-N1).
+ * Round 4 (ADR 0002 Amendment 3): V17 pins that forWrite takes the press's copy (`stored`) as a version here and the
+ * newest across this instance's relay, the copy and the outside wins; V18 that without forWrite it is ignored.
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -1502,6 +1504,42 @@ test('V16 (A2 item 1, the code): lookupNewestReplaceable takes an optional every
     if (pick(got) !== pick(want)) wrong.push(`${label}: want ${pick(want)}, got ${pick(got)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Story 2, round 4: ADR 0002 Amendment 3 item 1 ───────────────────────── */
+
+/** lookupSelfMap with forWrite and the press's checked copy (`stored`). */
+async function strictReadStored(w, stored, offer = []) {
+  const { selfMap } = freshModules();
+  const { deps, calls } = fakes(w);
+  const got = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapEventOf(w), offer, forWrite: true, stored }, deps);
+  return { got, calls };
+}
+
+test('V17 (A3 item 1): forWrite takes the press\'s copy as `stored`, a version here — with nothing on this instance\'s relay, no relay list and every outside relay silent it finishes with the copy; an older version here loses to a newer copy; a newer version outside beats an older copy', async () => {
+  const wrong = [];
+  const copy = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const wiped = noRelayList(world({ mapTags: [['39998', TA, HINT_A]], relays: {} }));
+  const a = (await strictReadStored(wiped, copy)).got;
+  if (!a || a.finished !== true || !a.latest || a.latest.id !== copy.id) wrong.push(`after a wipe, the copy is the base, got ${brief(a)}`);
+  const older = selfMapEv([['39998', TA, OWN]], TA, NOW_S - 10 * H);
+  const restored = world({ mapTags: [['39998', TA, HINT_A]], relays: {}, extraLocal: [older] });
+  const b = (await strictReadStored(restored, copy)).got;
+  if (!b || b.finished !== true || !b.latest || b.latest.id !== copy.id) wrong.push(`an older version here loses to the copy, got ${brief(b)}`);
+  const oldCopy = selfMapEv([['39998', TA, OWN]], TA, NOW_S - 10 * H);
+  const outside = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const newerOut = world({ mapTags: [['39998', TA, HINT_A]], relays: { [A_WRITE]: [outside], [HINT_A]: [] } });
+  const c = (await strictReadStored(newerOut, oldCopy)).got;
+  if (!c || c.finished !== true || !c.latest || c.latest.id !== outside.id) wrong.push(`a newer version outside beats the copy, got ${brief(c)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('V18 (A3 item 1): without forWrite, `stored` is ignored — the hub\'s read is unchanged: nothing here and the outside answering empty is finished with none, whatever copy is passed', async () => {
+  const { selfMap } = freshModules();
+  const w = world({ mapTags: [['39998', TA, HINT_A]], relays: { [A_WRITE]: [], [HINT_A]: [] } });
+  const copy = selfMapEv([['39998', TA, OWN]], TA, NOW_S - H);
+  const got = await selfMap.lookupSelfMap({ assistantPubkey: TA, mapEvent: mapEventOf(w), offer: [], stored: copy }, fakes(w).deps);
+  assert(got && got.finished === true && got.latest === null, `without forWrite: finished with none, got ${brief(got)}`);
 });
 
 async function run() {

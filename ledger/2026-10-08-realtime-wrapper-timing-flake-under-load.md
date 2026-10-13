@@ -100,3 +100,9 @@ before widening the window.
   running, failed RW7 alone at 0.73 s ("node exits 1") and 0.77 s ("node exits 0").
 - **Afterwards:** the suite passed alone (24/0), and the full run on a quiet machine,
   `20261013T031322Z-11940-f663 [s2-r2-review-quiet]`, passed (5948/0).
+
+**Occurrence, 2026-10-13** (`assistant-self-map` #2, round 4's Test Design).
+- **The failing run:** `20261013T053546Z-10504-809a [s2-r4-phase3]`, on `a615c39c+dirty`. RW7, "node exits 1" at
+  0.74 s and "node exits 0" at 0.78 s (starts `[0, 0.74, 2.75]` and `[0, 0.78, 2.79]` s). Nothing else was running. The
+  diff touched only test files.
+- **Afterwards:** the suite passed alone (24/0).

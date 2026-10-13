@@ -250,3 +250,63 @@ names `TWO_PUBLISH` (`PUB1`, `PUB2`, this instance's relay). No helper changed.
   - the default path's guards unchanged: Duty Menu check 65/65 and publish 36/36, outbox check 29/29, Outbox Relays
     page 21/21, relay-list publish 32 (1 skipped), taggings publish 19 (1 skipped), attention 38 (1 skipped). Each skip
     is the same on the current code.
+
+## Round 4: ADR 0002 Amendment 3 (review round 3)
+
+**Date:** 2026-10-13. These tests were added for review round 3's R3-B1 (one answering relay stood in for a silent one
+holding the version), R3-B2 (a first press's cost, now stated; no test needed, since first presses keep R9–R15 as they
+are), R3-N1 (a settings read that throws) and R3-N2/R3-N3 (the records). The owner chose "Keep a local copy" and "Stay
+strict".
+
+| Amendment item | Tests | File |
+|---|---|---|
+| **1. The copy store** | K6: `readSelfMapCopy` and `writeSelfMapCopy`. A missing file reads null. The event is kept as it is under `lastSigned` in the same `{ version: 1 }` file, and an upper-case key is the same Assistant. A choice write keeps `lastSigned`, and a copy write keeps the choices. K7: only a newer event replaces it (the higher `created_at`, a tie to the lower id). K8: a bad key, another Assistant's event, a kind that isn't 10040, or no event at all is refused, with nothing written; a file that isn't the shape reads null and is never overwritten. K9: ten choice writes and ten copy writes at once all land, and no temp file is left | publish |
+| **1. The press builds on the copy** | R16: after a wipe (nothing here, no relay list here), with every outside relay either silent or answering without the version, Turn on builds on the copy, keeping its other tags and content and dating after it; Turn off removes only the self-entries. R17: round 3's world (the current list naming W_OLD, silent and holding the version, and W_NEW, answering without it); with a copy, the press builds on the copy. R18: an older restore; the copy wins over an older version here. R19: a newer version outside beats the copy. R20: a copy that fails its check (another Assistant's, or a bad signature) is left out, and the first-press rules give 503 with nothing written | publish |
+| | V17: `lookupSelfMap` with `forWrite` takes `stored` as a version here. It finishes with it after a wipe; it beats an older version here; a newer version outside beats it. V18: without `forWrite`, `stored` is ignored | check |
+| **1. When the copy is kept** | C7: after a publish, the copy is the signed event. The version found is kept first, before the choice, and the signed one before the import. C8: "already current" keeps the version found when it is newer (with no copy, or an older copy), and nothing is stored. C10: a copy write that fails gives 500 with nothing stored or sent, at either write point. C12: with the real store at a temp path, `lastSigned` holds the signed event and the choice is on, in one file | publish |
+| | Every refusal: `nothingDone` now also checks that no copy was written. That covers R1–R15, the P-tests and R20 | publish |
+| **4. A settings read that throws** | C11: the duties reader throws and the configured relays read `[]`, as the real reader swallows the throw. With or without a copy, both presses answer 500 in the approved words, with nothing written | publish |
+| **5. The records** | S6: openapi's press description and the BIBLE §11 row name the copy and say "outside configured publish relay"; BIBLE §15 names `lastSigned`; the press description has no line over 125 characters | publish |
+
+**Re-aimed: C1.** Its order check now leaves out the copy writes. Amendment 3 keeps the version found before the choice,
+and the choice still comes before anything is stored on a relay or sent.
+
+**World options.** In the publish suite:
+- `copy`: the copy the store holds, or null;
+- `copyWriteThrowsOn`: which copy write throws, counting from 1;
+- `pressDeps` fakes `readSelfMapCopy` and `writeSelfMapCopy` in memory, keeping the newer event as the real store does,
+  and records each write and its place in `order`.
+
+Without these fakes, the implemented press would reach the real data volume from the tests. In the check suite,
+`strictReadStored` passes `stored` to `lookupSelfMap`.
+
+**What fails, and why it should.**
+- **K6–K9, C12:** the store has no copy functions.
+- **R16:** 503: the copy is ignored and the first-press rules refuse.
+- **R17, R18:** the press builds from nothing, or on the older version here, so the copy's tags and content are lost.
+- **C7, C8, C10:** no copy is ever written.
+- **S6:** the records don't name the copy; one description line is 172 characters.
+- **V17:** `stored` is ignored.
+
+R19, R20, C11 and V18 pass already. They guard against a copy that wins over a newer version, a bad copy that is
+trusted, a settings throw that slips through, and the hub's read changing.
+
+**Verification, 2026-10-13, on `a615c39` with these tests:**
+- **The Node gate:** `20261013T053546Z-10504-809a [s2-r4-phase3] — FAIL, exit 1, 5957 passed, 14 failed, 582 skipped,
+  308/308 suites; failed: assistant-self-map-check, assistant-self-map-publish, tagging-edges-realtime-wrapper`.
+  - 13 failures are this round's: V17, K6–K9, R16–R18, C7, C8, C10, C12 and S6.
+  - The 14th is RW7 (0.74 s and 0.78 s), the known flake. It passed alone (24/0), and is on its ledger row.
+- **The tests can pass.** I checked against a throwaway prototype of Amendment 3 in a scratch worktree. It was never
+  committed and has been deleted. It made these edits:
+  - the copy store in `selfMapChoice.js`;
+  - `stored` through `gatherSelfMap` and `lookupSelfMap`;
+  - the press reading, checking and keeping the copy;
+  - the two records.
+
+  The results:
+  - self-map publish 79/79, check 83/83, page 19/19;
+  - Duty Menu check 65/65 and publish 36/36, outbox check 29/29, relay-list publish 32 (1 skipped), taggings publish 19
+    (1 skipped), attention 38 (1 skipped). The skips are the same as on the current code.
+- **Two test defects found against the prototype and fixed:**
+  - C7 and C12 picked the viewer's Map, also a kind 10040, as "the version found". They now filter by the Assistant.
+  - C1's order check is re-aimed, as above.
