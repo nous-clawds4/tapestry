@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 approved (review round 3); Amendment 4 proposed (review round 4)
+follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 approved (review round 3); Amendment 4 approved (review round 4)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -911,7 +911,8 @@ service of AC-4 ("Never blind", "Nothing else is lost"). BIBLE §15 names it.
 
 ## Amendment 4: "nothing to change" only when this instance's relay holds the version (2026-10-13)
 
-**Status of A4:** proposed.
+**Status of A4:** approved by the owner at the Architecture gate of round 5, 2026-10-13, as written ("Ready for Test
+Design").
 
 The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`, its Round 4. Item 1
 answers R4-B1 and R4-B2. Item 2 answers R4-N1, item 3 R4-N4, and item 4 R4-N5. Item 5 carries R4-N2 into the tests.
