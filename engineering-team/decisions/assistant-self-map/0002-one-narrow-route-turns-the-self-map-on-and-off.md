@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2)
+follow-up); Amendment 1 approved (review round 1); Amendment 2 approved (review round 2); Amendment 3 proposed (review round 3)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -646,6 +646,8 @@ reads:
 >
 > It builds from nothing only when those places hold nothing.
 
+*(Corrected by Amendment 3 item 2.)*
+
 There are two known limits:
 - the settings limit in item 2;
 - a relay list found on one relay while a newer one, naming other write relays, sits only on relays that did not
@@ -708,4 +710,199 @@ None. No acceptance criterion or approved word changes. AC-4's "Never blind" is 
   caller that doesn't pass `everyRelay`.
 - `attention.js` is a hub line shared with other books. The change is one optional input, and the Implementer rechecks
   the shared line before editing it (book § Shared lines).
+- **Firmware reinstall required?** No.
+
+## Amendment 3: the press keeps a copy of the last version, so it never builds over its own Map (2026-10-13)
+
+**Status of A3:** proposed. The owner chose its two decisions before the draft, 2026-10-13:
+- **Approach:** "Keep a local copy" (item 1), over "Every relay must answer" and keeping "at least one".
+- **First press:** "Stay strict" (item 3).
+
+The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`, its Round 3. Item 1
+answers R3-B1, item 3 R3-B2, item 4 R3-N1, and item 5 R3-N2 and R3-N3.
+
+### Why the rule changes shape, not strictness
+
+Three review rounds each found one more place where one answer stood in for a silent relay that might hold the
+version: the relay list (round 1), its "found nowhere" (round 2), and the write relays and hints (round 3). Each rule
+was a guess about where a version might be, read over relays that come and go.
+
+Story 2 is the only code that signs an Assistant's kind 10040 with its key (`selfMapPublish.js`; the NIP-85 scripts
+publish a 10040 the person signs in their browser). So every version this instance makes passes through one press,
+and a press can keep it. strfry lives on its own volume (`tapestry-strfry`, `/var/lib/strfry`), apart from the data
+volume (`tapestry-data`, `/var/lib/brainstorm`, `docker-compose.yml:30–34`). A wipe of one leaves the other.
+
+### 1. A copy of the newest version, on the data volume (R3-B1; the owner's "Keep a local copy")
+
+**What is kept.** For each Assistant, the newest validly signed version of its kind 10040 that a press has seen or
+signed. It is the whole signed event, and the copy keeps it as it is.
+
+**Where.** In `/var/lib/brainstorm/assistant-self-map.json`, beside the choices, under one new top-level key:
+
+```json
+{ "version": 1,
+  "assistants": { "<assistant hex>": { "on": true, "changedAt": 1760313600 } },
+  "lastSigned": { "<assistant hex>": { "id": "…", "pubkey": "<assistant hex>", "kind": 10040, "created_at": 1760313600, "tags": [], "content": "…", "sig": "…" } } }
+```
+
+- The shape check (`version` 1, `assistants` an object) is unchanged. Today's `writeSelfMapChoice` writes the whole
+  store back, so it keeps `lastSigned`.
+- One file, one lock (`choiceLock`), one atomic write (temp file, fsync, rename, directory fsync, mode 0600). A
+  self-Map's content may hold private entries, encrypted to the author, as strfry holds them.
+
+**`src/api/assistant/selfMapChoice.js` gains two functions:**
+- **`readSelfMapCopy(assistantPubkey)`** gives the stored event, or null. Null means none is kept, or the file can't be
+  read (logged, as `readSelfMapChoice` does).
+- **`writeSelfMapCopy(assistantPubkey, event)`** keeps the newer of the stored copy and `event`: the higher
+  `created_at`, a tie to the lower id, as the lookups' `newest` rules. An older event changes nothing. It rejects:
+  - a key that is not an Assistant key;
+  - an event that isn't that key's kind 10040;
+  - a file that is there but not the shape, which it leaves as it is;
+  - a failed write.
+
+**What the press does with it.** In `selfMapPublish.js`, inside the Assistant's lock:
+1. **Read it with the rest (step 1).** The press reads the copy and checks it: kind 10040, author A, and `verifyEvent`
+   true. A copy that fails is left out and logged, never used.
+   - It passes the copy to the strict read as `stored`: `gatherSelfMap({ …, forWrite: true, stored })` for Turn on, and
+     `lookupSelfMap({ …, forWrite: true, stored })` for Turn off.
+   - In `lookupSelfMap`'s `forWrite` path, the version here is the newest of this instance's relay and `stored`:
+     `here = newest([localNewest, stored])`. Everything after that is as Amendment 1 has it: with a version here, the
+     outside round is best-effort, and the newest across all of them wins.
+2. **Keep what was found, before the choice.** After the base passes its check, if it is newer than the copy, or there
+   is no copy, it becomes the copy. This is a new step between steps 1 and 2. A failure answers 500 and changes
+   nothing, since the choice comes after.
+3. **Keep what is signed, before it is stored.** After the signed event passes its check (step 4), it becomes the copy,
+   before the local import (step 5). A failure answers 500. Nothing has been stored or sent, though the choice may have
+   been remembered, as openapi's 500 says.
+
+   The copy then may hold a version that a failed import never stored anywhere. That is harmless: the merge changes
+   only self-entries, so it carries the same other tags and content as its base. Its `created_at` is later, and a
+   later press dates its version after it.
+
+**Why this closes the class.** Once a press has run here, the base of every later press is at least the newest version
+any press saw or signed. A strfry wipe, or a restore from an older backup, can no longer make a press build from
+nothing, or over an older version, whatever the outside relays answer. The press changes only self-entries. So this
+instance's own Treasure Map entries and the content, everything AC-4 keeps, are always in the copy as they last stood
+in any version a press here built on.
+
+**What the copy is not.**
+- It is not a view and not a cache of anything subjective. It is this instance's own last letter, kept so it survives
+  strfry (CLAUDE.md principle 4, BIBLE §30).
+- Story 1's check (`checkSelfMap`, the hub's read) doesn't read it. The check says what readers can find.
+- Nothing else reads or writes it.
+
+### 2. The guarantee, as it now stands (corrects Amendment 2 item 3)
+
+Amendment 2 item 3's quoted guarantee ("It builds from nothing only when those places hold nothing") was false as
+written (review round 3, R3-B1). So were its "cost, accepted" and § Consequences (A2), which scoped the cost to "after a
+wipe" (R3-B2), and sub-decision 3's R1 "For:" line about a restore from an older backup. The comment at
+`selfMap.js:33` ("So the press never builds over nothing") said the same thing. Each of these now reads as follows.
+
+> **After this instance's first press for an Assistant,** a press never builds on anything older than the newest
+> version a press here has seen or signed. That holds through a strfry wipe and through a restore from an older
+> backup.
+>
+> **An Assistant's first press here** (no version on this instance's relay and no copy) reads under the strict rules:
+> Amendment 1 items 1.1–1.3, with Amendment 2 item 1.
+
+There are three limits, named:
+1. **A first press after a wipe.** The strict rules accept one answering relay for the write relays and the hints. So
+   a version signed before this instance's first press, by something other than this press, can be missed:
+   - that means the Owner's Map that predates story 2;
+   - the miss needs a wipe that also predates that first press;
+   - and it needs one answering relay that doesn't hold the version while the one that does is silent.
+2. **Versions signed elsewhere, later.** One signed with the Assistant's key outside this instance (the Owner's key in
+   another client, say) and newer than the copy is found only as the outside round finds it. With a version here or a
+   copy, that round is best-effort.
+3. **The data volume lost along with strfry.** The copy and the settings go together, and nothing on the instance
+   names where the version is (Amendment 2 item 2's limit).
+
+The code comment at `selfMap.js:33` takes the same two paragraphs in short form.
+
+### 3. A first press stays strict (R3-B2; the owner's "Stay strict")
+
+Amendment 2's cost, stated in full:
+- **It reaches every first press here of an Assistant with no published relay list.** Only the Outbox Relays page
+  publishes one (`relayListPublish.js:126`). No wipe is needed.
+- **Such a press needs every outside configured publish relay to answer.** That is six with the shipped settings. With
+  one slow or down, it answers 503 `not-read` in story 2's words, and the person tries again.
+- **After a wipe, an Assistant this instance has pressed for builds on its copy,** and needs no outside answer.
+
+The owner accepted this at the draft: first presses keep Amendment 1 items 1.1–1.3 with Amendment 2 item 1, for every
+Assistant. No Owner-or-not branch is added.
+
+### 4. A settings read that throws refuses the press, and a test pins it (R3-N1)
+
+Amendment 2 item 2 said a settings read never throws. It does throw for an override file holding the JSON `null`:
+`deepMerge` calls `Object.keys(null)` (`src/config/settings.js:77`). Every other bad file reads as the shipped defaults.
+On that input:
+- `readConfiguredRelays` swallows the throw, so the relay-list lookup reads `no-outside-relays`;
+- both presses still refuse before anything is written. `resolveOfferInputs` reads the same settings through
+  `readAssistantDuties` and throws, so the press answers 500. That is `gatherSelfMap`'s first read for Turn on, and step
+  1's offer read for Turn off.
+
+This amendment makes that refusal the stated behaviour. A test pins it, so a change that broke the coupling would show.
+With a copy, the strict read no longer depends on the settings at all for a wipe.
+
+Hardening `loadOverrides` so that a non-object reads as `{}` would change shared settings code, which every page reads.
+It is left to its own ledger row, `2026-10-13-settings-null-override-throws`, opened with this amendment.
+
+### 5. The records
+
+- **`src/api/openapi.yaml`, the press's description.** "every configured publish relay" becomes "every outside
+  configured publish relay" (R3-N2). It says the press keeps a copy of the newest version on the data volume and builds
+  on it after a wipe. Its over-long line is rewrapped (R3-N3).
+- **BIBLE §11 row.** The same two changes.
+- **BIBLE §15 (the data-volume file, line 1385).** It names `lastSigned`: the newest version a press has seen or
+  signed, per Assistant, written only by `POST /api/assistant/self-map`, read only by it.
+- **The comments.** `selfMap.js:32`, `:279`–`:280` and `dutyMenu.js:118` say "outside configured" (R3-N2), and
+  `selfMap.js:33` says item 2's short form.
+
+### 6. Tests (the Tester's lane, Phase 3)
+
+- **The copy store** (`test/assistant-self-map-publish.test.js`, K-tests):
+  - `readSelfMapCopy` and `writeSelfMapCopy` round-trip the event as it is;
+  - only a newer event replaces it, by `created_at`, a tie to the lower id;
+  - a choice write keeps `lastSigned`, and a copy write keeps the choices;
+  - a file that isn't the shape refuses the write and is left as it is;
+  - an unreadable file reads as null;
+  - a bad key or a wrong event is refused;
+  - writes share the choice lock.
+- **The press** (R- and E-tests):
+  - **After a wipe:** nothing on this instance's relay, the outside relays silent or empty, and a copy holding the full
+    version. Turn on builds on the copy, keeping its other tags and content, dated after it. Turn off removes only the
+    self-entries.
+  - **Review round 3's world** (one write relay answering empty, the one that holds the version silent), with a copy:
+    the press builds on the copy, never from nothing.
+  - **An older restore:** an older version on this instance's relay, a newer one in the copy. The base is the copy.
+  - **A newer version outside** than the copy: the base is the outside one.
+  - **A copy that fails its check** (wrong author, bad signature): it is left out. With nothing else here, the first
+    press rules apply, so outside silence gives 503.
+  - **The copy is kept:**
+    - after a publish, the copy is the signed event;
+    - after "already current", the found version, when newer;
+    - a 503 writes no copy;
+    - a failing copy write answers 500, with nothing stored or sent.
+  - **First presses unchanged:** R9–R15 pass as they are.
+  - **R3-N1:** `readAssistantDuties` throwing, with the configured relays reading `[]` as the real reader does, gives a
+    500 with nothing written, for both presses.
+- **V-tests** (`test/assistant-self-map-check.test.js`): `lookupSelfMap` with `forWrite` and `stored`. The copy counts
+  as a version here, the outside round is best-effort, and the newest across this instance's relay, the copy and the
+  outside wins. Without `forWrite`, `stored` is ignored, so the hub's read is unchanged.
+- **Records:** S5 or its like checks that openapi names the copy.
+- No page or browser change.
+
+### Story deviations (A3)
+
+None to the acceptance criteria or the approved words. The copy is a new durable record on the data volume, kept in
+service of AC-4 ("Never blind", "Nothing else is lost"). BIBLE §15 names it.
+
+### Consequences (A3)
+
+- A press after a strfry wipe, or after an older restore, builds on the copy. It needs no outside answer once a press
+  has run here. Review round 3's R3-B1 class is closed for every Assistant pressed here before the loss.
+- First presses keep the strict rules and their stated cost (item 3). The owner accepted it.
+- `assistant-self-map.json` grows by one event per Assistant pressed. That is a few kilobytes each.
+- Locally authored state, this instance's own Treasure Map entries and private content, no longer lives only in strfry
+  and on outside relays (BIBLE §30).
 - **Firmware reinstall required?** No.
