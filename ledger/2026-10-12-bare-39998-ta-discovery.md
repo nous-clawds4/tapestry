@@ -25,7 +25,7 @@ question lies outside the sentences its AC1 names.
 Designation. The PO places the row: story 5 of `duty-menus-and-self-maps`, which edits Assistant Designation for item
 10 of ledger row `2026-10-12-self-maps-spec-fold-forwards`, or a later docs pass.
 
-**Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (sub-decision 5;
+**Pointer:** ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (sub-decision 5;
 sub-decision 11; Verification V25; Open question 3); `protocols/drafts/assistant-designation.md` § Relationship to
 NIP-85 and § Dual-author lookup and precedence; `protocols/drafts/treasure-maps.md` § 4.5.
 
@@ -42,3 +42,12 @@ does an Alternate entry for a list ask that Assistant to curate it? Treasure Map
 duty, which Assistant Designation, where the first occurrence wins, does not empower (Treasure Maps § 13
 question 13). An answer to the bare-`39998` question does not answer this one, and the row closes only when the pass
 has answered each. The row stays OPEN.
+
+**Note, 2026-10-13 (book close `duty-menus-and-self-maps`).** At story 5's review gate (2026-10-13) the owner was
+asked whether Treasure Maps § 13 question 13 should stay on this row or move. The owner answered "Proceed." and did
+not move it, so it stays on this row for the docs pass after the book.
+
+**Note, 2026-10-13 (the owner's approvals after the close of `duty-menus-and-self-maps`).** The owner confirmed this
+placement ("I agree with all of your recommendations. Approved."): Treasure Maps § 13 question 13 stays on this row
+for the docs pass after the book. Only its placement is confirmed. The question itself stays open, and the row stays
+OPEN.

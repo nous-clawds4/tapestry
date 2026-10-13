@@ -35,3 +35,8 @@ line.
 
 **Pointer:** `engineering-team/reviews/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md` (NB13, Harness
 friction).
+
+**Recurred 2026-10-12 (`duty-menus-and-self-maps` #3; book close, audit §7 P10).** Story 3's round-1 review commit
+`18d0cb9f` was rebased onto another session's push and became `b25f89ac`. Round 2 had to show that the diff was the
+same from either base (`engineering-team/reviews/done/duty-menus-and-self-maps/3-self-maps.md`:529–532), and
+`18d0cb9f` is cited only in that explanation. Same fix shape. Does it port to the other flow? Yes.

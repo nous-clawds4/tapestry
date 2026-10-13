@@ -28,7 +28,7 @@ You are entering **Book Close** — a milestone phase of the Tapestry engineerin
 
 > Book closed. Audit + {addendum|seed} are ready for the product team to scope the next phase. Retro dispositions are in audit §7. Anything to correct before I commit?
 
-**Per-phase commit:** Commit audit + feedback doc + updated `book.md` + any ledger rows (`ledger/` files; `OPEN.md` table flips) together: `git add engineering-team/audits/<book-slug> OPEN.md ledger && git commit -m "book-close: <book-slug>"`.
+**Per-phase commit:** Follow [engineering-team/workflows/6-book-close.md § Per-phase commit](engineering-team/workflows/6-book-close.md#per-phase-commit). It names every path the close commit stages, and it is the only copy of that line.
 
 **Close-out (workflow step 13) — after that commit, don't stop at it.** The close is the last moment the work is both finished and fresh, so it carries its own tidy-up instead of leaving one to be remembered. **Do:** refresh any durable note that still describes this book as open (agent memory, `docs/*HANDOFF*.md`) — a stale one hands the next session a false map that reads as authoritative; **push** the branch the close landed on, because sibling sessions read `origin` and cannot see rows or artifacts that exist only on this machine; and **fast-forward** any local ref that only trails, which is lossless and invisible. **Offer, never assume:** promoting to the production line (keeps the next promotion bundle equal to the next piece of work — but production still needs explicit per-promotion approval), and pruning local branches merged to `origin/main` (excluding `scripts/long-lived-branches.txt`) — deletion is the one irreversible act here.
 

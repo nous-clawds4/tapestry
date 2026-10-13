@@ -33,6 +33,8 @@ Be skeptical, not pedantic. PASS means the diff is mergeable as-is. CHANGES_REQU
 ## Per-phase commits
 Yes. Commit the review file regardless of verdict (e.g., `review: <slug> — <VERDICT> (<epic> #<n>)` — the slug/epic reference feeds `harness-stats.sh`, per workflow 1). Accumulated reviews are valuable signal over time.
 
+**Optional: an independent check before the commit.** Recommended for docs-mode stories, whose claims are prose checked only by reading. Before the review commits, a read-only checker that is not the Reviewer re-derives the blocking and non-blocking findings and the gate account, and audits the review's own claims (quotes, counts, line and commit attributions). The Reviewer verifies each checker finding against the sources, folds in what holds, notes in the review that the check was applied, then commits (audit `duty-menus-and-self-maps` §7 P13).
+
 ## On PASS — mark the story Done
 
 When the verdict is PASS, set `**Status:** Done` at the top of the story file in the same review commit. **That's the whole per-story close-out — do not move individual files.** Retirement happens per-epic, not per-story, so an epic's stories stay together in `stories/<epic-slug>/` while the epic is still in flight (even if some are already Done). Save your review under the epic too: `engineering-team/reviews/<epic-slug>/<n>-<slug>.md`.

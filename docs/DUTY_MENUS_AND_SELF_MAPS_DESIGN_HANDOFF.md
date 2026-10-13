@@ -19,7 +19,7 @@
 **Open questions:** Q4 (private duties in a self-Map's `.content`) is asked in `treasure-maps.md` § 13 question 8;
 `duty-menus.md` § 14 question 1 asks the same of menus, and worksheet W22, which is Closed, decided the pattern for
 private items; Q6 (NosFabrica adoption) in the intake entry above; Q5 and Q7 were settled by the owner on 2026-10-10
-(`engineering-team/stories/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Out of scope).
+(`engineering-team/stories/done/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Out of scope).
 
 **Created:** 2026-10-10
 **Provenance:** Scoped in one advisory session on 2026-10-10, started by the owner's question about the new external-Assistant support on `/treasure-map`. This is the Capture step of the Protocol-Spec workflow (`engineering-team/workflows/protocol-spec-workflow.md`): what is decided, what is proposed but not yet confirmed, and what is still open. Flip to ✅ SUPERSEDED once the pieces land in `protocols/`.

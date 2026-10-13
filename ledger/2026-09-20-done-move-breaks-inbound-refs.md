@@ -45,3 +45,16 @@ pointers in the same `actions.js` header already miss.
 
 **Pointer:** `engineering-team/workflows/6-book-close.md` step 9;
 `engineering-team/audits/nip05-ssrf-guard/audit.md` §7.
+
+**Outbound links too, 2026-10-13 (book close `duty-menus-and-self-maps`, audit §7 P20).** No live file had a
+markdown link into this book's folders, but 35 backticked pointers in 19 live files named them: the epic (5), the
+handoff (1) and 17 ledger rows (29), 12 of them OPEN. The close repointed 34 to the `done/` paths, as
+`assistant-coming-soon`'s close (`04f4eba4`) did, and left the one inside a `git show <hash> --` command, where the
+old path is right. The move also broke 18 markdown links *inside* the five moved story files, which resolved
+before it: 10 are the Linked artifacts lines (`../../decisions/<epic>/…`,
+`../../reviews/<epic>/…`), and 8 point out to `docs/`, `protocols/` and `book.md`. `workflows/5-review.md` § Epic
+close-out says "the relative paths *inside* the folder (story ↔ test-plan ↔ ADR ↔ review) stay intact — no
+link-rewriting needed". That holds within one folder, not across the stories, decisions and reviews folders, each
+of which moves one level deeper. The close left them, since `done/` is read-only by convention. Fix shape 1's "assert
+every `.md` pointer in the moved files resolves" would catch them, and the sentence in `5-review.md` needs correcting
+either way. Does it port to the other flow? Yes: every epic close-out runs the same move.

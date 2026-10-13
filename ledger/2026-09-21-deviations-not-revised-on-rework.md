@@ -29,3 +29,8 @@ roles/reviewer.md step 10 already asks.
 
 **Pointer:** `engineering-team/reviews/done/setup-status-and-alert/1-setup-shows-where-you-stand.md`
 § Round 2, Non-blocking 1 and Harness friction 1.
+
+**Recurred 2026-10-12 (`duty-menus-and-self-maps` #3, review round 2, non-blocking 21; book close, audit §7 P16).**
+The Implementer's "round 2 fix 1" block in story 3's Deviations listed four kick-backs as open. Three were already
+done, one of them in the same commit (`fe163bc0`). A dated close-out line was added when the review asked. Does it
+port to the other flow? Yes.

@@ -59,9 +59,9 @@ review's numbered finding, which holds the evidence.
 16. *(Architect)* ADR 0003 Verification AC4's third case (ADR :1480–1481) says "No menu", then names "A's menu relay
     R1". The script it rests on describes "No self-Map". Either wording gives Rw (review NB16).
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings; story
-`engineering-team/stories/duty-menus-and-self-maps/3-self-maps.md`; ADR
-`engineering-team/decisions/duty-menus-and-self-maps/0003-self-maps.md`; related rows
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/3-self-maps.md` § Findings; story
+`engineering-team/stories/done/duty-menus-and-self-maps/3-self-maps.md`; ADR
+`engineering-team/decisions/done/duty-menus-and-self-maps/0003-self-maps.md`; related rows
 `2026-10-09-draft-grammar-bare-39999` and `2026-10-11-duty-menus-spec-fold-forwards`.
 
 **Note, 2026-10-12 (story 3, Implementer round 2; ADR `duty-menus-and-self-maps/0003` Amendment A2).** Folded this

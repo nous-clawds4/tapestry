@@ -64,6 +64,11 @@ when each item is built or answered.
 5. **Lists.** Today it claims none (`older-form`). Sub-decision 10's note on the list-`d`-tags row says what an old
    `d` gets.
 
-**Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0005-self-map-upkeep.md` (Consequences;
+**Pointer:** ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0005-self-map-upkeep.md` (Consequences;
 sub-decisions 1, 2, 6 and 10); book `engineering-team/audits/assistant-self-map/book.md`; related rows
 `2026-10-12-list-d-tags-not-treasure-maps` and `2026-10-12-bare-39998-ta-discovery`.
+
+**Note, 2026-10-13 (the owner's approvals after the close of `duty-menus-and-self-maps`).** Item 4 says the Alternate
+question is "not confirmed by the owner". The owner has since confirmed where it sits: Treasure Maps § 13 question 13
+stays on row `2026-10-12-bare-39998-ta-discovery` for the docs pass after the book. Only its placement is confirmed.
+The question itself stays open, and the docs pass still answers it on its own.

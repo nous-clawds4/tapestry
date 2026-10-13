@@ -26,7 +26,7 @@ below, which lie outside story 4's scope (its AC6):
 (T, `39998`) under its support gate, which needs a rule, not a wording fix. The PO places the row: story 5 of
 `duty-menus-and-self-maps`, or a later docs pass.
 
-**Pointer:** ADR `engineering-team/decisions/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (sub-decision 6;
+**Pointer:** ADR `engineering-team/decisions/done/duty-menus-and-self-maps/0004-treasure-map-key-grammar.md` (sub-decision 6;
 Consequences, Other specs; Open question 3); `protocols/drafts/treasure-maps.md` § 4.3.
 
 **Note, 2026-10-12 (story 5, ADR `duty-menus-and-self-maps/0005` sub-decision 10).** The owner placed this row in a

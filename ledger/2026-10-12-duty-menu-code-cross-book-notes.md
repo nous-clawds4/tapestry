@@ -66,7 +66,7 @@ So none of the items below is a defect in either book's deliverable. They are fo
 - *Fix shape:* drop the `/i`, or have the spec say that any case variant counts. This is only reachable through a
   malformed tag.
 
-**Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/3-self-maps.md` § Findings, non-blocking 17; book
+**Pointer:** `engineering-team/reviews/done/duty-menus-and-self-maps/3-self-maps.md` § Findings, non-blocking 17; book
 `assistant-duty-menu`; ledger rows `2026-10-11-self-entry-reads-as-another-assistant` and
 `2026-10-10-external-assistant-relay-left-empty`.
 
@@ -75,3 +75,14 @@ story 4: `duty-menus.md`:5 (the Implementation line) and `protocols/README.md`'s
 deployment builds now, and the handoff's Status line says "code partly built". Item 1's intake part, and items 2–4,
 stay with the code books. Story 4's answers also leave shipped readers taking some Concept keys otherwise than Treasure
 Maps; ledger row `2026-10-12-treasure-map-concept-key-readers` names them. The row stays OPEN.
+
+**Note, 2026-10-13 (book close `duty-menus-and-self-maps`).** Two parts of this row are met by other books' intake
+edits, and were not marked here:
+- item 1's intake part: the "PICKED UP (partial)" block for book `assistant-duty-menu` names what it built
+  (`6c0a5d3a`, `engineering-team/stories/_intake.md` § "2026-10-11 — Duty Menus and Self-Maps in code");
+- item 3's first fix shape: the block for book `assistant-self-map` names row
+  `2026-10-11-self-entry-reads-as-another-assistant` under step 4 (`af5f0320`). The naming gap in item 3's last
+  bullet still stands for the code book.
+
+Still open: item 2 (step 2's reconcile list still names only `BRAINSTORM_NIP85_HOME_RELAY`,
+`aTrustedAssertionRelays` and the router presets) and item 4 (`CONCEPT_HEADER_Z` keeps its `/i`). The row stays OPEN.
