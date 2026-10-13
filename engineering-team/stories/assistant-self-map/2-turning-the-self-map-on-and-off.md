@@ -253,6 +253,10 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 
 ## Deviations
 
+- **Review round 1, ADR 0002 Amendment 1 (approved by the owner, 2026-10-13):** AC-2's "Turn off while off" also shows
+  while off whenever the check did not finish, a check that threw included: the self-Map found is then unknown, and
+  Turn off needs only the Assistant's kind 10040. No words change. (The owner chose this at the review gate.)
+
 - **Implementation, 2026-10-12 (small judgment calls; no word of § Copy changed):**
   - **A bad request's words.** § Copy gives a 400 none, so it answers "This instance did not answer; nothing was
     published.", as a failed request. The client never sends one.
@@ -268,6 +272,6 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md`
+- ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md` (Amendment 1 from review round 1)
 - Test plan: `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.test-plan.md`
 - Review: `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`

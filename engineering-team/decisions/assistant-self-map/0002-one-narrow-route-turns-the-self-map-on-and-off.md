@@ -2,7 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, "Ready for test design", with the gate points as proposed: the choice in
 its own file, C1; the strict read before a merge, R1; the unreadable-file addition; the fan-out duplication left as a
-follow-up); Amendment 1 proposed (review round 1)
+follow-up); Amendment 1 approved (review round 1)
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md`
 **Extends:** ADR `assistant-self-map/0001`. Its check, should-say rule and self-Map lookup are reused. Its sub-decision 10
@@ -414,8 +414,9 @@ concept: `nostr-user` and `nostr-relay` are named only as roles. No firmware cha
 
 ## Amendment 1: fixes from review round 1 (2026-10-13)
 
-**Status of A1:** proposed. The owner chose at the review gate to fold in all five non-blocking notes, Turn off while
-the check did not finish included (items 2–6).
+**Status of A1:** approved by the owner at the Architecture gate of round 2, 2026-10-13, as written ("Ready for test
+design"). The owner chose at the review gate to fold in all five non-blocking notes, Turn off while the check did not
+finish included (items 2–6).
 
 The review is `engineering-team/reviews/assistant-self-map/2-turning-the-self-map-on-and-off.md`. Item 1 is its
 Blocking 1, and items 2–6 are its non-blocking 1–5.
