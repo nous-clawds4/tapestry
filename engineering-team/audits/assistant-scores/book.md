@@ -34,7 +34,7 @@ The ask, verbatim:
 3. **One run at a time, no cooldown.** While a run is queued or running, the button is off and the page says so.
    *(Chosen from: one at a time / one at a time plus a per-Customer cooldown.)*
 
-Path: Standard, all five phases. The Light profile trial doesn't fit: who may start a run is an auth default, one of
+Path: Standard, all five phases. Story 1 approved by the owner 2026-10-13. The Light profile trial doesn't fit: who may start a run is an auth default, one of
 its irreversibility triggers.
 
 ### Acceptance frame
