@@ -1,7 +1,7 @@
 # Test Plan: Story 4 — Show your Assistant's raw Treasure Map
 
 **Story:** `engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.md`
-**ADR:** `engineering-team/decisions/assistant-self-map/0003-the-found-version-rides-the-answer.md`
+**ADR:** `engineering-team/decisions/assistant-self-map/0003-the-found-version-rides-the-answer.md` (with Amendment 1)
 **Date:** 2026-10-13
 
 ## Coverage map
@@ -42,7 +42,9 @@ Three files, at three levels:
 | AC-5 | R6 (browser): toggling sends no request, and the other lines and buttons are unchanged | spec | browser |
 | AC-5 | Every existing test in the three files, unchanged, plus the re-aimed N3, D4 and N6 | all | all |
 | ADR 0003 sub-decision 1 | R4: forWrite here, only in the copy, and only outside, `published.event` is `latest` | check | integration (DI) |
-| ADR 0003 Implementation notes 5 | R6: `openapi.yaml` gives `published` an `event` object, and BIBLE §11 names it | check | source |
+| ADR 0003 Implementation notes 5, A1 | R6: `openapi.yaml` gives `published` an `event` object naming the no-pubkey exception; `attention.js`'s header and BIBLE §11 name it | check | source |
+| ADR 0003 Amendment 1 | R7: with a version found, the real answer carries `published.event`, and without it names neither the viewer nor the Assistant | check | integration (DI) |
+| ADR 0003 Amendment 1 | U16 (re-aimed): the attention answer, `published.event` aside, carries no viewer or assistant pubkey | `test/assistant-attention.test.js` | integration (DI) |
 
 Browser R4 covers AC-4 in three steps:
 - open, a press's new answer with a newer version shows the newer one, every field;
@@ -59,6 +61,10 @@ Browser R4 covers AC-4 in three steps:
 - **Page D4** allowed four `<button`s in the page's source; the toggle makes it five.
 - **Browser N6** counted every enabled button on an up-to-date page as "Turn off". It now counts only
   `.bs-selfmap-actions` buttons, because the toggle is an enabled button too. It still passes against story 3's build.
+- **Attention U16** (`assistant-identification-tags` #1 AC-2) checked that the whole attention answer carries
+  neither pubkey. It now drops `actions['treasure-map'].published.event` first: the one exception, which ADR 0003
+  Amendment 1 adds. R7 is its counterpart on the real handler, showing the exception is exactly that field. U16 found
+  the conflict: see § Verification.
 
 ### Fixtures (`test/helpers/selfMapFixtures.js`)
 
@@ -113,13 +119,20 @@ BRAINSTORM_BASE_URL=http://localhost:4184 BRAINSTORM_SERVER_ACCESSIBLE=true PLAY
 
 **On `6f57e8e9` with these tests, 2026-10-13:**
 
-- **The Node gate:** run `20261013T232017Z-18826-ea76 [s4-phase3]` was still running at this commit; its verdict is recorded
-  in the next commit.
+- **The first Node gate found a design conflict.** `20261013T232017Z-18826-ea76 [s4-phase3] — FAIL, exit 1, 6017 passed,
+  17 failed, 582 skipped, 309/309 suites; failed: assistant-attention, assistant-self-map-check,
+  assistant-self-map-page`.
+  - 16 failures were the expected ones.
+  - The 17th was `assistant-attention` U16. The canned answer's new `event` names its author, and the attention
+    answer must carry no pubkey (ADR `assistant-identification-tags/0001`). ADR 0003 had missed that rule.
+  - The owner chose the exception (ADR 0003 Amendment 1) over an on-demand route. U16 was re-aimed and R7 added.
+- **The Node gate after Amendment 1:** GATE_A1_PLACEHOLDER
 - **The suites, alone:**
-  - check: 87 passed, 6 failed. The six are R1–R6:
+  - check: 87 passed, 7 failed. The seven are R1–R7:
     - R1–R4: "published.event is the found version itself … got undefined";
-    - R5: its control, "a version found here rides as published.event";
-    - R6: openapi.yaml has no `event` line, and the BIBLE row doesn't name it.
+    - R5 and R7: their controls, "a version found here rides as published.event";
+    - R6: openapi.yaml has no `event` line, and neither attention.js nor the BIBLE row names it.
+  - attention: 38 passed, 0 failed (U16 re-aimed).
   - page: 21 passed, 10 failed: N3 (missing the raw keys and the two exports), W1–W4, D10–D14. Each fails on the
     missing words, helpers, toggle or styles; none fails on an import or a typo.
 - **The browser half,** against a build of `6f57e8e9`'s UI: 26 passed, 7 failed.
@@ -135,7 +148,8 @@ committed and has been deleted. It had:
 - the `openapi.yaml` and BIBLE lines.
 
 Against it:
-- **Node:** check 93/0, page 31/0.
+- **Node:** check 93/0, page 31/0 (before Amendment 1). After it, the server side and docs applied to the working tree,
+  run and reverted: check 94/0 (R7 and the extended R6 included), attention 38/0.
 - **Browser:** the whole spec, **33 passed**.
 - **Three mutants are caught:**
   - `rawTreasureMap` ignoring `finished`: W3.

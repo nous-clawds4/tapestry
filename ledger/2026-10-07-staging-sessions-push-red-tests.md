@@ -110,3 +110,8 @@ Story 1's review gate (`20261010T222804Z-7814-1784`, on `4dae3e7a`) and story 2'
 with the `dafbfe50` baseline (`20261010T221834Z-4660-bfd0`). By round 2 `151e39fb` had turned those suites green, and
 the round-2 dispatch still quoted the red baseline (the Reviewer judged that no defect). A book with no tests of its
 own only pays this cost. Does it port to the other flow? Yes: any flow on a shared `staging`.
+
+**Recurrence, 2026-10-13 (assistant-self-map #4).** The session was again told to develop on `staging` under the same
+stop hook. Its plan, story and ADR went to `origin/staging` before their gates, the harmless kind. At Test Design, the
+owner was asked and chose fix shape (b): the failing-tests commit `ccc3cda0` is held locally and pushed together with
+the implementation. The hook asked for a push at the turn ends in between, as before.
