@@ -50,6 +50,8 @@
  * Round 4 (ADR 0002 Amendment 3): V17 pins that forWrite takes the press's copy (`stored`) as a version here and the
  * newest across this instance's relay, the copy and the outside wins; V18 that without forWrite it is ignored.
  * Round 5 (ADR 0002 Amendment 4): V19 pins that forWrite says where the base is (onThisRelay, published.source).
+ * Round 6 (review round 5): V20 an older version here with latest outside (R5-N5); V21 the copy and the outside holding
+ * the same version reads relay, not copy (R5-N2).
  *
  * Fixed here where the ADR leaves a detail open (test plan § Points the ADR leaves open; for the Architect to confirm):
  * lastLandedAt is the newest event's created_at in seconds; readSelfEntries returns { selfEntries, otherEntries };
@@ -1560,6 +1562,25 @@ test('V19 (A4 item 1): forWrite says where the base is — onThisRelay and publi
     if (view(got) !== show(want)) wrong.push(`${label}: want ${show(want)}, got ${view(got)}`);
   }
   assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Story 2, round 6: review round 5 (Amendment 4 as written) ───────────────────────── */
+
+test('V20 (A4 item 1, review round 5 R5-N5): an older version on this instance\'s relay and a newer one outside — latest is the outside one, so onThisRelay is false and source is relay (this relay holding some version is not enough)', async () => {
+  const older = selfMapEv([['39998', TA, OWN]], TA, NOW_S - 10 * H);
+  const newer = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const w = world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [newer] }, extraLocal: [older] });
+  const got = (await strictReadStored(w, null)).got;
+  const view = show(got && { finished: got.finished, latest: got.latest && got.latest.id, onThisRelay: got.onThisRelay, source: got.published && got.published.source });
+  assert(view === show({ finished: true, latest: newer.id, onThisRelay: false, source: 'relay' }), `want the outside version, onThisRelay false, source relay; got ${view}`);
+});
+
+test('V21 (A4 item 1, review round 5 R5-N2): the copy and an outside relay hold the same version, and this instance\'s relay none — source is relay, not copy ("copy" only when the copy alone holds it); onThisRelay is false', async () => {
+  const v = selfMapEv([['39998', TA, OWN], ['client', 'Brainstorm']], TA, NOW_S - H);
+  const w = world({ mapTags: [['39998', TA, HINT_A]], relays: { [HINT_A]: [], [A_WRITE]: [v] } });
+  const got = (await strictReadStored(w, JSON.parse(JSON.stringify(v)))).got;
+  const view = show(got && { finished: got.finished, latest: got.latest && got.latest.id, onThisRelay: got.onThisRelay, source: got.published && got.published.source });
+  assert(view === show({ finished: true, latest: v.id, onThisRelay: false, source: 'relay' }), `want onThisRelay false, source relay; got ${view}`);
 });
 
 async function run() {

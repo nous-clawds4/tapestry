@@ -62,6 +62,10 @@
  * the target); R24 that a tampered copy newer than a valid version here is left out (R4-N2); C13 and K10–K11 that a
  * copy failing the check is replaced; K12 the lastSigned log (R4-N4); S7 the records. The fake store mirrors the
  * malformed-entry rule and `replace`.
+ *
+ * Round 6 (review round 5, Amendment 4 as written): C14 runs a press through the press's own wiring with the real store
+ * at a temp path (R5-B1: `replace` must reach the store); E15 pins step 3's no-version branch (R5-N1); K13 the log line
+ * for a file that cannot be read at all (R5-N3).
  */
 
 const fs = require('fs');
@@ -1698,6 +1702,82 @@ test('S7 (A4 item 4): the records say "nothing to change" needs this instance\'s
   if (!/this instance's relay holds that version/.test(block)) wrong.push('openapi\'s press description says "this instance\'s relay holds that version"');
   const row = safeRead(BIBLE).split(NL).find((l) => l.startsWith('| POST |') && l.includes('`/api/assistant/self-map`')) || '';
   if (!/this instance's relay holds that version/.test(row)) wrong.push('the BIBLE §11 row says "this instance\'s relay holds that version"');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── Round 6: review round 5 (ADR 0002 Amendment 4, as written) ───────────────────────── */
+
+test('C14 (A4 item 2, review round 5 R5-B1): through the press\'s own wiring — readSelfMapCopy and writeSelfMapCopy not injected, the real store at a temp path — a copy that fails the check is replaced: a damaged copy of this instance\'s version (same id) is valid after an "already current" press, and a tampered far-future copy gives way to the signed version after a publish', async () => {
+  const wrong = [];
+  const cases = [
+    ['a damaged copy, already current', (key) => {
+      const base = version(key, [['30382:rank', OTHER, SCORES_R], ['39998', key.A, OWN]], { content: '' });
+      return { base, copy: { ...clone(base), content: 'damaged on disk' }, want: (w, got) => ({ id: base.id, published: false, r: got }) };
+    }],
+    ['a tampered far-future copy, a publish', (key) => {
+      const copy = { ...clone(version(key, [['39998', key.A, OWN]], { createdAt: 9999999999 })), content: 'changed after signing' };
+      return { base: undefined, copy, want: (w, got) => ({ id: got.signed && got.signed.id, published: true, r: got }) };
+    }],
+  ];
+  for (const [label, make] of cases) {
+    await withStore(async (mod, { file }) => {
+      const key = newAssistant();
+      const { base, copy, want } = make(key);
+      const w = world(base === undefined ? { key } : { key, base });
+      fs.writeFileSync(file, JSON.stringify({ version: 1, assistants: {}, lastSigned: { [key.A]: copy } }));
+      const { deps, calls } = pressDeps(w);
+      delete deps.readSelfMapCopy;
+      delete deps.writeSelfMapCopy;
+      const handle = need(publishModule(), 'createSelfMapHandler', rel(MODULE))(deps);
+      const res = fakeRes();
+      quiet();
+      try { await within(handle(pressReq(w.viewer, { on: true }), res), PRESS_LIMIT_MS); } finally { restoreConsole(); }
+      const signed = calls.importEvent.length ? calls.importEvent[calls.importEvent.length - 1] : null;
+      const expect = want(w, { signed });
+      const result = res.body && res.body.result;
+      if (res.statusCode !== 200 || !result || result.published !== expect.published) wrong.push(`${label}: want published ${expect.published}, got ${res.statusCode} ${show(res.body && (res.body.result || res.body))}`);
+      let stored = null;
+      try { stored = JSON.parse(fs.readFileSync(file, 'utf8')).lastSigned[key.A]; } catch (e) { wrong.push(`${label}: the store reads back: ${e.message}`); }
+      if (!stored || stored.id !== expect.id) wrong.push(`${label}: the copy is ${show(expect.id && expect.id.slice(0, 8))}…, got ${show(stored && stored.id && stored.id.slice(0, 8))}`);
+      if (stored && !nt().verifyEvent(clone(stored))) wrong.push(`${label}: the copy verifies`);
+    });
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('E15 (A4 item 1, review round 5 R5-N1): with no version anywhere (the read finished, nothing here, nothing in the copy, the outside answering empty), "nothing to change" still stands — Turn off answers nothing-claimed and Turn on with nothing to claim answers nothing-to-claim, publishing nothing and keeping no copy', async () => {
+  const wrong = [];
+  for (const [label, opts, on, want] of [
+    ['Turn off', {}, false, 'nothing-claimed'],
+    ['Turn on, nothing to claim', { headers: [] }, true, 'nothing-to-claim'],
+  ]) {
+    const key = newAssistant();
+    const got = await press({ key, base: null, ...opts }, { on });
+    const r = mustAccept(got, label);
+    if (r.published !== false || r.unchanged !== want) wrong.push(`${label}: unchanged ${want}, got ${show({ published: r.published, unchanged: r.unchanged })}`);
+    if (got.calls.importEvent.length || got.calls.publishToRelays.length) wrong.push(`${label}: nothing stored or sent`);
+    if (got.calls.writeCopy.length) wrong.push(`${label}: no copy written`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('K13 (A4 item 3, review round 5 R5-N3): when the whole file cannot be read (not JSON, or not version 1), readSelfMapCopy logs "the choice file cannot be read", not the lastSigned line, and reads as no copy', async () => {
+  const wrong = [];
+  for (const text of ['{ not json', '{"version":2,"assistants":{}}']) {
+    await withStore(async (mod, { file }) => {
+      const read = need(mod, 'readSelfMapCopy', rel(CHOICE));
+      const key = newAssistant();
+      fs.writeFileSync(file, text);
+      const warned = [];
+      const savedWarn = console.warn;
+      console.warn = (...a) => { warned.push(a.join(' ')); };
+      let got;
+      try { got = await read(key.A); } finally { console.warn = savedWarn; }
+      if (got !== null) wrong.push(`${show(text)}: reads as no copy`);
+      if (!warned.some((m) => /the choice file cannot be read/.test(m))) wrong.push(`${show(text)}: the log says "the choice file cannot be read", got ${show(warned)}`);
+      if (warned.some((m) => /self-Map copy \(lastSigned\) cannot be read/.test(m))) wrong.push(`${show(text)}: the log does not blame lastSigned, got ${show(warned)}`);
+    });
+  }
   assert(wrong.length === 0, wrong.join('; '));
 });
 

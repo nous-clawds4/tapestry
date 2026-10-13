@@ -364,3 +364,39 @@ a scratch worktree, R24 fails with 503 where it wants a publish.
   - `r4-wipe-same-target.js`: Update now publishes, and the relay holds the version.
 - **One test defect, found before the run and fixed:** K12 first asserted only that the log contained "lastSigned",
   which today's message already does. It now asserts the new wording, and that the choice file isn't blamed.
+
+## Round 6: review round 5 (ADR 0002 Amendment 4, as written)
+
+**Date:** 2026-10-13. These tests were added for review round 5. The ADR doesn't change: R5-B1 is a deviation from
+Amendment 4 item 2, and the rest are gaps or nits. R5-N4 (records and comments) is left to the Implementer and the
+Reviewer.
+
+| Finding | Tests | File |
+|---|---|---|
+| **R5-B1:** the press's own wiring drops `replace` | C14: a press with `readSelfMapCopy` and `writeSelfMapCopy` not injected, so `defaultDeps()` runs against the real store at a temp path. A damaged copy of this instance's version (same id) verifies after an "already current" press. A tampered far-future copy gives way to the signed version after a publish | publish |
+| **R5-N1:** step 3's no-version branch | E15: no version anywhere (the read finished, the outside answering empty). Turn off answers `nothing-claimed`, and Turn on with nothing to claim answers `nothing-to-claim`, with nothing stored or sent and no copy written | publish |
+| **R5-N3:** the whole-file log line | K13: a file that isn't JSON, or isn't version 1, logs "the choice file cannot be read", not the `lastSigned` line, and reads as no copy | publish |
+| **R5-N5:** V19 didn't separate "latest here" from "something here" | V20: an older version here and a newer one outside. `latest` is the outside one, with `onThisRelay` false and `source` `relay` | check |
+| **R5-N2:** `source` when the copy and the outside share an id | V21: the copy and an outside relay hold the same version, and this instance's relay holds none. `source` is `relay`, since it is `copy` only when the copy alone holds it | check |
+
+**What fails, and why it should.**
+- **C14:** the copy stays damaged, or far-future, because `replace` never reaches the store.
+- **K13:** the log blames `lastSigned` for a whole-file failure.
+- **V21:** `source` reads `copy`.
+
+E15 and V20 pass already. They guard against two mutants, both checked against the prototype below:
+- step 3 without `!latest ||`, which E15 catches;
+- `onThisRelay` true whenever this instance holds any version, which V20 catches.
+
+**Verification, 2026-10-13, on `262be73` with these tests:**
+- **The Node gate:** `20261013T144125Z-5911-b92e [s2-r6-phase3] — FAIL, exit 1, 5983 passed, 3 failed, 582 skipped,
+  308/308 suites; failed: assistant-self-map-check, assistant-self-map-publish`. The three are exactly V21, C14 and
+  K13.
+- **The tests can pass.** I checked against a throwaway prototype in a scratch worktree. It was never committed and has
+  been deleted. It made these edits:
+  - the wrapper passing the options through;
+  - the log choosing its line by which read failed;
+  - `source` set to `copy` only when no outside relay returned that id.
+
+  The results: self-map check 86/86, publish 91/91, page 19/19, Duty Menu check 65/65 and publish 36/36, attention 38
+  (1 skipped, as on the current code).
