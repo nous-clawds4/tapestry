@@ -22,5 +22,14 @@ Fix shape: either add WebFetch to `.claude/agents/reviewer.md` (a tool-whitelist
 either drop "don't commit" from dispatches, or say in `5-review.md` that an orchestrator may hold the commit when it runs
 the lint and safe-to-merge checks itself.
 
+
+**A third orchestrator-side defect, 2026-10-12 (`assistant-duties-settings` #1, review round 2).** The dispatch asked
+the Reviewer to say in the review file whether the book's acceptance frame looked satisfied. The review template says
+the completion-detection result is never recorded in the review. The Reviewer complied with one line and flagged the
+conflict.
+
+Fix shape: dispatches leave completion detection out (it is the orchestrator's step), or the template allows one
+line.
+
 **Pointer:** `engineering-team/reviews/duty-menus-and-self-maps/2-duty-menus-pre-nip.md` § Round 2 → Harness friction;
 `.claude/agents/reviewer.md`; `engineering-team/workflows/5-review.md` § Per-phase commits.

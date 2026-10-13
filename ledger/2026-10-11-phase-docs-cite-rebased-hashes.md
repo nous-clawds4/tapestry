@@ -27,5 +27,11 @@ commit; the story says so. Its planning commits were also rebased before push (`
 rewritten onto another book's `6bab1e5`). The reviewer's full run at HEAD `f92c462` (`20261012T025139Z-32472-0dfa`)
 replaces the record.
 
+
+**Recurred 2026-10-12 (book `assistant-duties-settings`).** The story's § Deviations cited `3b3b3e0ed` for R3's test
+fix. A rebase onto another session's push made it `903c10e98`. The session noticed straight after the push and fixed
+the citation in `36e200fcd`. The fix shape here still stands: cite commits only after the push, or cite them by subject
+line.
+
 **Pointer:** `engineering-team/reviews/assistant-duty-menu/1-the-duty-menu-page-and-its-check.md` (NB13, Harness
 friction).

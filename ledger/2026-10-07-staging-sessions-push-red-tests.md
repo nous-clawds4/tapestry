@@ -45,6 +45,17 @@ red off `staging`. The cost was the agreed order: the implementation reached `st
 Review, because the hook kept asking and the owner had not answered which to prefer. Fix shape (a), a feature branch,
 would have avoided both.
 
+
+**Fix shape (b) in practice, 2026-10-12 (book `assistant-duties-settings`).** The session was told to develop on
+`staging`, and its stop hook demanded every commit be pushed. Each round's Phase-3 failing tests were committed but held
+locally, and pushed in the same push as the implementation that turned them green: round 1 `e05f033d7` with
+`273d44410`, round 2 `b11302628` with `5ee2ae92f`. The owner was asked and agreed at the Test Design gate. `staging`
+never carried red tests.
+
+The cost: the stop hook fired at every turn end while the commits were held, and each time the session had to explain
+why it would not push. A harness rule naming fix (b) as the convention, or a stop hook that knows about held Phase-3
+commits, would remove that friction.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.
 
 **Recurrence, 2026-10-11 (assistant-duty-menu #1).** The same pattern recurred, in both directions:

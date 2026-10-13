@@ -1,6 +1,6 @@
 # Epic: assistant-duties-settings — the duties this instance offers, set by its Owner
 
-**Status:** Active
+**Status:** Done (book closed 2026-10-12; the folders sit under `done/`)
 **Created:** 2026-10-12
 **Book:** `engineering-team/audits/assistant-duties-settings/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-12, quoted verbatim in the book and settled through seven questions at

@@ -142,7 +142,8 @@ The owner approved every amendment at a gate.
 - [ ] **Small code notes from the reviews**, none blocking:
   - a load failure of `dutyMenu.js` turns the hub answer into a 500 (story 1 NB3; the same pattern as trusted
     content);
-  - `getCustomer` can create `customers.json` (NB6);
+  - `getCustomer` can create `customers.json` (NB6). *Gone from the Duty Menu path 2026-10-12: book
+    `assistant-duties-settings` removed the customer lookup from the offer (`dutyMenu.js` `resolveOfferInputs`).*
   - duplicate Map and relay-list reads (story 1 NB14, story 2 NB7);
   - `attention.js:51`'s "nothing is stored anywhere" line (story 2 NB2);
   - test D6's near-vacuous alternative (story 2 NB6);
