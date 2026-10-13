@@ -215,6 +215,25 @@ From the owner's ask and the facts above; the Architect decides.
 - So the failing tests of Test Design and unreviewed code stay off the shared line. That is fix shape (a) of ledger
   row `2026-10-07-staging-sessions-push-red-tests`.
 - Intake and Planning documents for story 1 were pushed to `staging` before this choice.
+- The branch is restarted from `origin/staging` for each later story. The merged branch is deleted on merge, and the
+  same name is reused.
+
+**Shipped:**
+- **Story 1, the self-Map page and its check (Done; review PASS in round 3).**
+  - **Staging:** PR #855, merge `f51fe70d`, deploy run 38311549058, 2026-10-12. Smoke test Tiers 1–5 clean; Tier 4
+    used headless Chromium, signed out.
+  - **The owner's check on staging:** signed in as straycat, the expected view.
+  - **Production:** PR #856, pinned at `f51fe70d` through `promote/assistant-self-map-1`, merge `ef04e503`, deploy
+    run 38313469618, 2026-10-12. Smoke test Tiers 1–5 clean; Tier 4 used headless Chromium, signed out.
+  - The frame's "On staging" bullet stays open until the book's later stories are verified the same way.
+
+**Planned:**
+- **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6).** The
+  owner chose at planning that it reaches `staging` by a PR after its Review, as above, and reaches production only
+  together with story 3. Until story 3
+  keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
+  - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
+    production too. No outside client reads self-Maps yet.
 
 ## Shared lines
 
@@ -253,6 +272,61 @@ From the owner's ask and the facts above; the Architect decides.
   - **The watch item above fired.** Story 1's round-2 review requires the drop (R2-B1).
   - That book's story 5 (the rules that keep a self-Map true, docs) is approved. It bears on this book's stories 2 and 3
     (turning the self-Map off, and keeping it true): reread it before they are planned.
+- **At story 1's ship (2026-10-12, `origin/staging` at `85434cb6`):** two shared lines for stories 2 and 3.
+  - **`duty-menus-and-self-maps` #5** (the rules that keep a self-Map true, docs) has draft ADR 0005, **Proposed**.
+    Its sub-decision 2 says a self-entry removed or narrowed while the key keeps publishing is "no stop". So this
+    book's "off" button retracts nothing, and readers only stop treating those insights as confirmed. Reread it, and
+    check its status, when planning stories 2 and 3.
+  - **Book `assistant-duties-settings`** (story 1 approved; ADR 0001 **Proposed**) moves the offered duties into the
+    instance settings, editable on a new Assistant Duties tab:
+    - any Treasure Map key may be offered, Scores to every Assistant, each duty with its own relay;
+    - its sub-decision 6 edits this book's `src/api/assistant/selfMap.js` (`readUpkeep`): Scores whose relay isn't
+      this instance's own read `not-published-here`, and nothing is scanned;
+    - it leaves `src/lib/self-map` unchanged, and adds a one-line note to ADR `assistant-self-map/0001`.
+
+    That matches this book's honesty rule. But any story here that edits `selfMap.js` must merge carefully with it,
+    in whichever order they land.
+- **Recheck at story 2's planning (2026-10-12, `origin/staging` at `d6dcda0b`, merged into the branch as `19b6dd1`).**
+  - `git merge-tree` is clean, and `protocols/` is unchanged.
+  - **`assistant-duties-settings` ADR 0001 is now Accepted.** Story 2's Background names what it means here: a change
+    on the Assistant Duties tab changes what the self-Map should say.
+  - **Draft ADR `duty-menus-and-self-maps/0005` is still Proposed.** Story 2's "off" follows its sub-decision 2 and
+    retracts nothing.
+- **Recheck at story 2's Architecture and Test Design (2026-10-12).**
+  - **At Architecture,** `origin/staging` was at `9a7735a`, and the branch merged it as `7b32926`.
+    `assistant-duties-settings` #1 had landed its implementation, including the `readUpkeep` guard in `selfMap.js`. ADR
+    `assistant-self-map/0002` is designed on that code.
+  - **At Test Design,** `origin/staging` was at `72dba9e`, merged as `66e2382`. That story's review asks its Architect
+    to amend how the self-Map reads offer rows that aren't bare kinds. That will change `evaluateSelfMap`'s offer map
+    and `readUpkeep`, which story 2 only calls.
+    - Story 2's tests use the shipped list and pin nothing about compound keys.
+    - W4 puts both Concept kinds at one typed relay, and may need re-aiming if that rule changes (test plan § Shared
+      line).
+  - `protocols/` is unchanged. Draft ADR `duty-menus-and-self-maps/0005` is still Proposed.
+- **Recheck at story 2's Implementation (2026-10-12, `origin/staging` at `36e200f`, merged as `915465e`).**
+  - **ADR `duty-menus-and-self-maps/0005` is Accepted,** and its spec edits landed. § 9.2's What follows a stop now says
+    what story 2 relies on: a self-entry removed while the key keeps publishing is no stop, and nothing follows from it.
+    The other § 9.2 edits change nothing story 2 does.
+  - **`assistant-duties-settings` ADR 0001 Amendment 1** narrows the list to whole kinds, and its round 2 has landed.
+    The self-Map engine is unchanged, so story 2's tests stand (W4's two typed relays are whole kinds).
+  - **The merge conflicted** in `test/assistant-self-map-check.test.js`: their AD4 and story 2's V1–V6 had both been
+    added just before `run()`. Both were kept.
+- **Recheck through story 2's review rounds 2 and 3 (2026-10-13).**
+  - **Round 2:** `origin/staging` at `d234c06`, merged as `675ff93`, then at `1854b5a`, merged as `0d0c848`. Both were
+    documents only: story 5 of `duty-menus-and-self-maps`, and that book's close.
+  - **Round 3's Implementation:** `origin/staging` at `9679668`, merged as `8fb3161`. Documents and harness only.
+    - That merge brought this book a note: story 4 of `duty-menus-and-self-maps` settled the `39999` against bare
+      `39998` tie (§ Facts above, ledger `2026-10-12-treasure-map-concept-key-readers`). It concerns what the self-Map
+      should say, which story 2 only calls.
+    - `src/api/assistant/attention.js` is the one hub line round 3 edits (ADR 0002 Amendment 2's opt-in
+      `everyRelay`). Staging has not changed it since the branch last merged.
+  - **Round 4's Implementation:** `origin/staging` was still at `9679668`, so there was nothing to merge. Round 4 edits
+    only story 2's own modules (`selfMapChoice.js`, `selfMap.js`, `selfMapPublish.js`), a comment in `dutyMenu.js`,
+    and the records.
+  - **Round 5's Implementation:** `origin/staging` was still at `9679668`. Round 5 edits only the same three modules of
+    story 2's and the records.
+  - **Round 6, Implementation and Review:** `origin/staging` was still at `9679668`, already in the branch. Round 6
+    edits only the same three modules, `openapi.yaml`, BIBLE §11 and §15, and story 2's own tests and records.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

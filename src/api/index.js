@@ -611,6 +611,9 @@ async function register(app) {
     // Your Assistant signs its Duty Menu (kind 39999), built here from this instance's offer; the request names
     // nothing — another narrow, session-bound route in the same shape (assistant-duty-menu #2, ADR 0002).
     app.post('/api/assistant/duty-menu/publish', require('./assistant/dutyMenuPublish').handlePublishDutyMenu);
+    // Your Assistant turns its self-Map on or off: one bit in the body, the Assistant from the session, the self-entries
+    // from this instance's own check, every other tag kept (assistant-self-map #2, ADR 0002).
+    app.post('/api/assistant/self-map', require('./assistant/selfMapPublish').handleSelfMap);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');

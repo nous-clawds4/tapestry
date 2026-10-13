@@ -9,7 +9,9 @@
  *
  * The words were approved with the story; change them there first:
  * engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md § Copy (with the three reasons
- * added at Architecture).
+ * added at Architecture), and, for the buttons, the state line and the report,
+ * engineering-team/stories/assistant-self-map/2-turning-the-self-map-on-and-off.md § Copy (ADR assistant-self-map/0002
+ * sub-decision 7: selfMapStateLine and selfMapButtons). The server's summaries and refusals are the route's own.
  */
 
 export const SELF_MAP_COPY = {
@@ -58,6 +60,26 @@ export const SELF_MAP_COPY = {
   publicLine: "Your Assistant's self-Map is public. Anyone can read which duties it reports as live.",
   // The Treasure Map's category names, as /treasure-map names them.
   categories: { scores: 'Scores', lists: 'Lists', concepts: 'Concepts' },
+  // Story 2: turning it on and off.
+  press: {
+    turnOn: "Turn on your Assistant's self-Map",
+    update: "Update your Assistant's self-Map now",
+    turnOff: "Turn off your Assistant's self-Map",
+    publishing: 'Publishing…',
+    // The report's subject, as the server's summaries name it.
+    subject: "Your Assistant's self-Map",
+    // After a Turn off's summary.
+    claimsNone: "Your Assistant's self-Map now claims no duties.",
+    // A request that fails or never answers.
+    requestFailed: 'This instance did not answer; nothing was published.',
+  },
+  state: {
+    on: "Your Assistant's self-Map is on.",
+    off: "Your Assistant's self-Map is off.",
+    offStillClaims: "Your Assistant's self-Map is off, but the version found still claims duties.",
+  },
+  // The Owner's note, by the buttons.
+  ownerNote: "Turning your Assistant's self-Map on or off changes only its self-entries in this instance's own Treasure Map. Its other entries stay as they are.",
 };
 
 /** A Nostr created_at (seconds) as a plain date, e.g. "June 7, 2026"; null when there is none. */
@@ -104,4 +126,37 @@ export function reasonLine(line) {
  */
 export function couldNotCheckLine(reason) {
   return reason === 'no-relay-answered' ? SELF_MAP_COPY.couldNotCheck['no-relay-answered'] : SELF_MAP_COPY.couldNotCheck['request-failed'];
+}
+
+/** How many self-entries a finished check found (none for an unfinished one, whose found self-Map is unknown). */
+function foundSelfEntries(answer) {
+  if (!answer || answer.finished !== true || !answer.published || !Array.isArray(answer.published.selfEntries)) return 0;
+  return answer.published.selfEntries.length;
+}
+
+/**
+ * The page's one state line (story 2 AC-2, § Copy): on; off; off while the version found still claims duties. None when
+ * the choice is unknown (a check that threw, an unreadable choice file) or there is no answer.
+ * @param {?Object} answer - actions['treasure-map'] of the attention answer
+ * @returns {?string}
+ */
+export function selfMapStateLine(answer) {
+  if (!answer || typeof answer !== 'object') return null;
+  if (answer.selfMapOn === true) return SELF_MAP_COPY.state.on;
+  if (answer.selfMapOn === false) return foundSelfEntries(answer) > 0 ? SELF_MAP_COPY.state.offStillClaims : SELF_MAP_COPY.state.off;
+  return null;
+}
+
+/**
+ * Which buttons the page shows (story 2 AC-2; ADR 0002 sub-decision 7 with Amendment 1 item 4). Off or unknown: Turn on,
+ * and Turn off when a finished check found self-entries or the check did not finish (the self-Map found is then
+ * unknown), so no claim is stuck. On: Update now, enabled unless the self-Map is up to date, and Turn off. No answer yet:
+ * none.
+ * @param {?Object} answer
+ * @returns {{ turnOn: boolean, update: { shown: boolean, enabled: boolean }, turnOff: boolean }}
+ */
+export function selfMapButtons(answer) {
+  if (!answer || typeof answer !== 'object') return { turnOn: false, update: { shown: false, enabled: false }, turnOff: false };
+  if (answer.selfMapOn === true) return { turnOn: false, update: { shown: true, enabled: answer.current !== true }, turnOff: true };
+  return { turnOn: true, update: { shown: false, enabled: false }, turnOff: answer.finished !== true || foundSelfEntries(answer) > 0 };
 }
