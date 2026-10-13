@@ -6,7 +6,9 @@
  * with Amendment 1).
  *
  * Pure CommonJS with no I/O: the server's check (src/api/assistant/selfMap.js) gathers the inputs, and story 2's
- * writer reuses the should-say rule.
+ * writer (the self-Map press, ADR assistant-self-map/0002) reuses the should-say rule and builds each new version with the merge
+ * below (ownsTag, keptTags, buildSelfMapEvent; ADR assistant-self-map/0002 sub-decision 4), which replaces only the
+ * self-entries and keeps every other tag and the content as found.
  *
  * The engine is bounded (ADR 0001 K1). It reasons over kind slots (an exact kind, `3038x`, `3039x`, a bare `*`), Score
  * metric keys (`<kind>:<metric>`) and Concept keys (`39998`, `39999`, `39998:<d>`, `39999:<d>`). Any other key shape
@@ -374,6 +376,66 @@ function sameSelfEntries(a, b) {
 }
 
 /**
+ * Is this tag one of the author's self-entries, as the writer owns them (ADR 0002 sub-decision 4)? § 9's self-entries:
+ * element 1 has a kind slot (so the spellings readers ignore, such as `39998:`, and unchecked keys count) and element 2
+ * is the author, in any case. A tag whose element 1 is not a key (`p`, `d`, `expiration`) is never owned.
+ * @param {*} tag
+ * @param {string} author - lower-case hex
+ */
+function ownsTag(tag, author) {
+  if (!Array.isArray(tag) || typeof tag[0] !== 'string' || typeof tag[1] !== 'string') return false;
+  const colon = tag[0].indexOf(':');
+  const slot = colon < 0 ? tag[0] : tag[0].slice(0, colon);
+  return KIND_SLOT.test(slot) && tag[1].toLowerCase() === String(author || '').toLowerCase();
+}
+
+/**
+ * Every tag of `event` the self-Map does not own, in order and as the same arrays (sub-decision 4). With
+ * `dropExpiration`, the expiration tags are left out too: a version that carries a self-entry carries no expiration
+ * (§ 9.2, No expiration).
+ * @param {?{ tags: Array }} event
+ * @param {string} author
+ * @param {{ dropExpiration?: boolean }} [opts]
+ * @returns {Array}
+ */
+function keptTags(event, author, { dropExpiration = false } = {}) {
+  const tags = event && Array.isArray(event.tags) ? event.tags : [];
+  return tags.filter((t) => !ownsTag(t, author) && !(dropExpiration && Array.isArray(t) && t[0] === 'expiration'));
+}
+
+/**
+ * The next version of the author's kind 10040, unsigned (sub-decision 4): the found version's kept tags, with the new
+ * self-entries `[key, author, relay]` as one block where its first owned tag stood (counted among the kept tags), else
+ * after the last; its content; and a created_at later than its own (§ 9.2, When it changes).
+ * @param {{ latest: ?Object, author: string, selfEntries: Array<{ key: string, relay: string }>, nowSeconds: number }} input
+ * @returns {{ kind: number, created_at: number, tags: Array, content: string }}
+ */
+function buildSelfMapEvent({ latest, author, selfEntries, nowSeconds }) {
+  const who = String(author || '').toLowerCase();
+  const entries = Array.isArray(selfEntries) ? selfEntries : [];
+  const dropExpiration = entries.length > 0;
+  const kept = [];
+  let at = -1;
+  for (const t of latest && Array.isArray(latest.tags) ? latest.tags : []) {
+    if (ownsTag(t, who)) {
+      if (at < 0) at = kept.length;
+      continue;
+    }
+    if (dropExpiration && Array.isArray(t) && t[0] === 'expiration') continue;
+    kept.push(t);
+  }
+  if (at < 0) at = kept.length;
+  const block = entries.map((e) => [e.key, who, e.relay]);
+  const created = latest && Number.isFinite(latest.created_at) ? Math.max(nowSeconds, latest.created_at + 1) : nowSeconds;
+  return {
+    kind: SELF_MAP_KIND,
+    created_at: created,
+    tags: [...kept.slice(0, at), ...block, ...kept.slice(at)],
+    content: latest && typeof latest.content === 'string' ? latest.content : '',
+  };
+}
+
+/**
  * The duties lines (sub-decision 7, Amendment 1 items 4, 5 and 9): one item per viewer key naming the Assistant, in Map
  * order; a line per offered kind the key still wins something in, a not-offered line, and an elsewhere line per more
  * specific key naming only others that wins some of its probes.
@@ -490,4 +552,7 @@ module.exports = {
   evaluateSelfMap,
   categoryOfKind,
   mapGroups,
+  ownsTag,
+  keptTags,
+  buildSelfMapEvent,
 };

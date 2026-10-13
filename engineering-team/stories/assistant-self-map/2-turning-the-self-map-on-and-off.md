@@ -251,6 +251,21 @@ as drafted the same day ("Ready for architecture"), with six ACs kept as one sto
 7. **The branch.** `origin/staging`'s one new commit (`assistant-duties-settings` ADR 0001 accepted) is merged into
    the branch before this story is committed. *(Chosen from: merge it in / leave it.)*
 
+## Deviations
+
+- **Implementation, 2026-10-12 (small judgment calls; no word of § Copy changed):**
+  - **A bad request's words.** § Copy gives a 400 none, so it answers "This instance did not answer; nothing was
+    published.", as a failed request. The client never sends one.
+  - **The page's info and refusal lines.** The tone icon sits in its own `aria-hidden` span and the words in another,
+    so the line's words are exactly § Copy's. The Duty Menu page puts the icon in the same text.
+  - **The buttons.** They use the Duty Menu's `bs-idtags-actions` / `bs-idtags-publish` classes. One scoped rule,
+    `.bs-selfmap-actions`, puts two buttons side by side with a gap.
+  - **The Owner's note** shows only beside the buttons: when the answer has arrived and at least one button shows.
+  - **ADR `duty-menus-and-self-maps/0005`** was accepted between this story's planning and its Implementation, with
+    sub-decision 2 ("a removed self-entry is no stop") as AC-5 cites it. The press is unchanged.
+  - **The viewer's Map for a Turn off** (relay hints only) is read through `status.lookupNewest`, with its own small
+    dependency set in `selfMapPublish.js`'s defaults, since that read needs no other part of the check.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md`

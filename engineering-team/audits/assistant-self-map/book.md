@@ -297,6 +297,14 @@ From the owner's ask and the facts above; the Architect decides.
     - W4 puts both Concept kinds at one typed relay, and may need re-aiming if that rule changes (test plan § Shared
       line).
   - `protocols/` is unchanged. Draft ADR `duty-menus-and-self-maps/0005` is still Proposed.
+- **Recheck at story 2's Implementation (2026-10-12, `origin/staging` at `36e200f`, merged as `915465e`).**
+  - **ADR `duty-menus-and-self-maps/0005` is Accepted,** and its spec edits landed. § 9.2's What follows a stop now says
+    what story 2 relies on: a self-entry removed while the key keeps publishing is no stop, and nothing follows from it.
+    The other § 9.2 edits change nothing story 2 does.
+  - **`assistant-duties-settings` ADR 0001 Amendment 1** narrows the list to whole kinds, and its round 2 has landed.
+    The self-Map engine is unchanged, so story 2's tests stand (W4's two typed relays are whole kinds).
+  - **The merge conflicted** in `test/assistant-self-map-check.test.js`: their AD4 and story 2's V1–V6 had both been
+    added just before `run()`. Both were kept.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

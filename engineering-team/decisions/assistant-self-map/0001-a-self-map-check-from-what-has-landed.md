@@ -2,6 +2,7 @@
 
 **Status:** Accepted (by the owner, 2026-10-12, with open questions 1–4 answered as recommended); Amendment 1 approved; Amendment 2 approved (review round 1); Amendment 3 approved (review round 2)
 **Note (2026-10-12):** the offer this check reads is now the instance's Assistant Duties list (ADR `assistant-duties-settings/0001`): it may name a duty this instance does not publish, which is offered and never live, and a `30382` row at a typed relay is never read as live from this instance's strfry (that ADR's sub-decision 6).
+**Extended by ADR 0002 (2026-10-12, story 2):** the press (`POST /api/assistant/self-map`), the remembered choice (`selfMapOn`), and `gatherSelfMap` with the press's `forWrite` read. Sub-decision 10's "no new route; nothing signs" was story 1's scope. See `engineering-team/decisions/assistant-self-map/0002-one-narrow-route-turns-the-self-map-on-and-off.md`.
 **Date:** 2026-10-12
 **Story:** `engineering-team/stories/assistant-self-map/1-the-self-map-page-and-its-check.md`
 

@@ -21,9 +21,16 @@
  *   - Lists are never live here: their d tags are not Treasure Maps § 5.1's.
  * - The self-Map found (sub-decision 5): this instance's relay first; only when it holds none, one outside round over the
  *   viewer's Map's relays for entries naming the Assistant and the Assistant's kind 10002 write relays (event-named: at
- *   most 50, each guarded) plus the offer's relays.
+ *   most 50, each guarded) plus the offer's relays. The relay hints come only from entries whose key parses (story 1
+ *   review R3-N2).
+ * - The remembered choice (assistant-self-map #2, ADR 0002 sub-decision 2): the answer carries `selfMapOn`, the choice
+ *   file's word for the viewer's own Assistant (true, false, or null when it cannot be read). It moves no mark.
+ * - For a press (ADR 0002 sub-decision 3): gatherSelfMap with `forWrite` reads every place at once, this instance's relay
+ *   and the outside round, and the newest version wins. It does not finish when this instance's scan fails, or when the
+ *   relay holds no version and no outside relay answers, so the press never builds over nothing.
  *
- * Read-only: strfry is only scanned, outside relays are only read, the schedule file is only read, nothing is stored.
+ * Read-only: strfry is only scanned, outside relays are only read, the schedule and choice files are only read, nothing
+ * is stored. The press that signs and stores is ADR 0002's own module (sub-decisions 5 and 6).
  */
 
 const { normalizeRelayUrl, MAX_RELAYS } = require('../../lib/relay-list');
@@ -45,7 +52,7 @@ const ONE_CUSTOMER_SCORE_TASKS = ['processCustomer', 'updateAllScoresForSingleCu
 /** What the answer says for this action when its check threw (Amendment 1 item 6). */
 const SELF_MAP_CHECK_FAILED = Object.freeze({
   finished: false, done: false, pending: false, reason: 'check-failed',
-  mapFound: false, duties: [], shouldSay: [], published: null, current: null, instanceMap: false,
+  mapFound: false, duties: [], shouldSay: [], published: null, current: null, instanceMap: false, selfMapOn: null,
 });
 
 /** The real dependencies, required lazily so the module loads in a bare checkout. */
@@ -65,6 +72,8 @@ function defaultDeps() {
     timerExists: (p = SYSTEMD_TIMER) => require('fs').existsSync(p),
     // The per-customer scheduler's running timer, by the customer's main pubkey (Amendment 2 item 3).
     customerTimerIntervalMs: (pubkey) => require('../customer-schedule').getTimerIntervalMs(pubkey),
+    // The remembered self-Map choice, by Assistant pubkey (ADR 0002 sub-decision 2).
+    readSelfMapChoice: (pubkey) => require('./selfMapChoice').readSelfMapChoice(pubkey),
   };
 }
 
@@ -204,18 +213,28 @@ async function readUpkeep({ viewer, assistantPubkey, isOwner, offer, namedHeader
   return { finished: true, ...out };
 }
 
-/** The relays the viewer's Map names for this Assistant (element 3 of its entries naming it). */
+/**
+ * The relays the viewer's Map names for this Assistant: element 3 of its entries naming it, whose key parses. An entry
+ * whose key is not a key is absent to readers (Treasure Maps § 4.5; story 1 review R3-N2).
+ */
 function mapHints(mapEvent, assistantPubkey) {
   const tags = mapEvent && Array.isArray(mapEvent.tags) ? mapEvent.tags : [];
-  return tags.filter((t) => Array.isArray(t) && typeof t[1] === 'string' && t[1].toLowerCase() === assistantPubkey && typeof t[2] === 'string').map((t) => t[2]);
+  return tags
+    .filter((t) => Array.isArray(t) && parseKey(t[0]) && typeof t[1] === 'string' && t[1].toLowerCase() === assistantPubkey && typeof t[2] === 'string')
+    .map((t) => t[2]);
 }
 
 /**
- * The self-Map found for one Assistant now (sub-decision 5). `latest` is the newest version found, kept for story 2's
+ * The self-Map found for one Assistant now (sub-decision 5). `latest` is the newest version found, the base of a press's
  * merge; `published` its self-entries, or null when there is none.
- * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object } | { finished: false, reason: 'no-relay-answered' }>}
+ *
+ * With `forWrite` (ADR 0002 sub-decision 3, R1), this instance's relay and the outside round are both read and the
+ * newest version across them wins. It is unfinished with `instance-unanswered` when this instance's scan fails, and with
+ * `no-relay-answered` when this instance holds no version, there are outside relays to ask, and none answers.
+ * @returns {Promise<{ finished: true, latest: ?Object, published: ?Object }
+ *                  | { finished: false, reason: 'no-relay-answered'|'instance-unanswered' }>}
  */
-async function lookupSelfMap({ assistantPubkey, mapEvent, offer }, deps = {}) {
+async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = false }, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const { readWithinBudget, newest } = shared();
   const who = String(assistantPubkey || '').toLowerCase();
@@ -230,7 +249,8 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer }, deps = {}) {
   const local = await Promise.resolve().then(() => d.scanLocal(filter))
     .then((events) => ({ ok: true, events: Array.isArray(events) ? events : [] }), () => ({ ok: false, events: [] }));
   const here = newest(local.events.filter(mine));
-  if (here) return found(here, 'local');
+  if (forWrite && !local.ok) return { finished: false, reason: 'instance-unanswered' };
+  if (here && !forWrite) return found(here, 'local');
 
   const { assistantWriteRelays } = require('./dutyMenu');
   const writes = await attempt(() => assistantWriteRelays({ assistantPubkey: who }, d), []);
@@ -242,8 +262,14 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer }, deps = {}) {
 
   const answers = await Promise.all(relays.map((url) => readWithinBudget(url, filter, d)));
   const answered = answers.filter((a) => a && a.status === 'ok');
+  const outside = answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine);
+  if (forWrite) {
+    if (!here && relays.length > 0 && answered.length === 0) return { finished: false, reason: 'no-relay-answered' };
+    const latest = newest(here ? [here, ...outside] : outside);
+    return found(latest, latest && latest === here ? 'local' : 'relay');
+  }
   if (!local.ok && answered.length === 0) return { finished: false, reason: 'no-relay-answered' };
-  return found(newest(answered.flatMap((a) => (Array.isArray(a.events) ? a.events : [])).filter(mine)), 'relay');
+  return found(newest(outside), 'relay');
 }
 
 /** An unfinished answer, with every field (Amendment 1 item 6's shape). */
@@ -253,10 +279,27 @@ const unfinished = (reason, { mapFound = false, isOwner = false } = {}) => ({
 });
 
 /**
- * The Your Assistant's Treasure Map action for the session's viewer and their own Assistant.
+ * The Your Assistant's Treasure Map action for the session's viewer and their own Assistant: the gathered answer, with
+ * the remembered choice as `selfMapOn` (ADR 0002 sub-decision 2).
  * @param {{ viewer: string, assistantPubkey: string }} input
  */
 async function checkSelfMap({ viewer, assistantPubkey }, deps = {}) {
+  const d = { ...defaultDeps(), ...deps };
+  const selfMapOn = await Promise.resolve()
+    .then(() => d.readSelfMapChoice(String(assistantPubkey || '').toLowerCase()))
+    .then((choice) => (choice === true || choice === false ? choice : null), () => null);
+  const { answer } = await gatherSelfMap({ viewer, assistantPubkey, forWrite: false }, d);
+  return { ...answer, selfMapOn };
+}
+
+/**
+ * Everything the action and a press need (ADR 0002 sub-decision 3): the answer, without the choice, and the self-Map
+ * lookup with its `latest`. `forWrite` is the press's strict read (lookupSelfMap). `lookup` is null when the viewer's Map
+ * could not be read.
+ * @param {{ viewer: string, assistantPubkey: string, forWrite?: boolean }} input
+ * @returns {Promise<{ answer: Object, lookup: ?Object }>}
+ */
+async function gatherSelfMap({ viewer, assistantPubkey, forWrite = false }, deps = {}) {
   const d = { ...defaultDeps(), ...deps };
   const who = String(viewer || '').toLowerCase();
   const assistant = String(assistantPubkey || '').toLowerCase();
@@ -267,7 +310,9 @@ async function checkSelfMap({ viewer, assistantPubkey }, deps = {}) {
 
   const { lookupNewest, treasureMapRelays } = statusLib();
   const mapLookup = await lookupNewest({ kind: 10040, pubkey: who, relays: treasureMapRelays(d) }, d);
-  if (!mapLookup.finished) return unfinished(mapLookup.reason === 'local-unreadable' ? 'instance-unanswered' : 'no-relay-answered', { isOwner });
+  if (!mapLookup.finished) {
+    return { answer: unfinished(mapLookup.reason === 'local-unreadable' ? 'instance-unanswered' : 'no-relay-answered', { isOwner }), lookup: null };
+  }
   const mapEvent = mapLookup.event || null;
 
   const namedHeaders = [];
@@ -277,15 +322,17 @@ async function checkSelfMap({ viewer, assistantPubkey }, deps = {}) {
   }
   const [upkeep, lookup] = await Promise.all([
     readUpkeep({ viewer: who, assistantPubkey: assistant, isOwner, offer, namedHeaders }, d),
-    lookupSelfMap({ assistantPubkey: assistant, mapEvent, offer }, d),
+    lookupSelfMap({ assistantPubkey: assistant, mapEvent, offer, forWrite }, d),
   ]);
-  if (!upkeep.finished) return unfinished(upkeep.reason, { mapFound: !!mapEvent, isOwner });
-  if (!lookup.finished) return unfinished(lookup.reason, { mapFound: !!mapEvent, isOwner });
-  return evaluateSelfMap({ mapEvent, offer, assistantPubkey: assistant, isOwner, scores: upkeep.scores, record: upkeep.record, lookup });
+  if (!upkeep.finished) return { answer: unfinished(upkeep.reason, { mapFound: !!mapEvent, isOwner }), lookup };
+  if (!lookup.finished) return { answer: unfinished(lookup.reason, { mapFound: !!mapEvent, isOwner }), lookup };
+  const answer = evaluateSelfMap({ mapEvent, offer, assistantPubkey: assistant, isOwner, scores: upkeep.scores, record: upkeep.record, lookup });
+  return { answer, lookup };
 }
 
 module.exports = {
   checkSelfMap,
+  gatherSelfMap,
   lookupSelfMap,
   readUpkeep,
   scheduleIntervals,
