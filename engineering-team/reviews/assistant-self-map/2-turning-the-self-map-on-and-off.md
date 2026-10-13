@@ -730,3 +730,186 @@ the Tester, then the Implementer. R4-N1, R4-N2 and R4-N4 can ride the same round
 - [ ] Completion detection. *Not applicable this round.*
 - [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
       and its `- Review:` link already points here.*
+
+# Round 5
+
+**Reviewer:** Claude (acting as Reviewer), with a second, independent reader (no write access to the repo, no
+`npm test`; temp store paths only, and nothing written under `/var/lib/brainstorm`, which still holds only
+`customers/`). Every claim below was re-derived from commands. I reproduced the reader's findings, by my own script or
+by rerunning its own, before recording them. The optional independent check of the review's own claims was not
+applied: this is not a docs-mode story, and every finding is reproduced by a script.
+**Date:** 2026-10-13
+**Diff:** `git diff 8071e6c 9d6e67f`, plus `8a17dd2` (a ledger row this review opened):
+- `e900a8c`, `e95071a`: ADR 0002 Amendment 4, proposed, then accepted; the story's ADR link. Docs only.
+- `1e810a6`: the Tester's round 5 tests (V19, R21–R24, C13, K10–K12, S7; the fake store gains `replace` and the
+  malformed-entry rule) and the plan's Round 5 section. It touches no `src/` or `ui/`.
+- `9d6e67f`: the fix in `selfMap.js`, `selfMapPublish.js` and `selfMapChoice.js`; `openapi.yaml`; BIBLE §11; the
+  story's round 5 Deviation and its correction of round 4's; the book's shared-line note. It touches no `test/` or
+  `tests/`.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`** on `9d6e67f`, clean tree.
+  - **The first run,** `20261013T135439Z-5747-c867 [s2-r5-review]`, failed `harness-lint` alone with 2 failures. Both
+    were `Command failed: git … commit` inside the suite's throwaway repos: this container signs every commit through
+    `/tmp/code-sign`. The suite passed alone (85/0). This is a new meta row,
+    `2026-10-13-lint-fixtures-inherit-commit-signing` (`8a17dd2`).
+  - **The rerun.** `npm run gate:status`:
+
+    > `20261013T140149Z-6531-5175 [s2-r5-review-rerun] started 2026-10-13T14:01:49.007Z on 9d6e67fc — PASS, exit 0, 5981 passed, 0 failed, 582 skipped, 308/308 suites`
+- [x] **Playwright, chromium.** `ui/` is unchanged since `1249d7f`. I built it at `9d6e67f` and served it with
+  `vite preview` on :4184, launched through node and stopped by its pid (the port then freed). `assistant-self-map` and
+  the nine hub specs: **120 passed, 5 skipped** (their own skip conditions), 5.7 m.
+- [x] `bash scripts/harness-lint.sh`: **clean**.
+- [x] **Shared lines.** `origin/staging` is still at `9679668`.
+- [x] _Lint, typecheck, build: not configured — skipped._
+
+## Round 4's findings, each re-derived as a fresh claim
+
+| Finding | Re-derived by | Result |
+|---|---|---|
+| **R4-B1**, a failed import then a retry | `<scratch>/repro/r4-import-fails.js`, rerun; the reader's copies of round 4's `f1` | Press 2 `{"ok":true,"published":true}`, and this instance's relay holds the target. Story 1's read then finds it. The press after that answers "already current" over a version this relay holds. **Fixed.** |
+| **R4-B2**, a wipe with the copy at the target | `<scratch>/repro/r4-wipe-same-target.js`, rerun | Update now `{"ok":true,"published":true}`, and this instance's relay holds the version again. **Fixed.** |
+| The older outside-newer case | R23; the reader's walk | Publishes, and this instance's relay converges. **Fixed.** |
+| **R4-N1**, a copy that fails the check never replaced | C13, K10, K11; my `<scratch>/repro/r5-default-deps-replace.js` | Fixed in the store and in the press's logic. **But not on the live route** (R5-B1). |
+| **R4-N2**, R20 didn't pin the copy's check | R24; my mutant M8 | R24 (and C13) catch a `checkedCopy` without `verifyEvent`. **Fixed.** |
+| **R4-N3**, K9 and the lock | — | Not addressed; Amendment 4 left it as a nit. It stands. |
+| **R4-N4**, the `lastSigned` log | K12; the reader's `n-log-whole-file.js`, rerun | The message names `lastSigned`, but now for whole-file failures too (R5-N3). |
+| **R4-N5**, the nits | `awk` over comment lines; V19; the story's Deviations | No comment line over 125 characters in the three modules. `source` is honest except in one case (R5-N2). Round 4's Deviation is corrected. **Fixed.** |
+
+**ADR adherence, Amendment 4.**
+- **Item 1 is to the letter:** `onThisRelay` by id against this instance's scan (`selfMap.js:268–274`), and step 3's
+  condition (`selfMapPublish.js:221`).
+- **Item 3's log text is exact.**
+- **Item 2 is not met on the live route** (R5-B1).
+
+The reader's walk covered 13 cases per press, with every copy state, every local state, an outside version newer,
+local-only mode, a failing import and failing copy writes, and two or three presses in a row. In it:
+- every publish keeps the base's other tags and content and leaves this relay at the target;
+- the next press is "unchanged";
+- no case publishes forever;
+- `replace` never overwrites a valid newer copy.
+
+My ten mutants of the round 5 code:
+
+| Mutant | Caught by |
+|---|---|
+| step 3 without `onThisRelay` | R21, R22, R23 |
+| `onThisRelay` always true | R21, R22, R23, V19 |
+| `onThisRelay` by object identity | R21, R22, V19 |
+| `keepCopy` never passing `replace` | C13 |
+| the store's old entry rule | K10 |
+| the store ignoring `replace` | K11 |
+| the old log line | K12 |
+| `checkedCopy` without `verifyEvent` | R24, C13 |
+| `source` always `local` | V19 |
+| `replace` never reset after the first write | nothing; an equivalent mutant, since the second write is the newly signed version, always newer |
+
+## Findings
+
+### Blocking
+
+1. **R5-B1 — `src/api/assistant/selfMapPublish.js:103`. The press's own wiring drops `replace`, so Amendment 4 item 2
+   never reaches the real store on the live route.**
+   - **The wiring:** `writeSelfMapCopy: (pubkey, event) => require('./selfMapChoice').writeSelfMapCopy(pubkey, event)`
+     passes two arguments. `keepCopy` (`:178`) sends `{ replace: true }` as a third.
+   - **The route:** it is `createSelfMapHandler()` with these defaults (`src/api/index.js:616`, `selfMapPublish.js:345`).
+   - **Why no test sees it:** C13 uses the fake store. C12 and K11 hand the real store's functions in directly
+     (`test/assistant-self-map-publish.test.js:1490–1491`), so `defaultDeps()` never runs.
+   - **On the live route:**
+     - a well-formed copy whose signature fails is never replaced, while the press answers "already current";
+     - a tampered copy with a far-future `created_at` survives even a publish;
+     - after a later strfry wipe, the press falls back to the first-press rules (503, or the named limit).
+
+     So R4-N1 is still open where it counts, and BIBLE, the ADR and the tests read as if it were closed.
+   - **Reproduced** by me with `node <scratch>/repro/r5-default-deps-replace.js <repo> <scratch>/r5store`. It runs the
+     real store at a temp path, with the copy functions not injected and a spy on the store's export:
+     - `press: {"published":false,"unchanged":"already-current"}`;
+     - `arguments reaching the real writeSelfMapCopy: [2]`;
+     - `copy afterwards: content "damaged on disk" verifies false`.
+
+     The reader got the same with `<scratch>/reader5/f1-default-deps-drop-replace.js`, including the far-future case,
+     and the same result when the options are passed through. Its full walk differs from the real-store run only in
+     those two cases.
+   - **This is a deviation from Amendment 4 item 2, not a gap in it,** so the ADR stands. Asked change:
+     - **Test Design:** a test that leaves `readSelfMapCopy` and `writeSelfMapCopy` uninjected, so `defaultDeps()` runs
+       against the real store at a temp path. It should check that a damaged copy (same id, broken signature) is valid
+       after one press.
+     - **Implementation:** pass the options through in the wrapper.
+
+### Non-blocking
+
+1. **R5-N1 — step 3's `!latest ||` branch is untested.**
+   - Without it, a finished read that finds no version anywhere publishes a new, empty kind 10040, for Turn off and for
+     Turn on with nothing to claim. That breaks AC-5 ("publishes nothing, and says so").
+   - The publish suite passes that mutant 88/0, because E3, E4, E7 and E14 all have a base on this relay. Reader's
+     `mutant-run.js publish MX1` and `mx1-null-latest.js`, both rerun by me:
+     - the real code: `nothing-claimed` / `nothing-to-claim`;
+     - the mutant: `published=true … signed tags=[]`.
+
+   **Fold into the same Test Design:** Turn off, and Turn on with nothing to claim, with no version anywhere and the
+   outside answering empty.
+2. **R5-N2 — `published.source` is `'copy'` when the copy and an outside relay hold the same id** (`selfMap.js:272–273`).
+   - Amendment 4 says `'copy'` only when the copy alone holds it. The usual case after a wipe, a copy already fanned
+     out, reads `'copy'`.
+   - Nothing reads `source` today (`src/lib`, `ui/src`, the press). Reader's `n-source-copy-and-outside.js`, rerun:
+     `copy + outside (same id) … source=copy`.
+
+   **Fold:** align the code (or the ADR's words) in the next touch.
+3. **R5-N3 — the new log line blames `lastSigned` for whole-file failures too** (`selfMapChoice.js:103`).
+   - A file that isn't JSON, or holds version 2, logs "the self-Map copy (lastSigned) cannot be read: …". The detail
+     after the colon is right.
+   - Reader's `n-log-whole-file.js`, rerun.
+
+   **Fold:** say "the choice file" when the whole file fails, and `lastSigned` only for its own failure.
+4. **R5-N4 — records and comments now behind the code:**
+   - `BIBLE.md:1385` (§15) says `lastSigned` is "kept only when newer". A malformed copy, or one that fails the check, is
+     now replaced too.
+   - `selfMapChoice.js:22–23` (the header) doesn't mention `replace` or the malformed-entry rule.
+   - `selfMapPublish.js:18–19` and `:174` still say a failing copy is only "left out".
+   - `selfMap.js:28` says "Amendments 1–3".
+   - The BIBLE §11 row says a base held elsewhere "is stored here anew". A new version is signed and stored; the ADR
+     rejected re-storing the base as it is.
+   - `openapi.yaml:809` is a ragged 54-character line inside the folded block.
+
+   **Fold into the same Implementation.**
+5. **R5-N5 — V19 can't tell "latest is in this instance's scan" from "this instance's scan holds any version".** A
+   mutant on that (the reader's MX12) passes the check suite, though R21 and R23 catch it. **Fold:** a V19 case where
+   this relay holds an older version and `latest` is elsewhere.
+
+### Observation, outside this round
+
+- **O1 (the reader's) predates round 5 and is outside Amendment 4's scope.** Turn off's removal can be refused by an
+  outside relay that held the claim. A second Turn off then says "It claimed nothing", while that relay still serves
+  the claim.
+  - This instance's relay is right, and the first press reported the refusal.
+  - The reader's `o-partial-fanout-then-off.js`, rerun: press 2 `nothing-claimed`, and `OLD1 still serves A's 10040
+    with self-entries`.
+  - It is a new row, `2026-10-13-self-map-refused-removal-stays-outside`, for the Architect, probably with story 3's
+    upkeep.
+
+### Harness friction
+
+- **The `harness-lint` suite's git fixtures inherit this container's commit signing,** so a signer hiccup failed two of
+  its tests in the first gate run. It is a new meta row, `2026-10-13-lint-fixtures-inherit-commit-signing`.
+
+## Verdict
+
+**CHANGES_REQUESTED**
+
+Round 5 closes review round 4's blocking findings, and closes them for good on this instance's relay:
+- a failed import and a retry, a wipe with the copy at the target, and an outside version newer than this instance's
+  all end with this relay right and an honest report;
+- the reader's 13-case walk found no false "nothing to change", no publish loop, and no build over an older version;
+- the gate passes (5981 / 0), and the browser specs pass (120 / 0, 5 skipped).
+
+But Amendment 4 item 2 doesn't reach the live route. The press's default wiring drops `replace` (R5-B1), and no test
+goes through that wiring. It is a one-line deviation from the ADR, not a gap in it. So it goes to Test Design (a test
+through `defaultDeps()`, plus R5-N1 and R5-N5), then Implementation (the pass-through, plus R5-N2–N4). The ADR doesn't
+change.
+
+## On PASS (same commit)
+
+- [ ] Completion detection. *Not applicable this round.*
+- [ ] Story `**Status:**` flipped to `Done` in place. *Not applicable: CHANGES_REQUESTED. The story stays `Approved`,
+      and its `- Review:` link already points here.*
