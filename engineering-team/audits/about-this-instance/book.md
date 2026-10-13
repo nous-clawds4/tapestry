@@ -26,11 +26,15 @@ The ask, verbatim, in the order it was given:
 ### Decisions taken at planning (2026-10-13)
 
 1. **A section on `/about`, not a new page.** The separate `/about-this-instance` route was dropped once the operator noticed `/about` already exists.
-2. **Public on purpose.** The Admin list and the customer total become public. Customer identities do not.
+2. **Public on purpose.** The Admin list and the customer total become public. This book adds no customer identity to what is public. *(Corrected at the Architecture gate: customer pubkeys and names were already public through `get-customers` and the roster, ADR `author-scoped-inspection/0001`; whether they should stay so is queued in `_intake.md`, 2026-10-13, outside this book.)*
 3. **Customer = holds an Assistant key**, minus the Owner, the Admins, and any account that is itself an Assistant. No active/inactive distinction. *(Admins excluded: chosen over counting an Admin with a key as a Customer too.)*
 4. **The link stays**, retargeted to `/about#this-instance`.
 5. **Layout from the Claude Design artifact, colours from `/about`'s existing dark styling.** *(Chosen over importing the design's light palette.)*
 6. **Wording:** title "About this Brainstorm Instance"; subtitle "Who runs this instance, and how many customers it serves."; count line "**N** customers". *(Chosen over the design's "how many people use it", since the number counts customers, not visitors.)*
+
+### Decisions taken at the Architecture gate (2026-10-13)
+
+7. **"Itself an Assistant"** means an Assistant this instance holds the key for (the TA or a key holder's Assistant); one run by another instance is not recognised (ADR `about-this-instance/0001` Decision 5).
 
 ### Acceptance frame
 
