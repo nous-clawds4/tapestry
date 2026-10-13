@@ -160,7 +160,7 @@ their own commits, and both reviews judged them genuine (§7, P5).
   - Ledger row `2026-10-12-settings-json-written-in-place`, pre-existing and widened by this book: `settings.json` is
     written in place, so a crash mid-write would lose every override, this list included.
   - Ledger row `2026-10-12-duty-settings-test-cleanups`: small test tidy-ups the reviews left non-blocking.
-  - Ledger row `2026-10-12-staging-duty-list-round1-keys`: a one-off check of staging's saved list.
+  - Ledger row `2026-10-12-staging-duty-list-round1-keys`: a one-off check of staging's saved list (done 2026-10-13: the Owner reset staging to defaults).
 - **Accepted by the ADR (§ Sub-options), not bugs:**
   - Typed relays are owner-set configuration. They are connected to without the DNS guard, as Relay Settings' relays
     are.

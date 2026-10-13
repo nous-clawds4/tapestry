@@ -3,8 +3,11 @@
 **Id:** 2026-10-12-staging-duty-list-round1-keys
 **Type:** cleanup
 **Opened:** 2026-10-12 (`assistant-duties-settings` book close; review round 2 note 5)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-13: the Owner used Reset to defaults on staging's Assistant Duties tab. Reset removes the
+`assistantDuties` override from `settings.json` (`resetOverride`), so any round-1 key saved there is gone. Whether one
+was there is unknown: the tab already looked like the defaults, but it hides entries readers drop, so it would have
+looked the same either way.
 
 Round 1 of `assistant-duties-settings` #1 (`273d44410`) was live on `staging` from about 22:30 to 23:30 UTC on
 2026-10-12. It accepted any key readers keep. Round 2 accepts only whole kinds and drops anything else on read
