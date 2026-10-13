@@ -3,7 +3,7 @@
 **Slug:** assistant-duties-settings
 **Status:** Closed
 **Opened:** 2026-10-12
-**Closed:** 2026-10-12 (on `staging`: story 1 review round 2 PASS `480343c22`; staging deploys 694 and 695 green; not yet on `main`)
+**Closed:** 2026-10-12 (on `staging`: story 1 review round 2 PASS `480343c22`; staging deploys 694 and 695 green; production 2026-10-13: PR #857 merged as `5ecba28ae`, deploy run 153, production smoke clean)
 
 ## Intent anchor
 
