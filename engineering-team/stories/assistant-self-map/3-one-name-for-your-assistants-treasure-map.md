@@ -1,6 +1,6 @@
 # Story 3: One name for your Assistant's Treasure Map
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-10-13
 **Type:** Feature (wording only; no behaviour changes)
 
@@ -119,9 +119,9 @@ These replace the matching lines of story 1's and story 2's § Copy, which stay 
 
 ## Open questions
 
-None. The path is for the owner to confirm at the gate: Planning (these words), then Test Design, Implementation and
-Review. Architecture is skipped because no design choice is left: every line is named above, and nothing under the
-hood moves.
+None. The path, confirmed by the owner at the Planning gate (2026-10-13), is Planning (these words), then Test Design,
+Implementation and Review. Architecture is skipped because no design choice is left: every line is named above, and
+nothing under the hood moves.
 
 ## Linked artifacts
 
