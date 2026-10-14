@@ -135,6 +135,16 @@ tests/brainstorm/assistant-scores.spec.js (chromium, against `vite preview` of t
   B1–B10 — the placeholder page: the lines, the button and the read are not there
 ```
 
+The full gate, the same tree (`npm test`, record `tmp/gate-runs/20261014T000233Z-7598-f949.json`):
+
+```
+Failed suites: assistant-scores-route, assistant-scores-page
+Overall: FAIL — 6020 passed, 41 failed, 582 skipped across 311 suites
+```
+
+The 41 are exactly the new suites' (29 + 12); every other suite passes, `admin-action-sweep` and
+`stack-free-npm-test` included.
+
 **The tests themselves were checked against a throwaway prototype of the ADR's design** (never committed, removed after):
 the server prototype passed every G, Q and P test and R4 (26/29; R1–R3 need the wiring it didn't add), and the
 words/client prototype passed U1–U6 and C1–C3 (10/13; S1–S3 need the page). So the failures above are the missing
