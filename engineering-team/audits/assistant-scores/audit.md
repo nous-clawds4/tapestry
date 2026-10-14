@@ -130,8 +130,10 @@ the harness record (ledger rows, the two ADR pointer lines).
 
 ## 6. Carry-forward register
 
-- [ ] **Promote to production.** The page, and the shared jobId fix that repairs customer `/api/run-task` triggers, are
+- [x] **Promote to production.** The page, and the shared jobId fix that repairs customer `/api/run-task` triggers, are
       on `staging` only (`d4b056e0`).
+  *2026-10-14: promoted. PR #864 cherry-picks only this book's commits; merge `38c10be1`, deploy run 158; production smoke
+  clean (tiers 1–5; the page and both routes live, and the bundle carries "Recalculate and republish").*
 - [ ] **A Customer's press, witnessed live.** Only the Owner's has been, so far.
 - [ ] **Calculating for Admins without a Customer record** (§4 #2; book Decision 2).
 - [ ] **Live progress on the page:** auto-refresh while a run is queued or running, or a start time (§4 #3).

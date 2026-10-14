@@ -4,7 +4,7 @@
 **Type:** bug
 **Opened:** 2026-10-14 (book `assistant-scores`, review round 1)
 **Status:** DONE
-**Done:** 2026-10-14 — `d4b056e0` on `staging` (assistant-scores ADR 0001 Amendment 1; review round 2 PASS). The fix reaches production with the next promotion of `staging`.
+**Done:** 2026-10-14 — `d4b056e0` on `staging` (assistant-scores ADR 0001 Amendment 1; review round 2 PASS). On production 2026-10-14 via PR #864 (merge `38c10be1`, deploy run 158).
 
 **What was seen.**
 - `computeJobId` (`src/manage/taskQueue/queue/index.js:64-69`) gives a customer task the jobId `` `${taskName}:${pubkey}` ``.

@@ -3,7 +3,7 @@
 **Slug:** assistant-scores
 **Status:** Closed
 **Opened:** 2026-10-13
-**Closed:** 2026-10-14. On `staging`: story 1 at `d4b056e0`, review PASS at `b16253b5`. The owner pressed it live on staging. Production promotion is pending.
+**Closed:** 2026-10-14. On `staging`: story 1 at `d4b056e0`, review PASS at `b16253b5`. The owner pressed it live on staging. On production 2026-10-14: PR #864 (this book's commits only, cherry-picked onto `main`), merge `38c10be1`, deploy run 158; production smoke clean.
 
 ## Intent anchor
 
