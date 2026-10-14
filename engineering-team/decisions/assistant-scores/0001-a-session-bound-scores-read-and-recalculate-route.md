@@ -1,6 +1,6 @@
 # ADR 0001: A session-bound Scores read and Recalculate route, enqueued on the task queue
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-13
 **Story:** `engineering-team/stories/assistant-scores/1-the-scores-page.md`
 

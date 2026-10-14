@@ -59,6 +59,22 @@ B5 now counts each forbidden endpoint on `/about` and on `/about-brainstorm-sear
 
 **The re-aimed B5 is not vacuous.** A temporary change to the section that also fetched the roster was built and run. B5 failed with `"/api/assistant/roster": 2` against the baseline's `1`. The change was reverted, the original restored with no diff, and the spec re-run: 11/11.
 
+## Amendment 2 — regression tests from review round 1 (2026-10-13)
+
+The round-1 review (`reviews/about-this-instance/1-owner-admins-customer-count.md`) asked for a failing test before each fix.
+
+| Finding | Test | File | What it requires |
+|---|---|---|---|
+| **Blocking 1:** a non-string profile name crashed all of `/about` | **B11** | browser | Owner `{ name: 42 }`, an Admin `{ display_name: { text: 'x' }, name: 'adam' }` and an Admin `{ display_name: '', name: true }`:<br>- `/about`'s own content is visible, there is no "Unexpected Application Error" and no uncaught page error;<br>- the cards read the Owner's shortened npub (with its NIP-05 still shown), "adam", and the second Admin's shortened npub.<br>This pins "the first of `display_name` and `name` that is non-empty text, else the shortened npub". |
+| **Non-blocking 1:** an emoji-first name showed half a character | **B12** | browser | The Owner's `display_name` is `"🧠 Nous"`:<br>- the card shows the name (the path ran);<br>- the card's text holds no lone surrogate;<br>- the emoji appears twice, once as the initial and once in the name. |
+| **Non-blocking 2:** a stored Assistant pubkey was not lowercased | **C7** | Node | The AC-3 world, plus the inactive customer's key rewritten with its Assistant pubkey in upper case (a fixture check confirms it is stored that way), plus that Assistant's own key file. The count must stay 2. |
+
+**Verified failing, 2026-10-13, before the fix** (UI built from `993750e5`):
+- **C7:** "expected 2, got 3". The Node suite read 28 passed, 1 failed.
+- **B11:** the section never drew; the page had crashed.
+- **B12:** "no half emoji anywhere in the card: \"\ud83e\n🧠 Nous\n›\"".
+- **B0–B10:** still pass.
+
 ## Edge cases
 
 - [x] Empty store, and a store whose directory is gone (K2, C3).
