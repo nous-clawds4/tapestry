@@ -1,9 +1,9 @@
 # Book of Work: Scores — see when your Grapevine was last published, and recalculate it
 
 **Slug:** assistant-scores
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-13
-**Closed:** —
+**Closed:** 2026-10-14. On `staging`: story 1 at `d4b056e0`, review PASS at `b16253b5`. The owner pressed it live on staging. Production promotion is pending.
 
 ## Intent anchor
 
@@ -39,25 +39,25 @@ its irreversibility triggers.
 
 ### Acceptance frame
 
-- [ ] **See it.** On `/assistant/trusted-assertions`, any signed-in person sees when their own Assistant on this
+- [x] **See it.** On `/assistant/trusted-assertions`, any signed-in person sees when their own Assistant on this
       instance last published Trusted Assertions (kind 30382), and how many it has published.
-- [ ] **Recalculate it.** The Owner and active Customers get one button that recalculates their own scores and has
+- [x] **Recalculate it.** The Owner and active Customers get one button that recalculates their own scores and has
       their Assistant republish them, with the run shown as queued or running until it ends.
-- [ ] **Only your own, one at a time.** Nobody can start a run for someone else, and pressing twice doesn't start
+- [x] **Only your own, one at a time.** Nobody can start a run for someone else, and pressing twice doesn't start
       two runs.
-- [ ] **Honest for everyone else.** Admins who aren't Customers, and guests, see the status and a plain reason
+- [x] **Honest for everyone else.** Admins who aren't Customers, and guests, see the status and a plain reason
       instead of a button.
-- [ ] **On staging**, at staging.brainstorm.world/assistant/trusted-assertions.
-- [ ] **Nothing else changes.** The hub's Scores mark, `/settings`, and the other hub pages are unchanged.
+- [x] **On staging**, at staging.brainstorm.world/assistant/trusted-assertions.
+- [x] **Nothing else changes.** The hub's Scores mark, `/settings`, and the other hub pages are unchanged.
 
 ## Epics in this book
 
-- `assistant-scores`: the Scores page (one story).
+- `assistant-scores`: the Scores page (one story). Done, with its folders under `done/` (close, 2026-10-14).
 
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high. The owner pressed it live on staging; a Customer's live press hasn't been seen yet (audit header).
 
 ## Close artifacts *(filled by `/close-book`)*
 
