@@ -100,7 +100,7 @@ test('T3: queue module computes jobId from (taskName, pubkey) for customer tasks
   assert(
     /pubkey/i.test(src) && /taskName/.test(src),
     'Queue module does not reference both `taskName` and `pubkey` (AC-3/AC-5; ADR 0010 §Option A: Dedup). ' +
-      'jobId must be ${taskName}:${pubkey} for customer tasks and ${taskName} alone for non-customer ' +
+      'jobId must be ${taskName}-${pubkey} for customer tasks (assistant-scores ADR 0001 Amendment 1) and ${taskName} alone for non-customer ' +
       'tasks; both branches need both tokens visible in the module.'
   );
 });

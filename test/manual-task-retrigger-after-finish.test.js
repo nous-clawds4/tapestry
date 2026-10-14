@@ -92,13 +92,15 @@ test('T2: src/manage/taskQueue/queue/index.js enqueueTask passes removeOnFail: t
   );
 });
 
-test('T3: computeJobId still uses `${taskName}:${pubkey}` for customer args and bare `taskName` for non-customer (AC #4 — preserves concurrent-fire dedup)', () => {
+test('T3: computeJobId uses `${taskName}-${pubkey}` for customer args and bare `taskName` for non-customer (AC #4 — preserves concurrent-fire dedup; re-aimed by assistant-scores ADR 0001 Amendment 1)', () => {
   const src = readSafe(QUEUE_MODULE);
   assert(src !== null, 'Queue module missing at ' + QUEUE_MODULE);
-  // Pin the customer-task formula by source pattern.
+  // Pin the customer-task formula by source pattern. Re-aimed by assistant-scores ADR 0001 Amendment 1: the separator is
+  // `-`, because BullMQ rejects a custom jobId with one colon ("Custom Id cannot contain :"); the per-(task, pubkey)
+  // stability this test exists for is unchanged. test/task-queue-jobid-valid.test.js runs the ids through BullMQ itself.
   assert(
-    /\$\{taskName\}:\$\{customerArgs\.pubkey\}/.test(src),
-    'computeJobId must still produce `${taskName}:${customerArgs.pubkey}` for customer tasks. AC #4 requires concurrent-fire dedup to be preserved — two simultaneous /api/run-task triggers for the same (taskName, pubkey) while one is `active` must join the same job. The stable jobId formula is what makes that work; the immediate-removal option only fires on completion, not preemptively. (AC #4; ADR 0022 §Decision)'
+    /\$\{taskName\}-\$\{customerArgs\.pubkey\}/.test(src),
+    'computeJobId must produce `${taskName}-${customerArgs.pubkey}` for customer tasks (assistant-scores ADR 0001 Amendment 1: BullMQ rejects the one-colon form). AC #4 requires concurrent-fire dedup to be preserved — two simultaneous /api/run-task triggers for the same (taskName, pubkey) while one is `active` must join the same job. The stable jobId formula is what makes that work; the immediate-removal option only fires on completion, not preemptively. (AC #4; ADR 0022 §Decision)'
   );
   // Pin the non-customer return path: `return taskName;` with no suffix.
   assert(

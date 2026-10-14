@@ -17,5 +17,10 @@ the relay list a page sent.
 **Fix shape.** Whatever row 326 decides (an explicit `sameSite`, or a central `Origin` check) should cover these
 routes. Until then, they are listed here so row 326's fix doesn't miss them.
 
+**2026-10-14 (book `assistant-scores`).** `POST /api/assistant/scores/recalculate` joins the session-bound
+`/api/assistant/*` presses. It has no body and checks no `Origin`, so it shares this exposure. A cross-site form POST in
+a browser that doesn't default cookies to `SameSite=Lax` can start the signed-in person's own run, one at a time. See
+review `assistant-scores/1-the-scores-page.md` round 1, Non-blocking 8.
+
 **Pointer:** OPEN.md row 326; `engineering-team/reviews/assistant-duty-menu/2-your-assistant-publishes-its-duty-menu.md`
 (NB4).

@@ -347,6 +347,9 @@ const suites = [
   { file: 'tagging-pipeline-fetch.test.js' },
   { file: 'tagging-pipeline-panel-source.test.js' },
   { file: 'about-this-instance.test.js' },
+  { file: 'assistant-scores-route.test.js' },
+  { file: 'assistant-scores-page.test.js' },
+  { file: 'task-queue-jobid-valid.test.js' },
 ];
 
 // Suite files that had never been registered in the runner as of 2026-09-12. Listed so

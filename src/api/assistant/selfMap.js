@@ -400,4 +400,8 @@ module.exports = {
   scheduleIntervals,
   parseTimeSpan,
   SELF_MAP_CHECK_FAILED,
+  // The Scores page reads "a run of mine" with these same lists (ADR assistant-scores/0001 sub-decision 3).
+  OWNER_SCORE_TASKS,
+  ALL_CUSTOMER_SCORE_TASKS,
+  ONE_CUSTOMER_SCORE_TASKS,
 };

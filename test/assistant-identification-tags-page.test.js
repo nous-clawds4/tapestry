@@ -266,9 +266,10 @@ test('S3: App.jsx routes this action to the page through an override map, and ev
   }
   // Each key in the map is an action with its own built page; the rest route to the placeholder through the map's ??.
   // Re-aimed by assistant-duty-menu #1 (ADR 0001 sub-decision 6): the Duty Menu page joins the map; and by assistant-self-map
-  // #1 (its ADR 0001 sub-decision 9): Your Assistant's Treasure Map page too.
+  // #1 (its ADR 0001 sub-decision 9): Your Assistant's Treasure Map page too; and by assistant-scores #1 (its ADR 0001
+  // sub-decision 6): the Scores page.
   const keys = ((app.match(/const\s+ACTION_PAGES\s*=\s*\{([^}]*)\}/) || ['', ''])[1].match(/['"]([a-z-]+)['"]\s*:/g) || []).map((k) => k.replace(/['":\s]/g, ''));
-  const built = ['identification-tags', 'outbox-relays', 'duty-menu', 'treasure-map'];
+  const built = ['identification-tags', 'outbox-relays', 'duty-menu', 'treasure-map', 'trusted-assertions'];
   if (!keys.includes('identification-tags') || keys.some((k) => !built.includes(k))) wrong.push(`ACTION_PAGES names the built action pages only (${show(built)}); got ${show(keys)}`);
   assert(wrong.length === 0, wrong.join('; '));
 });

@@ -19,4 +19,13 @@ consulted, grep `test/` and `tests/` for its path inside `safeRead(` / `codeOnly
 ("never", "reads nothing", "doesn't learn") that names the behaviour being changed. List each hit in the plan's re-aim
 section as re-aimed or as deliberately kept.
 
+**Second occurrence (2026-10-14, book `assistant-scores`, Phase 4).** Building a hub placeholder page
+(`/assistant/trusted-assertions`) broke three pins the Phase 3 plan never listed: the built-pages list in
+`assistant-identification-tags-page` S3, the placeholder loop's skip list in `assistant-management-page.spec.js` B8, and
+the placeholder's alert criteria in `assistant-trusted-content.spec.js` TC5. Every earlier page story had re-aimed the
+same three. Only the full gate and a browser run found them, after the implementation; the owner approved a return to
+Test Design. The fix shape above covers it if it also says: when a story builds an action page, grep `test/` and
+`tests/` for the action's path and key and for the lists of built or placeholder pages. Pointer:
+`engineering-team/stories/assistant-scores/1-the-scores-page.test-plan.md` § Re-aims.
+
 **Pointer:** `engineering-team/stories/done/assistant-trusted-content-status/1-scores-lists-and-concepts-on-the-hub.test-plan.md` § Re-aimed suites (the Phase 4 additions)

@@ -7,6 +7,7 @@ const TC = require('../../test/helpers/trustedContentFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
 const SM = require('../../test/helpers/selfMapFixtures');
 const CS = require('../../test/helpers/comingSoonFixtures');
+const SC = require('../../test/helpers/scoresFixtures');
 // Every checked action pending — Identification Tags (assistant-identification-tags #1), the profile
 // (assistant-profile-checklist #1), Outbox Relays (assistant-outbox-relays #1), Scores, Lists and Concepts
 // (assistant-trusted-content-status #1), and the Duty Menu (assistant-duty-menu #1) — so every action is marked AND
@@ -387,6 +388,8 @@ test.describe('The Assistant Management page (assistant-management #1)', () => {
       if (a.path === DM.PATH) test.skip(true, 'no longer a placeholder (assistant-duty-menu #1)');
       // assistant-self-map #1 builds this action's page; tests/brainstorm/assistant-self-map.spec.js pins it.
       if (a.path === SM.PATH) test.skip(true, 'no longer a placeholder (assistant-self-map #1)');
+      // assistant-scores #1 builds this action's page; tests/brainstorm/assistant-scores.spec.js pins it.
+      if (a.path === SC.PATH) test.skip(true, 'no longer a placeholder (assistant-scores #1)');
       await mock(page, { who: CUSTOMER_USER });
       const main = await open(page, a.path);
       await expect(page.getByRole('heading', { name: 'Page not found' }), `${a.path} is a page`).toHaveCount(0);

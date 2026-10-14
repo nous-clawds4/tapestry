@@ -33,6 +33,11 @@ tasks and the merge-check friction, not lost content.
 
 Either is a CI or build change and should ride a story. `docs/SAFE_TO_MERGE.md` would then say which merges deploy.
 
+**Occurrence (2026-10-14, book `assistant-scores`).** The session pushed about fourteen times to `staging`, and the
+session's stop hook required a push at the end of every turn. Most pushes were docs-only: the plan, the story, the ADR
+and its amendment, test plans, reviews and ledger rows. Each one rebuilt and restarted staging. Pointer:
+`engineering-team/audits/assistant-scores/audit.md` §7.
+
 **Pointer:** `.github/workflows/deploy-staging.yml`; `Dockerfile:94`; `.dockerignore`; `gh run list --workflow
 deploy-staging.yml`; book `engineering-team/audits/relay-stream-gaps/book.md` § Staging verification; related row
 `2026-10-10-router-boots-with-empty-streams`.

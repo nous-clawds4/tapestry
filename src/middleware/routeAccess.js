@@ -105,6 +105,10 @@ const ROUTE_ACCESS = Object.freeze({
   'POST /api/assistant/publish-profile': allow('signed-in',
     "Your own Assistant's profile; the handler requires the session to be that Assistant's person."),
   'GET /api/assistant/roster': PUBLIC_READ,
+  'GET /api/assistant/scores': PUBLIC_READ,
+  'POST /api/assistant/scores/recalculate': allow('signed-in',
+    "Recalculates your own scores; whose run comes from your session, and only the Owner and active Customers have " +
+    "one here."),
   'POST /api/assistant/self-map': allow('signed-in',
     "Your Assistant turns its own self-Map on or off and signs it from this instance's own check; bound to your session."),
   'GET /api/assistant/status': PUBLIC_READ,
