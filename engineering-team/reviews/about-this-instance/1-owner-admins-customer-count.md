@@ -132,3 +132,49 @@ The diff matches the story and the ADR, the gate is clean, and the feature works
 - **What:** a malformed Owner or Admin profile replaces the whole `/about` page with an error, for every visitor (Blocking 1).
 - **Next:** back to the Tester for a regression test, then to the Implementer for the one-line guard.
 - **Same round:** non-blocking 1 and 2 are cheap and can ride along. The rest are notes and follow-ups.
+
+# Round 2
+
+**Date:** 2026-10-14
+**Diff:** the round-2 commits are `e61cac6a` (the regression tests, test-plan Amendment 2) and `efd1b1d3` (the fix): `git diff 691b10db..efd1b1d3 -- src ui test tests`. In between, `staging` gained only other books' documentation commits.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`: PASS on the pushed head.** `npm run gate:status` reads `20261014T000151Z-24101-40bd started 2026-10-14T00:01:51.607Z on efd1b1d3 — PASS, exit 0, 6020 passed, 0 failed, 582 skipped, 309/309 suites`. `about-this-instance` passed 29/29, C7 being the new test.
+- [x] **Playwright, Chromium: 13/13 pass,** against a build of the round-2 source served by `vite preview`, B11 and B12 included. Before the fix, B11 and B12 failed for the reasons test-plan Amendment 2 records.
+- [x] **Live on staging.** Deploy run 716 for `efd1b1d3` completed successfully at 00:03 UTC.
+  - The headless check repeats round 1's and holds: the link lands on the section (top at 142 px), there are six cards and no page errors.
+  - `GET /api/about-this-instance` still answers exactly the four fields (5 admins, 5 customers).
+- [x] _Lint, typecheck, build: not configured._ The UI build succeeds.
+
+## Round 1's findings, each re-derived as a fresh claim
+
+1. **Blocking 1 (a non-string name crashed `/about`): fixed.**
+   - The fix is at `AboutThisInstance.jsx:43-44`. The name is `[profile?.display_name, profile?.name].find((v) => typeof v === 'string' && v.trim()) || shortNpub(pubkey)`.
+   - Round 1's reproduction was run again against the new build, with seven more hostile shapes added.
+   - All nine render `/about` intact with no page error: `{name: 42}`, `{display_name: {…}}`, `"🧠 Nous"`, a bare string, a number, `null`, an array, a whitespace-only name, and `{name: […], nip05: {…}, picture: 5}`.
+   - Each falls back to the shortened npub, except the real name "🧠 Nous". `nip05` and `picture` already had `typeof` guards; the last case confirms them.
+   - B11 pins the rule, including "the first field that is text wins" (an object `display_name` with a text `name` shows the name).
+2. **Non-blocking 1 (half an emoji as the initial): fixed.** `Array.from(name)[0]` at `AboutThisInstance.jsx:57`. "🧠 Nous" now shows 🧠 as its initial (reproduction above), and B12 checks that no lone surrogate remains. Multi-code-point emoji, such as flags or ZWJ sequences, still show their first code point. That is cosmetic, and not worth more code.
+3. **Non-blocking 2 (stored Assistant pubkey not lowercased): fixed.** `notCustomers.add(hex(assistant))` at `assistantKeys.js:204`. C7 fails without it (3 instead of 2) and passes with it. `hex()` returns `null` for a malformed value, and `null` is already in the set, so nothing new is excluded by accident.
+4. **Non-blocking 3–8 (logging volume, directory creation, a rotated master key, a throwing config read, accessibility, test notes): unchanged by design.** They stay recorded above as follow-ups for the book close. None is a defect against the story or the ADR.
+
+## Findings
+
+### Blocking
+None.
+
+### Non-blocking
+1. Round 1's non-blocking 3–8 carry forward unchanged, as notes for the book close.
+
+### Harness friction
+1. **Round 1's friction recurred in another session the same day.** Book `assistant-scores` pushed its intentionally failing tests (`11d5c626`, "Intentionally failing, awaiting the owner's approval") straight to `staging`, deploy run 717. Added to ledger row `2026-10-13-staging-pinned-session-vs-failing-tests` as evidence.
+
+## Verdict
+**PASS**
+
+The round-1 blocking defect is fixed and pinned by a regression test, the two cheap non-blocking fixes are in, the gate is clean on the pushed head, and the feature is live and correct on staging.
+
+## On PASS (same commit)
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection performed (result in the chat, not here); `/close-book` offered if the book looks complete.
