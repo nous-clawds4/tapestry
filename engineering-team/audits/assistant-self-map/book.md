@@ -247,7 +247,10 @@ From the owner's ask and the facts above; the Architect decides.
     `{ success: true, signedIn: false }` when signed out.
   - **The owner's check on staging,** signed in: pending. It should show the toggle in the published panel whenever
     a version is found, and the box should hold that version.
-  - **Production:** waits for story 5, the upkeep, as stories 2 and 3 do.
+  - **Production:** the owner chose on 2026-10-14 to promote story 4 now, ahead of story 5, and on its own: branch
+    `promote/assistant-self-map-4` is `main` plus story 4's commits, cherry-picked. `staging` also held
+    `about-this-instance` #1 and `assistant-scores` #1, whose code was not yet reviewed. The branch's gate:
+    `20261014T004404Z-18204-b363 [s4-promote] PASS, 6007 passed, 0 failed, 308/308 suites`; browser spec 33 passed.
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
