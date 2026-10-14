@@ -172,6 +172,15 @@ assistant-scores-page: 13 passed, 2 failed
 tests/brainstorm/assistant-scores.spec.js: 11 passed, 1 failed (B11: not the old "didn't answer" reason)
 ```
 
+The full gate on the same tree (record `tmp/gate-runs/20261014T031332Z-6561-1c07.json`):
+
+```
+Failed suites: manual-task-retrigger-after-finish, assistant-scores-route, assistant-scores-page, task-queue-jobid-valid
+Overall: FAIL — 6078 passed, 8 failed, 582 skipped across 312 suites
+```
+
+The 8 are exactly this round's failing tests (T3; P5, G9, R5, R6; U7, C4; V1). Every other suite passes.
+
 These were also checked against a throwaway prototype of Amendment 1 (never committed, reverted with `git checkout`).
 `assistant-scores-route` passed 32/32, `assistant-scores-page` 15/15, `task-queue-jobid-valid` 3/3 and
 `manual-task-retrigger-after-finish` 10/10.
