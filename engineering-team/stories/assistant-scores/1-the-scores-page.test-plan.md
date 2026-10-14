@@ -111,6 +111,21 @@ BRAINSTORM_SERVER_ACCESSIBLE=true BRAINSTORM_BASE_URL=http://localhost:4173 \
 **Scoped gate for this story:** the two Node suites above, plus `test/admin-action-sweep.test.js` (the route walk:
 every registered route has a table entry) and `test/stack-free-npm-test.test.js` (every suite registered).
 
+## Re-aims (returned to Test Design after Implementation, 2026-10-14)
+
+Building the page broke three existing tests that pinned `/assistant/trusted-assertions` as a placeholder. This plan
+missed them; the owner approved returning to Test Design to re-aim them, as each earlier page story did:
+
+- `test/assistant-identification-tags-page.test.js` **S3**: `trusted-assertions` joins the list of built action pages
+  in `ACTION_PAGES` (as the Duty Menu and Treasure Map pages joined it).
+- `tests/brainstorm/assistant-management-page.spec.js` **B8**: the Scores path skips as "no longer a placeholder
+  (assistant-scores #1)", like the five built pages before it; `assistant-scores.spec.js` pins the page.
+- `tests/brainstorm/assistant-trusted-content.spec.js` **TC5**: the Scores page keeps its title and its Treasure Map link
+  (still asserted, navigation included); only the placeholder's alert-criteria line is no longer expected there.
+
+**Lesson for the next page story:** grep `test/` and `tests/` for the action's path and key, and for lists of built
+pages, before writing the plan.
+
 ## Verification
 
 The new tests fail with the current code, for the right reason. Confirmed on 2026-10-14 at `5438bd2f` (plus the
