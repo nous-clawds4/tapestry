@@ -56,6 +56,16 @@ The cost: the stop hook fired at every turn end while the commits were held, and
 why it would not push. A harness rule naming fix (b) as the convention, or a stop hook that knows about held Phase-3
 commits, would remove that friction.
 
+**Occurrence (2026-10-14, book `assistant-scores`), with a sharper consequence.** Pinned to `staging`, with a stop hook
+that requires a push at every turn's end, the session pushed:
+- every draft before its gate (labelled "awaiting approval");
+- both rounds of failing tests;
+- the implementation before Review.
+
+The round-1 implementation carried the defect Review then blocked on (every Customer's Recalculate press failed). It
+was live on staging for about two hours, until the round-2 fix deployed. So pushing to the shared line before Review
+ships unreviewed behaviour, not just red tests. Pointer: `engineering-team/audits/assistant-scores/audit.md` §7.
+
 **Pointer:** `engineering-team/audits/manage-treasure-map/audit.md` § 7; this book's commits `33977a6` and `ccece6b`.
 
 **Recurrence, 2026-10-11 (assistant-duty-menu #1).** The same pattern recurred, in both directions:

@@ -1,7 +1,7 @@
 # Epic: assistant-scores — the hub's Scores page
 
 **Created:** 2026-10-13
-**Status:** Active
+**Status:** Done (book closed 2026-10-14; the folders sit under `done/`)
 **Book:** `engineering-team/audits/assistant-scores/book.md` (no PRD — acceptance frame)
 **Provenance:** the owner's ask of 2026-10-13, quoted in the book and settled through three questions at intake (book
 § Decisions).
@@ -14,9 +14,10 @@ Owner and Customers recalculate and republish it with one button.
 
 ## Stories
 
-`stories/assistant-scores/`.
+`stories/done/assistant-scores/`.
 
-1. `1-the-scores-page.md`: last published, how many, and the Recalculate button with its queued/running status.
+1. `1-the-scores-page.md` (Done): last published, how many, and the Recalculate button with its queued/running status;
+   plus ADR 0001 Amendment 1's shared jobId fix.
 
 ## Key facts / guardrails
 

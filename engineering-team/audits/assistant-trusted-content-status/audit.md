@@ -113,6 +113,7 @@ Derived from what PR #832 brought into `staging` (`git diff 17243cdf^1 17243cdf`
 - [ ] **6. The worst-case wait** for the attention answer on a local Map miss (§4 #5). The first lever, if it is ever measured to matter, is a memo (ADR 0001 Out of scope).
 - [ ] **7. One vocabulary on the page.** The FAQ and the three descriptions still say Trusted Assertions, Trusted Lists and Decentralized Lists. (§4 #6)
 - [ ] **8. Whether the Assistant actually publishes** Scores, Lists and Concepts events. The check reads only where the Map points. (story § Out of scope)
+  *2026-10-14: partly. For Scores, the page behind the card now shows when the viewer's own Assistant last published, and how many (book `assistant-scores`). The hub's check still reads only where the Map points, and Lists and Concepts are unchanged.*
 - [ ] **9. The remaining placeholders:** Bounties, Pins, Tags, Notifications and Alerts, Preferences. (`assistant-management` audit §6 #1, annotated at this close)
   *2026-10-12: the five say Coming soon and no longer count (book `assistant-coming-soon`); building them is still open.*
 - [ ] **10. The review's small follow-ups.** (ledger `2026-10-09-trusted-content-review-followups`)
