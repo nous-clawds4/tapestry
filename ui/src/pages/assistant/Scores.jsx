@@ -35,6 +35,13 @@ export default function ScoresPage() {
   const [pressing, setPressing] = useState(false);
   const [notice, setNotice] = useState(null); // { tone: 'success' | 'error', text }
 
+  // Another viewer (a sign-out and sign-in without a reload) starts from nothing, not from the last one's answer
+  // (ADR Amendment 1, N6).
+  useEffect(() => {
+    setAnswer(null);
+    setNotice(null);
+  }, [viewer]);
+
   useEffect(() => {
     if (!viewer || !assistant) return undefined;
     let cancelled = false;

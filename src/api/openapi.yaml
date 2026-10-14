@@ -883,7 +883,7 @@ paths:
         `published` is `{ finished: false }` and says nothing about what it holds. `pipeline` is `owner`
         (updateAllScoresForOwner), `customer` (an active Customer's own processCustomer, an Admin who is one included),
         or null for anyone else. `run` is `running` when a job that re-signs the viewer's scores is active, `queued` when
-        one is waiting, null when neither (delayed jobs, a schedule's next fire, never count), and `unknown` when the
+        one is waiting or prioritized, null when neither (delayed jobs, a schedule's next fire, never count), and `unknown` when the
         task queue is off, unavailable or could not be read; it is null with no pipeline.
       responses:
         '200':
@@ -915,10 +915,11 @@ paths:
         A narrow, session-bound press (assistant-scores ADR 0001): the request names nothing, and nothing in its query or
         body reaches the task. Whose run comes from the session: the Owner's is updateAllScoresForOwner; an active
         Customer's (an Admin who is one included) is their own processCustomer. Refused first, in order, each starting
-        nothing: no session (401 not-signed-in), no Assistant here (403 no-assistant), no pipeline here (403
-        no-pipeline), the task queue off, unavailable or unreadable (503 queue-unavailable), a run of the viewer's already
-        queued or running (409 already, with `run`). Otherwise it enqueues the task on its own task-queue queue with
-        run-task's jobId, so a second press, or an operator's trigger for the same account, joins the same run.
+        nothing: no session (401, from the route table, which answers before the handler and carries no code), no
+        Assistant here (403 no-assistant), no pipeline here (403 no-pipeline), the task queue off, unavailable or
+        unreadable (503 queue-unavailable), a run of the viewer's already queued or running (409 already, with `run`).
+        Otherwise it enqueues the task on its own task-queue queue with run-task's jobId (`processCustomer-<pubkey>` for
+        a Customer), so a second press, or an operator's trigger for the same account, joins the same run.
       responses:
         '202':
           description: The run was queued
@@ -930,7 +931,7 @@ paths:
                   success: { type: boolean }
                   run: { type: string, enum: [queued] }
         '401':
-          description: No signed-in session (code not-signed-in)
+          description: No signed-in session; the route table refuses it before the handler, with no code
         '403':
           description: No Assistant here (code no-assistant), or no pipeline for this account here (code no-pipeline)
         '409':
