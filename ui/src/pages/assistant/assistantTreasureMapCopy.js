@@ -1,6 +1,6 @@
 /**
- * The Your Assistant's Treasure Map page's words and two pure helpers (assistant-self-map #1, ADR
- * assistant-self-map/0001 sub-decision 9 and Amendment 1 items 7–8).
+ * The Your Assistant's Treasure Map page's words and its pure helpers (assistant-self-map #1, ADR
+ * assistant-self-map/0001 sub-decision 9 and Amendment 1 items 7–8; more helpers from stories 2 and 4, named below).
  *
  * Pure, no imports, so Node suites can load it (test/assistant-self-map-page.test.js). Named apart from the page
  * (AssistantTreasureMap.jsx), as dutyMenuCopy.js is. The title, the description, the back link, "Needs attention",

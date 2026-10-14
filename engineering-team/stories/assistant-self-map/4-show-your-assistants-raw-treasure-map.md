@@ -85,8 +85,9 @@ path Standard, all five phases:
 
 ## Deviations
 
-- The toggle underlines on hover and its text aligns left (`styles.css`). These are cosmetic touches ADR 0003
-  sub-decision 6 doesn't name, matching the page's other text links.
+- The toggle underlines on hover, its text aligns left, and it is set at `font-size: 0.85rem`, the page's note size
+  (`styles.css`). These are cosmetic touches ADR 0003 sub-decision 6 doesn't name, matching the page's other text
+  links. The size was logged after review (non-blocking 1).
 
 ## Linked artifacts
 
