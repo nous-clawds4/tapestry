@@ -349,6 +349,8 @@ large and partly unsettled (story 4), and no Map here uses it. **Deferred.**
      instanceMap }                               // the Assistant is this instance's TA: the Owner's line
    ```
 
+   `published.event`: the found version itself (ADR 0003).
+
    - **`duties`.** One item per viewer key naming the Assistant, in Map order. Its `lines` are:
      - one per offered kind its slot covers, keyed by the meet, with `status`:
        - `active`: live, and the found self-entries that win its duty probes are exactly the should-say ones for it,

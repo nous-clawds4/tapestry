@@ -346,6 +346,11 @@ From the owner's ask and the facts above; the Architect decides.
     story 2's and the records.
   - **Round 6, Implementation and Review:** `origin/staging` was still at `9679668`, already in the branch. Round 6
     edits only the same three modules, `openapi.yaml`, BIBLE §11 and §15, and story 2's own tests and records.
+- **Recheck at story 4's Implementation (2026-10-13, `origin/staging` at `9d73e4e9`; the held local commits rebased
+  onto it).** No commit since story 3's merge (`3def0f8`) touches `protocols/`, `src/lib/self-map`, `selfMap.js`,
+  `attention.js` or the page. The commits in between are other books' documents (`about-this-instance`,
+  `assistant-scores`). Story 4 edits `selfMap.js`'s `found()`, `attention.js`'s header, the page, its copy module,
+  `styles.css`, `openapi.yaml`, BIBLE §11's attention row and one line of ADR 0001.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

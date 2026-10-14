@@ -15,6 +15,8 @@
  * engineering-team/stories/assistant-self-map/3-one-name-for-your-assistants-treasure-map.md § Copy then renamed every
  * line a person reads: "your Assistant's Treasure Map", never "self-Map", and what it holds for the Assistant is listed.
  * The names under the hood (SELF_MAP_COPY, selfMap*) are unchanged.
+ * engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.md § Copy adds the raw toggle's
+ * words, and ADR assistant-self-map/0003 sub-decisions 2–4 the box's name, rawTreasureMap and rawTreasureMapText.
  */
 
 export const SELF_MAP_COPY = {
@@ -83,6 +85,15 @@ export const SELF_MAP_COPY = {
   },
   // The Owner's note, by the buttons.
   ownerNote: "Listing or removing your Assistant's duties changes only those entries in this instance's own Treasure Map. Its other entries stay as they are.",
+  // Story 4: the raw toggle. Each mark is drawn before its words, hidden from screen readers; boxLabel is the open box's
+  // accessible name, never seen (ADR 0003 sub-decision 4).
+  raw: {
+    show: "Show your Assistant's raw Treasure Map",
+    hide: "Hide your Assistant's raw Treasure Map",
+    closedMark: '▸',
+    openMark: '▾',
+    boxLabel: "Your Assistant's raw Treasure Map",
+  },
 };
 
 /** A Nostr created_at (seconds) as a plain date, e.g. "June 7, 2026"; null when there is none. */
@@ -162,4 +173,24 @@ export function selfMapButtons(answer) {
   if (!answer || typeof answer !== 'object') return { turnOn: false, update: { shown: false, enabled: false }, turnOff: false };
   if (answer.selfMapOn === true) return { turnOn: false, update: { shown: true, enabled: answer.current !== true }, turnOff: true };
   return { turnOn: true, update: { shown: false, enabled: false }, turnOff: answer.finished !== true || foundSelfEntries(answer) > 0 };
+}
+
+/**
+ * The found version of the Assistant's Treasure Map, for the raw view (story 4 AC-1, AC-3; ADR 0003 sub-decision 2):
+ * the answer's `published.event` when the check finished and found a version, whatever it lists; null otherwise (no
+ * answer, an unfinished or failed check, nothing found, or an `event` that is not an object).
+ * @param {?Object} answer - actions['treasure-map'] of the attention answer
+ * @returns {?Object}
+ */
+export function rawTreasureMap(answer) {
+  if (!answer || typeof answer !== 'object' || answer.finished !== true) return null;
+  const published = answer.published;
+  if (!published || typeof published !== 'object') return null;
+  const event = published.event;
+  return event && typeof event === 'object' && !Array.isArray(event) ? event : null;
+}
+
+/** The raw view's text: the event exactly as it came, indented (ADR 0003 sub-decision 3, as /treasure-map's rawMapText); '' for none. */
+export function rawTreasureMapText(event) {
+  return event ? JSON.stringify(event, null, 2) : '';
 }

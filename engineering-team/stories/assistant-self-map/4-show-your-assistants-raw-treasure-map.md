@@ -83,6 +83,11 @@ path Standard, all five phases:
 2. **When:** whenever a version is found, even one that lists none of the Assistant's duties.
 3. **Closed by default,** and not remembered between visits.
 
+## Deviations
+
+- The toggle underlines on hover and its text aligns left (`styles.css`). These are cosmetic touches ADR 0003
+  sub-decision 6 doesn't name, matching the page's other text links.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-self-map/0003-the-found-version-rides-the-answer.md`
