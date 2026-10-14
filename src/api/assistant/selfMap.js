@@ -22,7 +22,8 @@
  * - The self-Map found (sub-decision 5): this instance's relay first; only when it holds none, one outside round over the
  *   viewer's Map's relays for entries naming the Assistant and the Assistant's kind 10002 write relays (event-named: at
  *   most 50, each guarded) plus the offer's relays. The relay hints come only from entries whose key parses (story 1
- *   review R3-N2).
+ *   review R3-N2). The found version itself rides as `published.event`, exactly as it was read (assistant-self-map #4,
+ *   ADR 0003 sub-decision 1), for the page's raw view.
  * - The remembered choice (assistant-self-map #2, ADR 0002 sub-decision 2): the answer carries `selfMapOn`, the choice
  *   file's word for the viewer's own Assistant (true, false, or null when it cannot be read). It moves no mark.
  * - For a press (ADR 0002 sub-decision 3, Amendments 1–4): gatherSelfMap with `forWrite` reads every place at once,
@@ -252,7 +253,7 @@ async function lookupSelfMap({ assistantPubkey, mapEvent, offer, forWrite = fals
   const found = (latest, source) => ({
     finished: true,
     latest,
-    published: latest ? { ...readSelfEntries(latest, who), createdAt: latest.created_at, source, eventId: latest.id } : null,
+    published: latest ? { ...readSelfEntries(latest, who), createdAt: latest.created_at, source, eventId: latest.id, event: latest } : null,
   });
 
   const local = await Promise.resolve().then(() => d.scanLocal(filter))
