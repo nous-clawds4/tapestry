@@ -35,3 +35,7 @@ Tester. See `engineering-team/roles/tester.md`.
 
 ## Per-phase commits
 Yes. Commit the failing tests before moving on. The commit message should make clear these are intentionally failing (e.g., `test: failing tests for <slug> (<epic> #<n>)` — the slug/epic reference feeds `harness-stats.sh`, per workflow 1).
+
+**On a feature branch, never on `staging` or `main`.** `.github/workflows/test.yml` runs the gate on every pull request into `staging` or `main`, against the merged tree. A failing test on either branch therefore turns every open PR into it red, and every book that lands there in the meantime inherits the failure. Commit the failing tests on `feat/<book-slug>`, branched off an up-to-date `staging`, and reuse that branch if the book already has one. The story's implementation and review commits go on the same branch, and the branch reaches `staging` by PR after the Review PASS (`/cycle-staging`). The rule holds in Direction mode too, where `/direct-feature` already names the branch.
+
+**If your session's designated branch is `staging`, you may create and push that feature branch.** The owner has given this permission standing (2026-10-14), so don't stop to ask. Don't push the failing tests to `staging` instead. Don't hold them back to push with the implementation either: `staging` deploys on push, so the implementation would reach it before its Review (ledger row `2026-10-13-staging-pinned-session-vs-failing-tests`).

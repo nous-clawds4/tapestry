@@ -3,8 +3,8 @@
 **Id:** 2026-10-13-staging-pinned-session-vs-failing-tests
 **Type:** meta
 **Opened:** 2026-10-13 (book `about-this-instance`, story 1's Test Design and Implementation)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-14. Owner-requested harness commit, fix shape 1 (write the convention down) plus a standing permission. `workflows/3-test-design.md` § Per-phase commits now puts failing tests on `feat/<book-slug>`, never on `staging` or `main`, with implementation and review following on that branch and reaching `staging` by PR after Review. It gives a session pinned to `staging` the owner's standing permission to create and push that branch without asking. `workflows/4-implementation.md` and `.claude/commands/design-tests.md` point there, and the CHANGELOG row is dated 2026-10-14. Fix shape 2 (per-book designated branches for cloud sessions) is an operator setting outside the repo and is no longer needed to remove the conflict. Fix shape 3 was not taken because it weakens the gate.
 
 **What was seen.** This session's instructions named `staging` as its only branch, and it was not allowed to push to any other branch without permission.
 
