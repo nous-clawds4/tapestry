@@ -3,8 +3,8 @@
 **Id:** 2026-10-14-run-task-customer-jobid-rejected
 **Type:** bug
 **Opened:** 2026-10-14 (book `assistant-scores`, review round 1)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-14 — `d4b056e0` on `staging` (assistant-scores ADR 0001 Amendment 1; review round 2 PASS). The fix reaches production with the next promotion of `staging`.
 
 **What was seen.**
 - `computeJobId` (`src/manage/taskQueue/queue/index.js:64-69`) gives a customer task the jobId `` `${taskName}:${pubkey}` ``.
