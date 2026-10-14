@@ -251,6 +251,20 @@ From the owner's ask and the facts above; the Architect decides.
     `promote/assistant-self-map-4` is `main` plus story 4's commits, cherry-picked. `staging` also held
     `about-this-instance` #1 and `assistant-scores` #1, whose code was not yet reviewed. The branch's gate:
     `20261014T004404Z-18204-b363 [s4-promote] PASS, 6007 passed, 0 failed, 308/308 suites`; browser spec 33 passed.
+    Shipped as PR #862, merge `a01fa93d`, 2026-10-14, after the safe-to-merge check came back safe on its first attempt.
+    Deploy run 38505595196 succeeded in 1m35s. The served bundle went from `index-DyLRJT-P.js` to `index-DtIlbGVH.js`,
+    which carries the toggle's words. Smoke-test tiers 1–5 were clean:
+    - Tier 1: stable on the first three polls, and Neo4j ready.
+    - Tier 2: every page and API answered 200, and `get-user-data` answered the documented 504.
+    - Tier 3: `/assistant/treasure-map` answered 200, and the attention route answered `{ success: true,
+      signedIn: false }` when signed out.
+    - Tier 4: headless Chromium, signed out, found no console errors.
+    - Tier 5: `/assistant`, `/treasure-map` and `/assistant/duty-menu` answered 200, and the press answered 401 when
+      signed out.
+
+    The PR's `stack-free` check was red twice on a harness-lint fixture race, fixed in the PR at the owner's choice
+    (ledger row `2026-10-14-harness-lint-fixture-maintenance-race`). The owner's check on production, signed in, is
+    pending.
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on

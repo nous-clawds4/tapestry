@@ -3,8 +3,8 @@
 **Id:** 2026-10-14-harness-lint-fixture-maintenance-race
 **Type:** meta
 **Opened:** 2026-10-14 (PR #862, the promotion of `assistant-self-map` #4)
-**Status:** OPEN
-**Done:** —
+**Status:** DONE
+**Done:** 2026-10-14 — PR #862. `stack-free` passed on git 2.55 with the fix (run 38504998775, head `58864ef9`); merged as `a01fa93d`.
 
 **What was seen.** `stack-free` failed twice on PR #862: the first run and one re-run. Each time it was one test in
 `test/harness-lint.test.js`, "L10: a large harness commit that touched the CHANGELOG is satisfied", with
