@@ -5,6 +5,7 @@ const TC = require('../../test/helpers/trustedContentFixtures');
 const O = require('../../test/helpers/outboxRelaysFixtures');
 const DM = require('../../test/helpers/dutyMenuFixtures');
 const SM = require('../../test/helpers/selfMapFixtures');
+const SC = require('../../test/helpers/scoresFixtures');
 
 /**
  * assistant-trusted-content-status #1 — Scores, Lists and Concepts on the hub: what a viewer SEES.
@@ -19,7 +20,8 @@ const SM = require('../../test/helpers/selfMapFixtures');
  *   TC2 — all three done: each card says Done, not Needs attention; the count line and the pill leave them out.     [AC-5]
  *   TC3 — one of each: pending (marked and counted), unfinished (marked, not counted), done (Done).               [AC-4, AC-5]
  *   TC4 — a screen reader hears "Done: Scores" and "Needs attention: Lists"; each card still leads to its page.      [AC-5]
- *   TC5 — each card's page: the new title, the rule as alert criteria, and one link to /treasure-map that opens it.   [AC-1]
+ *   TC5 — each card's page: the new title, the rule as alert criteria (while a placeholder: Scores is built since
+ *         assistant-scores #1), and one link to /treasure-map that opens it.                                       [AC-1]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked; /api/setup/status always answers "all done", so the Assistant pill has its turn. The
@@ -160,12 +162,14 @@ test.describe('Scores, Lists and Concepts on the hub (assistant-trusted-content-
   });
 
   for (const card of TC.CARDS) {
-    test(`TC5 ${card.path}: the page is titled ${card.title}, gives the rule as its alert criteria, and its one link, "${TC.MAP_LINK.text}", opens /treasure-map (AC-1)`, async ({ page }) => {
+    test(`TC5 ${card.path}: the page is titled ${card.title}, gives the rule as its alert criteria while it is a placeholder, and its one link, "${TC.MAP_LINK.text}", opens /treasure-map (AC-1)`, async ({ page }) => {
       await mock(page, answerWith(TC.trio((c) => TC.pending(c))));
       await open(page, card.path);
       const main = page.locator('main').first();
       await expect(main.getByRole('heading', { level: 1 })).toHaveText(card.title);
-      await expect(main.getByText(card.alertCriteria, { exact: true }), 'the rule, in plain words').toBeVisible();
+      // Re-aimed by assistant-scores #1: the Scores page is built now, and a built page shows no placeholder's alert
+      // criteria; its title and its Treasure Map link stay pinned here (and in tests/brainstorm/assistant-scores.spec.js).
+      if (card.path !== SC.PATH) await expect(main.getByText(card.alertCriteria, { exact: true }), 'the rule, in plain words').toBeVisible();
       const link = main.getByRole('link', { name: TC.MAP_LINK.text, exact: true });
       await expect(link).toHaveAttribute('href', TC.MAP_LINK.to);
       await link.click();
