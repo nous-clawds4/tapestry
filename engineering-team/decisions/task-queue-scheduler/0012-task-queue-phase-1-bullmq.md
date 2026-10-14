@@ -4,6 +4,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-20
+**Amended by:** `assistant-scores` ADR 0001 Amendment 1 (2026-10-14): the customer jobId is `` `${taskName}-${pubkey}` ``, because BullMQ rejects a one-colon custom id ("Custom Id cannot contain :"). The per-(task, pubkey) dedup is unchanged.
 **Story:** `engineering-team/stories/13-task-queue-phase-1-bullmq-behind-run-task.md`
 
 ## Context
