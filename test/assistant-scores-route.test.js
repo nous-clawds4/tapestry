@@ -18,6 +18,10 @@
  *
  * Everything FAILS against the current code: src/api/assistant/scores.js does not exist, no route is registered, and
  * selfMap.js does not export its task lists.
+ *
+ * Round 2 (ADR Amendment 1, after review round 1): P5 re-aimed to `processCustomer-<viewer>`; G9 the read's own 500
+ * words (N3); R5 the count through src/lib/strfryScanStrict.js countStrict (N4); R6 the docs (N1, N7). The jobIds
+ * themselves are checked against BullMQ in test/task-queue-jobid-valid.test.js.
  */
 
 const fs = require('fs');
@@ -132,6 +136,7 @@ function world({
   count = F.COUNT,
   countThrows = false,
   enqueueThrows = false,
+  customerThrows = false,
 } = {}) {
   const calls = { scan: [], count: [], enqueue: [], queueTouched: 0, availableAsked: 0 };
   const byTask = {};
@@ -164,7 +169,10 @@ function world({
     getConfigFromFile: (key, fallback) => ({ BRAINSTORM_OWNER_PUBKEY: OWNER, TASK_QUEUE_ENABLED: queueEnabled }[key] ?? fallback),
     getAdminPubkeys: () => [ADMIN, ADMIN_CUSTOMER],
     getAssistantPubkeyFor: async (pubkey) => ASSISTANTS[pubkey] || null,
-    getCustomer: async (pubkey) => CUSTOMERS[pubkey] || null,
+    getCustomer: async (pubkey) => {
+      if (customerThrows) throw new Error('fixture: CustomerManager failed');
+      return CUSTOMERS[pubkey] || null;
+    },
     scanLocal: async (filter) => {
       calls.scan.push(filter);
       if (scanThrows) throw new Error('fixture: strfry scan failed');
@@ -446,7 +454,7 @@ test('P4: a press while a run of theirs is queued or running answers 409 already
   assert(res.statusCode === 409 && w.calls.enqueue.length === 0, `an orchestrator run counts too — got ${res.statusCode} ${show(w.calls.enqueue)}`);
 });
 
-test("P5: two presses that race past the check enqueue one jobId — run-task's own (AC-3)", async () => {
+test("P5: two presses that race past the check enqueue one jobId — run-task's own, `processCustomer-<viewer>` (AC-3; re-aimed by Amendment 1)", async () => {
   const w = world();
   const handler = mod().createRecalculateHandler(w.deps);
   const [a, b] = [fakeRes(), fakeRes()];
@@ -455,8 +463,9 @@ test("P5: two presses that race past the check enqueue one jobId — run-task's 
   let computeJobId;
   try { ({ computeJobId } = require(QUEUE)); } catch (e) { throw new Error(`${rel(QUEUE)} must load (run \`npm ci\`): ${e.message}`); }
   const ids = new Set(w.calls.enqueue.map((x) => computeJobId(x.taskName, x.customerArgs)));
-  assert(ids.size === 1 && ids.has(`processCustomer:${CUSTOMER}`),
-    `every enqueue dedups to run-task's jobId processCustomer:<viewer> — got ${show([...ids])}`);
+  // Re-aimed by ADR Amendment 1: BullMQ rejects the one-colon `processCustomer:<pubkey>`; the separator is `-`.
+  assert(ids.size === 1 && ids.has(`processCustomer-${CUSTOMER}`),
+    `every enqueue dedups to run-task's jobId processCustomer-<viewer> — got ${show([...ids])}`);
   const ow = world();
   await press(OWNER, ow);
   const ownerId = computeJobId(onlyEnqueue(ow).taskName, onlyEnqueue(ow).customerArgs);
@@ -565,6 +574,32 @@ test("R4: the tasks a press enqueues are real registry tasks and sit in the self
   for (const t of Object.values(F.PIPELINE_TASKS)) assert(registry.tasks && registry.tasks[t], `${t} must be a registry task`);
   assert(registry.tasks[F.PIPELINE_TASKS.customer].arguments && registry.tasks[F.PIPELINE_TASKS.customer].arguments.customer === true,
     `${F.PIPELINE_TASKS.customer} takes a customer`);
+});
+
+// ── Round 2 (ADR Amendment 1) ──────────────────────────────────────────────────────────────────────────────────────
+
+test("G9: a read that fails answers 500 with the read's own words, not the press's (Amendment 1, N3)", async () => {
+  const w = world({ customerThrows: true });
+  const res = await read(CUSTOMER, w);
+  assert(res.statusCode === 500 && res.body && res.body.success === false, `expected 500 { success: false } — got ${res.statusCode} ${show(res.body)}`);
+  assert(res.body.error === F.AMENDMENT_1.readFailed, `expected "${F.AMENDMENT_1.readFailed}" — got ${show(res.body.error)}`);
+});
+
+test('R5: the count is read with countStrict from src/lib/strfryScanStrict.js; scores.js keeps no count reader of its own (Amendment 1, N4)', () => {
+  const s = src(MODULE);
+  assert(/require\(\s*['"][./]*\/lib\/strfryScanStrict(?:\.js)?['"]\s*\)/.test(s) && /\bcountStrict\b/.test(s),
+    "scores.js must read the count through require('../../lib/strfryScanStrict').countStrict");
+  assert(!/function\s+countLocalStrict\b/.test(s), 'scores.js must not define its own countLocalStrict');
+  assert(!/['"]--count['"]/.test(s), 'scores.js must not spawn `strfry scan --count` itself');
+});
+
+test('R6: the docs say a signed-out press is refused by the route table, and that queued means waiting or prioritized (Amendment 1, N1, N7)', () => {
+  const o = src(OPENAPI);
+  const at = (p) => { const i = o.indexOf(`  ${p}:`); assert(i >= 0, `openapi documents ${p}`); const next = o.slice(i + 3).search(/\n  \/[a-zA-Z]/); return next < 0 ? o.slice(i) : o.slice(i, i + 3 + next); };
+  assert(/prioritized/.test(at(F.ROUTES.status)), `openapi's ${F.ROUTES.status} says queued counts prioritized jobs too`);
+  assert(/route table/i.test(at(F.ROUTES.recalculate)), `openapi's ${F.ROUTES.recalculate} says the 401 comes from the route table`);
+  const row = (src(BIBLE).split('\n').find((l) => l.startsWith(`| POST | \`${F.ROUTES.recalculate}\` |`)) || '');
+  assert(/route table/i.test(row), `the BIBLE row for POST ${F.ROUTES.recalculate} says the signed-out 401 comes from the route table`);
 });
 
 // ── runner ──────────────────────────────────────────────────────────────────────────────────────────────────────────
