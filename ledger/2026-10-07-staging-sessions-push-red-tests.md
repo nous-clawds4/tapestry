@@ -113,5 +113,9 @@ own only pays this cost. Does it port to the other flow? Yes: any flow on a shar
 
 **Recurrence, 2026-10-13 (assistant-self-map #4).** The session was again told to develop on `staging` under the same
 stop hook. Its plan, story and ADR went to `origin/staging` before their gates, the harmless kind. At Test Design, the
-owner was asked and chose fix shape (b): the failing-tests commit `ccc3cda0` is held locally and pushed together with
+owner was asked and chose fix shape (b): the failing-tests commit `5fa417b3` ("test: failing tests for show-your-assistants-raw-treasure-map"; `ccc3cda0` before a
+rebase) is held locally and pushed together with
 the implementation. The hook asked for a push at the turn ends in between, as before.
+At its Review (2026-10-14), `origin/staging` had moved to `072c4274`. That tip carries book `assistant-scores`'
+intentionally failing suites, so a gate run on this story's tree after it merges the tip can't be green, for reasons
+outside the story. Read that run per suite.

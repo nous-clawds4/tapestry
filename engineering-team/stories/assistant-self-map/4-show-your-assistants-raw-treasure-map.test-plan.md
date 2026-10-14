@@ -117,7 +117,7 @@ BRAINSTORM_BASE_URL=http://localhost:4184 BRAINSTORM_SERVER_ACCESSIBLE=true PLAY
 
 ## Verification
 
-**On `6f57e8e9` with these tests, 2026-10-13:**
+**On `bf16714f` (adr: 0003 … accepted; `6f57e8e9` before the held commits were rebased) with these tests, 2026-10-13:**
 
 - **The first Node gate found a design conflict.** `20261013T232017Z-18826-ea76 [s4-phase3] — FAIL, exit 1, 6017 passed,
   17 failed, 582 skipped, 309/309 suites; failed: assistant-attention, assistant-self-map-check,
@@ -137,7 +137,7 @@ BRAINSTORM_BASE_URL=http://localhost:4184 BRAINSTORM_SERVER_ACCESSIBLE=true PLAY
   - attention: 38 passed, 0 failed (U16 re-aimed).
   - page: 21 passed, 10 failed: N3 (missing the raw keys and the two exports), W1–W4, D10–D14. Each fails on the
     missing words, helpers, toggle or styles; none fails on an import or a typo.
-- **The browser half,** against a build of `6f57e8e9`'s UI: 26 passed, 7 failed.
+- **The browser half,** against a build of `bf16714f`'s UI: 26 passed, 7 failed.
   - The 7 are R0 (the bundle lacks the toggle's words) and R1–R6 (no toggle; R3 on its control).
   - Every story 1–3 test passes, the re-aimed N6 included.
 
