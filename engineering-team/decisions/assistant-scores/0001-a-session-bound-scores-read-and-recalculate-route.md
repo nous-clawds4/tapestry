@@ -3,6 +3,8 @@
 **Status:** Accepted
 **Date:** 2026-10-13
 **Story:** `engineering-team/stories/assistant-scores/1-the-scores-page.md`
+**Amends:** `task-queue-scheduler` ADR 0012 and ADR 0022, the customer jobId separator only (Amendment 1). Their
+bodies are unchanged; each gains an **Amended by** header pointer.
 
 ## Context
 
@@ -220,3 +222,65 @@ Branches: a feature, built on `staging` and promoted to `main` the usual way; no
 - Changing who may use `/api/run-task` or `/api/customer-schedule/*`.
 - Seeing runs started outside the queue, or making the queue-off path start runs.
 - Any change to the hub's Scores check (`trustedContent.js`) or the self-Map check beyond the three exports.
+
+## Amendment 1 (2026-10-14): the customer jobId BullMQ accepts, and the review's ride-along fixes
+
+**Why.** Review round 1, Blocking 1 (`engineering-team/reviews/assistant-scores/1-the-scores-page.md`):
+- Sub-decision 4's premise is false for Customers. `computeJobId` (`src/manage/taskQueue/queue/index.js:64-69`) gives a
+  customer task the jobId `` `${taskName}:${pubkey}` ``.
+- BullMQ 5.76.10 (`package-lock.json`) rejects any custom jobId whose `split(':')` length isn't 3, with "Custom Id cannot
+  contain :" (`node_modules/bullmq/dist/cjs/classes/job.js:1043-1045`).
+- So no Customer's press can be enqueued. Neither can any customer task through `/api/run-task`'s queue branch, which
+  includes the per-Customer scheduler's loopback triggers (ledger row `2026-10-14-run-task-customer-jobid-rejected`).
+- BullMQ's own `Job#validateOptions` reproduces the rule without Redis: `processCustomer:<hex>` is rejected,
+  `processCustomer-<hex>` and `updateAllScoresForOwner` pass, and an all-digit id is rejected ("Custom Id cannot be
+  integers").
+
+**Decision.**
+
+1. **The customer jobId becomes `` `${taskName}-${customerArgs.pubkey}` ``; the non-customer jobId stays `taskName`.**
+   - It is still one stable id per (task, pubkey), so ADR 0022's contract holds unchanged: a second add while the first
+     is waiting or active joins it, and a fresh add after it finishes runs again (story #25 AC #4).
+   - This supersedes only the separator in ADR 0012 (its "Dedup" formula) and in ADR 0022 (which pins it through story
+     #25 AC #4's `processCustomer:alice` example).
+   - The same one-line change fixes `/api/run-task` and the per-Customer scheduler.
+   - No migration: BullMQ refused every add with the old id, so no such job exists in Redis.
+   - Why `-`: BullMQ forbids `:` in a custom id, apart from the three-part legacy repeat ids its own source marks for
+     removal, and forbids all-digit ids. Task names are camelCase and pubkeys are hex, so `-` cannot be ambiguous.
+   - Rejected: `` `${taskName}:${pubkey}:x` `` passes today's check only through that legacy three-part allowance,
+     which BullMQ's source says a later breaking change will remove.
+2. **A guard on the library's own rule (Tester).**
+   - Every jobId `computeJobId` can produce, for every task in `taskRegistry.json`, with and without customer args, must
+     pass BullMQ's own `Job#validateOptions`. Run it on a `Job` built over a minimal queue stub, with no Redis. Don't
+     copy the rule into the test.
+   - Re-aim `test/manual-task-retrigger-after-finish.test.js` T3 and this story's P5 to the new formula.
+   - `test/task-queue-bullmq.test.js` T3 only checks that the two tokens appear; its message may be updated, and its
+     assertion needn't change.
+3. **The review's non-blocking items taken now** (each small, inside this story's files):
+   - **N1:** the page reads an HTTP 401 as `not-signed-in`. The route table refuses a signed-out press before the
+     handler runs, and its refusal carries no `code`. The BIBLE row and `openapi.yaml` say that the 401 comes from the
+     route table.
+   - **N2:** `REASONS.failed` becomes "this instance couldn't start one."
+   - **N3:** the read's 500 gets its own words: "This instance could not read your Scores right now."
+   - **N4:** the count is read with `countStrict` from `src/lib/strfryScanStrict.js`, which answers one safe integer or
+     rejects and is never 0 for unparseable output. `countLocalStrict` is removed.
+   - **N6:** the page clears `answer` and `notice` when the signed-in viewer changes.
+   - **N7:** `openapi.yaml` says `queued` means waiting or prioritized.
+   - **Not taken:** N5, a Customer record with no `id`. Malformed records are CustomerManager's to prevent, and run-task
+     fails on them too. N8, the cross-site POST and the public read's `CustomerManager.initialize()`, predates this
+     story and applies app-wide.
+
+**Files** (Implementer):
+- `src/manage/taskQueue/queue/index.js`: `computeJobId`'s customer branch, and the comment at line 57 that spells the
+  formula. Lines 8 and 179 say "(taskName, pubkey)" and stay true.
+- `BIBLE.md`, around line 1684: the formula sentence in the task-queue section.
+- `src/api/assistant/scores.js`: its header comment, N3 and N4.
+- `ui/src/pages/assistant/scoresCopy.js`: N2.
+- `ui/src/pages/assistant/Scores.jsx` or `ui/src/utils/assistantScores.js`: N1 and N6.
+- `src/api/openapi.yaml` and the two BIBLE API rows: N1 and N7.
+- `test/` and `tests/`: none; the Tester owns them.
+
+**Consequences.**
+- Customers' presses and every customer `/api/run-task` trigger enqueue again.
+- Logs, BullBoard and the Task Explorer show customer job ids with `-` rather than `:`.
+- Nothing reads job ids back by format: the Scores run state matches on `job.data`, and deploy-safety reads names only.
