@@ -135,6 +135,7 @@ import OutboxRelaysPage from './pages/assistant/OutboxRelays';
 import ProfileChecklistPage from './pages/assistant/ProfileChecklist';
 import DutyMenuPage from './pages/assistant/DutyMenu';
 import AssistantTreasureMapPage from './pages/assistant/AssistantTreasureMap';
+import ScoresPage from './pages/assistant/Scores';
 import { ASSISTANT_ACTIONS } from './pages/assistant/actions';
 import {
   ASSISTANT_MANAGEMENT_PATH, MY_ASSISTANT_PATH, MY_ASSISTANTS_PATH, MANAGE_TREASURE_MAP_PATH, TREASURE_MAP_ADVANCED_PATH,
@@ -148,13 +149,15 @@ import BrainstormEvent from './pages/BrainstormEvent';
 import NotFound from './pages/NotFound';
 // The action pages that are built, by action key; every other action routes to the placeholder
 // (assistant-identification-tags #2, ADR 0002 sub-decision 1; Outbox Relays: assistant-outbox-relays #2, ADR 0002; the
-// profile's checklist: assistant-profile-checklist #2, ADR 0002; the Duty Menu: assistant-duty-menu #1, ADR 0001).
+// profile's checklist: assistant-profile-checklist #2, ADR 0002; the Duty Menu: assistant-duty-menu #1, ADR 0001; Scores:
+// assistant-scores #1, ADR 0001).
 const ACTION_PAGES = {
   profile: <ProfileChecklistPage />,
   'identification-tags': <IdentificationTagsPage />,
   'outbox-relays': <OutboxRelaysPage />,
   'duty-menu': <DutyMenuPage />,
   'treasure-map': <AssistantTreasureMapPage />,
+  'trusted-assertions': <ScoresPage />,
 };
 
 const router = createBrowserRouter([
