@@ -239,6 +239,15 @@ From the owner's ask and the facts above; the Architect decides.
     should report honestly.
   - **Production:** waits for story 5, the upkeep (the owner's choice at planning; called story 3, then story 4, on
     2026-10-13).
+- **Story 4, show your Assistant's raw Treasure Map (Done; review PASS).**
+  - **Staging:** pushed straight to `staging`. The session was told to develop there, and the owner chose to hold the
+    Phase-3 tests and push them with the code after Review. Merges `9e1b588e` and `360cdbc7` brought in two other
+    books' pushes. Deploy run 38491250139 (#722) succeeded, 2026-10-14. The served bundle `index-CVNvYBMt.js` carries
+    the toggle's words, `/assistant/treasure-map` answers 200, and the attention route answers
+    `{ success: true, signedIn: false }` when signed out.
+  - **The owner's check on staging,** signed in: pending. It should show the toggle in the published panel whenever
+    a version is found, and the box should hold that version.
+  - **Production:** waits for story 5, the upkeep, as stories 2 and 3 do.
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
