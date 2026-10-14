@@ -10,7 +10,9 @@ import { describeServerPublish, publishTone as reportTone, relayLine } from '../
 import ActionText from './ActionText';
 import { ASSISTANT_ACTIONS, ASSISTANT_COPY, assistantAttention } from './actions';
 import { categoryOf } from './dutyMenuCopy';
-import { SELF_MAP_COPY, couldNotCheckLine, reasonLine, selfMapButtons, selfMapStateLine, statusLine } from './assistantTreasureMapCopy';
+import {
+  SELF_MAP_COPY, couldNotCheckLine, rawTreasureMap, rawTreasureMapText, reasonLine, selfMapButtons, selfMapStateLine, statusLine,
+} from './assistantTreasureMapCopy';
 
 /**
  * /assistant/treasure-map — the Your Assistant's Treasure Map page (assistant-self-map #1, ADR 0001 sub-decision 9).
@@ -33,6 +35,11 @@ import { SELF_MAP_COPY, couldNotCheckLine, reasonLine, selfMapButtons, selfMapSt
  * is asked for again after every press but a refusal, since the remembered choice can change even when nothing is
  * published (ADR 0002 Amendment 1 item 3). The Owner's note reads the session (Amendment 1 item 5). While off, the state
  * line takes the status line's place.
+ *
+ * Story 4 (ADR 0003 sub-decisions 4–6): when the check finished and found a version, the published panel carries a
+ * toggle, after what it lists and before the state line, that opens the version itself as indented JSON. It starts
+ * closed on every load, and the event is read from the current answer on every render, never kept, so a press's new
+ * answer replaces it and an answer with no version takes the toggle away. Opening it sends nothing.
  */
 
 const TONE_ICON = { success: '✅ ', warning: '⚠️ ', info: 'ℹ️ ', error: '❌ ' };
@@ -145,6 +152,10 @@ export default function AssistantTreasureMapPage() {
   const [pressing, setPressing] = useState(null);
   const [result, setResult] = useState(null);
   const [notice, setNotice] = useState(null);
+  // The raw view (story 4): open or closed, never the event itself, which comes from the answer on every render.
+  const [rawOpen, setRawOpen] = useState(false);
+  const rawEvent = rawTreasureMap(answer);
+  const raw = SELF_MAP_COPY.raw;
 
   /** One press (ADR 0002 sub-decision 7): Turn on and Update now send on, Turn off sends off. */
   async function onPress(which, on) {
@@ -253,6 +264,24 @@ export default function AssistantTreasureMapPage() {
                 </div>
                 {line && <p className="bs-outbox-note">{line}</p>}
                 {selfEntries.length > 0 && <Entries entries={selfEntries} />}
+                {rawEvent && (
+                  <div className="bs-selfmap-raw">
+                    <button
+                      type="button"
+                      className="bs-selfmap-raw-toggle"
+                      aria-expanded={rawOpen ? 'true' : 'false'}
+                      aria-controls="bs-selfmap-raw-box"
+                      onClick={() => setRawOpen(!rawOpen)}
+                    >
+                      <span aria-hidden="true">{rawOpen ? raw.openMark : raw.closedMark}</span>{' '}{rawOpen ? raw.hide : raw.show}
+                    </button>
+                    {rawOpen && (
+                      <pre id="bs-selfmap-raw-box" className="bs-selfmap-raw-pre" tabIndex={0} role="region" aria-label={raw.boxLabel}>
+                        {rawTreasureMapText(rawEvent)}
+                      </pre>
+                    )}
+                  </div>
+                )}
                 {stateLine && <p className="bs-outbox-note">{stateLine}</p>}
                 {anyButton && user.classification === 'owner' && <p className="bs-outbox-note">{SELF_MAP_COPY.ownerNote}</p>}
                 {anyButton && (

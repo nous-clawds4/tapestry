@@ -81,6 +81,11 @@ function addCommit(dir, files, msg = 'follow-up') {
   );
 }
 
+// A fixture repo never runs git's automatic maintenance. Newer git (2.55 on CI's runners) starts it, detached, after a
+// large commit, and it is still packing inside .git when the test removes the fixture: rmSync then fails with ENOTEMPTY
+// (PR #862's stack-free runs, "a large harness commit…"). Set right after `git init`, in the repo's own config.
+const NO_AUTO_MAINTENANCE = 'git config gc.auto 0 && git config maintenance.auto false';
+
 function makeFixture(files, { git = true } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-'));
   for (const [rel, content] of Object.entries(files)) {
@@ -90,7 +95,7 @@ function makeFixture(files, { git = true } = {}) {
   }
   if (git) {
     execSync(
-      'git init -q && git add -A && ' +
+      `git init -q && ${NO_AUTO_MAINTENANCE} && git add -A && ` +
         'git -c user.email=fixture@test -c user.name=fixture commit -qm fixture',
       { cwd: dir, shell: '/bin/bash' }
     );
@@ -405,7 +410,7 @@ function commitAt(dir, files, msg, date) {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, content);
   }
-  if (!fs.existsSync(path.join(dir, '.git'))) execSync('git init -q', { cwd: dir });
+  if (!fs.existsSync(path.join(dir, '.git'))) execSync(`git init -q && ${NO_AUTO_MAINTENANCE}`, { cwd: dir, shell: '/bin/bash' });
   execSync(
     `git add -A && git -c user.email=fixture@test -c user.name=fixture commit -qm '${msg}'`,
     { cwd: dir, shell: '/bin/bash', env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } }
@@ -554,7 +559,7 @@ function shallowCopyOfRepo(depth) {
   const dest = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-lint-real-shallow-'));
   const gitDir = execSync('git rev-parse --path-format=absolute --git-common-dir', { cwd: REPO_ROOT, encoding: 'utf8' }).trim();
   execSync(
-    `git init -q && git fetch -q --depth=${depth} "file://${gitDir}" ${headSha(REPO_ROOT)} && git checkout -q FETCH_HEAD`,
+    `git init -q && ${NO_AUTO_MAINTENANCE} && git fetch -q --depth=${depth} "file://${gitDir}" ${headSha(REPO_ROOT)} && git checkout -q FETCH_HEAD`,
     { cwd: dest, shell: '/bin/bash', stdio: 'pipe' }
   );
   return dest;

@@ -33,6 +33,16 @@
  * re-aimed to § Copy, so P1, P2, Q1 and Q2 now check the new lines.
  *   N — no line says "self-Map" or "self-entries" (N1, N2), and only words change: the copy module's keys, kinds and
  *       exports are as before (N3).                                                                [AC-1, AC-4]
+ *
+ * assistant-self-map #4 (show your Assistant's raw Treasure Map; story 4 AC-1 … AC-5, § Copy; ADR assistant-self-map/0003
+ * sub-decisions 2–6):
+ *   W — the copy module's raw words, word for word as § Copy (W1); rawTreasureMap(answer), the found event or null
+ *       (W2, W3); rawTreasureMapText(event) (W4).                                                  [AC-1 … AC-3]
+ *   D — the page's toggle: its place in the published card (D10), closed by default with aria-expanded and the named,
+ *       focusable box (D11), the event read from the current answer and never kept (D12), its words' one home (D13),
+ *       the box's styles wrap and cap its height (D14).                                            [AC-1, AC-2, AC-4]
+ *   N3 and D4 are re-aimed: story 4 adds `raw` words and two helpers to the copy module, and the toggle is a fifth
+ *   button. These FAIL until the helpers, the words and the toggle exist.
  */
 
 const fs = require('fs');
@@ -200,7 +210,7 @@ test('D3: the page has the hub\'s frame and states — TopBar, the back link, th
   assert(wrong.length === 0, wrong.join('; '));
 });
 
-test('D4 (AC-7; re-aimed by assistant-self-map #2, ADR 0002 sub-decision 7): one request per load, and one per press — the page never fetches itself or names an /api/ address, never polls, stores nothing and signs nothing; its one network call is setAssistantSelfMap from ../../utils/setAssistantSelfMap; besides sign-in, its buttons are the self-Map\'s three', () => {
+test('D4 (AC-7; re-aimed by assistant-self-map #2, ADR 0002 sub-decision 7, and #4, ADR 0003 sub-decision 5): one request per load, and one per press — the page never fetches itself or names an /api/ address, never polls, stores nothing and signs nothing; its one network call is setAssistantSelfMap from ../../utils/setAssistantSelfMap; besides sign-in, its buttons are the self-Map\'s three and the raw toggle', () => {
   const src = codeOnly(safeRead(PAGE));
   assert(src && /\buseAssistantAttention\s*\(/.test(src), `${rel(PAGE)} ${src ? 'does not read the shared answer' : 'does not exist'} — these refusals need a real page to mean anything`);
   const hits = [
@@ -211,7 +221,7 @@ test('D4 (AC-7; re-aimed by assistant-self-map #2, ADR 0002 sub-decision 7): one
   if (!/import\s*\{\s*setAssistantSelfMap\s*\}\s*from\s*['"]\.\.\/\.\.\/utils\/setAssistantSelfMap(?:\.js)?['"]/.test(src)) hits.push("no `import { setAssistantSelfMap } from '../../utils/setAssistantSelfMap'`");
   if (!/\bsetAssistantSelfMap\s*\(/.test(src)) hits.push('no setAssistantSelfMap(…) call');
   const buttons = (src.match(/<button\b/g) || []).length;
-  if (buttons > 4) hits.push(`${buttons} buttons; sign-in and the self-Map's three at most`);
+  if (buttons > 5) hits.push(`${buttons} buttons; sign-in, the self-Map's three and the raw toggle at most`);
   assert(hits.length === 0, `the page: ${hits.join('; ')}`);
 });
 
@@ -396,8 +406,11 @@ const COPY_SHAPE = [
   'publicLine:string', 'categories.scores:string', 'categories.lists:string', 'categories.concepts:string', 'press.turnOn:string',
   'press.update:string', 'press.turnOff:string', 'press.publishing:string', 'press.subject:string', 'press.claimsNone:string',
   'press.requestFailed:string', 'state.on:string', 'state.off:string', 'state.offStillClaims:string', 'ownerNote:string',
+  // Re-aimed by assistant-self-map #4 (ADR 0003 sub-decision 4): the raw toggle's words and the box's accessible name.
+  'raw.show:string', 'raw.hide:string', 'raw.closedMark:string', 'raw.openMark:string', 'raw.boxLabel:string',
 ];
-const COPY_EXPORTS = ['SELF_MAP_COPY', 'couldNotCheckLine', 'reasonLine', 'selfMapButtons', 'selfMapStateLine', 'statusLine'];
+// Re-aimed by assistant-self-map #4 (ADR 0003 sub-decisions 2–3): rawTreasureMap and rawTreasureMapText.
+const COPY_EXPORTS = ['SELF_MAP_COPY', 'couldNotCheckLine', 'rawTreasureMap', 'rawTreasureMapText', 'reasonLine', 'selfMapButtons', 'selfMapStateLine', 'statusLine'];
 
 test('N1 (story 3 AC-1): no word the copy module gives the page says "self-Map" or "self-entries" — every sentence, the Owner\'s line with its count, and every line the helpers return', async () => {
   const mod = await copyModule();
@@ -425,7 +438,7 @@ test('N2 (story 3 AC-1): the page itself writes no "self-Map" a person could rea
   assert(wrong.length === 0, `the old name outside comments: ${wrong.join(' | ')}`);
 });
 
-test('N3 (story 3 AC-4): only words change — the copy module keeps every key, every kind of value and every export it had before story 3', async () => {
+test('N3 (story 3 AC-4; re-aimed by story 4): only words change — the copy module keeps every key, every kind of value and every export it had before story 3, plus story 4\'s raw words and two helpers, and nothing else', async () => {
   const mod = await copyModule();
   const paths = [];
   const walk = (o, at) => { for (const [k, v] of Object.entries(o)) { const q = at ? `${at}.${k}` : k; if (v && typeof v === 'object') walk(v, q); else paths.push(`${q}:${typeof v}`); } };
@@ -437,6 +450,225 @@ test('N3 (story 3 AC-4): only words change — the copy module keeps every key, 
   if (added.length) wrong.push(`added: ${added.join(', ')}`);
   const exportsNow = Object.keys(mod).sort();
   if (show(exportsNow) !== show(COPY_EXPORTS)) wrong.push(`exports: want ${show(COPY_EXPORTS)}, got ${show(exportsNow)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── W — story 4's raw view: words and helpers (ADR 0003 sub-decisions 2–4) ───────────────────────── */
+
+const STYLES = path.join(REPO, 'ui/src/styles.css');
+const rawHelpers = async () => {
+  const mod = await copyModule();
+  const wrong = [];
+  for (const name of ['rawTreasureMap', 'rawTreasureMapText']) if (typeof mod[name] !== 'function') wrong.push(`${rel(COPY_MOD)} must export ${name}() (ADR 0003 sub-decisions 2–3)`);
+  assert(wrong.length === 0, wrong.join('; '));
+  return mod;
+};
+/** A finished answer whose found version is `event` (the canned one unless given). */
+const withEvent = (event, over = {}) => SM.action({ published: SM.published(SM.SHOULD_LIVE.slice(), { event, ...over }) });
+
+test('W1 (story 4 § Copy; ADR 0003 sub-decision 4): SELF_MAP_COPY.raw holds the toggle\'s words and marks and the box\'s name, word for word, and the marks before the words read as § Copy — "▸ Show your Assistant\'s raw Treasure Map" closed, "▾ Hide your Assistant\'s raw Treasure Map" open', async () => {
+  const mod = await copyModule();
+  const raw = (mod.SELF_MAP_COPY || {}).raw;
+  assert(raw && typeof raw === 'object', `${rel(COPY_MOD)}: SELF_MAP_COPY.raw is missing (ADR 0003 sub-decision 4)`);
+  const wrong = [];
+  for (const k of ['show', 'hide', 'closedMark', 'openMark', 'boxLabel']) if (raw[k] !== SM.RAW[k]) wrong.push(`raw.${k}: want ${show(SM.RAW[k])}, got ${show(raw[k])}`);
+  if (`${raw.closedMark} ${raw.show}` !== SM.RAW.closedLabel) wrong.push(`closed, as seen: want ${show(SM.RAW.closedLabel)}, got ${show(`${raw.closedMark} ${raw.show}`)}`);
+  if (`${raw.openMark} ${raw.hide}` !== SM.RAW.openLabel) wrong.push(`open, as seen: want ${show(SM.RAW.openLabel)}, got ${show(`${raw.openMark} ${raw.hide}`)}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('W2 (story 4 AC-1; ADR 0003 sub-decision 2): rawTreasureMap gives the found event whenever a finished check found a version — up to date, out of date, listing none of the Assistant\'s duties, found on another relay, the Owner\'s or a customer\'s — the very object the answer carries', async () => {
+  const { rawTreasureMap } = await rawHelpers();
+  const wrong = [];
+  const cases = [
+    ['up to date', SM.ANSWERS.DONE],
+    ['out of date', SM.ANSWERS.STALE],
+    ['listing none of its duties', SM.ANSWERS.LISTS_NONE],
+    ['found on another relay', SM.action({ published: SM.published(SM.SHOULD_LIVE.slice(), { source: 'relay', eventId: 'f'.repeat(64) }) })],
+    ['a customer\'s', SM.action({ instanceMap: false, published: SM.published([{ key: '39998', relay: SM.OWN }], { otherEntries: 0 }) })],
+    ['off, still listing', SM.offOf(SM.ANSWERS.STALE)],
+  ];
+  for (const [label, a] of cases) {
+    const got = rawTreasureMap(a);
+    if (got !== a.published.event) wrong.push(`${label}: want the answer's published.event (id ${a.published.event.id.slice(0, 8)}…), got ${show(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('W3 (story 4 AC-3; ADR 0003 sub-decision 2): rawTreasureMap gives null when there is nothing to show — no answer (checking, failed), a check that did not finish (even one carrying a stray published), check-failed, nothing found, no duties, and a published whose event is missing, null, an array or not an object', async () => {
+  const { rawTreasureMap } = await rawHelpers();
+  const wrong = [];
+  const stray = { ...SM.ANSWERS.UNFINISHED, published: SM.published(SM.SHOULD_LIVE.slice()) };
+  const noEvent = SM.action({ published: SM.published(SM.SHOULD_LIVE.slice(), { event: undefined }) });
+  delete noEvent.published.event;
+  const cases = [
+    ['no answer (null)', null],
+    ['no answer (undefined)', undefined],
+    ['unfinished', SM.ANSWERS.UNFINISHED],
+    ['unfinished, with a stray published', stray],
+    ['check failed', SM.ANSWERS.CHECK_FAILED],
+    ['nothing found', SM.ANSWERS.NOT_PUBLISHED],
+    ['no duties, nothing found', SM.ANSWERS.NO_DUTIES],
+    ['published without event', noEvent],
+    ['event null', withEvent(null)],
+    ['event an array', withEvent([])],
+    ['event a string', withEvent('{"id":"x"}')],
+  ];
+  // The path under test ran: the same helper gives an event for a found version.
+  if (!rawTreasureMap(SM.ANSWERS.DONE)) wrong.push('control: a found version gives its event');
+  for (const [label, a] of cases) {
+    const got = rawTreasureMap(a);
+    if (got !== null) wrong.push(`${label}: want null, got ${show(got)}`);
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('W4 (story 4 AC-2; ADR 0003 sub-decision 3): rawTreasureMapText shows the event as indented JSON — JSON.stringify(event, null, 2), so it reads back to the same event with every field — and \'\' for none', async () => {
+  const { rawTreasureMapText } = await rawHelpers();
+  const event = SM.ANSWERS.DONE.published.event;
+  const wrong = [];
+  const text = rawTreasureMapText(event);
+  if (text !== JSON.stringify(event, null, 2)) wrong.push(`want JSON.stringify(event, null, 2), got ${show(String(text).slice(0, 80))}…`);
+  let back = null;
+  try { back = JSON.parse(text); } catch { back = null; }
+  for (const k of ['id', 'pubkey', 'created_at', 'kind', 'tags', 'content', 'sig']) if (!back || show(back[k]) !== show(event[k])) wrong.push(`reads back ${k}`);
+  if (!/\n  "id": /.test(String(text))) wrong.push('indented by two spaces, one field per line');
+  for (const none of [null, undefined]) if (rawTreasureMapText(none) !== '') wrong.push(`${show(none)}: want '', got ${show(rawTreasureMapText(none))}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+/* ───────────────────────── D — story 4's toggle in the page (ADR 0003 sub-decisions 5–6) ───────────────────────── */
+
+/** The opening tag that starts at `at`, through its `>` outside any {…} expression (so `=>` inside one never ends it). */
+function openTagAt(src, at) {
+  let depth = 0;
+  for (let i = at; i < src.length; i += 1) {
+    const c = src[i];
+    if (c === '{') depth += 1;
+    else if (c === '}') depth -= 1;
+    else if (c === '>' && depth === 0) return src.slice(at, i + 1);
+  }
+  return '';
+}
+/** The first <tag …> opening tag in `src` whose text contains `needle`, or ''. */
+function tagWith(src, tag, needle) {
+  const re = new RegExp(`<${tag}\\b`, 'g');
+  let m;
+  while ((m = re.exec(src))) {
+    const t = openTagAt(src, m.index);
+    if (t.includes(needle)) return t;
+  }
+  return '';
+}
+/** An attribute's {…} expression in an opening tag, braces balanced, or ''. */
+function attrExpr(tagText, name) {
+  const at = tagText.indexOf(`${name}={`);
+  if (at < 0) return '';
+  let depth = 0;
+  for (let i = at + name.length + 1; i < tagText.length; i += 1) {
+    if (tagText[i] === '{') depth += 1;
+    else if (tagText[i] === '}') { depth -= 1; if (depth === 0) return tagText.slice(at + name.length + 2, i); }
+  }
+  return '';
+}
+
+/** The published card's source: from its aria-labelledby to the end of its <section>. */
+function publishedCard(src) {
+  const at = src.indexOf('aria-labelledby="bs-selfmap-published"');
+  if (at < 0) return '';
+  const end = src.indexOf('</section>', at);
+  return end < 0 ? '' : src.slice(at, end);
+}
+
+test('D10 (story 4 AC-1; ADR 0003 sub-decision 5): the toggle sits in the published card, after what the card lists as found and before the state line and the buttons, and shows only for rawTreasureMap(answer)\'s event', () => {
+  const src = codeOnly(safeRead(PAGE));
+  assert(src, `${rel(PAGE)} does not exist`);
+  const card = publishedCard(src);
+  assert(card, 'the page has no published card (aria-labelledby="bs-selfmap-published" … </section>)');
+  const wrong = [];
+  if (!/\brawTreasureMap\s*\(\s*answer\s*\)/.test(src)) wrong.push('no rawTreasureMap(answer): the toggle shows only for the found event');
+  const toggle = card.indexOf('bs-selfmap-raw-toggle');
+  const entries = card.search(/<Entries\s+entries=\{selfEntries\}/);
+  const state = card.search(/\{\s*stateLine\s*&&/);
+  const actions = card.indexOf('bs-selfmap-actions');
+  if (toggle < 0) wrong.push('no element with class bs-selfmap-raw-toggle in the published card');
+  else {
+    if (entries < 0 || toggle < entries) wrong.push('the toggle comes after <Entries entries={selfEntries} />');
+    if (state < 0 || toggle > state) wrong.push('the toggle comes before {stateLine && …}');
+    if (actions < 0 || toggle > actions) wrong.push('the toggle comes before the buttons (bs-selfmap-actions)');
+  }
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D11 (story 4 AC-2, AC-4; ADR 0003 sub-decisions 4–5): closed on every load — useState(false) — and a real toggle: a <button type="button"> with aria-expanded and aria-controls naming the box; the marks in an aria-hidden span; the box a <pre> with that id, tabIndex={0}, role="region" and aria-label from SELF_MAP_COPY.raw.boxLabel, drawn through rawTreasureMapText', () => {
+  const src = codeOnly(safeRead(PAGE));
+  assert(src, `${rel(PAGE)} does not exist`);
+  const card = publishedCard(src);
+  const wrong = [];
+  if (!/useState\(\s*false\s*\)/.test(src)) wrong.push('the toggle starts closed: useState(false)');
+  const btn = tagWith(card, 'button', 'bs-selfmap-raw-toggle');
+  if (!btn) wrong.push('no <button … className="bs-selfmap-raw-toggle"> in the published card');
+  else {
+    if (!/type="button"/.test(btn)) wrong.push('the toggle is type="button"');
+    if (!/aria-expanded=\{/.test(btn)) wrong.push('the toggle carries aria-expanded={…}');
+    if (!/aria-controls="bs-selfmap-raw-box"/.test(btn)) wrong.push('the toggle names its box: aria-controls="bs-selfmap-raw-box"');
+  }
+  if (!/<span\s+aria-hidden="true">\s*\{[^}]*(?:closedMark|openMark)/.test(card)) wrong.push('the marks are drawn in <span aria-hidden="true">, so a screen reader hears only the words');
+  const pre = tagWith(card, 'pre', '');
+  if (!pre) wrong.push('no <pre> box in the published card');
+  else {
+    for (const [re, what] of [
+      [/id="bs-selfmap-raw-box"/, 'id="bs-selfmap-raw-box"'], [/className="bs-selfmap-raw-pre"/, 'className="bs-selfmap-raw-pre"'],
+      [/tabIndex=\{0\}/, 'tabIndex={0}'], [/role="region"/, 'role="region"'], [/aria-label=\{[^}]*boxLabel\s*\}/, 'aria-label={….boxLabel}'],
+    ]) if (!re.test(pre)) wrong.push(`the box has ${what}`);
+  }
+  if (!/\brawTreasureMapText\s*\(/.test(card)) wrong.push('the box shows rawTreasureMapText(…)');
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D12 (story 4 AC-4, AC-5; ADR 0003 sub-decision 5): never a stale version, and not a press — the event is read from the current answer on each render and never kept in state, a ref or an effect; the toggle\'s handler touches no press state, the press helper or a refresh', () => {
+  const src = codeOnly(safeRead(PAGE));
+  assert(src && /\brawTreasureMap\s*\(\s*answer\s*\)/.test(src), `${rel(PAGE)} ${src ? 'does not read rawTreasureMap(answer)' : 'does not exist'} — these refusals need the toggle to mean anything`);
+  const wrong = [];
+  if (/use(?:State|Ref|Memo)\s*\([^)]*rawTreasureMap/.test(src)) wrong.push('the event is kept in a hook');
+  if (/\bset\w*\s*\(\s*rawTreasureMap/.test(src)) wrong.push('the event is copied into state');
+  if (/useEffect\s*\([\s\S]{0,200}rawTreasureMap/.test(src)) wrong.push('the event is read in an effect');
+  // Through a name too: `const x = rawTreasureMap(answer)` and then x handed to a setter, a hook or an effect.
+  const name = (src.match(/const\s+(\w+)\s*=\s*rawTreasureMap\s*\(\s*answer\s*\)/) || [])[1];
+  if (name) {
+    const n = name.replace(/\$/g, '\\$');
+    if (new RegExp(`\\bset\\w*\\s*\\(\\s*${n}\\b`).test(src)) wrong.push(`${name} is copied into state`);
+    if (new RegExp(`use(?:State|Ref|Memo)\\s*\\([^)]*\\b${n}\\b`).test(src)) wrong.push(`${name} is kept in a hook`);
+    if (new RegExp(`useEffect\\s*\\([\\s\\S]{0,200}\\b${n}\\b`).test(src)) wrong.push(`${name} is read in an effect`);
+  }
+  const handler = attrExpr(tagWith(publishedCard(src), 'button', 'bs-selfmap-raw-toggle'), 'onClick');
+  if (!handler) wrong.push('the toggle has an onClick');
+  else if (/onPress|setAssistantSelfMap|refresh|setPressing|setResult|setNotice/.test(handler)) wrong.push(`the toggle's handler reaches the press: ${handler.trim()}`);
+  assert(wrong.length === 0, wrong.join('; '));
+});
+
+test('D13 (story 4 § Copy): the raw words have one home — none of them, nor the composed labels, is typed into AssistantTreasureMap.jsx', () => {
+  const raw = safeRead(PAGE);
+  assert(raw && /bs-selfmap-raw-toggle/.test(raw), `${rel(PAGE)} ${raw ? 'has no raw toggle yet' : 'does not exist'} — the words must come from ./assistantTreasureMapCopy`);
+  const retyped = [SM.RAW.show, SM.RAW.hide, SM.RAW.boxLabel, SM.RAW.closedLabel, SM.RAW.openLabel, SM.RAW.closedMark, SM.RAW.openMark].filter((x) => raw.includes(x));
+  assert(retyped.length === 0, `retyped in the page: ${retyped.map(show).join('; ')}`);
+});
+
+test('D14 (story 4 AC-2; ADR 0003 sub-decision 6): the styles — .bs-selfmap-raw-pre wraps (white-space: pre-wrap; overflow-wrap: anywhere), caps its height and scrolls (max-height, overflow-y: auto), and shows keyboard focus; .bs-selfmap-raw-toggle shows keyboard focus', () => {
+  const css = safeRead(STYLES);
+  const wrong = [];
+  const rule = (sel) => { const m = css.match(new RegExp(`${sel.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`)); return m ? m[1] : ''; };
+  const pre = rule('.bs-selfmap-raw-pre');
+  if (!pre) wrong.push('no .bs-selfmap-raw-pre { … } rule');
+  else {
+    if (!/white-space:\s*pre-wrap/.test(pre)) wrong.push('.bs-selfmap-raw-pre: white-space: pre-wrap');
+    if (!/overflow-wrap:\s*anywhere/.test(pre)) wrong.push('.bs-selfmap-raw-pre: overflow-wrap: anywhere');
+    if (!/max-height:/.test(pre)) wrong.push('.bs-selfmap-raw-pre: a max-height');
+    if (!/overflow-y:\s*auto/.test(pre)) wrong.push('.bs-selfmap-raw-pre: overflow-y: auto');
+  }
+  if (!/\.bs-selfmap-raw-pre:focus-visible\s*\{/.test(css)) wrong.push('no .bs-selfmap-raw-pre:focus-visible rule');
+  if (!/\.bs-selfmap-raw-toggle\s*\{/.test(css)) wrong.push('no .bs-selfmap-raw-toggle { … } rule');
+  if (!/\.bs-selfmap-raw-toggle:focus-visible\s*\{/.test(css)) wrong.push('no .bs-selfmap-raw-toggle:focus-visible rule');
   assert(wrong.length === 0, wrong.join('; '));
 });
 

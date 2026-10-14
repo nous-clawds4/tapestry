@@ -47,6 +47,10 @@
  * Everything except R FAILS against the current code: src/lib/identification-tags, src/api/assistant/attention.js,
  * ui/src/utils/assistantAttention.js and ui/src/context/AssistantAttentionContext.jsx do not exist; assistantAttention
  * takes one argument and answers no alertCount; the picker has no assistantPhase; /api/assistant/attention answers 404.
+ *
+ * Re-aimed 2026-10-13 by assistant-self-map #4 (ADR assistant-self-map/0003 Amendment 1): U16 drops
+ * actions['treasure-map'].published.event, the found kind 10040 itself and the one field the answer may carry a pubkey
+ * in, before it checks that the answer carries neither the viewer's nor the assistant's pubkey.
  */
 
 const fs = require('fs');
@@ -578,9 +582,13 @@ test('U15: no query parameter changes the answer or the relays asked — the ans
   assert(!asked.includes(OTHER) && !asked.includes('evil'), `a query parameter reached a lookup: ${asked}`);
 });
 
-test('U16: the answer carries no viewer or assistant pubkey (AC-2)', async () => {
+test('U16: the answer carries no viewer or assistant pubkey (AC-2) — the raw Treasure Map, actions[\'treasure-map\'].published.event, aside: the one field that may (assistant-self-map ADR 0003 Amendment 1)', async () => {
   const { body } = await answer({ local: [...allOffered(), ...offeredDefinitions()] });
-  const s = show(body);
+  // The one exception: the found kind 10040 itself, whole, which names its author (ADR 0003 Amendment 1).
+  const rest = JSON.parse(JSON.stringify(body || null));
+  const tm = rest && rest.actions && rest.actions['treasure-map'];
+  if (tm && tm.published && typeof tm.published === 'object') delete tm.published.event;
+  const s = show(rest);
   assert(!s.includes(VIEWER) && !s.includes(ASSISTANT), `the answer must carry neither the viewer\'s nor the assistant\'s pubkey: ${s}`);
 });
 

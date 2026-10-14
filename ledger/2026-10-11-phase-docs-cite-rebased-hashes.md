@@ -40,3 +40,9 @@ friction).
 `18d0cb9f` was rebased onto another session's push and became `b25f89ac`. Round 2 had to show that the diff was the
 same from either base (`engineering-team/reviews/done/duty-menus-and-self-maps/3-self-maps.md`:529–532), and
 `18d0cb9f` is cited only in that explanation. Same fix shape. Does it port to the other flow? Yes.
+
+**Recurred 2026-10-13 (`assistant-self-map` #4; its review, non-blocking 2 and 3).** The held Phase-3 commits were
+rebased onto another session's push before Implementation. The test plan's verification cited the old ADR commit
+`6f57e8e9` (now `bf16714f`), and the red-tests ledger row cited `ccc3cda0` (now `5fa417b3`). Both were corrected after
+review, citing commits by subject too. To keep the hashes valid, the session then merged `origin/staging` rather than
+rebasing again.

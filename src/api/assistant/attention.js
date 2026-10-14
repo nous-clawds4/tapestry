@@ -55,6 +55,8 @@
  * twice the shortest enabled schedule interval, and its Concept headers. Done when current; unfinished with
  * `no-relay-answered` or `instance-unanswered`. The check is src/api/assistant/selfMap.js (the rules are
  * src/lib/self-map); it runs beside the others and is isolated the same way: if it throws, it answers `check-failed`.
+ * `published.event` is the found version itself, and the one field of the answer that may carry a pubkey: the answer
+ * otherwise carries none of the viewer's or the Assistant's (assistant-self-map ADR 0003 Amendment 1).
  *
  * Read-only: strfry is only scanned, outside relays are only read, and nothing is stored anywhere.
  *

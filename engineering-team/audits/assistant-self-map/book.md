@@ -237,19 +237,35 @@ From the owner's ask and the facts above; the Architect decides.
       errors.
   - **The owner's check on staging,** signed in: pending. It should show the state line and the buttons, and a press
     should report honestly.
-  - **Production:** waits for story 4, the upkeep (the owner's choice at planning; called story 3 until 2026-10-13).
+  - **Production:** waits for story 5, the upkeep (the owner's choice at planning; called story 3, then story 4, on
+    2026-10-13).
+- **Story 4, show your Assistant's raw Treasure Map (Done; review PASS).**
+  - **Staging:** pushed straight to `staging`. The session was told to develop there, and the owner chose to hold the
+    Phase-3 tests and push them with the code after Review. Merges `9e1b588e` and `360cdbc7` brought in two other
+    books' pushes. Deploy run 38491250139 (#722) succeeded, 2026-10-14. The served bundle `index-CVNvYBMt.js` carries
+    the toggle's words, `/assistant/treasure-map` answers 200, and the attention route answers
+    `{ success: true, signedIn: false }` when signed out.
+  - **The owner's check on staging,** signed in: pending. It should show the toggle in the published panel whenever
+    a version is found, and the box should hold that version.
+  - **Production:** the owner chose on 2026-10-14 to promote story 4 now, ahead of story 5, and on its own: branch
+    `promote/assistant-self-map-4` is `main` plus story 4's commits, cherry-picked. `staging` also held
+    `about-this-instance` #1 and `assistant-scores` #1, whose code was not yet reviewed. The branch's gate:
+    `20261014T004404Z-18204-b363 [s4-promote] PASS, 6007 passed, 0 failed, 308/308 suites`; browser spec 33 passed.
 
 **Planned:**
 - **Story 2, turning the self-Map on and off (approved 2026-10-12; Done 2026-10-13, review PASS in round 6; on
   `staging` 2026-10-13, above).** The owner chose at planning that it reaches `staging` by a PR after its Review, as
-  above, and reaches production only together with story 4, the upkeep (called story 3 until 2026-10-13). Until story
-  4 keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
+  above, and reaches production only together with story 5, the upkeep (called story 3, then story 4, on 2026-10-13).
+  Until story 5 keeps a self-Map true by itself, an "on" self-Map changes only when its person presses.
   - **The cost, accepted:** another book's promotion pinned after story 2's staging merge carries story 2 to
     production too. No outside client reads self-Maps yet.
 - **Story 3, one name for your Assistant's Treasure Map (approved 2026-10-13, Architecture skipped; Done 2026-10-13,
   review PASS).** The owner's ask after story 2's staging check: the words people see say "Treasure Map", never
   "self-Map"; nothing under the hood changes. Wording follow-ups from its review: ledger row
   `2026-10-13-treasure-map-wording-followups`.
+- **Story 4, show your Assistant's raw Treasure Map (approved 2026-10-13; all five phases; Done 2026-10-14, review
+  PASS; ADR 0003 with Amendment 1).** The owner's ask: a toggle on the page
+  opens the found version of the Assistant's kind 10040 as published, read-only. The upkeep story is renumbered 5.
 
 ## Shared lines
 
@@ -343,6 +359,11 @@ From the owner's ask and the facts above; the Architect decides.
     story 2's and the records.
   - **Round 6, Implementation and Review:** `origin/staging` was still at `9679668`, already in the branch. Round 6
     edits only the same three modules, `openapi.yaml`, BIBLE §11 and §15, and story 2's own tests and records.
+- **Recheck at story 4's Implementation (2026-10-13, `origin/staging` at `9d73e4e9`; the held local commits rebased
+  onto it).** No commit since story 3's merge (`3def0f8`) touches `protocols/`, `src/lib/self-map`, `selfMap.js`,
+  `attention.js` or the page. The commits in between are other books' documents (`about-this-instance`,
+  `assistant-scores`). Story 4 edits `selfMap.js`'s `found()`, `attention.js`'s header, the page, its copy module,
+  `styles.css`, `openapi.yaml`, BIBLE §11's attention row and one line of ADR 0001.
 - **Before Implementation and again before Review:** run `git fetch origin staging`, then
   `git merge-tree --write-tree HEAD origin/staging` (ledger `2026-09-22-parallel-books-no-shared-line-recheck`).
 

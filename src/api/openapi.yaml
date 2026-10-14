@@ -347,7 +347,8 @@ paths:
         `upkeep-stopped` with `lastLandedAt` in seconds, `not-landed` otherwise); Concepts from the assistant's 39998
         headers at their relay; Lists never yet (`older-form`, `not-published-here`). `shouldSay` is the self-entries
         the self-Map should hold now (key and relay); `published` is the self-Map found (`selfEntries`, the count of
-        `otherEntries`, `createdAt`, `source`, `eventId`), this instance's relay first, then one outside round, or null;
+        `otherEntries`, `createdAt`, `source`, `eventId`, and the version itself as `event`), this instance's relay first,
+        then one outside round, or null;
         `current` says whether the two match. `instanceMap` is true for the Owner, whose assistant's Map is also this
         instance's own. Done when finished and current, pending when finished and not; unfinished with
         `no-relay-answered` when a relay it needed did not answer, or `instance-unanswered` when this instance's own
@@ -410,6 +411,7 @@ paths:
                             createdAt: { type: integer }
                             source: { type: string, enum: [local, relay] }
                             eventId: { type: string }
+                            event: { type: object, nullable: false, description: 'treasure-map: the found version itself, as read (id, pubkey, created_at, kind, tags, content, sig). It carries the Assistant''s pubkey and any other the version holds: the one exception to this answer''s no-pubkey rule (assistant-self-map ADR 0003 Amendment 1).' }
                         current: { type: boolean, nullable: true, description: 'duty-menu: the published menu has the offer''s rows; treasure-map: the self-Map found says what it should; null when the check did not finish' }
                         mapFound: { type: boolean, description: 'treasure-map: a Treasure Map was found for the viewer' }
                         instanceMap: { type: boolean, description: 'treasure-map: the assistant''s Treasure Map is also this instance''s own (the Owner)' }

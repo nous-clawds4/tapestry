@@ -9055,6 +9055,19 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-idtags-publish:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Your Assistant's Treasure Map: up to two buttons side by side (assistant-self-map #2). */
 .bs-selfmap-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* Your Assistant's raw Treasure Map: a text toggle and the event, wrapped so the page never scrolls sideways (assistant-self-map #4). */
+.bs-selfmap-raw { margin-top: 0.75rem; }
+.bs-selfmap-raw-toggle {
+  padding: 0; border: none; background: none; font: inherit; font-size: 0.85rem; color: #a5b4fc; cursor: pointer; text-align: left;
+}
+.bs-selfmap-raw-toggle:hover { text-decoration: underline; }
+.bs-selfmap-raw-toggle:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; border-radius: 4px; }
+.bs-selfmap-raw-pre {
+  margin: 0.5rem 0 0; padding: 0.75rem; max-height: 28rem; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; line-height: 1.5;
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+}
+.bs-selfmap-raw-pre:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
 .bs-idtags-results { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
 .bs-idtags-results:empty { margin-top: 0; }
 .bs-idtags-result { padding: 0.6rem 0.75rem; border-radius: 8px; font-size: 0.85rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); }
