@@ -40,7 +40,8 @@ function shortNpub(pubkey) {
 /** One person: avatar or initial, name, NIP-05 when there is one, and a chevron; opens their profile. */
 function PersonCard({ pubkey, profile }) {
   const [pictureFailed, setPictureFailed] = useState(false);
-  const name = profile?.display_name || profile?.name || shortNpub(pubkey);
+  // Profiles are anyone's to publish: only a field that is non-empty text is a name (review round 1, Blocking 1).
+  const name = [profile?.display_name, profile?.name].find((v) => typeof v === 'string' && v.trim()) || shortNpub(pubkey);
   const nip05 = typeof profile?.nip05 === 'string' ? profile.nip05 : '';
   const picture = !pictureFailed && typeof profile?.picture === 'string' ? profile.picture : '';
 
@@ -53,7 +54,7 @@ function PersonCard({ pubkey, profile }) {
           ...avatarStyle, display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: 'rgba(165, 180, 252, 0.15)', color: ACCENT, fontWeight: 700,
         }}>
-          {name.charAt(0).toUpperCase()}
+          {Array.from(name)[0].toUpperCase()}
         </span>
       )}
       <span style={{ flex: 1, minWidth: 0 }}>

@@ -201,7 +201,7 @@ async function countInstanceCustomers(deps = {}) {
     for (const pk of d.getAdminPubkeys() || []) notCustomers.add(hex(pk));
     for (const holder of holders) {
         const assistant = await store.getStoredPubkey(holder);
-        if (assistant) notCustomers.add(assistant);
+        if (assistant) notCustomers.add(hex(assistant));
     }
     return holders.filter((holder) => !notCustomers.has(holder)).length;
 }
