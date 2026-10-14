@@ -54,8 +54,10 @@ function createRedisConnection() {
 
 /**
  * Compute the BullMQ jobId for dedup.
- *   - Customer task: `${taskName}:${pubkey}` — concurrent submissions for the
- *     same customer dedup to one execution.
+ *   - Customer task: `${taskName}-${pubkey}` — concurrent submissions for the
+ *     same customer dedup to one execution. The separator is `-`, not `:`:
+ *     BullMQ rejects a custom jobId with one colon ("Custom Id cannot contain :"),
+ *     which failed every customer add (ADR assistant-scores/0001 Amendment 1).
  *   - Non-customer task: `${taskName}` — at most one of this task in
  *     wait/active at a time.
  *
@@ -63,7 +65,7 @@ function createRedisConnection() {
  */
 function computeJobId(taskName, customerArgs) {
   if (customerArgs && customerArgs.pubkey) {
-    return `${taskName}:${customerArgs.pubkey}`;
+    return `${taskName}-${customerArgs.pubkey}`;
   }
   return taskName;
 }

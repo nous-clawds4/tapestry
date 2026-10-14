@@ -35,7 +35,8 @@ export const REASONS = {
   'no-pipeline': "your scores aren't calculated on this instance.",
   'queue-unavailable': "this instance's task queue isn't available right now.",
   already: 'one is already queued or running.',
-  failed: "this instance didn't answer.",
+  // The server answered and could not enqueue, or did not answer at all (ADR Amendment 1, N2).
+  failed: "this instance couldn't start one.",
 };
 
 /**

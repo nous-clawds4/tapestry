@@ -11,8 +11,8 @@
  * updateAllScoresForOwner; an active Customer's (an Admin who is one included) is their own processCustomer; nobody
  * else has one here. Refusals come first, each starting nothing: 401 not-signed-in, 403 no-assistant, 403 no-pipeline,
  * 503 queue-unavailable, 409 already. Otherwise it enqueues on the task's own BullMQ queue with run-task's own jobId
- * (computeJobId: processCustomer:<pubkey>, updateAllScoresForOwner), so two presses, or a press and an operator's
- * trigger, join one run (ADR 0022).
+ * (computeJobId: processCustomer-<pubkey>, updateAllScoresForOwner), so two presses, or a press and an operator's
+ * trigger, join one run (ADR 0022; the separator is ADR 0001 Amendment 1's).
  *
  * "A run of mine" is read with the self-Map check's own task lists (selfMap.js, ADR assistant-self-map/0001
  * sub-decision 6), so the two pages cannot disagree: running when a matching job is active, queued when one is waiting
@@ -22,7 +22,7 @@
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 const SCORE_KIND = 30382;
-/** strfry's count of an Assistant's 30382s is one index walk; give it this long. */
+/** strfry's count of an Assistant's 30382s is one index walk; give it this long (countStrict's default is 10 s). */
 const COUNT_TIMEOUT_MS = 15000;
 
 /** Each role's one pipeline: the registry task a press enqueues (ADR sub-decision 1). */
@@ -37,6 +37,9 @@ const CODES = Object.freeze({
   FAILED: 'failed',
 });
 
+/** The read's own failure (ADR 0001 Amendment 1, N3): it started nothing, so it never says it could not start. */
+const READ_FAILED = 'This instance could not read your Scores right now.';
+
 /** For API callers and the logs; the page has its own words for each code. */
 const WORDS = {
   [CODES.NOT_SIGNED_IN]: 'Sign in to recalculate your scores.',
@@ -46,18 +49,6 @@ const WORDS = {
   [CODES.ALREADY]: 'A recalculation is already queued or running.',
   [CODES.FAILED]: 'This instance could not start a recalculation.',
 };
-
-/** `strfry scan --count <filter>`, as an integer; rejects on an error, a timeout or anything that is not one. */
-function countLocalStrict(filter) {
-  const { execFile } = require('child_process');
-  return new Promise((resolve, reject) => {
-    execFile('strfry', ['scan', '--count', JSON.stringify(filter)], { timeout: COUNT_TIMEOUT_MS }, (err, stdout) => {
-      if (err) return reject(err);
-      const n = Number(String(stdout).trim().split('\n').pop());
-      return Number.isInteger(n) && n >= 0 ? resolve(n) : reject(new Error('strfry scan --count printed no count'));
-    });
-  });
-}
 
 /** The real dependencies, required lazily so the module loads in a bare checkout. */
 function defaultDeps() {
@@ -71,7 +62,8 @@ function defaultDeps() {
       return cm.getCustomer(pubkey);
     },
     scanLocal: (filter) => require('../setup/status').scanLocalStrict(filter),
-    countLocal: (filter) => countLocalStrict(filter),
+    // One whole number, or a rejection: never 0 for output it cannot read (ADR 0001 Amendment 1, N4).
+    countLocal: (filter) => require('../../lib/strfryScanStrict').countStrict(filter, { timeoutMs: COUNT_TIMEOUT_MS }),
     taskQueue: () => require('../../manage/taskQueue/queue'),
     readScheduleEntries: () => {
       const config = require('../scheduled-tasks').readConfig();
@@ -201,7 +193,7 @@ function createScoresStatusHandler(deps = {}) {
       });
     } catch (err) {
       console.error('[assistant/scores] could not read the Scores answer:', err && err.message ? err.message : err);
-      return res.status(500).json({ success: false, error: WORDS[CODES.FAILED] });
+      return res.status(500).json({ success: false, error: READ_FAILED });
     }
   };
 }

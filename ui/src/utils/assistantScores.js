@@ -17,7 +17,8 @@ export async function fetchAssistantScores() {
 
 /**
  * POST /api/assistant/scores/recalculate, with no body: one request per press. A refusal is answered with its status
- * and code, not thrown. Throws when the instance did not answer JSON.
+ * and code, not thrown. A signed-out press is refused by the route table before the handler, with no code, so a 401
+ * without one is answered as `not-signed-in` (ADR Amendment 1, N1). Throws when the instance did not answer JSON.
  * @returns {Promise<{ status: number, success: boolean, run?: string, code?: string, error?: string }>}
  */
 export async function recalculateAssistantScores() {
@@ -25,5 +26,6 @@ export async function recalculateAssistantScores() {
   let data = null;
   try { data = await res.json(); } catch { data = null; }
   if (!data || typeof data !== 'object') throw new Error('This instance did not answer');
+  if (res.status === 401 && !data.code) return { status: res.status, ...data, code: 'not-signed-in' };
   return { status: res.status, ...data };
 }
