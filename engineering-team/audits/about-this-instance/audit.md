@@ -93,8 +93,8 @@ Derived from the files the book's commits touched (22, every one covered by the 
 ## 6. Carry-forward register
 
 - [ ] **Should customer identities stay public?** `GET /api/get-customers` and `GET /api/assistant/roster` serve them to visitors, and the app shell fetches the roster on every page. This is a product and security decision, queued as `_intake.md` 2026-10-13, "Should customer identities stay public?" (§4 #2, #3).
-- [ ] **Promote to production.** The feature is on `staging` only (the close-out offer).
-- [ ] **Verify profile pictures on the live cards** in an ordinary browser. The build container could not reach any image host, so only the fallback was seen (review round 1, Quality gates).
+- [x] **Promote to production.** Done 2026-10-14: a selective promotion of this book alone (PR #863, merge `b38378ad`, deploy run 157). It passed the safe-to-merge check before the merge and all five smoke-test tiers after it. On production, `/about` shows the owner, 7 admins and "4 customers"; the count agrees with the public roster.
+- [x] **Verify profile pictures on the live cards** (the operator confirmed them on staging in a browser, 2026-10-14) in an ordinary browser. The build container could not reach any image host, so only the fallback was seen (review round 1, Quality gates).
 - [ ] **Per-visit cost and log volume on the public read.**
   - About 9 log lines per anonymous GET: `getConfigFromFile` logs on every read, and the key store logs "Loaded master key from".
   - The count's I/O is synchronous, about 12 ms with 300 key holders.

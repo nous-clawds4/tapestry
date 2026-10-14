@@ -1,7 +1,7 @@
 # Epic: about-this-instance — who runs this Brainstorm instance, on /about
 
 **Created:** 2026-10-13
-**Status:** Done (book closed 2026-10-14; the folders sit under `done/`; on staging, not yet promoted to production)
+**Status:** Done (book closed 2026-10-14; the folders sit under `done/`; on production since 2026-10-14 by PR #863, merge `b38378ad`, deploy run 157)
 **Book:** `engineering-team/audits/about-this-instance/book.md` (no PRD — acceptance frame)
 **Provenance:** the operator's ask of 2026-10-13, quoted in the book and settled through two rounds of questions at planning.
 
