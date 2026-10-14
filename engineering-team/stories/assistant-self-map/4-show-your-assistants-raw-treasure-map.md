@@ -1,6 +1,6 @@
 # Story 4: Show your Assistant's raw Treasure Map
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-13
 **Type:** Feature (small: one toggle and one panel on an existing page)
 
@@ -92,4 +92,4 @@ path Standard, all five phases:
 
 - ADR: `engineering-team/decisions/assistant-self-map/0003-the-found-version-rides-the-answer.md`
 - Test plan: `engineering-team/stories/assistant-self-map/4-show-your-assistants-raw-treasure-map.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/assistant-self-map/4-show-your-assistants-raw-treasure-map.md`
