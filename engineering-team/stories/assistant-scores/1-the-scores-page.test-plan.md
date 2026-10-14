@@ -126,6 +126,56 @@ missed them; the owner approved returning to Test Design to re-aim them, as each
 **Lesson for the next page story:** grep `test/` and `tests/` for the action's path and key, and for lists of built
 pages, before writing the plan.
 
+## Round 2 (ADR Amendment 1, after review round 1)
+
+Review round 1 found that BullMQ rejects every customer jobId `computeJobId` builds (`processCustomer:<pubkey>`), so no
+Customer's press, and no customer task through `/api/run-task`, could enqueue. Every test here faked `enqueueTask`, and
+the plan's "Not covered: live queue" let the library's own rule go unchecked. Amendment 1 changes the separator to `-`
+and takes six of the review's non-blocking items. This round adds:
+
+| Item | Test | File | Level |
+|---|---|---|---|
+| Amendment §1–2: every jobId passes BullMQ's own rule | **V1** every registry task's id, with customer args where the task takes a customer, through BullMQ's `Job#validateOptions` (no Redis) | `test/task-queue-jobid-valid.test.js` (new, registered) | unit (real library) |
+| ADR 0022's dedup contract | **V2** one stable id per (task, pubkey), distinct across pubkeys and tasks; bare name for non-customer tasks | same | unit (regression sentinel) |
+| The guard is not vacuous | **V3** the same harness rejects a one-colon id and an all-digit id | same | unit (regression sentinel) |
+| The formula | **T3** re-aimed to `${taskName}-${customerArgs.pubkey}` | `test/manual-task-retrigger-after-finish.test.js` | source |
+| AC-3's shared jobId | **P5** re-aimed to `processCustomer-<viewer>` | `test/assistant-scores-route.test.js` | unit (DI) |
+| N3 the read's own 500 words | **G9** | same | unit (DI) |
+| N4 one strict count reader | **R5** `countStrict` from `src/lib/strfryScanStrict.js`; no reader of its own | same | source |
+| N1, N7 docs | **R6** openapi: 401 from the route table, `queued` includes prioritized; the BIBLE row says the 401 is the route table's | same | source |
+| N2 the failed-press reason | **U7** `REASONS.failed` is "this instance couldn't start one." | `test/assistant-scores-page.test.js` | unit |
+| N1 a route-table 401 | **C4** the client answers `code: 'not-signed-in'` for a 401 with no code, and keeps a refusal's own code | same | unit |
+| N1 in the page | **B11** a 401 press shows "Couldn't start a recalculation: …" with neither the failed-instance reason nor "didn't answer" | `tests/brainstorm/assistant-scores.spec.js` | browser |
+
+`test/task-queue-bullmq.test.js` T3's message names the new formula; its assertion is unchanged.
+
+**Not covered, with the reason:** N6 (the page clears the answer and the notice when the signed-in viewer changes) needs
+an account switch without a reload, which the mocked shell can't drive. The Reviewer checks it by reading `Scores.jsx`.
+
+**AC → handle lines (round 2):** AC-2 → V1, P5; AC-3 → V2, P5; AC-4 → C4, B11; ADR wiring → T3, R5, R6, G9, U7.
+
+**Verification (round 2, before the fix).** Each new or re-aimed test fails for the right reason against `776c7c39`
+plus these tests:
+
+```
+task-queue-jobid-valid: 2 passed, 1 failed
+  V1 — BullMQ rejects 15 jobId(s) the queue would compute … processCustomer:a1a1… → Custom Id cannot contain :
+manual-task-retrigger-after-finish: 9 passed, 1 failed (T3)
+assistant-scores-route: 28 passed, 4 failed
+  P5 — got ["processCustomer:cccc…"]
+  G9 — got "This instance could not start a recalculation."
+  R5 — scores.js must read the count through require('../../lib/strfryScanStrict').countStrict
+  R6 — openapi's /api/assistant/scores says queued counts prioritized jobs too
+assistant-scores-page: 13 passed, 2 failed
+  U7 — got "this instance didn't answer."
+  C4 — got {"status":401,"success":false,"error":"Sign in to do this."}
+tests/brainstorm/assistant-scores.spec.js: 11 passed, 1 failed (B11: not the old "didn't answer" reason)
+```
+
+These were also checked against a throwaway prototype of Amendment 1 (never committed, reverted with `git checkout`).
+`assistant-scores-route` passed 32/32, `assistant-scores-page` 15/15, `task-queue-jobid-valid` 3/3 and
+`manual-task-retrigger-after-finish` 10/10.
+
 ## Verification
 
 The new tests fail with the current code, for the right reason. Confirmed on 2026-10-14 at `5438bd2f` (plus the

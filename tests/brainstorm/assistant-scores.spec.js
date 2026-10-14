@@ -25,6 +25,8 @@ const F = require('../../test/helpers/scoresFixtures');
  *   B8 — a refused press: "Couldn't start a recalculation: …".                                           [AC-2, AC-3]
  *   B9 — an unknown run state claims nothing and keeps the button.                                       [§ Open questions]
  *   B10 — read-only on load: one GET of the read, nothing but GETs until the press.                      [AC-2]
+ *   B11 — a press the route table refuses (signed out, 401, no code) reads as not signed in, not as a
+ *         failure of the instance (ADR Amendment 1, N1).                                                    [AC-4]
  *
  * ── Hermetic by construction ─────────────────────────────────────────────
  * Every /api route is mocked. GET /api/assistant/scores answers per scenario (a queue of answers; the last repeats).
@@ -247,5 +249,17 @@ test.describe('The Scores page (assistant-scores #1)', () => {
     expect(log.reads, 'one read per load').toBe(1);
     expect(log.presses, 'no press on load').toEqual([]);
     expect(log.nonGet, 'nothing but GETs').toEqual([]);
+  });
+
+  test('B11: a press the route table refuses (401, no code) reads as not signed in, not as a failed instance (ADR Amendment 1, N1)', async ({ page }) => {
+    const log = await mock(page, { press: { status: 401, body: F.AMENDMENT_1.routeTable401 } });
+    await open(page);
+    await button(page).click();
+    const line = page.getByText(F.COPY.couldNotStartPrefix.trim(), { exact: false });
+    await expect(line).toBeVisible();
+    expect(log.presses.length, 'the path under test ran: one POST').toBe(1);
+    const text = squash(await line.first().innerText());
+    expect(text, 'not the failed-instance reason').not.toContain(F.AMENDMENT_1.reasonFailed);
+    expect(text, "not the old \"didn't answer\" reason").not.toContain("didn't answer");
   });
 });

@@ -223,7 +223,7 @@ Branches: a feature, built on `staging` and promoted to `main` the usual way; no
 - Seeing runs started outside the queue, or making the queue-off path start runs.
 - Any change to the hub's Scores check (`trustedContent.js`) or the self-Map check beyond the three exports.
 
-## Amendment 1 (2026-10-14): the customer jobId BullMQ accepts, and the review's ride-along fixes
+## Amendment 1 (2026-10-14, accepted by the owner): the customer jobId BullMQ accepts, and the review's ride-along fixes
 
 **Why.** Review round 1, Blocking 1 (`engineering-team/reviews/assistant-scores/1-the-scores-page.md`):
 - Sub-decision 4's premise is false for Customers. `computeJobId` (`src/manage/taskQueue/queue/index.js:64-69`) gives a

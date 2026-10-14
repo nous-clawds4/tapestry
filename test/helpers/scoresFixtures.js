@@ -54,6 +54,14 @@ const COPY = Object.freeze({
   noPipeline: "Your scores aren't calculated on this instance. That's done for the Owner and for Customers.",
 });
 
+/** ADR Amendment 1 §3 (accepted 2026-10-14): the words N2 and N3 approved. */
+const AMENDMENT_1 = Object.freeze({
+  reasonFailed: "this instance couldn't start one.",
+  readFailed: 'This instance could not read your Scores right now.',
+  /** What the route table answers a signed-out press (src/middleware/auth.js): no `code`. */
+  routeTable401: { success: false, error: 'Sign in to do this.' },
+});
+
 // ─── Canned answers of GET /api/assistant/scores (sub-decision 5) ────────────────────────────────────────────────────
 const LATEST_AT = 1_760_000_000; // 2025-10-09T08:53:20Z
 const COUNT = 48213;
@@ -96,6 +104,7 @@ module.exports = {
   PIPELINE_TASKS,
   CODES,
   COPY,
+  AMENDMENT_1,
   LATEST_AT,
   COUNT,
   answer,

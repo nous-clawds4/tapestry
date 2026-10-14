@@ -18,6 +18,9 @@
  *       words and network, no polling, the hub's own signed-out and no-Assistant lines, and the hub's Scores
  *       entry unchanged.                                                                               [AC-1, AC-5, AC-6]
  *
+ * Round 2 (ADR Amendment 1, after review round 1): U7 the failed-press reason's approved words (N2); C4 a route-table 401,
+ * which carries no code, read as not-signed-in (N1). N6 (clear the answer when the viewer changes) is checked by reading.
+ *
  * Everything in U, C and S1–S3 FAILS against the current code: scoresCopy.js, assistantScores.js and Scores.jsx do not
  * exist, and /assistant/trusted-assertions routes to the placeholder page. S4 is a regression sentinel (AC-6) and
  * passes before and after.
@@ -281,6 +284,24 @@ test("S4: the hub's Scores entry and its check are unchanged (AC-6 — a regress
   assert(a.editLink && a.editLink.text === F.ACTION_EDIT_LINK_TEXT, `its editLink stays "${F.ACTION_EDIT_LINK_TEXT}" — got ${show(a.editLink)}`);
   const tc = require(TRUSTED_CONTENT);
   assert(tc.TRUSTED_CONTENT_ACTIONS && tc.TRUSTED_CONTENT_ACTIONS[F.KEY] === 'scores', `the hub's check still reads '${F.KEY}' as the Scores category`);
+});
+
+// ── Round 2 (ADR Amendment 1) ──────────────────────────────────────────────────────────────────────────────────────
+
+test("U7: a press the instance couldn't enqueue reads \"…: this instance couldn't start one.\" (Amendment 1, N2)", async () => {
+  const m = await copyModule();
+  assert(m.REASONS && m.REASONS.failed === F.AMENDMENT_1.reasonFailed, `REASONS.failed must be "${F.AMENDMENT_1.reasonFailed}" — got ${show(m.REASONS && m.REASONS.failed)}`);
+});
+
+test('C4: a signed-out press, refused by the route table with no code, is answered as not-signed-in (Amendment 1, N1)', async () => {
+  const m = await clientModule();
+  const post = needFn(m, 'recalculateAssistantScores', rel(CLIENT));
+  const { result, asked } = await withFetch({ status: 401, body: F.AMENDMENT_1.routeTable401 }, () => post());
+  assert(asked.length === 1, 'the path under test ran: one request');
+  assert(result && result.status === 401 && result.success === false && result.code === F.CODES.notSignedIn,
+    `a 401 with no code must answer { status: 401, success: false, code: '${F.CODES.notSignedIn}' } — got ${show(result)}`);
+  const { result: coded } = await withFetch({ status: 409, body: { success: false, code: F.CODES.already, run: 'queued' } }, () => post());
+  assert(coded && coded.code === F.CODES.already, `a refusal that carries its own code keeps it — got ${show(coded)}`);
 });
 
 // ── runner ──────────────────────────────────────────────────────────────────────────────────────────────────────────
