@@ -27,6 +27,6 @@ You are entering **Phase 3: Test Design** of the Tapestry engineering team harne
 
 Hand off to `/implement-feature` only on explicit approval.
 
-**Per-phase commit:** After approval, commit the test plan + failing tests.
+**Per-phase commit:** After approval, commit the test plan + failing tests on a feature branch, never on `staging` or `main`. [Workflow 3 § Per-phase commits](engineering-team/workflows/3-test-design.md#per-phase-commits) says which branch, and gives a session pinned to `staging` standing permission to create it.
 
 $ARGUMENTS
