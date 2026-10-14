@@ -132,3 +132,76 @@ These are cheap; fold them into the fix round.
 AC-2 isn't met for Customers: their press can never start a run (Blocking 1). The fix is one line in the shared queue
 module, but it changes the jobId formula ADR task-queue-scheduler/0022 fixed and a test pins it, so the path is an ADR
 amendment, the Tester's re-aim and guard, then the Implementer's change. The non-blocking items can ride along.
+
+# Round 2
+
+**Date:** 2026-10-14
+**Diff:** the round-2 commits only: `776c7c39` (ADR Amendment 1), `892e97e0` (tests), `d4b056e0` (the fix), on `staging`
+at `d4b056e0`. **Independent check applied again:** a fresh read-only checker re-derived round 2 before this verdict.
+It found nothing blocking. Each of its findings below was reproduced from the sources.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] **`npm test`: PASS on the pushed head.** `20261014T034146Z-32226-73d9 started 2026-10-14T03:41:46.925Z on d4b056e0 — PASS, exit 0, 6086 passed, 0 failed, 582 skipped, 312/312 suites`.
+- [x] **Playwright, chromium,** against `vite preview` of a fresh build of `d4b056e0`: `assistant-scores.spec.js` (B0–B11),
+      `assistant-management-page.spec.js` and `assistant-trusted-content.spec.js` together gave 39 passed and 6 skipped
+      (B8's built-page skips).
+- [x] **Real BullMQ 5.76.10 over a throwaway Redis.**
+      - Round 1's reproduction now reads `ADDED processCustomer id= processCustomer-aaaa…`.
+      - The checker added every registry task's jobId, all 15 customer tasks with customer args, and got
+        `accepted 73 rejected 0`.
+      - A second add for the same Customer returned the same id: the dedup holds.
+- [x] **Live on staging:** `GET /api/assistant/scores` signed out answers `{"success":true,"signedIn":false}`. A signed-out
+      press answers 401 `{"success":false,"error":"Sign in to do this."}`, the route-table refusal the client now maps to
+      `not-signed-in`.
+- [x] _Lint, typecheck and build: not configured. The UI build succeeds._
+
+## Round 1's findings, each re-derived as a fresh claim
+
+| Finding | Now | Evidence |
+|---|---|---|
+| **Blocking 1:** customer jobId rejected | **Fixed** | `src/manage/taskQueue/queue/index.js:68` returns `` `${taskName}-${customerArgs.pubkey}` ``. V1 in `test/task-queue-jobid-valid.test.js` runs every id through BullMQ's own `Job#validateOptions`, and the real adds above succeed. The checker swapped in variants of `computeJobId`: the colon form fails V1, and an id that ignores the pubkey fails V2, so the guard isn't vacuous. Nothing in `src/`, `bin/` or `ui/src` builds, parses or looks up a jobId by its format, and no stored state holds an old-format id, because none was ever accepted |
+| N1: a signed-out press reads "didn't answer" | Fixed | `ui/src/utils/assistantScores.js` maps a 401 that carries no code to `not-signed-in` (C4, B11). openapi and the BIBLE say where the 401 comes from (R6) |
+| N2: the failed-press reason | Fixed | `REASONS.failed` reads "this instance couldn't start one." (U7) |
+| N3: the read's 500 words | Fixed | `READ_FAILED` in `scores.js` (G9) |
+| N4: a count reader that wasn't strict | Fixed | `countStrict(filter, { timeoutMs: 15000 })` from `src/lib/strfryScanStrict.js`; the module's own reader is gone (R5). A rejection maps to `count: null` through `allSettled` |
+| N5: a Customer record with no id | Not taken, as Amendment 1 says | — |
+| N6: the previous viewer's answer | Fixed; checked by reading, as the test plan said it would be | The reset effect in `Scores.jsx` is declared before the fetch effect and depends on `viewer` only, so it causes no extra fetch, and a viewer change starts from "Checking…" |
+| N7: queued includes prioritized | Fixed | openapi and the BIBLE GET row (R6) |
+| N8: cross-site POST, the public read's initialize | Not this story's, as Amendment 1 says | — |
+
+Scope: the fix commit touches exactly Amendment 1's seven files and no tests. Round 1's behaviour (refusal order,
+session binding, the run-state rules) is unchanged.
+
+## Findings (round 2)
+
+### Blocking
+
+None.
+
+### Non-blocking
+
+1. **The 401's "no code" isn't true for a direct-local caller.** `openapi.yaml:918,934` and the BIBLE row now say
+   the route table refuses a signed-out press with no code. That holds for every remote caller. A direct-local caller
+   (loopback with no proxy header, `src/middleware/auth.js`'s `req.localTrusted`) skips the table, so a signed-out one
+   would get the handler's `401 { code: 'not-signed-in' }` (`scores.js:206`). Suggested wording: "the route table refuses
+   it with no code; a direct-local caller gets the handler's `not-signed-in`".
+2. **`BIBLE.md:533`: the jobId note reads as if it applies to the Owner's run too.** "with run-task's jobId
+   (`processCustomer-<pubkey>`)" follows both tasks. The Owner's id is the bare `updateAllScoresForOwner`. `openapi.yaml`
+   says "for a Customer"; the BIBLE row should too.
+3. **Tests that are right but narrow, recorded here, no action asked:** the guard copies `enqueueTask`'s add options
+   rather than reading them, which is fine for a jobId-only guard. B11 checks what the line doesn't say; the positive
+   "sign in first." is pinned at unit level by C4.
+
+Both doc items get a `docs` ledger row (`2026-10-14-scores-api-doc-nits`), so they aren't lost.
+
+### Harness friction (round 2)
+
+1. Ledger row `2026-10-14-run-task-customer-jobid-rejected` is closed by `d4b056e0`; this review flips it to DONE.
+
+## Verdict
+**PASS**
+
+Blocking 1 is fixed end to end and proven against the real library, and the six items Amendment 1 took are done as
+written. The gate is clean on the pushed head, the browser class is green, and the two doc wording items above are
+non-blocking.

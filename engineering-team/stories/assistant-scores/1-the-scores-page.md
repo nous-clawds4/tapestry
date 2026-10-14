@@ -1,6 +1,6 @@
 # Story 1: The Scores page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-13
 **Type:** Feature (small: one page, one action)
 
