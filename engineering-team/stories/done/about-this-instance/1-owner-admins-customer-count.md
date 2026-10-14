@@ -1,6 +1,6 @@
 # Story 1: About this instance — Owner, Admins, and Customer count on /about
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-13
 **Type:** Feature
 
@@ -30,7 +30,7 @@ As a visitor to a Brainstorm instance, I want to see who owns and administers it
   - Clicking a card opens `/user/<that person's pubkey>`.
   - With zero Admins, the count reads 0 and a short "No admins" note replaces the list.
 - [ ] **AC3: Customer count.** Given an instance that holds Assistant keys for the Owner, an Admin, an active customer, an inactive customer, and an account that is itself an Assistant, and that also lists one customer with no Assistant key, when the section loads, then it reads **"2 customers"**.
-- [ ] **AC4: public, but only these facts.** Given a visitor who is not signed in, when they open `/about`, then the section's data loads. Nothing the page displays or loads reveals any Customer's pubkey, name, or other identity, or any key material. The only things exposed are the Owner's and Admins' pubkeys and the customer total.
+- [ ] **AC4: public, but only these facts.** Given a visitor who is not signed in, when they open `/about`, then the section's data loads. Nothing the section displays or loads reveals any Customer's pubkey, name, or other identity, or any key material. The only things it exposes are the Owner's and Admins' pubkeys and the customer total. *(Clarified at Implementation, 2026-10-13, operator-approved: "the page" became "the section". The app shell reads `/api/assistant/roster` on every page, `/about` included, with or without this section; see the intake entry of 2026-10-13.)*
 - [ ] **AC5: the link.** Given a visitor on `/about-brainstorm-search`, when they click **"About this Brainstorm Instance"**, then they land on `/about` at the new section.
 - [ ] **AC6: failure stays contained.** Given the instance data cannot be loaded, when a visitor opens `/about`, then the rest of the page renders normally and the section shows a short "couldn't load" message instead of being blank or broken.
 
@@ -69,10 +69,16 @@ All resolved by the operator on 2026-10-13:
 5. Visual treatment? **Layout from the design, colours from `/about`.**
 6. Wording? **As in "Look and wording" above.**
 
+## Deviations
+
+- **No Owner configured.** The story is silent on an instance with no valid owner pubkey; the section then shows "No owner configured" under the Owner heading instead of a card (the read answers `ownerPubkey: null`, ADR Decision 1).
+- **Loading line.** While the read is on its way the section shows "Loading…" under its title and subtitle; the story names only the loaded and failed states.
+- **Route-table position.** `'GET /api/about-this-instance'` sits in the table's alphabetical order (first under "The API"), not beside `owner-info` as the ADR's notes suggested; the table is kept sorted by path.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/about-this-instance/book.md`
 - Design: Claude Design artifact *Brainstorm onboarding flow design*, "About" screen (<https://claude.ai/artifact/SiFE8XoAbC3KH5TQbG4Y8m>)
 - ADR: `engineering-team/decisions/about-this-instance/0001-public-instance-roles-read.md`
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Test plan: `engineering-team/stories/about-this-instance/1-owner-admins-customer-count.test-plan.md`
+- Review: `engineering-team/reviews/about-this-instance/1-owner-admins-customer-count.md`

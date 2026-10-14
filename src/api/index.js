@@ -355,6 +355,8 @@ async function register(app) {
 
     // Owner info endpoint
     app.get('/api/owner-info', handleGetOwnerInfo);
+    // Who runs this instance and how many customers it has: public, for /about (about-this-instance #1, ADR 0001).
+    app.get('/api/about-this-instance', require('./owner').handleGetAboutThisInstance);
 
     // Grapevine Interactions endpoint
     app.get('/api/get-grapevine-interaction', handleGetGrapevineInteraction);

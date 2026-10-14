@@ -1,9 +1,9 @@
 # Book of Work: About this Brainstorm Instance — Owner, Admins, and Customer count on /about
 
 **Slug:** about-this-instance
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-10-13
-**Closed:** —
+**Closed:** 2026-10-14
 
 ## Intent anchor
 
@@ -38,15 +38,15 @@ The ask, verbatim, in the order it was given:
 
 ### Acceptance frame
 
-- [ ] `/about` ends with an "About this Brainstorm Instance" section showing the Owner, the Admins with their count, and the Customer count. The Owner and Admin cards open their profiles.
-- [ ] The Customer count follows decision 3.
-- [ ] The section's data is public, and nothing on the page or behind it reveals a customer's identity or any key material.
-- [ ] `/about-brainstorm-search` carries an "About this Brainstorm Instance" link that lands on the section.
-- [ ] Live and verified on `staging.brainstorm.world`.
+- [x] `/about` ends with an "About this Brainstorm Instance" section showing the Owner, the Admins with their count, and the Customer count. The Owner and Admin cards open their profiles.
+- [x] The Customer count follows decision 3.
+- [x] The section's data is public, and nothing in the section or behind it reveals a customer's identity or any key material. *("On the page" became "in the section" at Implementation, 2026-10-13: the app shell reads the roster on every page; ADR 0001 Amendment 1.)*
+- [x] `/about-brainstorm-search` carries an "About this Brainstorm Instance" link that lands on the section.
+- [x] Live and verified on `staging.brainstorm.world`.
 
 ## Epics in this book
 
-- `about-this-instance` — story 1 (the `/about` section, its public read, and the link).
+- `about-this-instance` — story 1 (the `/about` section, its public read, and the link). Epic **Done** at this close; its story, decision and review folders moved under `done/`.
 
 ## Strictness
 
@@ -55,7 +55,7 @@ The ask, verbatim, in the order it was given:
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high (the frame was quoted and confirmed at kickoff; every later change to intent is a recorded operator decision)
 
 ## Close artifacts *(filled by `/close-book`)*
 
