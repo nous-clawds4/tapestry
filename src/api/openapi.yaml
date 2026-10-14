@@ -867,6 +867,76 @@ paths:
           description: The Assistant's current Treasure Map could not be read (code not-read); nothing changed
         '500':
           description: The press could not run; nothing was published, though the choice may have been remembered
+  /api/assistant/scores:
+    get:
+      tags: [Auth]
+      summary: When the signed-in viewer's own Assistant last published Trusted Assertions, and whether a recalculation is under way
+      description: >-
+        Session-shaped and read-only, like /api/assistant/attention (assistant-scores ADR 0001); it takes no parameters.
+        Signed out it answers `{ success: true, signedIn: false }`, and with no Assistant here
+        `{ success: true, signedIn: true, hasAssistant: false }`, reading nothing. Otherwise, for the viewer's own
+        Assistant (the Owner's is the instance TA): `published.latestAt` is the created_at of the newest kind 30382 it
+        signed on this instance's relay (every run re-signs every one), or null when it has published none, and
+        `published.count` how many it has published (null when the count failed); when the relay could not be read,
+        `published` is `{ finished: false }` and says nothing about what it holds. `pipeline` is `owner`
+        (updateAllScoresForOwner), `customer` (an active Customer's own processCustomer, an Admin who is one included),
+        or null for anyone else. `run` is `running` when a job that re-signs the viewer's scores is active, `queued` when
+        one is waiting, null when neither (delayed jobs, a schedule's next fire, never count), and `unknown` when the
+        task queue is off, unavailable or could not be read; it is null with no pipeline.
+      responses:
+        '200':
+          description: The answer for the session's viewer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  signedIn: { type: boolean }
+                  hasAssistant: { type: boolean }
+                  assistantPubkey: { type: string }
+                  published:
+                    type: object
+                    properties:
+                      finished: { type: boolean }
+                      latestAt: { type: integer, nullable: true, description: 'unix seconds' }
+                      count: { type: integer, nullable: true }
+                  pipeline: { type: string, nullable: true, enum: [owner, customer] }
+                  run: { type: string, nullable: true, enum: [running, queued, unknown] }
+        '500':
+          description: The answer could not be built
+  /api/assistant/scores/recalculate:
+    post:
+      tags: [Auth]
+      summary: Recalculate and republish the signed-in viewer's own scores
+      description: >-
+        A narrow, session-bound press (assistant-scores ADR 0001): the request names nothing, and nothing in its query or
+        body reaches the task. Whose run comes from the session: the Owner's is updateAllScoresForOwner; an active
+        Customer's (an Admin who is one included) is their own processCustomer. Refused first, in order, each starting
+        nothing: no session (401 not-signed-in), no Assistant here (403 no-assistant), no pipeline here (403
+        no-pipeline), the task queue off, unavailable or unreadable (503 queue-unavailable), a run of the viewer's already
+        queued or running (409 already, with `run`). Otherwise it enqueues the task on its own task-queue queue with
+        run-task's jobId, so a second press, or an operator's trigger for the same account, joins the same run.
+      responses:
+        '202':
+          description: The run was queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  run: { type: string, enum: [queued] }
+        '401':
+          description: No signed-in session (code not-signed-in)
+        '403':
+          description: No Assistant here (code no-assistant), or no pipeline for this account here (code no-pipeline)
+        '409':
+          description: A run of the viewer's is already queued or running (code already; `run` says which)
+        '503':
+          description: The task queue is off, unavailable or could not be read (code queue-unavailable)
+        '500':
+          description: The run could not be enqueued (code failed)
   /api/auth/sign-up-new-customer:
     post:
       tags: [Auth]

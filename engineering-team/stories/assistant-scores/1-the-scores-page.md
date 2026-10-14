@@ -90,6 +90,19 @@ For the Architect, not the PO:
 - The owner pipeline is the heaviest run (the registry gives it 4 hours). Confirm it's the right one for "the Owner's
   Grapevine", and that a run started from the page doesn't collide with an operator's scheduled one.
 
+## Deviations
+
+- While the page's one read is on its way it shows "Checking…" (`SCORES_COPY.checking`); § Copy named no loading word.
+- "Your Assistant:" shows the shortened npub (`npubShort`, the My Assistants page's helper), linked to the Assistant's
+  `/user/<pubkey>` profile; § Copy allows "name or short npub", and the npub needs no profile request.
+- The page asks the read again after every press, accepted or refused, so a 409 shows the run that is already going.
+- A read that failed shows "couldn't be read right now" and neither the button nor the no-pipeline line: whose
+  pipeline it is isn't known then.
+- `lastPublishedLine(published)` takes no `nowSeconds` (ADR § Implementation notes named one): `timeAgo` reads the clock
+  itself.
+- The server's refusals carry `error` words beside `code`, for API callers and the logs; the page uses its own
+  `REASONS` by code. An enqueue that throws answers 500 with code `failed`.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/assistant-scores/0001-a-session-bound-scores-read-and-recalculate-route.md`
