@@ -13,7 +13,7 @@
 
 `stories/about-this-instance/`:
 
-1. `1-owner-admins-customer-count.md` — the `/about` section, the public read behind it, and the link from `/about-brainstorm-search`. Approved 2026-10-13; ADR `decisions/about-this-instance/0001` accepted 2026-10-13.
+1. `1-owner-admins-customer-count.md` — the `/about` section, the public read behind it, and the link from `/about-brainstorm-search`. Approved 2026-10-13; ADR `decisions/about-this-instance/0001` accepted 2026-10-13; **Done** 2026-10-14 (review PASS in round 2; live on staging).
 
 ## Key facts / guardrails
 

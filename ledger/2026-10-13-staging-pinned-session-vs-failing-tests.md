@@ -18,6 +18,8 @@ The repo's own practice avoids that. Recent books commit their failing tests on 
 - In the end the failing-test commit stayed local and was pushed together with the implementation once the gate was green.
 - CI stayed green, but the implementation reached the staging deploy before its Review.
 
+**Recurred the same day.** Book `assistant-scores`, in another session, pushed its intentionally failing tests (`11d5c626`) straight to `staging` (deploy run 717), so `npm test` on `staging` failed until its implementation landed. That is the outcome this session held its commit back to avoid.
+
 **Fix shape.** Any of these would remove the conflict:
 - **Write the convention down:** a line in workflow 3 or in `engineering-team/README.md` saying failing-test commits go on a feature branch, never on `staging` or `main`.
 - **Configure sessions to match:** cloud sessions for this repo get a per-book feature branch instead of `staging` as their designated branch.

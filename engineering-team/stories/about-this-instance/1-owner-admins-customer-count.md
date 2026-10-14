@@ -1,6 +1,6 @@
 # Story 1: About this instance — Owner, Admins, and Customer count on /about
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-10-13
 **Type:** Feature
 
