@@ -616,6 +616,11 @@ async function register(app) {
     // Your Assistant turns its self-Map on or off: one bit in the body, the Assistant from the session, the self-entries
     // from this instance's own check, every other tag kept (assistant-self-map #2, ADR 0002).
     app.post('/api/assistant/self-map', require('./assistant/selfMapPublish').handleSelfMap);
+    // The Scores page: when your Assistant last published Trusted Assertions, and the Recalculate press, which enqueues
+    // your own pipeline and names nothing — both session-bound (assistant-scores #1, ADR 0001).
+    const assistantScoresApi = require('./assistant/scores');
+    app.get('/api/assistant/scores', assistantScoresApi.handleScoresStatus);
+    app.post('/api/assistant/scores/recalculate', assistantScoresApi.handleRecalculateScores);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');
