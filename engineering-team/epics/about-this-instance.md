@@ -1,7 +1,7 @@
 # Epic: about-this-instance — who runs this Brainstorm instance, on /about
 
 **Created:** 2026-10-13
-**Status:** Active
+**Status:** Done (book closed 2026-10-14; the folders sit under `done/`; on staging, not yet promoted to production)
 **Book:** `engineering-team/audits/about-this-instance/book.md` (no PRD — acceptance frame)
 **Provenance:** the operator's ask of 2026-10-13, quoted in the book and settled through two rounds of questions at planning.
 
@@ -11,7 +11,7 @@
 
 ## Stories
 
-`stories/about-this-instance/`:
+`stories/done/about-this-instance/`:
 
 1. `1-owner-admins-customer-count.md` — the `/about` section, the public read behind it, and the link from `/about-brainstorm-search`. Approved 2026-10-13; ADR `decisions/about-this-instance/0001` accepted 2026-10-13; **Done** 2026-10-14 (review PASS in round 2; live on staging).
 

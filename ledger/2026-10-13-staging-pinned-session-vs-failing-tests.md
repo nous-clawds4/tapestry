@@ -20,6 +20,8 @@ The repo's own practice avoids that. Recent books commit their failing tests on 
 
 **Recurred the same day.** Book `assistant-scores`, in another session, pushed its intentionally failing tests (`11d5c626`) straight to `staging` (deploy run 717), so `npm test` on `staging` failed until its implementation landed. That is the outcome this session held its commit back to avoid.
 
+**And it reached this book's close.** `assistant-scores`' failing suites came into `about-this-instance`'s tree with a rebase, so that book's close-time gate (`20261014T002831Z-7922-1ae2`) failed on another book's work. Every book that lands on `staging` while it is red inherits the same failure (`audits/about-this-instance/audit.md` §5).
+
 **Fix shape.** Any of these would remove the conflict:
 - **Write the convention down:** a line in workflow 3 or in `engineering-team/README.md` saying failing-test commits go on a feature branch, never on `staging` or `main`.
 - **Configure sessions to match:** cloud sessions for this repo get a per-book feature branch instead of `staging` as their designated branch.
