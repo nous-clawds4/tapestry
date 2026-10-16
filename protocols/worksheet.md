@@ -376,3 +376,94 @@ The need and the earlier rejections (above) were also still open.
 Parts exist: content-categories (the categories and the chip idea), [filters-on-dlists](./drafts/filters-on-dlists.md) (a stub proposing a `dlists` field on relay filters, with the viewer passed for trust filtering), spawning and [trusted-lists](./drafts/trusted-lists.md) (ranked lists). Nothing ties them together for search. It is as much a product question (what's in the first version, and for whom) as a protocol one.
 
 **Refs:** opinionated-views § 2.1 (the default DList card) and its State line; content-categories § 3.2; pins § 8.2; filters-on-dlists; spawning.
+
+> **W27 to W29 are taken elsewhere** (2026-10-15). W27, declarative rendering hints for DList headers, is in open PR #819. W28 and W29 are reserved for the two `field-type` entries on `feat/tags`, which that PR's ledger row (`2026-10-03-worksheet-numbers-diverge-across-branches`) renumbers to "W28 and up" when `feat/tags` next syncs with `staging`. W30 to W34 come from the [Event Index](./drafts/event-index.md) draft. Open PR #583 adds an entry numbered W17, a number already taken here, so it needs a new one when it lands: W35 or later, not W28 or W29.
+
+## W30 — A `date` value type for DList fields
+
+**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+
+Brainstorm-UI's presentation conventions (`docs/dictionary/dlist-presentation-conventions.md`, "a working description, not a ratified spec") give `field-type` the values `text`, `url`, `tel`, `email` and `address`. None is a date or a time, and an unknown type renders as text, so a reader that meets a time today shows a raw number such as `1792447200`. [Opinionated Views](./drafts/opinionated-views.md) § 2.1 already floats `date` for "a fuller vocabulary", to wait "until headers actually use one".
+
+Two uses now need it:
+
+- the [Event Index](./drafts/event-index.md) *Events* header (§ 3.1), for NIP-52's `start` and `end`;
+- Divine's videos (kind `34236`), whose `published_at` is a date too.
+
+**Proposal.** `["field-type", "<field>", "date"]`. The value is unix seconds, or `YYYY-MM-DD` for a date with no time (NIP-52's kind `31922`); the two are told apart by their shape. A reader shows it in the reader's own zone, or in the zone a sibling `<field>_tzid` names when there is one (NIP-52's `start_tzid` and `end_tzid`).
+
+**Questions:**
+
+- One type for both shapes, or `date` and `datetime` apart?
+- Is the `<field>_tzid` sibling a general rule, or NIP-52's alone?
+- Adoption order: the worksheet, then Brainstorm-UI's conventions as Provisional, with `lib/listCheck.ts` and List Management learning it at the same time.
+
+**Refs:** [event-index](./drafts/event-index.md) § 3.1; [opinionated-views](./drafts/opinionated-views.md) § 2.1; W27 (PR #819, which cites the `field-type` entries); W28–W29 (`feat/tags`'s `field-type` entries, once renumbered); [W31](#w31--date-display-roles-for-dlist-items).
+
+## W31 — Date display roles for DList items
+
+**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+
+Brainstorm-UI's display roles (`["display", <role>, <field>]`: `title`, `summary`, `image`, `link`, `media`, `location`, and `fact` with a label; all Provisional) have no role for a time. A card that shows an event without its time isn't much use.
+
+**Proposal.** `["display", "date", "<field>"]` names the field holding the item's primary time, in a `date`-typed field ([W30](#w30--a-date-value-type-for-dlist-fields)). PR #819's `docs/DECLARATIVE_DLIST_RENDERING.md` (§ 4.1) already lists `date` among candidate roles, though W27 itself doesn't.
+
+**Questions:**
+
+- **The end time.** Options: a second role (`["display", "end", "<field>"]`); a fourth element on the `date` role (`["display", "date", "start", "end"]`); or no role, with the reader looking for a sibling `end`. The Events header declares only the start until this is settled.
+- **Past and future.** For an event, a primary time in the past means it is over; for a video's `published_at`, it is just when it was posted. Does the role say which, or does the category decide?
+- **Editors.** Brainstorm-UI's List Management drops display roles it doesn't know when a header is edited there, so it has to learn the role before any header that carries it is edited.
+
+**Refs:** [event-index](./drafts/event-index.md) §§ 3.1 and 11 (question 1); W27 (PR #819); [W30](#w30--a-date-value-type-for-dlist-fields).
+
+## W32 — The host role word on NIP-52 `p` tags
+
+**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+
+NIP-52's `p` tag carries "participant's role in the meeting" as free text, so two clients name the host two ways:
+
+- Flockstr writes `["p", <pubkey>, "", "host"]` (`components/Modals/CreateCalendarEvent.tsx`; last commit 2024-10-11);
+- Formstr's NIP-52R draft writes `"organizer"` in the same slot, and `"attendee"` for guests (`nips/NIP-52R.md`).
+
+An Event Index projection is signed by its calendar's key and names that key, and any co-host calendars, as host ([event-index](./drafts/event-index.md) §§ 4.3 and 4.7). A reader that looks for one word misses the other.
+
+**Proposal.** Write `host`; read `host` and `organizer` alike. Raise it with Formstr and with NIP-52's maintainers. If they agree, it goes upstream as a line in NIP-52's common tags, beside the [cancellation proposal](./upstream/nip-52-cancellation.md).
+
+**Refs:** [event-index](./drafts/event-index.md) § 4.3; [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md) (common tags).
+
+## W33 — Trust through directory membership
+
+**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+
+A key nobody follows is hidden by a follow-based trust lens. Brainstorm-UI issue #213 took one sample of Divine's videos, whose creators mostly arrived by email: under the house lens the first 100 results came from 48 creators; without it, from 62. An Event Index calendar key starts the same way, with no followers, and so would every event it signs.
+
+**The rule Event Index chose:** a calendar key's standing comes from the directory entry that names it in `p`, weighted by the reader's trust in the entry's author. The weight is per point of view, like any other read, and a directory entry is a deliberate statement (Tell, in [Show and Tell](../design-philosophies/show-and-tell.md)'s terms), not activity reused for another purpose.
+
+**Why not follows.** The interim is that the index key follows every calendar key it indexes. A contact list is one event, and default strfry settings (65,536 bytes) hold about 850 `p` tags; a global directory will have thousands of calendars.
+
+**Questions:**
+
+- **For whom.** GrapeRank and Brainstorm's search relay (`NosFabrica/vespa-relay`) would both have to read it.
+- **Which lists count.** Any DList item naming a key in `p`, or only lists in the reader's own Dictionary?
+- **How much.** How does a list entry's weight compare with a follow's?
+- **Existing paths.** [Spawning](./drafts/spawning.md) and [Trusted Lists](./drafts/trusted-lists.md) already turn a DList of pubkeys into a Trusted List. Is reading that list enough, or does the trust engine need list membership as an input edge of its own? The *Event Calendars* header only recommends `p` (aggregators have none), so by [Content Categories](./drafts/content-categories.md) § 5.1 an entry is its own subject, not the key's.
+
+**Refs:** [event-index](./drafts/event-index.md) § 5.6; [spawning](./drafts/spawning.md); [trusted-lists](./drafts/trusted-lists.md); [content-categories](./drafts/content-categories.md) § 5.1; [graperank](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md).
+
+## W34 — Tier two for a bare kind
+
+**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+
+A nostr kind is already a list ([Content Categories](./drafts/content-categories.md) § 1, the "old-school DList"): the NIP plays the header and the `kind` plays the `z`. [Opinionated Views](./drafts/opinionated-views.md) § 2's schema-driven tier draws an item from its header's declarations, but a bare kind has no header to declare anything, so its events get the generic tier unless a client builds a view by hand. Brainstorm met this with Divine's videos (kind `34236`), which got hand-built per-kind views.
+
+Event Index's *Events* header (§ 3) carries declarations for NIP-52 events, but they reach only events that carry its `z` (Method 3 of [DList Cross-NIP Compatibility](./drafts/decentralized-lists-compat.md)). A native NIP-52 event without the `z` gets none of them.
+
+**Proposal.** A header that declares a kind as its items without each item carrying `z`, so that a schema-driven renderer can draw native `31923`s and `34236`s alike. Shapes to weigh:
+
+- a marker on `item-kind` saying that every event of that kind is an item;
+- the declarations carried on the kind's content-category item (Content Categories § 3.2);
+- a view binding by kind (Opinionated Views § 7, `["category", "event-kind", "<kind>"]`) that carries the declarations.
+
+**Questions:** who may declare a schema for a kind (anyone, with the reader's point of view choosing among them); how it composes with DList Cross-NIP Compatibility's rule that a header without `item-kind` accepts only `9999` and `39999`; and [W7](#w7--item-kind-interplay-with-concept-headers).
+
+**Refs:** [event-index](./drafts/event-index.md) §§ 3 and 11 (question 4); [content-categories](./drafts/content-categories.md) §§ 1 and 3.2; [opinionated-views](./drafts/opinionated-views.md) §§ 2 and 7; [decentralized-lists-compat](./drafts/decentralized-lists-compat.md); [W7](#w7--item-kind-interplay-with-concept-headers).

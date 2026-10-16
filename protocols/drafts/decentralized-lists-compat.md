@@ -215,6 +215,8 @@ The pattern in this NIP is not specific to NIP-72. Any addressable event kind wh
 2. For foreign-kind-item lists: declare the foreign kind via `item-kind` on the relevant list header. Decide whether your application supports curator-authored references (Method 2), creator self-listings (Method 3), or both.
 3. Note any conflicts: if the foreign NIP already uses the `z` tag for some other purpose, Method 3 is unsuitable for that kind, and Method 2 should be used exclusively.
 
+For example, [Event Index](./event-index.md) (a pre-NIP) lists NIP-52 calendar events by Method 3: its list header declares `["item-kind", "31923"]` and `["item-kind", "31922"]`, and each calendar event carries a `z` pointing at that header. NIP-52 uses no `z` tag.
+
 No further protocol-level conventions are required. Application-layer conventions (e.g. trust scoring, member-status determination, content visibility) are outside the scope of this NIP.
 
 ## A note on referencing foreign events
