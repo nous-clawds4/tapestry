@@ -1,6 +1,8 @@
 # ADR 0001: Event Index's item format — directory entries as kind-39999 items, events as Method 3 self-listings on a proposed Events header
 
-**Status:** Accepted (NosFabrica, 2026-10-15)
+**Status:** Superseded by ADR 0003 (2026-10-16). Accepted (NosFabrica, 2026-10-15)
+
+> **Superseded.** Event Index no longer signs NIP-52 events with a key per calendar, so there are no projections to list by Method 3: feed events are kind-`39999` items signed by the index key (ADR 0003), and native NIP-52 events are pulled by kind (ADR 0004). Sub-decisions 1 (an entry's `d`), 2 (`removed`) and 4 (the `q` rule names any addressable original) carry over unchanged; sub-decision 3's hash of the `UID` survives as the event key inside an item's `d`. The body is kept as it was decided.
 **Date:** 2026-10-15
 **Story:** none: docs lane (Protocol-Spec workflow, docs-mode), recorded in the intake entry of 2026-10-15, "Event Index". Design record: `docs/EVENT_INDEX_DESIGN_HANDOFF.md`.
 
