@@ -414,7 +414,7 @@ Brainstorm-UI's display roles (`["display", <role>, <field>]`: `title`, `summary
 - **Past and future.** For an event, a primary time in the past means it is over; for a video's `published_at`, it is just when it was posted. Does the role say which, or does the category decide?
 - **Editors.** Brainstorm-UI's List Management drops display roles it doesn't know when a header is edited there, so it has to learn the role before any header that carries it is edited.
 
-**Refs:** [event-index](./drafts/event-index.md) §§ 3.1 and 11 (question 1); W27 (PR #819); [W30](#w30--a-date-value-type-for-dlist-fields).
+**Refs:** [event-index](./drafts/event-index.md) §§ 3.1 and 12 (question 1); W27 (PR #819); [W30](#w30--a-date-value-type-for-dlist-fields).
 
 ## W32 — The host role word on NIP-52 `p` tags
 
@@ -425,15 +425,15 @@ NIP-52's `p` tag carries "participant's role in the meeting" as free text, so tw
 - Flockstr writes `["p", <pubkey>, "", "host"]` (`components/Modals/CreateCalendarEvent.tsx`; last commit 2024-10-11);
 - Formstr's NIP-52R draft writes `"organizer"` in the same slot, and `"attendee"` for guests (`nips/NIP-52R.md`).
 
-An Event Index projection is signed by its calendar's key and names that key, and any co-host calendars, as host ([event-index](./drafts/event-index.md) §§ 4.3 and 4.7). A reader that looks for one word misses the other.
+Event Index names an organizer's verified key as host, both on its event items and on the NIP-52 events it publishes for an organizer ([event-index](./drafts/event-index.md) §§ 4.1, 4.6 and 9.1). A reader that looks for one word misses the other.
 
 **Proposal.** Write `host`; read `host` and `organizer` alike. Raise it with Formstr and with NIP-52's maintainers. If they agree, it goes upstream as a line in NIP-52's common tags, beside the [cancellation proposal](./upstream/nip-52-cancellation.md).
 
-**Refs:** [event-index](./drafts/event-index.md) § 4.3; [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md) (common tags).
+**Refs:** [event-index](./drafts/event-index.md) §§ 4.6 and 9.1; [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md) (common tags).
 
 ## W33 — Trust through directory membership
 
-**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica) · re-scoped 2026-10-16: no longer needed for Event Index's own events; still open for lists pulled by kind (below)
 
 A key nobody follows is hidden by a follow-based trust lens. Brainstorm-UI issue #213 took one sample of Divine's videos, whose creators mostly arrived by email: under the house lens the first 100 results came from 48 creators; without it, from 62. An Event Index calendar key starts the same way, with no followers, and so would every event it signs.
 
@@ -448,11 +448,13 @@ A key nobody follows is hidden by a follow-based trust lens. Brainstorm-UI issue
 - **How much.** How does a list entry's weight compare with a follow's?
 - **Existing paths.** [Spawning](./drafts/spawning.md) and [Trusted Lists](./drafts/trusted-lists.md) already turn a DList of pubkeys into a Trusted List. Is reading that list enough, or does the trust engine need list membership as an input edge of its own? The *Event Calendars* header only recommends `p` (aggregators have none), so by [Content Categories](./drafts/content-categories.md) § 5.1 an entry is its own subject, not the key's.
 
-**Refs:** [event-index](./drafts/event-index.md) § 5.6; [spawning](./drafts/spawning.md); [trusted-lists](./drafts/trusted-lists.md); [content-categories](./drafts/content-categories.md) § 5.1; [graperank](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md).
+**Re-scoped (2026-10-16).** Event Index no longer holds a key per calendar: its event items are all signed by the index key, which has standing of its own ([event-index](./drafts/event-index.md) § 4), so its own events no longer depend on this rule, nor on the follow-list interim. The question stays open in a new place. A list pulled by kind ([event-index](./drafts/event-index.md) § 6) has no curator vouching for its items, and one filter a reader may use is a directory: only events whose author is the `p` of a directory entry the reader trusts (§ 6.3). How a trust engine should weigh that is the same question as above.
+
+**Refs:** [event-index](./drafts/event-index.md) § 6.3 (§ 5.6 before the 2026-10-16 revision); [spawning](./drafts/spawning.md); [trusted-lists](./drafts/trusted-lists.md); [content-categories](./drafts/content-categories.md) § 5.1; [graperank](https://github.com/NosFabrica/protocols/blob/main/specs/graperank.md).
 
 ## W34 — Tier two for a bare kind
 
-**Status:** Open · raised 2026-10-15 (Event Index, NosFabrica)
+**Status:** Graduated → [Event Index](./drafts/event-index.md) § 6, "Lists pulled by kind" · raised 2026-10-15 (Event Index, NosFabrica) · resolved 2026-10-16
 
 A nostr kind is already a list ([Content Categories](./drafts/content-categories.md) § 1, the "old-school DList"): the NIP plays the header and the `kind` plays the `z`. [Opinionated Views](./drafts/opinionated-views.md) § 2's schema-driven tier draws an item from its header's declarations, but a bare kind has no header to declare anything, so its events get the generic tier unless a client builds a view by hand. Brainstorm met this with Divine's videos (kind `34236`), which got hand-built per-kind views.
 
@@ -466,4 +468,6 @@ Event Index's proposed *Events* header (§ 3) carries declarations for NIP-52 ev
 
 **Questions:** who may declare a schema for a kind (anyone, with the reader's point of view choosing among them); how it composes with DList Cross-NIP Compatibility's rule that a header without `item-kind` accepts only `9999` and `39999`; and [W7](#w7--item-kind-interplay-with-concept-headers).
 
-**Refs:** [event-index](./drafts/event-index.md) §§ 3 and 11 (question 4); [content-categories](./drafts/content-categories.md) §§ 1 and 3.2; [opinionated-views](./drafts/opinionated-views.md) §§ 2 and 7; [decentralized-lists-compat](./drafts/decentralized-lists-compat.md); [W7](#w7--item-kind-interplay-with-concept-headers).
+**Resolution (2026-10-16).** The first shape: a fourth element on `item-kind`, `["item-kind", "<kind>", "<description>", "kind"]`, makes every event of that kind a candidate item, with the header's declarations applying additively and the reader trust-filtering the items ([event-index](./drafts/event-index.md) § 6). It is written as a general extension of DList Cross-NIP Compatibility, to move there once ratified. Who may declare a schema for a kind: anyone, as a header; the reader's point of view chooses among them. The other two shapes are not taken up. W7 is unchanged.
+
+**Refs:** [event-index](./drafts/event-index.md) § 6 (§§ 3 and 11 before the 2026-10-16 revision); [content-categories](./drafts/content-categories.md) §§ 1 and 3.2; [opinionated-views](./drafts/opinionated-views.md) §§ 2 and 7; [decentralized-lists-compat](./drafts/decentralized-lists-compat.md); [W7](#w7--item-kind-interplay-with-concept-headers).

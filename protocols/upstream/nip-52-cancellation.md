@@ -4,7 +4,7 @@
 **Issue:** none yet
 **Status:** 📝 drafted 2026-10-15; not submitted. Submission is the author's act ([protocols/README.md](../README.md) § Layout); who submits is NosFabrica's call.
 **Date drafted:** 2026-10-15
-**Sources:** [Event Index](../drafts/event-index.md) § 4.6 and open question 5; `docs/EVENT_INDEX_DESIGN_HANDOFF.md` (an event with RSVPs is cancelled, not deleted); NIP-52 as of `nostr-protocol/nips` `a79e21d` (2026-10-05); [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545) § 3.8.1.11 (`STATUS`); schema.org [`eventStatus`](https://schema.org/eventStatus)
+**Sources:** [Event Index](../drafts/event-index.md) §§ 4.7 and 9.1 and open question 8; NIP-52 as of `nostr-protocol/nips` `a79e21d` (2026-10-05); [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545) § 3.8.1.11 (`STATUS`); schema.org [`eventStatus`](https://schema.org/eventStatus)
 
 ## The problem
 
@@ -13,7 +13,7 @@ NIP-52 can't say that a calendar event is cancelled. An author has two ways to d
 - **Delete it** ([NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md)). The RSVPs (kind `31925`) and comments ([NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md)) lose the event they point at, a guest who said yes is never told, and a client that had shown the event shows nothing.
 - **Edit the title** ("Cancelled: …"). A person reads it, but a client can't: it still lists the event as upcoming and still offers to RSVP.
 
-Calendars outside nostr have said this for decades: iCalendar's `STATUS:CANCELLED` (RFC 5545) and schema.org's `EventCancelled`. A bridge that mirrors iCalendar feeds into NIP-52 (Event Index) meets cancelled events every day and has nowhere to put the fact. Open PR #2351 (NIP-52E/52R) meets the same gap for one occurrence of a recurring event, and suggests publishing a replacement event with a note in its description.
+Calendars outside nostr have said this for decades: iCalendar's `STATUS:CANCELLED` (RFC 5545) and schema.org's `EventCancelled`. A bridge that can publish iCalendar events into NIP-52 (Event Index, for organizers who ask it to) meets cancelled events every day and has nowhere to put the fact. Open PR #2351 (NIP-52E/52R) meets the same gap for one occurrence of a recurring event, and suggests publishing a replacement event with a note in its description.
 
 ## Proposed spec text (52.md — common tags)
 
@@ -62,4 +62,4 @@ An author who wants the calendar event gone, not marked, deletes it per NIP-09 a
 
 ## When it lands
 
-[Event Index](../drafts/event-index.md) § 4.6 prefixes a cancelled event's title with `Cancelled: ` until NIP-52 has a convention. Once this is merged, the index writes `["status", "cancelled"]` and stops prefixing, and § 4.6 and open question 5 are updated.
+[Event Index](../drafts/event-index.md)'s own event items are DList items and already carry `["status", "cancelled"]` (§ 4.7). The NIP-52 events it publishes for an organizer (§ 9.1) prefix a cancelled event's title with `Cancelled: ` until NIP-52 has a convention. Once this is merged, those write `["status", "cancelled"]` too and stop prefixing, and § 9.1 and open question 8 are updated.
