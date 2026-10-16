@@ -2969,3 +2969,30 @@ page that names customers. The `directory` and `comments` fields are worth a loo
 
 **Classification:** product / security decision first; any change after it is a feature or security story under
 Standard (all phases).
+
+## 2026-10-15 — Event Index: the wire format in tapestry, and what's left for this repo (feature; cross-repo, mostly parked)
+
+**Origin:** NosFabrica design sessions, 2026-10-15. Event Index is an open directory of public iCalendar feeds, kept as
+a DList, that mirrors each calendar's events into nostr as NIP-52 events signed by one key per calendar. The design
+record is `docs/EVENT_INDEX_DESIGN_HANDOFF.md`. The index itself is built in its own repository, not here.
+
+**Landed in this repo (docs-mode, 2026-10-15):** `protocols/drafts/event-index.md` (📝 pre-NIP) and its row in
+`protocols/README.md`; worksheet W30–W34; the Method 3 example in `decentralized-lists-compat.md`; the `q` rule
+widened to every addressable original in `assistant-designation.md` § Curation copies; the NIP-52 cancellation
+proposal, `protocols/upstream/nip-52-cancellation.md`; ADRs `event-index/0001` (item format, Events header kept) and
+`event-index/0002` (guest custody: a self-hosted Keycast behind a seam).
+
+**What is left that touches this repo:**
+
+1. **Curation copies of other addressable kinds.** `itemRef` (`src/api/dlist-curation/updateEvents.js`) names an
+   original by address only for kind `39999`. When curation reads `item-kind`-declared kinds (it reads `9999` and
+   `39999` today, `ITEM_KINDS` in `src/api/dlist-curation/update.js`), it must name any addressable original by
+   address, as the widened rule says, and the carry rule needs a foreign-kind case (ADR `event-index/0001`, Debt).
+2. **The `date` type and roles** (W30, W31), once settled: any Tapestry reader of `field-type` and `display` hints
+   learns them. Nothing on `staging` reads `field-type` in the UI yet (`feat/tags` has the first reader).
+3. **Opinionated Views Appendix C**, the events view brief, when Brainstorm-UI writes `docs/views/events.md`.
+4. **Upstream asks:** submit the cancellation proposal; raise the host role word (W32) with Formstr and NIP-52's
+   maintainers.
+
+**Classification:** feature, cross-repo. This repo's part is the docs above (done) plus items 1–3, each parked until
+its trigger; when one is picked up, `/plan-feature` (Standard).
