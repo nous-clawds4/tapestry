@@ -1,4 +1,4 @@
-# ADR 0001: Event Index's item format — directory entries as kind-39999 items, events as Method 3 self-listings, and the Events header kept
+# ADR 0001: Event Index's item format — directory entries as kind-39999 items, events as Method 3 self-listings on a proposed Events header
 
 **Status:** Accepted (NosFabrica, 2026-10-15)
 **Date:** 2026-10-15
@@ -30,7 +30,7 @@ The index key publishes a kind-`39999` item under an Events header for every pro
 
 ### Option B — Method 3, and keep the Events header
 
-Each projection carries `["z", "39998:<index key>:events"]`; the Events header declares `item-kind` `31923` and `31922` and the tier-two declarations (title, start, end, location, summary, image, `g`, `r`, `t`, with `date` hints pending worksheet W30/W31). The directory itself uses ordinary kind-`39999` entries (Method 1), because a calendar feed has nothing on nostr to point at.
+Each projection carries `["z", "39998:<header key>:events"]`; the Events header declares `item-kind` `31923` and `31922` and the tier-two declarations (title, start, end, location, summary, image, `g`, `r`, `t`, with `date` hints pending worksheet W30/W31). The directory itself uses ordinary kind-`39999` entries (Method 1), because a calendar feed has nothing on nostr to point at.
 
 - **For:** one tag per event and no second event; the claim is the calendar's own ("I claim to be on this list"); any DList client that implements Method 3 lists the events; anyone else can self-list a native NIP-52 event the same way, and readers weigh that per point of view.
 - **Against:** Brainstorm lists no items under the header until it reads `item-kind` and Method 3; the items live on relays other than the one that holds the header (dcosl won't take `31923`s).
@@ -44,7 +44,9 @@ The projections carry no `z`; the Events list doesn't exist. Clients read events
 
 ## Decision
 
-We chose **Option B**: directory entries are kind-`39999` items under *Event Calendars*, and events list themselves on *Events* by Method 3, with the header kept, because it costs one tag per event, gives Method 3 clients the list today, and carries the declarations a schema-driven renderer needs once a client reads them. Native NIP-52 events already published by others are read by their kind and never copied into curator items.
+We chose **Option B**: directory entries are kind-`39999` items under *Event Calendars*, and events list themselves on *Events* by Method 3, because it costs one tag per event, gives Method 3 clients the list today, and carries the declarations a schema-driven renderer needs once a client reads them. Native NIP-52 events already published by others are read by their kind and never copied into curator items.
+
+**Who signs what.** The two list headers follow NosFabrica's standard for DLists: a maintainer's key signs them, through List Management like any other header. The index key is the directory's curator: it signs the kind-`39999` entries the index files, and no header. Calendar keys sign the events. *Event Calendars* is published; the *Events* header is proposed and not yet published (whether to publish it is open, event-index open question 9), and until it is, projections carry no `z`.
 
 Sub-decisions, all normative in [protocols/drafts/event-index.md](../../../protocols/drafts/event-index.md):
 
@@ -59,7 +61,7 @@ Sub-decisions, all normative in [protocols/drafts/event-index.md](../../../proto
 
 - **Enables:** Method 3 DList clients list every projected event with no extra events; NIP-52 clients see ordinary calendar events whose host is the calendar; a second index, or anyone, can file entries and self-list events under their own keys.
 - **Constrains:** Brainstorm shows no items under the Events header until it reads `item-kind` and Method 3, or W34 lands. The Events concept should not be filed on Brainstorm's Dictionary before then: an empty list whose name contains "event" would take every search for "event".
-- **Constrains:** a header-editing client that drops unknown display roles (Brainstorm-UI's List Management) must not republish the Events header until it knows the `date` role (W31).
+- **Constrains:** the proposed Events header leaves out the `date` display role (W31) until Brainstorm-UI's List Management, which signs headers and drops display roles it doesn't know, knows it.
 - **Debt:** the `q` rule's widening is written in the spec but not in code: when Tapestry's curation reads `item-kind`-declared kinds, `itemRef` must name any addressable original by address, not only kind `39999` (recorded in the intake entry).
 - **Debt:** the curation-copy carry rule (Assistant Designation § Curation copies, What it carries) was written for DList items. For a foreign-kind original such as a NIP-52 event it would carry `p` and `t` as item tags and drop `start`, which the Events header requires. Before any curator copies foreign kinds, the carry rule needs a foreign-kind case.
 - **Debt:** the `removed` convention is defined for directory entries only; whether it belongs in the DList NIP for every kind-`39999` item is open (event-index open question 6).

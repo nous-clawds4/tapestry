@@ -42,6 +42,8 @@ A first pass found 5 errors, 10 inconsistencies and 8 nits; a second pass found 
 
 **Correctness against upstream:** NIP-22 comment shape (including the parent `e` on a top-level comment), NIP-52 RSVP tags, NIP-65 unmarked relay, NIP-09 deletion shapes and NIP-05 characters check out; the example's `D` value and geohashes match its time and place.
 
+**After the review (2026-10-15):** the draft was matched to the live *Event Calendars* header (a maintainer's key signs the headers; the index key signs only directory entries; `optional` declarations; `index-name`, `luma-id` and `meetup-group` fields; links from three URL templates; a list image and license tags), and the *Events* header is described as proposed. Links, anchors and lint were checked again; the protocol rules this review audited didn't change.
+
 ## Verdict
 
 **PASS**

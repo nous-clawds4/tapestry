@@ -28,7 +28,8 @@ Two requirements shape the wire format: the real organizer must show up, and a v
 - **Kind 0 wording:** platform names as their owners style them, with a line saying the index is not affiliated with the platform.
 - **Hidden venues are not published or kept.** When a platform shows the venue only to registered guests, no projection carries a place.
 - **Summary-only sources.** For Luma and Meetup, public output is the summary and the link: no full description and no images, and no kind 0 `picture`.
-- **The Events list header is kept** (one `z` per event), and **the `q` rule covers any addressable original**: ADR `event-index/0001`.
+- **List headers follow NosFabrica's standard for DLists:** a maintainer's key signs them through List Management. The Event Index key is the curator that signs the directory entries; calendar keys sign the events.
+- **Events are listed by Method 3** (one `z` per event) on a proposed *Events* header, not yet published, and **the `q` rule covers any addressable original**: ADR `event-index/0001`.
 - **When an event moves under another calendar's key**, the copy at the old address is deleted, even if it had RSVPs.
 - **Guest keys** are labeled as custodial accounts created by email, and are held by a self-hosted Keycast behind a seam of standards: ADR `event-index/0002`.
 

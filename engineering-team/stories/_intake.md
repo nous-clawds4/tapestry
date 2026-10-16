@@ -2979,7 +2979,7 @@ record is `docs/EVENT_INDEX_DESIGN_HANDOFF.md`. The index itself is built in its
 **Landed in this repo (docs-mode, 2026-10-15):** `protocols/drafts/event-index.md` (📝 pre-NIP) and its row in
 `protocols/README.md`; worksheet W30–W34; the Method 3 example in `decentralized-lists-compat.md`; the `q` rule
 widened to every addressable original in `assistant-designation.md` § Curation copies; the NIP-52 cancellation
-proposal, `protocols/upstream/nip-52-cancellation.md`; ADRs `event-index/0001` (item format, Events header kept) and
+proposal, `protocols/upstream/nip-52-cancellation.md`; ADRs `event-index/0001` (item format, Method 3 on a proposed Events header) and
 `event-index/0002` (guest custody: a self-hosted Keycast behind a seam).
 
 **What is left that touches this repo:**

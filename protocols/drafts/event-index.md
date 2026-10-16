@@ -21,7 +21,8 @@ An event's full record is iCalendar ([RFC 5545](https://www.rfc-editor.org/rfc/r
 | Term | Meaning |
 |---|---|
 | **Index** | A service that keeps the directory and publishes the projections. Anyone may run one. |
-| **Index key** | The index's own key. It signs the directory's two headers, its entries, and its own profile, relay list and contact list; never a calendar event. |
+| **Header key** | The key that signs the directory's list headers: a maintainer's key, which keeps them like any other DList header (with Brainstorm-UI's List Management, for instance). It is not the index key. |
+| **Index key** | The index's own key: the directory's curator. It signs the directory entries the index files, and its own profile, relay list and contact list. It signs no header and no calendar event. |
 | **Directory entry** | A kind `39999` item on the *Event Calendars* list (§ 2): one calendar feed, or one discovery feed. |
 | **Calendar** | An entry whose role is `calendar`: an organizer's own calendar. Its events are projected. |
 | **Aggregator** | An entry whose role is `aggregator`: a feed that lists other people's events (a Luma city page, a "what's on" calendar). It only leads the index to calendars; its events are never projected, because the aggregator would then read as their host. |
@@ -29,54 +30,64 @@ An event's full record is iCalendar ([RFC 5545](https://www.rfc-editor.org/rfc/r
 | **Record** | The index's normalized iCalendar copy of one event. Its format is the index's `spec/`, not this draft. |
 | **Projection** | The kind `31923` (or `31922`) event a calendar key signs for one record (§ 4). |
 
-The placeholders `<index key>`, `<index relay>`, `<index API>`, `<index domain>` and `<index client name>` stand for one index's values. A spec names no deployment's key ([protocols/README.md](../README.md), the boundary rule). The reference deployment's values, in that order: an index key created when it first publishes, `wss://relay.eventindex.space`, `https://api.eventindex.space/api/1.0/`, `eventindex.space` and `eventindex`.
+The placeholders `<header key>`, `<index key>`, `<index relay>`, `<index API>`, `<index domain>` and `<index client name>` stand for one deployment's values. A spec names no deployment's key ([protocols/README.md](../README.md), the boundary rule). In the reference deployment the *Event Calendars* header is, for example, `39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:event-calendars`, and the other values are, in order: an index key created when it first publishes, `wss://relay.eventindex.space`, `https://api.eventindex.space/api/1.0/`, `eventindex.space` and `eventindex`.
 
 ## 2. The directory: Event Calendars
 
 ### 2.1 The header
 
-Published by the index key:
+Published by a maintainer's key. The reference deployment's header, as published on `wss://dcosl.brainstorm.world` (template ids shortened to placeholders):
 
 ```json
 {
   "kind": 39998,
+  "pubkey": "<header key>",
   "tags": [
     ["d", "event-calendars"],
     ["names", "Event Calendar", "Event Calendars"],
-    ["description", "Public event calendars. A calendar's events are mirrored to nostr as NIP-52 events signed by a key of its own."],
-    ["required", "name", "The calendar's name as its organizer gives it (RFC 7986 NAME, else X-WR-CALNAME unless it is a platform default such as Luma's Personal, else the organizer's name)"],
-    ["required", "role", "calendar | aggregator. A calendar's events are signed by its own key. An aggregator only leads to calendars."],
-    ["recommended", "p", "The calendar's own nostr key (held by the index until claimed). Absent on aggregators."],
-    ["recommended", "feed", "iCalendar feed URL the entry is indexed from"],
-    ["recommended", "url", "The calendar's page on its platform (RFC 7986 URL)"],
-    ["recommended", "source", "luma | meetup | mobilizon | gancio | google | ics | nostr"],
-    ["allowed", "organizer", "Organizer's name when the feed states one"],
-    ["allowed", "location", "City or region, as text"],
-    ["allowed", "g", "Geohash of the calendar's usual area"],
-    ["allowed", "calendar", "A native kind-31924 calendar this entry stands for"],
-    ["allowed", "t", "Topic tags"],
-    ["allowed", "description", "RFC 7986 DESCRIPTION"],
-    ["allowed", "image", "RFC 7986 IMAGE"],
+    ["description", "Public event calendars from Luma, Meetup and other iCalendar feeds, gathered by Event Index (eventindex.space). Each calendar's events are mirrored to nostr as NIP-52 events, signed by a key Event Index holds for that calendar, so the organizer shows as the host. The directory is in the public domain (CC0); the events belong to their organizers."],
+    ["required", "name", "The calendar's name, as its organizer gives it"],
+    ["required", "role", "calendar for an organizer's own calendar; aggregator for a feed that only leads to other calendars"],
+    ["recommended", "p", "The calendar's nostr key (hex), held by Event Index until its organizer claims the calendar"],
+    ["recommended", "index-name", "The calendar's name on Event Index: its page is eventindex.space/calendar/<name> and its nostr address <name>@eventindex.space"],
+    ["recommended", "feed", "The iCalendar feed the calendar is read from"],
     ["field-type", "feed", "url"],
-    ["field-type", "url", "url"],
-    ["field-type", "image", "url"],
+    ["recommended", "source", "Where the feed comes from: luma, meetup, mobilizon, gancio, google, ics or nostr"],
+    ["recommended", "location", "City or region the calendar is about, e.g. San Diego, US"],
+    ["recommended", "g", "Geohash of the calendar's usual area"],
+    ["optional", "luma-id", "The calendar's id on Luma, e.g. cal-BvuRd9eaZnDGBwy"],
+    ["optional", "meetup-group", "The group's name in its Meetup address, e.g. sdbitcoiners"],
+    ["optional", "calendar", "A native kind-31924 calendar this entry stands for"],
     ["field-type", "calendar", "address"],
+    ["optional", "t", "A topic or search term, such as the city and the source; repeats"],
+    ["optional", "description", "The calendar's own description, from its feed"],
+    ["optional", "image", "The calendar's own image, from its feed"],
+    ["field-type", "image", "url"],
     ["display", "title", "name"],
-    ["display", "summary", "organizer"],
+    ["display", "summary", "location"],
     ["display", "image", "image"],
-    ["display", "link", "url"],
     ["display", "location", "g"],
-    ["display", "fact", "role", "Type"],
-    ["display", "fact", "location", "Area"]
+    ["display", "fact", "source", "Source"],
+    ["image", "https://cdn.jsdelivr.net/gh/Event-Index/index@v0.1.2/brand/mark/mark-tile-512.png"],
+    ["link", "<Event Index calendar template id>", "wss://dcosl.brainstorm.world", "name", "index-name"],
+    ["link", "<Luma calendar template id>", "wss://dcosl.brainstorm.world", "id", "luma-id"],
+    ["link", "<Meetup group template id>", "wss://dcosl.brainstorm.world", "group", "meetup-group"],
+    ["r", "https://eventindex.space"],
+    ["r", "https://github.com/Event-Index/index/blob/main/seeds/LICENSE"],
+    ["r", "https://github.com/Event-Index/index/blob/main/brand/LICENSE"],
+    ["license", "CC0-1.0"]
   ]
 }
 ```
 
-Declarations use the DList NIP's four words: `required`, `allowed`, `recommended`, `disallowed`. `field-type` and `display` are Brainstorm-UI's provisional presentation conventions, which worksheet W27 (open PR #819) asks about; a reader that doesn't know them ignores them.
+- **Declarations.** `required` and `recommended` are the DList NIP's. `optional` is not: it is Brainstorm-UI's convention, and its presentation conventions read it, like the NIP's `allowed`, as a field an item may carry. Readers SHOULD read `optional` as `allowed` (open question 8).
+- **Presentation.** `field-type`, `display`, the list's own `image` and `link` are Brainstorm-UI's provisional presentation conventions, which worksheet W27 (open PR #819) asks about. A reader that doesn't know them ignores them.
+- **Links come from URL templates**, not from a `url` field. Each `link` tag pins a URL template by its event id and binds one of the entry's fields to the template's placeholder (Brainstorm-UI's URL template convention). The three templates are *Event Index calendar*, `https://eventindex.space/calendar/{name}` (bound to `index-name`); *Luma calendar*, `https://luma.com/calendar/{id}` (bound to `luma-id`); and *Meetup group*, `https://www.meetup.com/{group}/` (bound to `meetup-group`). An entry gets the links whose fields it carries.
+- **Licenses.** `["license", "CC0-1.0"]` gives the directory data's license as an SPDX identifier, and the `r` tags point at the index's site and the license texts. The events themselves belong to their organizers.
 
 ### 2.2 Entries
 
-An entry is a kind `39999` event with `["z", "39998:<index key>:event-calendars"]` and the fields above.
+An entry is a kind `39999` event with `["z", "39998:<header key>:event-calendars"]` and the fields above, signed by whoever files it: the index key, for the entries the index files itself.
 
 **`d` is the calendar's stable identity**, never its feed URL, which may change (Luma moved from `lu.ma` to `luma.com`). A writer builds it as:
 
@@ -91,22 +102,28 @@ An entry is a kind `39999` event with `["z", "39998:<index key>:event-calendars"
 
 The index's `spec/` may add sources that have stable ids. A calendar key belongs to its entry's `d` (§ 5.1), so a changed feed URL keeps the key.
 
+**`index-name`** is the calendar's name on the index: its page there, and the local part of its calendar key's NIP-05 address (§ 5.2). The index assigns it, from NIP-05's characters only, and never gives it to another calendar.
+
 **Example:**
 
 ```json
 {
   "kind": 39999,
+  "pubkey": "<index key>",
   "tags": [
     ["d", "meetup:brooklyn-bitcoin-meetup"],
-    ["z", "39998:<index key>:event-calendars"],
+    ["z", "39998:<header key>:event-calendars"],
     ["name", "Brooklyn Bitcoin Meetup"],
     ["role", "calendar"],
     ["p", "<calendar key>"],
+    ["index-name", "meetup-brooklyn-bitcoin-meetup"],
     ["feed", "https://www.meetup.com/brooklyn-bitcoin-meetup/events/ical/"],
-    ["url", "https://www.meetup.com/brooklyn-bitcoin-meetup/"],
     ["source", "meetup"],
-    ["location", "Brooklyn, NY"],
-    ["g", "dr5rm"]
+    ["location", "Brooklyn, US"],
+    ["g", "dr5rm"],
+    ["meetup-group", "brooklyn-bitcoin-meetup"],
+    ["t", "brooklyn"],
+    ["t", "meetup"]
   ]
 }
 ```
@@ -132,28 +149,31 @@ Only an entry's author can retire it, since only they can republish it. This is 
 
 ## 3. Events: the list of projected events
 
-### 3.1 The header
+### 3.1 The header (proposed)
 
-Published by the index key:
+**Not published yet**; whether to publish it is open question 9. As proposed, a maintainer's key would publish it, as for *Event Calendars*:
 
 ```json
 {
   "kind": 39998,
+  "pubkey": "<header key>",
   "tags": [
     ["d", "events"],
     ["names", "Event", "Events"],
-    ["description", "Calendar events mirrored from the calendars on Event Calendars. Items are NIP-52 events that carry a z to this header."],
+    ["description", "Upcoming meetups, talks and workshops from the calendars on Event Calendars, mirrored to nostr by Event Index (eventindex.space) as NIP-52 calendar events. Each event is signed by its calendar's own key and links to its page at the source and its full record on Event Index. The events belong to their organizers."],
     ["item-kind", "31923", "Time-based calendar event (NIP-52)"],
     ["item-kind", "31922", "Date-based calendar event (NIP-52)"],
-    ["required", "title", ""],
-    ["required", "start", "Start, unix seconds (31923) or YYYY-MM-DD (31922)"],
-    ["recommended", "end", ""],
-    ["recommended", "location", "Address, room or link, as the organizer wrote it"],
-    ["recommended", "summary", ""],
-    ["allowed", "image", ""],
-    ["allowed", "g", "Geohash"],
-    ["allowed", "r", "The event's page at its source first, then its full record on the index"],
-    ["allowed", "t", ""],
+    ["required", "title", "The event's title, as its organizer wrote it"],
+    ["required", "start", "When it starts: unix seconds, or YYYY-MM-DD for an all-day event"],
+    ["recommended", "end", "When it ends, in the same form as start"],
+    ["recommended", "location", "Where it happens, as the organizer wrote it: an address, a room or a link"],
+    ["recommended", "summary", "A short summary of the event"],
+    ["optional", "start_tzid", "Time zone of the start, as an IANA name, e.g. America/Los_Angeles"],
+    ["optional", "end_tzid", "Time zone of the end, when it differs from the start's"],
+    ["optional", "image", "The event's image"],
+    ["optional", "g", "Geohash of where it happens"],
+    ["optional", "r", "Event page"],
+    ["optional", "t", "A topic; repeats"],
     ["field-type", "start", "date"],
     ["field-type", "end", "date"],
     ["field-type", "image", "url"],
@@ -163,19 +183,21 @@ Published by the index key:
     ["display", "image", "image"],
     ["display", "link", "r"],
     ["display", "location", "g"],
-    ["display", "date", "start"]
+    ["image", "https://cdn.jsdelivr.net/gh/Event-Index/index@v0.1.2/brand/mark/mark-tile-512.png"],
+    ["r", "https://eventindex.space"],
+    ["r", "https://github.com/Event-Index/index/blob/main/brand/LICENSE"]
   ]
 }
 ```
 
-The `date` field type and the `date` display role are proposed in worksheet [W30](../worksheet.md#w30--a-date-value-type-for-dlist-fields) and [W31](../worksheet.md#w31--date-display-roles-for-dlist-items). Only the index key can republish this header, and the index SHOULD NOT do it with a header editor that drops display roles it doesn't know (Brainstorm-UI's List Management does, today): it would remove them. The declarations apply additively over NIP-52's own requirements ([DList Cross-NIP Compatibility](./decentralized-lists-compat.md) § `item-kind`).
+The `date` field type is proposed in worksheet [W30](../worksheet.md#w30--a-date-value-type-for-dlist-fields). A `["display", "date", "start"]` role ([W31](../worksheet.md#w31--date-display-roles-for-dlist-items)) would join once it settles and the tools that edit headers know it: Brainstorm-UI's List Management drops display roles it doesn't know. The declarations apply additively over NIP-52's own requirements ([DList Cross-NIP Compatibility](./decentralized-lists-compat.md) § `item-kind`).
 
 ### 3.2 Listing: Method 3
 
-Every projection carries `["z", "39998:<index key>:events"]`: it lists itself, as the calendar's own claim ("I claim to be on this list"), by Method 3 of [DList Cross-NIP Compatibility](./decentralized-lists-compat.md). NIP-52 uses no `z` tag, so the extra tag is harmless to NIP-52 clients. A reader finds the items with:
+Once the header is published, every projection carries `["z", "39998:<header key>:events"]`: it lists itself, as the calendar's own claim ("I claim to be on this list"), by Method 3 of [DList Cross-NIP Compatibility](./decentralized-lists-compat.md). Until then, projections carry no `z`. NIP-52 uses no `z` tag, so the extra tag is harmless to NIP-52 clients. A reader finds the items with:
 
 ```json
-{ "kinds": [31922, 31923], "#z": ["39998:<index key>:events"] }
+{ "kinds": [31922, 31923], "#z": ["39998:<header key>:events"] }
 ```
 
 - Anyone may add the same `z` to their own NIP-52 event, and readers weigh it from their point of view like any other claim. A reader that wants only one index's projections keeps the items whose author is the `p` of a directory entry it trusts (§ 5.6).
@@ -213,7 +235,7 @@ A record whose `DTSTART` is a date (`VALUE=DATE`) becomes a kind `31922`; every 
 ### 4.3 Tags the index adds
 
 ```json
-["z", "39998:<index key>:events"],
+["z", "39998:<header key>:events"],
 ["p", "<calendar key>", "<index relay>", "host"],
 ["r", "<the event's page>"],
 ["r", "<index API>/events/byid/<record id>.ics"],
@@ -221,6 +243,7 @@ A record whose `DTSTART` is a date (`VALUE=DATE`) becomes a kind `31922`; every 
 ["client", "<index client name>"]
 ```
 
+- **`z`** only once the Events header is published (§ 3.2).
 - **`host`** names the calendar whose key signs the event. Each co-host calendar adds one more `host` `p` (§ 4.7). NIP-52 leaves the role word free: Flockstr writes `host`, Formstr writes `organizer`. Writers write `host`; readers SHOULD read both ([W32](../worksheet.md#w32--the-host-role-word-on-nip-52-p-tags)).
 - **The two `r` tags** come in that order. The first is the event's page at its source (§ 4.2), and the last is the full record as iCalendar. When there is no page at all, only the record's `r` is written. The record's id is the index's (its `spec/`).
 - **`alt`** is the [NIP-31](https://github.com/nostr-protocol/nips/blob/master/31.md) fallback text; `<date>` is the start date, `YYYY-MM-DD`, in `start_tzid`'s zone (UTC when there is none). NIP-31 is marked `unrecommended` upstream; the tag is kept because it costs nothing and helps clients that don't know NIP-52.
@@ -246,11 +269,13 @@ When several calendars on the directory list the same event (the same `UID`), it
 
 ### 4.8 What never leaves the record
 
-`ORGANIZER` and `ATTENDEE` addresses never reach a projection, a kind `0`, or any other public event. An organizer's name (an `ORGANIZER`'s `CN`) may appear as text, in a directory entry's `organizer` field for example; an email address never does.
+`ORGANIZER` and `ATTENDEE` addresses never reach a projection, a kind `0`, or any other public event. An organizer's name (an `ORGANIZER`'s `CN`) may appear as text, as a calendar's `name` for example; an email address never does.
 
 **Hidden venues.** When a platform shows an event's venue only to the guests who registered, its projection carries no `location` and no `g`, even when the feed gives them (Luma's feeds carry the exact `GEO` of such events). The index doesn't keep the exact position either. A reader that wants to place such an event uses the calendar's area (its directory entry's `location` or `g`). How an index tells that a venue is hidden is per platform (its `spec/`).
 
 ### 4.9 Example
+
+As it would be once the Events header is published:
 
 ```json
 {
@@ -268,7 +293,7 @@ When several calendars on the directory list the same event (the same `UID`), it
     ["location", "Pioneer Works, 159 Pioneer St, Brooklyn, NY"],
     ["g", "dr5r7v3gn"],
     ["t", "bitcoin"],
-    ["z", "39998:<index key>:events"],
+    ["z", "39998:<header key>:events"],
     ["p", "<calendar key>", "<index relay>", "host"],
     ["r", "https://www.meetup.com/brooklyn-bitcoin-meetup/events/312345678/"],
     ["r", "<index API>/events/byid/<record id>.ics"],
@@ -292,8 +317,8 @@ The calendar key's metadata ([NIP-01](https://github.com/nostr-protocol/nips/blo
 |---|---|
 | `name` | RFC 7986 `NAME`; else `X-WR-CALNAME`, unless it is a platform default (Luma's "Personal"); else the `ORGANIZER`'s `CN`; else the entry's `name` |
 | `picture` | RFC 7986 `IMAGE`, else the entry's `image`. None for a summary-only source (§ 4.2). |
-| `website` | the calendar's page (the entry's `url`) |
-| `nip05` | `<local name>@<index domain>`. The index assigns the local name (NIP-05's characters only), serves it at `/.well-known/nostr.json`, and never gives it to another key. |
+| `website` | the calendar's page on its platform: RFC 7986 `URL`, else the link the entry's `luma-id` or `meetup-group` template builds (§ 2.1) |
+| `nip05` | `<index-name>@<index domain>`, the entry's `index-name` (§ 2.2). The index serves it at `/.well-known/nostr.json`. |
 | `about` | the sentence for the calendar's state, below |
 
 Every person who sees a calendar key is told it is a mirror, who made it, and where the organizer can act:
@@ -305,7 +330,7 @@ Every person who sees a calendar key is told it is a mirror, who made it, and wh
 | Claimed, key handed over (§ 8) | *Claimed by its organizer on ⟨date⟩.* (Afterwards the organizer may write anything.) |
 | Claimed, organizer's own key (§ 8) | *This calendar now publishes as ⟨npub⟩.* |
 
-⟨platform⟩ is the platform's name as its owner styles it, mark included ("Meetup®"); ⟨platform, plain⟩ is the same name without the mark ("Meetup"). When there is no platform, ⟨platform⟩ is "its calendar feed" and the not-affiliated clause is left out. The reference deployment's ⟨index name⟩ is "Event Index", and its calendar pages are `https://eventindex.space/calendar/<local name>`. For example: *Events of Brooklyn Bitcoin Meetup, mirrored from Meetup® by Event Index, which is not affiliated with Meetup. Organizer? You can have this calendar removed: https://eventindex.space/calendar/brooklyn-bitcoin-meetup.*
+⟨platform⟩ is the platform's name as its owner styles it, mark included ("Meetup®"); ⟨platform, plain⟩ is the same name without the mark ("Meetup"). When there is no platform, ⟨platform⟩ is "its calendar feed" and the not-affiliated clause is left out. The reference deployment's ⟨index name⟩ is "Event Index", and its calendar pages are `https://eventindex.space/calendar/<index-name>`. For example: *Events of Brooklyn Bitcoin Meetup, mirrored from Meetup® by Event Index, which is not affiliated with Meetup. Organizer? You can have this calendar removed: https://eventindex.space/calendar/meetup-brooklyn-bitcoin-meetup.*
 
 The *Mirrored* sentence offers only removal while the index doesn't accept claims (§ 8). When it starts to, the sentence adds the claim offer, and every calendar key republishes its kind 0.
 
@@ -335,7 +360,7 @@ Each calendar key publishes one NIP-52 calendar:
 
 ### 5.5 The index key
 
-The index key's kind 0 names the index (the reference deployment: `name` "Event Index", `nip05` `_@eventindex.space`, `about` *"The open directory of public event calendars. Mirrors them as nostr calendars so any app can render them. eventindex.space"*). It signs the two headers, its directory entries, its own kind 0 and kind `10002`, and its contact list (§ 5.6). It never authors a calendar event, RSVP or comment.
+The index key's kind 0 names the index (the reference deployment: `name` "Event Index", `nip05` `_@eventindex.space`, `about` *"The open directory of public event calendars. Mirrors them as nostr calendars so any app can render them. eventindex.space"*). It is the directory's curator: it signs the directory entries the index files, its own kind 0 and kind `10002`, and its contact list (§ 5.6). It signs no header (a maintainer's key does, § 2.1), and never authors a calendar event, RSVP or comment.
 
 ### 5.6 Trust
 
@@ -456,7 +481,7 @@ When an index knows that one of its projections duplicates a NIP-52 event publis
 
 | Events | Where an index publishes them |
 |---|---|
-| the two headers and the directory entries | `<index relay>`, and relays that hold DLists (such as `wss://dcosl.brainstorm.world`, which takes only kinds `9998`, `9999`, `39998`, `39999` and `7`) |
+| the headers and the directory entries | `<index relay>`, and relays that hold DLists (such as `wss://dcosl.brainstorm.world`, which takes only kinds `9998`, `9999`, `39998`, `39999` and `7`) |
 | projections and calendar keys' kind `31924`s | `<index relay>`; general relays for upcoming events only, rate-limited; search relays that index NIP-52 |
 | kind `0` and kind `10002` of every calendar key and of the index key; the index key's kind `3` | `<index relay>`, general relays, and profile relays such as `wss://purplepag.es` |
 | deletions | wherever the deleted event went |
@@ -465,10 +490,12 @@ A projection's only home is never a relay that ordinary clients can't read. RSVP
 
 ## 11. Open questions
 
-1. **A role for the end time.** [W31](../worksheet.md#w31--date-display-roles-for-dlist-items) proposes `date` for an item's primary time and leaves the end open. The Events header declares only `["display", "date", "start"]` until it is settled.
+1. **A role for the end time.** [W31](../worksheet.md#w31--date-display-roles-for-dlist-items) proposes `date` for an item's primary time and leaves the end open. The proposed Events header would carry only `["display", "date", "start"]` until it is settled.
 2. **The host role word.** Write `host`, read `host` and `organizer` ([W32](../worksheet.md#w32--the-host-role-word-on-nip-52-p-tags)). To be raised with Formstr and NIP-52's maintainers; if they agree, it goes upstream with the cancellation proposal.
 3. **Trust through directory membership** ([W33](../worksheet.md#w33--trust-through-directory-membership)). Until a trust engine reads it, the interim contact list (§ 5.6) caps a single index at about 850 calendars that a follow-based trust lens can see.
-4. **Tier two for a bare kind** ([W34](../worksheet.md#w34--tier-two-for-a-bare-kind)). The Events header's declarations reach only clients that read Method 3 items. A header that declares a kind as its items without each item carrying `z` would let a schema-driven renderer draw native NIP-52 events too.
+4. **Tier two for a bare kind** ([W34](../worksheet.md#w34--tier-two-for-a-bare-kind)). The proposed Events header's declarations would reach only clients that read Method 3 items. A header that declares a kind as its items without each item carrying `z` would let a schema-driven renderer draw native NIP-52 events too.
 5. **Cancellation.** The `Cancelled: ` prefix (§ 4.6) is a stopgap until NIP-52 has a convention ([proposal](../upstream/nip-52-cancellation.md)).
 6. **`removed` for every DList?** § 2.3 defines it for directory entries only. If it holds for any kind `39999` item, it belongs in the [Decentralized Lists](../nips/decentralized-lists.md) NIP or its companion.
 7. **NIP-24's `bot` flag.** A calendar key's content is automated, which is what `bot` marks; but a client that hides or badges bots would undo the point of the key, which is that the organizer shows as host. Calendar keys don't set it for now; their `about` sentence says what they are.
+8. **`optional` or `allowed`.** The live *Event Calendars* header declares fields `optional`, Brainstorm-UI's convention; the DList NIP's word for the same thing is `allowed`. Either the NIP gains `optional` as a synonym, or headers write `allowed`.
+9. **Publishing the Events header** (§ 3). It costs one `z` per event and serves DList clients that read Method 3 items, but Brainstorm lists no items under it until it reads `item-kind`. Until it is published, projections carry no `z`.

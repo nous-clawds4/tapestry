@@ -387,7 +387,7 @@ Brainstorm-UI's presentation conventions (`docs/dictionary/dlist-presentation-co
 
 Two uses now need it:
 
-- the [Event Index](./drafts/event-index.md) *Events* header (§ 3.1), for NIP-52's `start` and `end`;
+- the [Event Index](./drafts/event-index.md) proposed *Events* header (§ 3.1), for NIP-52's `start` and `end`;
 - Divine's videos (kind `34236`), whose `published_at` is a date too.
 
 **Proposal.** `["field-type", "<field>", "date"]`. The value is unix seconds, or `YYYY-MM-DD` for a date with no time (NIP-52's kind `31922`); the two are told apart by their shape. A reader shows it in the reader's own zone, or in the zone a sibling `<field>_tzid` names when there is one (NIP-52's `start_tzid` and `end_tzid`).
@@ -410,7 +410,7 @@ Brainstorm-UI's display roles (`["display", <role>, <field>]`: `title`, `summary
 
 **Questions:**
 
-- **The end time.** Options: a second role (`["display", "end", "<field>"]`); a fourth element on the `date` role (`["display", "date", "start", "end"]`); or no role, with the reader looking for a sibling `end`. The Events header declares only the start until this is settled.
+- **The end time.** Options: a second role (`["display", "end", "<field>"]`); a fourth element on the `date` role (`["display", "date", "start", "end"]`); or no role, with the reader looking for a sibling `end`. Event Index's proposed *Events* header carries no `date` role yet; it would add `["display", "date", "start"]` once the role settles.
 - **Past and future.** For an event, a primary time in the past means it is over; for a video's `published_at`, it is just when it was posted. Does the role say which, or does the category decide?
 - **Editors.** Brainstorm-UI's List Management drops display roles it doesn't know when a header is edited there, so it has to learn the role before any header that carries it is edited.
 
@@ -456,7 +456,7 @@ A key nobody follows is hidden by a follow-based trust lens. Brainstorm-UI issue
 
 A nostr kind is already a list ([Content Categories](./drafts/content-categories.md) § 1, the "old-school DList"): the NIP plays the header and the `kind` plays the `z`. [Opinionated Views](./drafts/opinionated-views.md) § 2's schema-driven tier draws an item from its header's declarations, but a bare kind has no header to declare anything, so its events get the generic tier unless a client builds a view by hand. Brainstorm met this with Divine's videos (kind `34236`), which got hand-built per-kind views.
 
-Event Index's *Events* header (§ 3) carries declarations for NIP-52 events, but they reach only events that carry its `z` (Method 3 of [DList Cross-NIP Compatibility](./drafts/decentralized-lists-compat.md)). A native NIP-52 event without the `z` gets none of them.
+Event Index's proposed *Events* header (§ 3) carries declarations for NIP-52 events, but they would reach only events that carry its `z` (Method 3 of [DList Cross-NIP Compatibility](./drafts/decentralized-lists-compat.md)). A native NIP-52 event without the `z` gets none of them.
 
 **Proposal.** A header that declares a kind as its items without each item carrying `z`, so that a schema-driven renderer can draw native `31923`s and `34236`s alike. Shapes to weigh:
 
