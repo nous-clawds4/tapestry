@@ -73,3 +73,5 @@ A first pass found 5 errors, 10 inconsistencies and 8 nits; a second pass found 
 ## Verdict (second review)
 
 **PASS**
+
+**After the second review (2026-10-18):** the team's review of the *Events* header changed three things, folded in here: `source` names where a calendar lives (a platform, or the feed's host name), never `ics`; an item's `d` is the public event id alone, with no source prefix; and the child lists are named by platform (*Luma*, *Meetup*, *Other platforms*, *Nostr*). The proposed *Events* header and the item fields now follow the team's draft: `when`, `luma-slug`, `meetup-group`, `meetup-event`, `index-id` and `url`, links from URL templates, and no `r`. Links, anchors, lint and the example's JSON were checked again.

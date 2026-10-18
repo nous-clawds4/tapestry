@@ -16,8 +16,10 @@ Revised by NosFabrica on 2026-10-16; the decisions of 2026-10-15 that the revisi
 
 - **The directory of calendars is the commons, and it is a DList**, not a database that a DList mirrors.
 - **The index never signs as an organizer.** A profile named after an organizer who never made it reads as impersonation, whatever its description says. There are no custodial calendar keys: ADR `event-index/0003`.
-- **Feed events are kind-39999 items signed by the index key**, with NIP-52's field names; `organizer` always, as text; `p` (role `host`) only for the organizer's own verified key; `calendar` naming the calendar's entry; `status` for a cancelled event; a NIP-73 `i` with the event's page as the identifier shared across curators; `d` the source plus the index's public event id.
-- **Lists split by source, not by format**: Luma, Meetup, iCalendar feeds, and nostr events pulled by kind, under a master *Events* list. It starts as one list with a `source` field; the master/child mechanism is specified separately.
+- **Feed events are kind-39999 items signed by the index key**, with NIP-52's field names; `organizer` always, as text; `p` (role `host`) only for the organizer's own verified key; `calendar` naming the calendar's entry; `status` for a cancelled event; a NIP-73 `i` with the event's page as the identifier shared across curators; `d` the index's public event id.
+- **Lists split by platform, not by format**: *Luma*, *Meetup*, *Other platforms* (Google, Mobilizon, Gancio, and feeds on their own hosts), and *Nostr* pulled by kind, under a master *Events* list. It starts as one list with a `source` field; the master/child mechanism is specified separately.
+- **`source` names where a calendar lives** (`luma`, `meetup`, `google`, `mobilizon`, `gancio`, `nostr`, else the feed's host name), never a format: every feed is iCalendar.
+- **Item links come from URL templates** (the source's event page, and the index's `.ics` file), or a `url` for other platforms.
 - **Native NIP-52 events are read by kind, never copied or re-signed**, and their publishers are listed in the directory. A list whose items are the events of a kind extends `item-kind`: ADR `event-index/0004`.
 - **Duplicates:** a deterministic `d` within one curator, and the shared `i` across curators. An organizer's own event is the original; a mirrored item and an aggregator's copy yield to it.
 - **Claims link the organizer's own key**: verify and link, "I publish myself", or "publish for me, as me" through a remote signer. *Event Calendars*' `p` means only a key that publishes the calendar's events or that its organizer has verified, never one the index holds.
@@ -50,6 +52,7 @@ Revised by NosFabrica on 2026-10-16; the decisions of 2026-10-15 that the revisi
 - **Curator copies of native nostr events** (a curator 39999 per native 31923). Gains little and costs one event per event; native events are pulled by kind instead.
 - **A new header tag, or a content-category item, to declare a list by kind.** A fourth element on `item-kind` degrades safely for old readers and keeps one tag per kind (ADR `event-index/0004`).
 - **Splitting the lists by format** (`.ics`, jCal, JSON-LD). These are three ways of serving one record.
+- **`ics` as a `source` value, and a source prefix on an item's `d`.** Every feed is iCalendar, so `ics` set nothing apart; a prefix would make addresses long and uneven, and the public id already hashes the calendar's `d`.
 - **`SEQUENCE` or `LAST-MODIFIED` as the republish trigger.** Luma's `SEQUENCE` is one number shared by every event, and `DTSTAMP` changes on every fetch.
 - **A new event kind**, **an index-specific cancellation tag on NIP-52 events**, **adopting NIP-52R recurrence labels now**: anything that would amend NIP-52 is proposed upstream instead.
 

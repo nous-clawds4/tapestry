@@ -39,7 +39,7 @@ The placeholders `<header key>`, `<index key>`, `<index relay>`, `<index API>`, 
 
 ### 2.1 The header
 
-Published by a maintainer's key. The reference deployment's header on `wss://dcosl.brainstorm.world`, with its template ids shortened to placeholders, and the `p`, `role` and `index-name` descriptions as this draft states them:
+Published by a maintainer's key. The reference deployment's header on `wss://dcosl.brainstorm.world`, with its template ids shortened to placeholders, and with the four descriptions (`description`, `p`, `index-name`, `source`) its next version states:
 
 ```json
 {
@@ -48,14 +48,14 @@ Published by a maintainer's key. The reference deployment's header on `wss://dco
   "tags": [
     ["d", "event-calendars"],
     ["names", "Event Calendar", "Event Calendars"],
-    ["description", "Public event calendars from Luma, Meetup and other iCalendar feeds, gathered by Event Index (eventindex.space). The directory is in the public domain (CC0); the events belong to their organizers."],
+    ["description", "Public event calendars from Luma, Meetup and other iCalendar feeds, and organizers who publish their events on nostr, gathered by Event Index (eventindex.space). Their upcoming events are listed on Events. Event Index never publishes as an organizer: an entry's p is the organizer's own key. The directory is in the public domain (CC0); the events belong to their organizers."],
     ["required", "name", "The calendar's name, as its organizer gives it"],
-    ["required", "role", "calendar for an organizer's own calendar; aggregator for a feed, or a key, that lists other organizers' events"],
-    ["recommended", "p", "The nostr key (hex) that publishes this calendar's events, or that its organizer has verified. Never a key Event Index holds"],
+    ["required", "role", "calendar for an organizer's own calendar; aggregator for a feed that only leads to other calendars"],
+    ["recommended", "p", "The organizer's own nostr key (hex): the publisher of a calendar on nostr, or the key a feed's organizer verified with Event Index"],
     ["recommended", "index-name", "The calendar's name on Event Index: its page is eventindex.space/calendar/<name>"],
     ["recommended", "feed", "The iCalendar feed the calendar is read from"],
     ["field-type", "feed", "url"],
-    ["recommended", "source", "Where the feed comes from: luma, meetup, mobilizon, gancio, google, ics or nostr"],
+    ["recommended", "source", "Where the calendar lives: luma, meetup, google, mobilizon, gancio or nostr; for any other feed, its host name"],
     ["recommended", "location", "City or region the calendar is about, e.g. San Diego, US"],
     ["recommended", "g", "Geohash of the calendar's usual area"],
     ["optional", "luma-id", "The calendar's id on Luma, e.g. cal-BvuRd9eaZnDGBwy"],
@@ -83,6 +83,8 @@ Published by a maintainer's key. The reference deployment's header on `wss://dco
 }
 ```
 
+- **`source`** names where a calendar lives, never a format: `luma`, `meetup`, `google`, `mobilizon`, `gancio` or `nostr`, and for any other feed the feed's host name (`calendar.example.org`). Every feed is iCalendar, so a format would set nothing apart; the format is the entry's `feed`.
+- **`role`.** Its description covers feed aggregators; a nostr aggregator (§ 5) takes `aggregator` too, with `p` its key.
 - **Declarations.** `required` and `recommended` are the DList NIP's. `optional` is not: it is Brainstorm-UI's convention, which its presentation conventions read like the NIP's `allowed`, as a field an item may carry. Readers SHOULD read `optional` as `allowed` (open question 6).
 - **Presentation.** `field-type`, `display`, the list's own `image` and `link` are Brainstorm-UI's provisional presentation conventions, which worksheet W27 (open PR #819) asks about. A reader that doesn't know them ignores them.
 - **Links come from URL templates.** Each `link` tag pins a URL template by its event id and binds one of the entry's fields to the template's placeholder (Brainstorm-UI's URL template convention). The three templates are *Event Index calendar*, `https://eventindex.space/calendar/{name}` (bound to `index-name`); *Luma calendar*, `https://luma.com/calendar/{id}` (bound to `luma-id`); and *Meetup group*, `https://www.meetup.com/{group}/` (bound to `meetup-group`). An entry gets the links whose fields it carries.
@@ -104,7 +106,7 @@ An entry is a kind `39999` event with `["z", "39998:<header key>:event-calendars
 | A nostr publisher | `nostr:<hex pubkey>`. The entry stands for the key: some publishers keep no kind `31924` at all. |
 | Anything else | `ics:` followed by the lowercase hex SHA-256 of the canonical feed URL: scheme `webcal` replaced by `https`, scheme and host lowercased, a default port, any fragment and an empty query removed |
 
-The index's `spec/` may add sources that have stable ids. A claim (§ 9) never changes an entry's `d`.
+The index's `spec/` may add sources that have stable ids. A claim (§ 9) never changes an entry's `d`. The `ics:` prefix is part of an entry's identity, not its `source` (§ 2.1).
 
 **`index-name`** is the calendar's name on the index, used for its page there. The index assigns it from NIP-05's characters (`a-z0-9-_.`) and never gives it to another calendar. A nostr publisher's is `nostr-` followed by the first 16 hex digits of its key.
 
@@ -167,7 +169,7 @@ Only an entry's author can retire it, since only they can republish it. This is 
 
 ### 3.1 The header (proposed)
 
-**Not published yet** (open question 5). As proposed, a maintainer's key publishes it, as for *Event Calendars*. Field names follow NIP-52's, so code that draws NIP-52 events can draw items; the declarations may still change before it is published.
+**Not published yet** (open question 5). As proposed, a maintainer's key publishes it, as for *Event Calendars*. Field names follow NIP-52's, so code that draws NIP-52 events can draw items. Links come from three URL templates, as on *Event Calendars*; the declarations may still change before it is published.
 
 ```json
 {
@@ -176,47 +178,58 @@ Only an entry's author can retire it, since only they can republish it. This is 
   "tags": [
     ["d", "events"],
     ["names", "Event", "Events"],
-    ["description", "Events from the calendars on Event Calendars, listed by Event Index (eventindex.space): one item per event, naming its organizer and linking to its page at the source. The events belong to their organizers."],
+    ["description", "Upcoming public events from the calendars on Event Calendars, read by Event Index (eventindex.space) from each calendar's iCalendar feed, on Luma, Meetup or elsewhere. Event Index lists each event; it doesn't publish as the organizer, who is named on the item. Events their organizers publish on nostr themselves are read as they are, not copied here. The events belong to their organizers."],
     ["required", "title", "The event's title, as its organizer wrote it"],
-    ["required", "start", "When it starts: unix seconds, or YYYY-MM-DD for an all-day event"],
-    ["required", "organizer", "Who runs the event, as text"],
-    ["required", "source", "Where the event comes from: luma, meetup, mobilizon, gancio, google or ics"],
-    ["recommended", "end", "When it ends, in the same form as start"],
-    ["recommended", "start_tzid", "Time zone of the start, as an IANA name, e.g. America/Los_Angeles"],
+    ["required", "start", "When it starts: unix seconds, or YYYY-MM-DD for an all-day event, as in NIP-52"],
+    ["recommended", "end", "When it ends, in the same form as start; for an all-day event, the day after the last day"],
+    ["recommended", "when", "When it happens, written out in the event's local time, e.g. Wed 28 Oct 2026, 5:30 PM-8:00 PM EDT"],
+    ["recommended", "start_tzid", "The time zone the event happens in, as an IANA name, e.g. America/New_York"],
+    ["optional", "end_tzid", "The end's time zone, when it differs from the start's"],
+    ["recommended", "organizer", "Who hosts it: the name of the calendar it comes from"],
+    ["recommended", "calendar", "The calendar it comes from, on Event Calendars"],
+    ["recommended", "source", "The platform its calendar lives on: luma, meetup, google, mobilizon or gancio; for any other calendar, its feed's host name"],
     ["recommended", "location", "Where it happens, as the organizer wrote it: an address, a room or a link"],
-    ["recommended", "g", "Geohash of where it happens"],
-    ["recommended", "summary", "A short summary of the event"],
-    ["recommended", "calendar", "The calendar's entry on Event Calendars"],
-    ["recommended", "i", "The event's page, as a shared identifier (NIP-73)"],
-    ["recommended", "r", "The event's page, then its full record on Event Index"],
-    ["allowed", "end_tzid", "Time zone of the end, when it differs from the start's"],
-    ["allowed", "image", "The event's image"],
-    ["allowed", "p", "The organizer's own nostr key, once verified"],
-    ["allowed", "status", "cancelled, when the organizer has cancelled it"],
-    ["allowed", "t", "A topic or search term; repeats"],
-    ["field-type", "start", "date"],
-    ["field-type", "end", "date"],
-    ["field-type", "image", "url"],
-    ["field-type", "r", "url"],
+    ["optional", "g", "Geohash of where it happens"],
+    ["optional", "summary", "The start of the event's description, up to 280 characters"],
+    ["optional", "status", "cancelled, when the organizer has cancelled it"],
+    ["optional", "p", "The organizer's own nostr key (hex), once they've verified it with Event Index"],
+    ["optional", "luma-slug", "The event's address on Luma, e.g. click-cafe-all-in-2026"],
+    ["optional", "meetup-group", "The group's name in its Meetup address, e.g. atlantabitdevs"],
+    ["optional", "meetup-event", "The event's number in its Meetup address"],
+    ["optional", "index-id", "The event's id on Event Index"],
+    ["optional", "url", "The event's own page, for sources without a link of their own"],
+    ["optional", "image", "The event's image, where its source allows one"],
+    ["optional", "t", "A topic or search term, such as the city and the source; repeats"],
     ["field-type", "calendar", "address"],
+    ["field-type", "url", "url"],
+    ["field-type", "image", "url"],
     ["display", "title", "title"],
-    ["display", "summary", "summary"],
+    ["display", "summary", "when"],
     ["display", "image", "image"],
+    ["display", "link", "url"],
     ["display", "location", "g"],
-    ["display", "link", "r"],
-    ["display", "fact", "organizer", "Organizer"],
+    ["display", "fact", "organizer", "Hosted by"],
+    ["display", "fact", "location", "Where"],
+    ["display", "fact", "status", "Status"],
+    ["display", "fact", "source", "Source"],
     ["image", "https://cdn.jsdelivr.net/gh/Event-Index/index@v0.1.2/brand/mark/mark-tile-512.png"],
+    ["link", "<Luma event template id>", "wss://dcosl.brainstorm.world", "slug", "luma-slug"],
+    ["link", "<Meetup event template id>", "wss://dcosl.brainstorm.world", "group", "meetup-group", "id", "meetup-event"],
+    ["link", "<Event Index event (.ics) template id>", "wss://dcosl.brainstorm.world", "id", "index-id"],
     ["r", "https://eventindex.space"],
     ["r", "https://github.com/Event-Index/index/blob/main/brand/LICENSE"]
   ]
 }
 ```
 
-The `date` field type is proposed in worksheet [W30](../worksheet.md#w30--a-date-value-type-for-dlist-fields). A `["display", "date", "start"]` role ([W31](../worksheet.md#w31--date-display-roles-for-dlist-items)) would join once it settles and the tools that edit headers know it: Brainstorm-UI's List Management drops display roles it doesn't know. Items are ordinary kind `39999` items, so the header needs no `item-kind`. The proposed headers in this draft write the NIP's `allowed`; a header written in List Management says `optional` instead, which reads the same (open question 6).
+- **Links.** *Luma event*, `https://luma.com/{slug}` (bound to `luma-slug`); *Meetup event*, `https://www.meetup.com/{group}/events/{id}/` (bound to `meetup-group` and `meetup-event`); and *Event Index event (.ics)*, `<index API>/events/byid/{id}.ics` (bound to `index-id`), the add-to-calendar link. An event on any other platform carries its page in `url`.
+- **`when`** writes the time out for people, because a schema-driven renderer has no date type yet: the `date` field type and a `["display", "date", "start"]` role are proposed in worksheet [W30](../worksheet.md#w30--a-date-value-type-for-dlist-fields) and [W31](../worksheet.md#w31--date-display-roles-for-dlist-items). Brainstorm-UI's List Management drops display roles it doesn't know, so the role would join once it settles and the tools know it.
+- **Declarations.** The header is written in List Management, so it declares `optional`, which reads as the NIP's `allowed` (open question 6). Items are ordinary kind `39999` items, so it needs no `item-kind`.
+- **Undeclared metadata.** Items also carry `i` and `k`, `expiration` and `alt` (§ 4.1). They are not item fields a renderer shows, so the header doesn't declare them.
 
 ### 3.2 One list now, lists by source later
 
-*Events* starts as one list, and each item's `source` says where it came from. It is meant to become a master list with child lists **by source**: Luma events, Meetup events, iCalendar feed events (Google, Mobilizon, Gancio, generic `.ics`), and Nostr events pulled by kind (§ 6). The split is by source, not by format: `.ics`, jCal and JSON-LD are three ways the index serves one record.
+*Events* starts as one list, and each item's `source` says where it came from. It is meant to become a master list with child lists **by platform**: *Luma*, *Meetup*, *Other platforms* (Google, Mobilizon, Gancio, and feeds on their own hosts), and *Nostr*, pulled by kind (§ 6). Not by format: every feed is iCalendar, and `.ics`, jCal and JSON-LD are three ways the index serves one record.
 
 > **Seam: master and child lists.** How a master list relates to its child lists is being specified separately, as a general DList mechanism, and is not specified here. This draft depends on it at this point only: when it lands, the child headers are published, and each item is republished with its child list's `z` (and whatever else that mechanism asks of an item). Nothing else in this draft changes.
 
@@ -228,33 +241,37 @@ One item per event, or per occurrence of a recurring event (§ 4.3), signed by t
 
 | Tag | From the record | Rule |
 |---|---|---|
-| `d` | | § 4.2. |
+| `d` | | The public event id (§ 4.2). |
 | `z` | | `39998:<header key>:events` (§ 3.2). |
 | `title` | `SUMMARY` | Required. A record with no `SUMMARY` isn't listed. |
 | `start` | `DTSTART` | Unix seconds; `YYYY-MM-DD` for a date, as NIP-52's date-based kind. A floating time is read in the calendar's `X-WR-TIMEZONE`, else UTC. |
-| `end` | `DTEND`, or `DTSTART` + `DURATION` | Exclusive, in the same form as `start`. None when the record has no end, or an end that isn't after the start. |
+| `end` | `DTEND`, or `DTSTART` + `DURATION` | Exclusive, in the same form as `start` (for an all-day event, the day after the last day). None when the record has no end, or an end that isn't after the start. |
+| `when` | | The start (and end) written out for people in the event's own time zone (`start_tzid`'s, UTC when there is none), such as `Mon 19 Oct 2026, 6:00 PM-8:00 PM EDT`. A display aid; its exact wording is the index's (`spec/`). |
 | `start_tzid`, `end_tzid` | `TZID` | Timed events only. The IANA zone; for a UTC or floating time, the calendar's `X-WR-TIMEZONE` MAY be given when it names an IANA zone. `end_tzid` only when it differs from `start_tzid`. |
+| `organizer` | | Always: the calendar's name, else the `ORGANIZER`'s `CN`. Text only. |
+| `calendar` | | The address of the calendar's directory entry, `39999:<entry author>:<entry d>`. One more for each co-host calendar (§ 4.5). |
+| `source` | | The platform the calendar lives on, as on its entry (§ 2.1): `luma`, `meetup`, `google`, `mobilizon` or `gancio`, else the feed's host name. Never a format. |
 | `location` | `LOCATION`, `VLOCATION` | As written; one tag per distinct value. None for a hidden venue (§ 4.9). |
 | `g` | `GEO` | Geohash of precision 9. Free-text locations are never geocoded. None for a hidden venue. |
 | `summary` | `DESCRIPTION` | At most 280 characters of the description. The full description stays in the record. |
-| `image` | `IMAGE`, else an `ATTACH` of an image type | None for a summary-only source (§ 4.9). |
-| `organizer` | | Always: the calendar's name, else the `ORGANIZER`'s `CN`. Text only. |
-| `p` | | `["p", "<organizer's key>", "<relay>", "host"]`, only for a key the organizer has verified for the calendar (§ 9). Never a key the index holds. |
-| `calendar` | | The address of the calendar's directory entry, `39999:<entry author>:<entry d>`. One more for each co-host calendar (§ 4.5). |
 | `status` | `STATUS:CANCELLED` | `cancelled`; absent otherwise (§ 4.7). |
+| `p` | | `["p", "<organizer's key>", "<relay>", "host"]`, only for a key the organizer has verified for the calendar (§ 9). Never a key the index holds. |
+| `luma-slug` | `URL` | Luma events: the slug of the event's address, `luma.com/<slug>`. Fills the *Luma event* link (§ 3.1). |
+| `meetup-group`, `meetup-event` | `URL` | Meetup events: the group's name and the event's number in its address. Fill the *Meetup event* link. |
+| `index-id` | | The public event id again, the same value as `d`: a link template binds a field, not the `d`. Fills the *Event Index event (.ics)* link. |
+| `url` | `URL` | The event's own page, for a platform with no link template of its own. |
+| `image` | `IMAGE`, else an `ATTACH` of an image type | None for a summary-only source (§ 4.9). |
+| `t` | `CATEGORIES` | Each value lowercased, once. The index MAY add search terms, such as the city and the source. |
 | `i`, `k` | `URL` | `["i", "<the event's page>"]` and `["k", "web"]`, the NIP-73 form for a web page (§ 7). The URL is normalized: scheme and host lowercased, the host in its platform's own form (`lu.ma` becomes `luma.com`; Meetup's is `www.meetup.com`), no fragment, no empty query. Only when the event has a page of its own. |
-| `source` | | `luma`, `meetup`, `mobilizon`, `gancio`, `google` or `ics`. |
-| `r` | `URL` | The event's page at its source (else the calendar's page), then the full record, `<index API>/events/byid/<public id>.ics`. |
-| `t` | `CATEGORIES` | Each value lowercased, once. The index MAY add search terms, such as the city. |
 | `expiration` | | § 4.8. |
 | `alt` | | `<organizer>: <title>, <date>`, the [NIP-31](https://github.com/nostr-protocol/nips/blob/master/31.md) fallback text; `<date>` is the start date, `YYYY-MM-DD`, in `start_tzid`'s zone (UTC when there is none). |
 | `client` | | `<index client name>`. |
 
-`ORGANIZER` and `ATTENDEE` addresses are never listed (§ 4.9). The header `required`s none of `p`, `e`, `a` or `i`, so none of them names the item's subject (Content Categories § 5.1): an item is its own subject, and its `p` (the host), `i` and `t` are plain fields. `calendar` is a named field so that its meaning doesn't depend on the header's declarations.
+An item carries no `r`: its links come from the header's URL templates and its `url`. `ORGANIZER` and `ATTENDEE` addresses are never listed (§ 4.9). The header `required`s none of `p`, `e`, `a` or `i`, so none of them names the item's subject (Content Categories § 5.1): an item is its own subject, and its `p` (the host), `i` and `t` are plain fields. `calendar` is a named field so that its meaning doesn't depend on the header's declarations. The header only recommends `organizer`; an index always writes it.
 
 ### 4.2 The `d`
 
-`<prefix>:<public id>`. The prefix is `luma`, `meetup`, or `ics` for every other feed. The public id is the record's id on the index's API:
+An item's `d` is its **public event id** alone, the record's id on the index's API:
 
 ```
 event key = lowercase hex SHA-256 of the UTF-8 UID
@@ -262,7 +279,7 @@ event key = lowercase hex SHA-256 of the UTF-8 UID
 public id = base32(first 20 bytes of SHA-256(UTF-8(<calendar's entry d> U+0000 <event key>)))
 ```
 
-`base32` is RFC 4648 lowercase without padding: 32 characters of `a-z2-7`. The occurrence key is the occurrence's original start (its `RECURRENCE-ID`, before any override moves it) as unix seconds in decimal, or `YYYY-MM-DD` for a date.
+`base32` is RFC 4648 lowercase without padding: 32 characters of `a-z2-7`. The occurrence key is the occurrence's original start (its `RECURRENCE-ID`, before any override moves it) as unix seconds in decimal, or `YYYY-MM-DD` for a date. No source prefix: the calendar's entry `d`, inside the hash, already tells calendars apart.
 
 The `d` is the same at every poll, rebuild and claim, so reading a feed again replaces an item instead of adding one. Another curator MAY use the same rule; a `d` is still per author, so the same `d` from two curators makes two items (§ 7).
 
@@ -310,23 +327,26 @@ A Meetup event (a summary-only source), whose organizer hasn't verified a key:
   "pubkey": "<index key>",
   "content": "",
   "tags": [
-    ["d", "meetup:rpclwfhp3xtb4jpkpxlehhyje3ngv3ha"],
+    ["d", "rpclwfhp3xtb4jpkpxlehhyje3ngv3ha"],
     ["z", "39998:<header key>:events"],
     ["title", "October meetup"],
     ["start", "1792447200"],
     ["end", "1792454400"],
+    ["when", "Mon 19 Oct 2026, 6:00 PM-8:00 PM EDT"],
     ["start_tzid", "America/New_York"],
+    ["organizer", "Brooklyn Bitcoin Meetup"],
+    ["calendar", "39999:<index key>:meetup:brooklyn-bitcoin-meetup"],
+    ["source", "meetup"],
     ["location", "Pioneer Works, 159 Pioneer St, Brooklyn, NY"],
     ["g", "dr5r7v3gn"],
     ["summary", "Monthly meetup for bitcoiners in Brooklyn. Short talks, then open discussion."],
-    ["organizer", "Brooklyn Bitcoin Meetup"],
-    ["calendar", "39999:<index key>:meetup:brooklyn-bitcoin-meetup"],
+    ["meetup-group", "brooklyn-bitcoin-meetup"],
+    ["meetup-event", "312345678"],
+    ["index-id", "rpclwfhp3xtb4jpkpxlehhyje3ngv3ha"],
+    ["t", "bitcoin"],
+    ["t", "meetup"],
     ["i", "https://www.meetup.com/brooklyn-bitcoin-meetup/events/312345678/"],
     ["k", "web"],
-    ["source", "meetup"],
-    ["r", "https://www.meetup.com/brooklyn-bitcoin-meetup/events/312345678/"],
-    ["r", "<index API>/events/byid/rpclwfhp3xtb4jpkpxlehhyje3ngv3ha.ics"],
-    ["t", "bitcoin"],
     ["expiration", "1795046400"],
     ["alt", "Brooklyn Bitcoin Meetup: October meetup, 2026-10-19"],
     ["client", "<index client name>"]
@@ -334,7 +354,7 @@ A Meetup event (a summary-only source), whose organizer hasn't verified a key:
 }
 ```
 
-Its `UID` is `event_312345678@meetup.com`, so its event key is `5d35c27e…a2528d` and its public id `rpclwfhp3xtb4jpkpxlehhyje3ngv3ha`. It starts 2026-10-19 at 18:00 in New York and expires 30 days after its end.
+Its `UID` is `event_312345678@meetup.com`, so its event key is `5d35c27e…a2528d` and its public id `rpclwfhp3xtb4jpkpxlehhyje3ngv3ha`. It starts 2026-10-19 at 18:00 in New York and expires 30 days after its end. Its links are the *Meetup event* page and the *Event Index event (.ics)* file, both built from its fields.
 
 ## 5. Native NIP-52 events
 
@@ -456,7 +476,7 @@ An index never holds an organizer's key, and never hands over a key of its own.
 
 Under "publish for me, as me", each record becomes a NIP-52 event signed by the organizer's key: a kind `31923`, or a kind `31922` when `DTSTART` is a date.
 
-- **Tags as for an item** (§ 4.1) where NIP-52 defines them: `title`, `start`, `end`, `start_tzid`, `end_tzid`, `location`, `g`, `image` (the content policy of § 4.9 applies), `t`, and the two `r`s; plus `summary` and `content` carrying the same short text.
+- **Tags as for an item** (§ 4.1) where NIP-52 defines them: `title`, `start`, `end`, `start_tzid`, `end_tzid`, `location`, `g`, `image` (the content policy of § 4.9 applies) and `t`; `r` for the event's page (the link the item's fields build, or its `url`), then the full record, `<index API>/events/byid/<public id>.ics`; plus `summary` and `content` carrying the same short text.
 - **`d`** is the event key of § 4.2, so an edit replaces the event at the same address.
 - **`D`** (`31923` only): one tag for each UTC day from `floor(start / 86400)` to `floor((end − 1) / 86400)`, just the first when there is no `end`.
 - **`p`**: `["p", "<organizer's key>", "<relay>", "host"]`.
@@ -467,7 +487,7 @@ Under "publish for me, as me", each record becomes a NIP-52 event signed by the 
 
 ## 10. Responses
 
-- **An item takes no nostr RSVP.** People RSVP at the source, through the item's first `r`: the organizer sees RSVPs there. NIP-52 RSVPs (kind `31925`) name only kinds `31922` and `31923` anyway.
+- **An item takes no nostr RSVP.** People RSVP at the source, on the event's page (the link the item's fields build, or its `url`): the organizer sees RSVPs there. NIP-52 RSVPs (kind `31925`) name only kinds `31922` and `31923` anyway.
 - **Comments** ([NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md)) can root at an item's address like any addressable event's (`K` `39999`).
 - **Native events, and events published for an organizer,** take standard responses:
   - an RSVP is a kind `31925` with `a` (the event's coordinate), `status`, `p` (the event's author), and a `d` that is any unique id. Readers take the newest `31925` per author per `a`, whatever its `d`, and SHOULD ignore one dated more than a day ahead of their clock. A writer SHOULD reuse its previous `d` for the same event;
@@ -487,7 +507,7 @@ Native events are read where their authors publish them.
 
 ## 12. Open questions
 
-1. **A role for the end time.** [W31](../worksheet.md#w31--date-display-roles-for-dlist-items) proposes `date` for an item's primary time and leaves the end open.
+1. **Dates for renderers.** Items carry `when`, a written-out time, until a schema-driven renderer has a date type ([W30](../worksheet.md#w30--a-date-value-type-for-dlist-fields)) and a date role; [W31](../worksheet.md#w31--date-display-roles-for-dlist-items) proposes `date` for an item's primary time and leaves the end open.
 2. **The host role word.** Write `host`, read `host` and `organizer` ([W32](../worksheet.md#w32--the-host-role-word-on-nip-52-p-tags)). To be raised with Formstr and NIP-52's maintainers; if they agree, it goes upstream with the cancellation proposal.
 3. **Trust for lists pulled by kind** ([W33](../worksheet.md#w33--trust-through-directory-membership)): how trust engines should weigh a directory entry's `p` when filtering a kind list (§ 6.3).
 4. **Master and child lists** (§ 3.2): specified separately.
