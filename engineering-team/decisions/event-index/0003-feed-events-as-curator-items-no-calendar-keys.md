@@ -76,7 +76,7 @@ Sub-decisions:
 - **Constrains:** items go only to relays that support NIP-40 (it says clients SHOULD NOT send expiring events to relays that don't), listed in their NIP-11 or confirmed by their operators, and those relays must accept the volume (one item per upcoming event, republished on change).
 - **Debt:** the master/child list mechanism (§ 3.2's seam); splitting the list republishes every live item once.
 - **Debt:** the curation-copy carry rule (Assistant Designation § Curation copies, What it carries) was written for DList items. For a foreign-kind original such as a NIP-52 event it would carry `p` and `t` as item tags and drop `start`. Before any curator copies foreign kinds, the carry rule needs a foreign-kind case. (Carried over from ADR 0001.)
-- **Debt:** the `optional` declaration word, the end-time display role and publishing the headers remain open (event-index § 12).
+- **Debt:** the `optional` declaration word, the end-time display role and publishing the *Nostr events* header remain open (event-index § 12). Both list headers are signed: *Event Calendars* (event `681f3ceb…`) and *Events* (event `447b4101…`).
 - **Firmware reinstall required?** No. Nothing in this repo's code changes.
 
 ## Implementation notes

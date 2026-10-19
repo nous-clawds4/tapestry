@@ -33,18 +33,19 @@ This draft defines no new event kind. § 6, a list whose items are the events of
 | **Record** | The index's normalized iCalendar copy of one event. Its format is the index's `spec/`, not this draft. |
 | **Event item** | A kind `39999` item on the *Events* list (§ 3), signed by the index key, for one record or one occurrence of a recurring record (§ 4). |
 
-The placeholders `<header key>`, `<index key>`, `<index relay>`, `<index API>`, `<index domain>` and `<index client name>` stand for one deployment's values: the normative text names no deployment's key ([protocols/README.md](../README.md), the boundary rule). Informative only: in the reference deployment the *Event Calendars* header is `39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:event-calendars`, and the other values are, in order: `cb26b1c0bfb64ef59c03baeccdcd71d14f477a62966f2bfbde2c33ef80f766dc`, `wss://relay.eventindex.space`, `https://api.eventindex.space/api/1.0/`, `eventindex.space` and `eventindex`.
+The placeholders `<header key>`, `<index key>`, `<index relay>`, `<index API>`, `<index domain>` and `<index client name>` stand for one deployment's values: the normative text names no deployment's key ([protocols/README.md](../README.md), the boundary rule). Informative only: in the reference deployment the *Event Calendars* header is `39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:event-calendars` and the *Events* header `39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:events`, and the other values are, in order: `cb26b1c0bfb64ef59c03baeccdcd71d14f477a62966f2bfbde2c33ef80f766dc`, `wss://relay.eventindex.space`, `https://api.eventindex.space/api/1.0/`, `eventindex.space` and `eventindex`.
 
 ## 2. The directory: Event Calendars
 
 ### 2.1 The header
 
-Published by a maintainer's key. The reference deployment's header on `wss://dcosl.brainstorm.world`, with its template ids shortened to placeholders, and with the four descriptions (`description`, `p`, `index-name`, `source`) its next version states:
+Published by a maintainer's key. The reference deployment's header, as signed on `wss://dcosl.brainstorm.world` (informative; its repeated `r` and `license` tags are shown once):
 
 ```json
 {
+  "id": "681f3cebb87eb3a085694e90a4fe29a18e6056bd9e2df8058ca46db31de37c99",
   "kind": 39998,
-  "pubkey": "<header key>",
+  "pubkey": "b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450",
   "tags": [
     ["d", "event-calendars"],
     ["names", "Event Calendar", "Event Calendars"],
@@ -72,13 +73,15 @@ Published by a maintainer's key. The reference deployment's header on `wss://dco
     ["display", "location", "g"],
     ["display", "fact", "source", "Source"],
     ["image", "https://cdn.jsdelivr.net/gh/Event-Index/index@v0.1.2/brand/mark/mark-tile-512.png"],
-    ["link", "<Event Index calendar template id>", "wss://dcosl.brainstorm.world", "name", "index-name"],
-    ["link", "<Luma calendar template id>", "wss://dcosl.brainstorm.world", "id", "luma-id"],
-    ["link", "<Meetup group template id>", "wss://dcosl.brainstorm.world", "group", "meetup-group"],
+    ["link", "a58cfc52bdcb33367b09306a8223008b89410396ce41f5acfe446aaadf62aec6", "wss://dcosl.brainstorm.world", "name", "index-name"],
+    ["link", "d9de0891d283076ed09f3e00cea9a3912d0172feeea0c367a7045f604f319cc8", "wss://dcosl.brainstorm.world", "id", "luma-id"],
+    ["link", "58930f30ae11384ddc1a52dd348e538e384d74a44bbc8908dca46bd5bc43fc12", "wss://dcosl.brainstorm.world", "group", "meetup-group"],
     ["r", "https://eventindex.space"],
     ["r", "https://github.com/Event-Index/index/blob/main/seeds/LICENSE"],
     ["r", "https://github.com/Event-Index/index/blob/main/brand/LICENSE"],
-    ["license", "CC0-1.0"]
+    ["license", "CC0-1.0"],
+    ["b", "39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:event-calendars", "pointer"],
+    ["client", "Brainstorm"]
   ]
 }
 ```
@@ -88,7 +91,8 @@ Published by a maintainer's key. The reference deployment's header on `wss://dco
 - **Declarations.** `required` and `recommended` are the DList NIP's. `optional` is not: it is Brainstorm-UI's convention, which its presentation conventions read like the NIP's `allowed`, as a field an item may carry. Readers SHOULD read `optional` as `allowed` (open question 6).
 - **Presentation.** `field-type`, `display`, the list's own `image` and `link` are Brainstorm-UI's provisional presentation conventions, which worksheet W27 (open PR #819) asks about. A reader that doesn't know them ignores them.
 - **Links come from URL templates.** Each `link` tag pins a URL template by its event id and binds one of the entry's fields to the template's placeholder (Brainstorm-UI's URL template convention). The three templates are *Event Index calendar*, `https://eventindex.space/calendar/{name}` (bound to `index-name`); *Luma calendar*, `https://luma.com/calendar/{id}` (bound to `luma-id`); and *Meetup group*, `https://www.meetup.com/{group}/` (bound to `meetup-group`). An entry gets the links whose fields it carries.
-- **Licenses.** `["license", "CC0-1.0"]` gives the directory data's license as an SPDX identifier, and the `r` tags point at the index's site and the license texts. The events themselves belong to their organizers.
+- **Licenses.** `["license", "CC0-1.0"]` gives the directory data's license as an SPDX identifier, and the `r` tags point at the index's site and the license texts. The events themselves belong to their organizers. A tag repeated in a header reads as one.
+- **Self-declaration.** `["b", "<the header's own coordinate>", "pointer"]` offers the header as a shared concept that other headers may affiliate with ([Inherit-From](./inherit-from.md) § The `b` tag, self-declaration). `client` names the tool that signed it. Neither is part of the list's schema.
 
 ### 2.2 Entries
 
@@ -167,14 +171,15 @@ Only an entry's author can retire it, since only they can republish it. This is 
 
 ## 3. Events: the list of event items
 
-### 3.1 The header (proposed)
+### 3.1 The header
 
-**Not published yet** (open question 5). As proposed, a maintainer's key publishes it, as for *Event Calendars*. Field names follow NIP-52's, so code that draws NIP-52 events can draw items. Links come from three URL templates, as on *Event Calendars*; the declarations may still change before it is published.
+Published by a maintainer's key, as for *Event Calendars*. Field names follow NIP-52's, so code that draws NIP-52 events can draw items. Links come from three URL templates, as on *Event Calendars*. The reference deployment's header, as signed (informative):
 
 ```json
 {
+  "id": "447b4101339ab52ea12d56e116928d74ca74e975b3b39c2c2d2daf925098ae22",
   "kind": 39998,
-  "pubkey": "<header key>",
+  "pubkey": "b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450",
   "tags": [
     ["d", "events"],
     ["names", "Event", "Events"],
@@ -184,11 +189,12 @@ Only an entry's author can retire it, since only they can republish it. This is 
     ["recommended", "end", "When it ends, in the same form as start; for an all-day event, the day after the last day"],
     ["recommended", "when", "When it happens, written out in the event's local time, e.g. Wed 28 Oct 2026, 5:30 PM-8:00 PM EDT"],
     ["recommended", "start_tzid", "The time zone the event happens in, as an IANA name, e.g. America/New_York"],
-    ["optional", "end_tzid", "The end's time zone, when it differs from the start's"],
     ["recommended", "organizer", "Who hosts it: the name of the calendar it comes from"],
     ["recommended", "calendar", "The calendar it comes from, on Event Calendars"],
+    ["field-type", "calendar", "address"],
     ["recommended", "source", "The platform its calendar lives on: luma, meetup, google, mobilizon or gancio; for any other calendar, its feed's host name"],
     ["recommended", "location", "Where it happens, as the organizer wrote it: an address, a room or a link"],
+    ["optional", "end_tzid", "The end's time zone, when it differs from the start's"],
     ["optional", "g", "Geohash of where it happens"],
     ["optional", "summary", "The start of the event's description, up to 280 characters"],
     ["optional", "status", "cancelled, when the organizer has cancelled it"],
@@ -198,33 +204,34 @@ Only an entry's author can retire it, since only they can republish it. This is 
     ["optional", "meetup-event", "The event's number in its Meetup address"],
     ["optional", "index-id", "The event's id on Event Index"],
     ["optional", "url", "The event's own page, for sources without a link of their own"],
-    ["optional", "image", "The event's image, where its source allows one"],
-    ["optional", "t", "A topic or search term, such as the city and the source; repeats"],
-    ["field-type", "calendar", "address"],
     ["field-type", "url", "url"],
+    ["optional", "image", "The event's image, where its source allows one"],
     ["field-type", "image", "url"],
+    ["optional", "t", "A topic or search term, such as the city and the source; repeats"],
     ["display", "title", "title"],
     ["display", "summary", "when"],
     ["display", "image", "image"],
     ["display", "link", "url"],
     ["display", "location", "g"],
     ["display", "fact", "organizer", "Hosted by"],
+    ["display", "fact", "source", "Source"],
     ["display", "fact", "location", "Where"],
     ["display", "fact", "status", "Status"],
-    ["display", "fact", "source", "Source"],
     ["image", "https://cdn.jsdelivr.net/gh/Event-Index/index@v0.1.2/brand/mark/mark-tile-512.png"],
-    ["link", "<Luma event template id>", "wss://dcosl.brainstorm.world", "slug", "luma-slug"],
-    ["link", "<Meetup event template id>", "wss://dcosl.brainstorm.world", "group", "meetup-group", "id", "meetup-event"],
-    ["link", "<Event Index event (.ics) template id>", "wss://dcosl.brainstorm.world", "id", "index-id"],
+    ["link", "d9bbfa389406b8f24e479aeb898b35dca9164fec501f10ee65c17cceeb440aa8", "wss://dcosl.brainstorm.world", "slug", "luma-slug"],
+    ["link", "de8985f82d8a1db379ca58e4de8ce1030e3dea0d4076e65d192f80f619801356", "wss://dcosl.brainstorm.world", "group", "meetup-group", "id", "meetup-event"],
+    ["link", "25a3cee4637a79f6cd0d21c11c1405ded88fc149354e54d1365659cb3ef04607", "wss://dcosl.brainstorm.world", "id", "index-id"],
     ["r", "https://eventindex.space"],
-    ["r", "https://github.com/Event-Index/index/blob/main/brand/LICENSE"]
+    ["r", "https://github.com/Event-Index/index/blob/main/brand/LICENSE"],
+    ["b", "39998:b83a28b7e4e5d20bd960c5faeb6625f95529166b8bdb045d42634a2f35919450:events", "pointer"],
+    ["client", "Brainstorm"]
   ]
 }
 ```
 
-- **Links.** *Luma event*, `https://luma.com/{slug}` (bound to `luma-slug`); *Meetup event*, `https://www.meetup.com/{group}/events/{id}/` (bound to `meetup-group` and `meetup-event`); and *Event Index event (.ics)*, `<index API>/events/byid/{id}.ics` (bound to `index-id`), the add-to-calendar link. An event on any other platform carries its page in `url`.
+- **Links.** Three URL templates, each a kind `9999` item of the URL Templates list pinned by its event id: *Luma event*, `https://luma.com/{slug}` (bound to `luma-slug`); *Meetup event*, `https://www.meetup.com/{group}/events/{id}/` (bound to `meetup-group` and `meetup-event`); and *Event Index event (.ics)*, `<index API>/events/byid/{id}.ics` (bound to `index-id`), the add-to-calendar link. An event on any other platform carries its page in `url`.
 - **`when`** writes the time out for people, because a schema-driven renderer has no date type yet: the `date` field type and a `["display", "date", "start"]` role are proposed in worksheet [W30](../worksheet.md#w30--a-date-value-type-for-dlist-fields) and [W31](../worksheet.md#w31--date-display-roles-for-dlist-items). Brainstorm-UI's List Management drops display roles it doesn't know, so the role would join once it settles and the tools know it.
-- **Declarations.** The header is written in List Management, so it declares `optional`, which reads as the NIP's `allowed` (open question 6). Items are ordinary kind `39999` items, so it needs no `item-kind`.
+- **Declarations.** The header is written in List Management, so it declares `optional`, which reads as the NIP's `allowed` (open question 6); its `b` and `client` are as on *Event Calendars* (§ 2.1). Items are ordinary kind `39999` items, so it needs no `item-kind`.
 - **Undeclared metadata.** Items also carry `i` and `k`, `expiration` and `alt` (§ 4.1). They are not item fields a renderer shows, so the header doesn't declare them.
 
 ### 3.2 One list now, lists by source later
@@ -511,7 +518,7 @@ Native events are read where their authors publish them.
 2. **The host role word.** Write `host`, read `host` and `organizer` ([W32](../worksheet.md#w32--the-host-role-word-on-nip-52-p-tags)). To be raised with Formstr and NIP-52's maintainers; if they agree, it goes upstream with the cancellation proposal.
 3. **Trust for lists pulled by kind** ([W33](../worksheet.md#w33--trust-through-directory-membership)): how trust engines should weigh a directory entry's `p` when filtering a kind list (§ 6.3).
 4. **Master and child lists** (§ 3.2): specified separately.
-5. **Publishing the Events and Nostr events headers** (§§ 3.1, 6.6).
+5. **Publishing the Nostr events header** (§ 6.6).
 6. **`optional` or `allowed`.** The live *Event Calendars* header declares fields `optional`, Brainstorm-UI's convention; the DList NIP's word for the same thing is `allowed`. Either the NIP gains `optional` as a synonym, or headers write `allowed`.
 7. **`removed` for every DList?** § 2.3 defines it for directory entries only. If it holds for any kind `39999` item, it belongs in the [Decentralized Lists](../nips/decentralized-lists.md) NIP or its companion.
 8. **Cancellation in NIP-52.** Items carry `["status", "cancelled"]`; NIP-52 events published for an organizer prefix the title until NIP-52 has a convention ([proposal](../upstream/nip-52-cancellation.md)).
