@@ -2969,3 +2969,35 @@ page that names customers. The `directory` and `comments` fields are worth a loo
 
 **Classification:** product / security decision first; any change after it is a feature or security story under
 Standard (all phases).
+
+## 2026-10-15 — Event Index: the wire format in tapestry, and what's left for this repo (feature; cross-repo, mostly parked)
+
+**Origin:** NosFabrica design sessions, 2026-10-15, revised 2026-10-16. Event Index is an open directory of public event
+calendars, kept as a DList. It lists feed events as kind-39999 items signed by its own key (never as the organizer),
+and reads native NIP-52 events by kind. The design record is `docs/EVENT_INDEX_DESIGN_HANDOFF.md`. The index itself is
+built in its own repository, not here.
+
+**Landed in this repo (docs-mode):** `protocols/drafts/event-index.md` (📝 pre-NIP) and its row in
+`protocols/README.md`; worksheet W30–W33, and W34 graduated into the draft's § 6 (lists pulled by kind); the example
+in `decentralized-lists-compat.md`; the `q` rule widened to every addressable original in `assistant-designation.md`
+§ Curation copies; the NIP-52 cancellation proposal, `protocols/upstream/nip-52-cancellation.md`; ADRs
+`event-index/0003` (curator items, no calendar keys), `0004` (lists pulled by kind), `0002` (guest custody), and
+`0001` (superseded).
+
+**What is left that touches this repo:**
+
+1. **Reading lists pulled by kind.** Tapestry's list readers (`ITEM_KINDS` in `src/api/dlist-curation/update.js`)
+   read `9999` and `39999` only. A header with `["item-kind", "<kind>", "<description>", "kind"]` (event-index § 6)
+   needs a bounded, trust-filtered read by kind (ADR `event-index/0004`).
+2. **Curation copies of other addressable kinds.** `itemRef` (`src/api/dlist-curation/updateEvents.js`) names an
+   original by address only for kind `39999`. When curation reads `item-kind`-declared kinds, it must name any
+   addressable original by address, as the widened rule says, and the carry rule needs a foreign-kind case (ADR
+   `event-index/0003`, Debt).
+3. **The `date` type and roles** (W30, W31), once settled: any Tapestry reader of `field-type` and `display` hints
+   learns them. Nothing on `staging` reads `field-type` in the UI yet (`feat/tags` has the first reader).
+4. **Opinionated Views Appendix C**, the events view brief, when Brainstorm-UI writes `docs/views/events.md`.
+5. **Upstream asks:** submit the cancellation proposal; raise the host role word (W32) with Formstr and NIP-52's
+   maintainers.
+
+**Classification:** feature, cross-repo. This repo's part is the docs above (done) plus items 1–4, each parked until
+its trigger; when one is picked up, `/plan-feature` (Standard).
